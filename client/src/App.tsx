@@ -653,9 +653,6 @@ export default function App() {
           </div>
         )}
         <div className="topbar-actions">
-          <button type="button" onClick={() => void refreshCampaigns()}>
-            Refresh Rooms
-          </button>
           <button type="button" onClick={() => setSelectedCampaignId(null)}>
             Campaigns
           </button>
@@ -706,10 +703,13 @@ export default function App() {
           <section className="dark-card span-full">
             <div className="panel-head">
               <div>
-                <p className="panel-label">Rooms</p>
+                <p className="panel-label">Access</p>
                 <h2>Your campaigns</h2>
               </div>
             </div>
+            <p className="panel-caption">
+              Only campaigns you created or joined through an invite are listed here.
+            </p>
             <div className="campaign-grid">
               {campaigns.map((entry) => (
                 <button key={entry.id} className="campaign-card" type="button" onClick={() => setSelectedCampaignId(entry.id)}>
@@ -723,7 +723,9 @@ export default function App() {
                   <small>{new Date(entry.createdAt).toLocaleString()}</small>
                 </button>
               ))}
-              {campaigns.length === 0 && <p className="empty-state">No campaigns yet. Create one or join via invite code.</p>}
+              {campaigns.length === 0 && (
+                <p className="empty-state">No accessible campaigns yet. Create one or join via invite code.</p>
+              )}
             </div>
           </section>
         </main>
