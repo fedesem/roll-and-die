@@ -18,6 +18,10 @@ export interface MovementTrace {
   steps: number;
 }
 
+interface MovementOptions {
+  ignoreWalls?: boolean;
+}
+
 export function gridDimensions(map: CampaignMap) {
   return {
     columns: Math.max(1, Math.floor(map.width / map.grid.cellSize)),
@@ -199,7 +203,12 @@ function isSegmentPassable(
   return true;
 }
 
-export function traceMovementPath(map: CampaignMap, start: Point, target: Point): MovementTrace {
+export function traceMovementPath(
+  map: CampaignMap,
+  start: Point,
+  target: Point,
+  options: MovementOptions = {}
+): MovementTrace {
   const startCell = pointToCell(map, start);
   const targetCell = pointToCell(map, target);
   const traversedCells = lineCells(startCell.column, startCell.row, targetCell.column, targetCell.row);
@@ -213,7 +222,7 @@ export function traceMovementPath(map: CampaignMap, start: Point, target: Point)
     const previousPoint = cellCenter(map, previous.column, previous.row);
     const nextPoint = cellCenter(map, next.column, next.row);
 
-    if (!canTraverseSegment(previousPoint, nextPoint, map.walls)) {
+    if (!options.ignoreWalls && !canTraverseSegment(previousPoint, nextPoint, map.walls)) {
       blocked = true;
       break;
     }

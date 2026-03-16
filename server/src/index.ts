@@ -548,7 +548,9 @@ app.post(
       const existing = campaign.tokens.find((entry) => entry.actorId === actorId && entry.mapId === mapId);
 
       if (existing) {
-        const trace = traceMovementPath(map, { x: existing.x, y: existing.y }, snapped);
+        const trace = traceMovementPath(map, { x: existing.x, y: existing.y }, snapped, {
+          ignoreWalls: role === "dm"
+        });
         existing.x = trace.end.x;
         existing.y = trace.end.y;
         updateExplorationForCampaign(campaign);
@@ -622,7 +624,9 @@ app.put(
       });
       const trace =
         token.mapId === nextMapId
-          ? traceMovementPath(targetMap, { x: token.x, y: token.y }, snapped)
+          ? traceMovementPath(targetMap, { x: token.x, y: token.y }, snapped, {
+              ignoreWalls: role === "dm"
+            })
           : { end: snapped };
 
       token.x = trace.end.x;
@@ -815,7 +819,12 @@ function buildCampaignSnapshot(campaign: Campaign, user: UserProfile): CampaignS
   }
 
   return {
-    campaign,
+    campaign: {
+      ...campaign,
+      actors: campaign.actors
+        .map((actor) => buildActorSnapshot(actor, member.role, user.id))
+        .filter((actor): actor is ActorSheet => Boolean(actor))
+    },
     currentUser: user,
     role: member.role,
     catalog: monsterCatalog,
@@ -1041,7 +1050,9 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         );
 
         if (existing) {
-          const trace = traceMovementPath(activeMap, { x: existing.x, y: existing.y }, snapped);
+          const trace = traceMovementPath(activeMap, { x: existing.x, y: existing.y }, snapped, {
+            ignoreWalls: role === "dm"
+          });
           existing.x = trace.end.x;
           existing.y = trace.end.y;
         } else {
@@ -1361,6 +1372,17 @@ function createMonsterActor(campaignId: string, template: (typeof monsterCatalog
   };
 }
 
+function buildActorSnapshot(actor: ActorSheet, role: MemberRole, userId: string): ActorSheet | null {
+  if (role === "dm" || (actor.kind === "character" && actor.ownerId === userId)) {
+    return {
+      ...actor,
+      sheetAccess: "full"
+    };
+  }
+
+  return null;
+}
+
 function createSystemMessage(id: string, user: UserProfile, campaignId: string, text: string): ChatMessage {
   return {
     id,
@@ -1417,6 +1439,10 @@ function canToggleDoor(
   map: CampaignMap,
   door: MapWall
 ) {
+  if (role === "dm") {
+    return true;
+  }
+
   const actorById = new Map(campaign.actors.map((actor) => [actor.id, actor]));
   const interactionRange = map.grid.cellSize * 1.2;
 

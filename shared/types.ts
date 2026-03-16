@@ -76,6 +76,7 @@ export interface ActorSheet {
   campaignId: string;
   ownerId?: string;
   templateId?: string;
+  sheetAccess?: "full" | "restricted";
   name: string;
   kind: ActorKind;
   className: string;

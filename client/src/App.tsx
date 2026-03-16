@@ -57,6 +57,20 @@ export default function App() {
   const deferredMonsterQuery = useDeferredValue(monsterQuery);
 
   useEffect(() => {
+    if (!banner) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setBanner((current) => (current === banner ? null : current));
+    }, 10000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [banner]);
+
+  useEffect(() => {
     writeJson(sessionStorageKey, session);
   }, [session]);
 
@@ -166,6 +180,13 @@ export default function App() {
 
   const campaign = snapshot?.campaign;
   const role = snapshot?.role ?? "player";
+  const preferredActor = useMemo(
+    () =>
+      campaign?.actors.find(
+        (entry) => role === "dm" || (entry.kind === "character" && entry.ownerId === session?.user.id)
+      ) ?? campaign?.actors[0],
+    [campaign?.actors, role, session?.user.id]
+  );
   const activeMap = useMemo(
     () => campaign?.maps.find((entry) => entry.id === campaign.activeMapId) ?? campaign?.maps[0],
     [campaign?.activeMapId, campaign?.maps]
@@ -175,8 +196,14 @@ export default function App() {
     [activeMap, campaign?.maps, selectedMapId]
   );
   const selectedActor = useMemo(
-    () => campaign?.actors.find((entry) => entry.id === selectedActorId) ?? campaign?.actors[0],
-    [campaign?.actors, selectedActorId]
+    () => campaign?.actors.find((entry) => entry.id === selectedActorId) ?? preferredActor,
+    [campaign?.actors, preferredActor, selectedActorId]
+  );
+  const canViewSelectedSheet = Boolean(
+    selectedActor &&
+      (role === "dm" ||
+        selectedActor.sheetAccess === "full" ||
+        (selectedActor.kind === "character" && selectedActor.ownerId === session?.user.id))
   );
   const selectedActorOnMap = useMemo(
     () =>
@@ -227,9 +254,9 @@ export default function App() {
     }
 
     if (!selectedActorId || !campaign.actors.some((entry) => entry.id === selectedActorId)) {
-      setSelectedActorId(campaign.actors[0]?.id ?? null);
+      setSelectedActorId(preferredActor?.id ?? null);
     }
-  }, [campaign, selectedActorId, selectedMapId]);
+  }, [campaign, preferredActor?.id, selectedActorId, selectedMapId]);
 
   useEffect(() => {
     if (role !== "dm") {
@@ -631,7 +658,6 @@ export default function App() {
             </button>
           </form>
 
-          {banner && <div className={`banner ${banner.tone}`}>{banner.text}</div>}
         </section>
       </div>
     );
@@ -661,8 +687,6 @@ export default function App() {
           </button>
         </div>
       </header>
-
-      {banner && <div className={`banner ${banner.tone}`}>{banner.text}</div>}
 
       {!selectedCampaignId ? (
         <main className="dashboard-grid">
@@ -797,7 +821,12 @@ export default function App() {
                     {selectedActor ? `${selectedActor.kind}${selectedActorOnMap ? " • on map" : " • ready to place"}` : "Open Actors to pick a character, NPC, or monster."}
                   </p>
                   {selectedActor && (
-                    <button className="accent-button" type="button" onClick={() => setActivePopup("sheet")}>
+                    <button
+                      className="accent-button"
+                      type="button"
+                      disabled={!canViewSelectedSheet}
+                      onClick={() => setActivePopup("sheet")}
+                    >
                       Open Sheet
                     </button>
                   )}
@@ -892,6 +921,13 @@ export default function App() {
                           </button>
                           <button
                             type="button"
+                            disabled={
+                              !(
+                                role === "dm" ||
+                                actor.sheetAccess === "full" ||
+                                (actor.kind === "character" && actor.ownerId === session.user.id)
+                              )
+                            }
                             onClick={() => {
                               setSelectedActorId(actor.id);
                               setActivePopup("sheet");
@@ -1163,6 +1199,17 @@ export default function App() {
             </WorkspaceModal>
           )}
         </>
+      )}
+
+      {banner && (
+        <button
+          type="button"
+          className={`toast ${banner.tone}`}
+          onClick={() => setBanner(null)}
+          aria-label="Dismiss notification"
+        >
+          {banner.text}
+        </button>
       )}
     </div>
   );

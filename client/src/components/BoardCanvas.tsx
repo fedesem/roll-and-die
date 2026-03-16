@@ -418,12 +418,21 @@ export function BoardCanvas({
         return;
       }
 
-      setMovePreview(traceMovementPath(map, draggingToken.start, point));
+      setMovePreview(
+        traceMovementPath(map, draggingToken.start, point, {
+          ignoreWalls: isDungeonMaster
+        })
+      );
     }
 
     function handleWindowPointerUp(event: PointerEvent) {
       const point = toWorldPoint(event.clientX, event.clientY);
-      const trace = point ? traceMovementPath(map, draggingToken.start, point) : null;
+      const trace =
+        point
+          ? traceMovementPath(map, draggingToken.start, point, {
+              ignoreWalls: isDungeonMaster
+            })
+          : null;
 
       setDraggingToken(null);
       setMovePreview(null);
@@ -442,7 +451,7 @@ export function BoardCanvas({
       window.removeEventListener("pointermove", handleWindowPointerMove);
       window.removeEventListener("pointerup", handleWindowPointerUp);
     };
-  }, [draggingToken, map, onMoveActor]);
+  }, [draggingToken, isDungeonMaster, map, onMoveActor]);
 
   useEffect(() => {
     if (!panning) {
@@ -772,15 +781,16 @@ export function BoardCanvas({
 
     event.stopPropagation();
     setSelectedMapItems([]);
-    onSelectActor(token.actorId);
-
-    if (tool !== "select") {
-      return;
-    }
 
     const actor = actorById.get(token.actorId);
 
-    if (!actor || !canControlActor(actor)) {
+    if (!actor) {
+      return;
+    }
+
+    onSelectActor(token.actorId);
+
+    if (tool !== "select" || !canControlActor(actor)) {
       return;
     }
 

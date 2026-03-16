@@ -35,7 +35,15 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
 
   useEffect(() => {
     setDraft(actor ? cloneActor(actor) : null);
-  }, [actor?.id]);
+  }, [actor]);
+
+  const canView = useMemo(() => {
+    if (!actor) {
+      return false;
+    }
+
+    return role === "dm" || actor.sheetAccess === "full" || (actor.kind === "character" && actor.ownerId === currentUserId);
+  }, [actor, currentUserId, role]);
 
   const canEdit = useMemo(() => {
     if (!actor) {
@@ -50,14 +58,23 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
       return false;
     }
 
-    return role === "dm" || actor.ownerId === currentUserId;
-  }, [actor, currentUserId, role]);
+    return canView && (role === "dm" || actor.ownerId === currentUserId);
+  }, [actor, canView, currentUserId, role]);
 
   if (!draft || !actor) {
     return (
       <section className="sheet-shell empty-panel">
         <h2>Interactive Sheet</h2>
         <p>Select a character, NPC, or monster to edit the sheet and roll from it.</p>
+      </section>
+    );
+  }
+
+  if (!canView) {
+    return (
+      <section className="sheet-shell empty-panel">
+        <h2>Sheet Locked</h2>
+        <p>Players can only open sheets for their own characters. The DM can open every sheet in the campaign.</p>
       </section>
     );
   }
@@ -211,6 +228,309 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
       ...draft,
       [key]: draft[key].filter((_, currentIndex) => currentIndex !== index)
     });
+  }
+
+  if (draft.kind === "monster") {
+    return (
+      <section className="sheet-shell monster-sheet-shell">
+        <div className="sheet-toolbar">
+          <div>
+            <p className="panel-label">Monster Stat Block</p>
+            <h2>{draft.name}</h2>
+            <p className="panel-caption">
+              CR {draft.challengeRating || "1"} • AC {draft.armorClass} • HP {draft.hitPoints.current}/{draft.hitPoints.max}
+            </p>
+          </div>
+          {canEdit && (
+            <button className="accent-button" type="button" onClick={() => void onSave(draft)}>
+              Save Stat Block
+            </button>
+          )}
+        </div>
+
+        <div className="monster-stat-grid">
+          <article className="sheet-panel">
+            <div className="sheet-panel-head">
+              <h3>Overview</h3>
+              <span className="small-kicker">{draft.species || "Monster"}</span>
+            </div>
+            <div className="sheet-form-grid">
+              <label>
+                Name
+                <input value={draft.name} disabled={!canEdit} onChange={(event) => updateField("name", event.target.value)} />
+              </label>
+              <label>
+                Source
+                <input value={draft.species} disabled={!canEdit} onChange={(event) => updateField("species", event.target.value)} />
+              </label>
+              <label>
+                Challenge
+                <input
+                  value={draft.challengeRating}
+                  disabled={!canEdit}
+                  onChange={(event) => updateField("challengeRating", event.target.value)}
+                />
+              </label>
+              <label>
+                Speed
+                <input
+                  type="number"
+                  value={draft.speed}
+                  disabled={!canEdit}
+                  onChange={(event) => updateField("speed", Number(event.target.value || 0))}
+                />
+              </label>
+              <label>
+                Vision
+                <input
+                  type="number"
+                  min="1"
+                  max="24"
+                  value={draft.visionRange}
+                  disabled={!canEdit}
+                  onChange={(event) => updateField("visionRange", Number(event.target.value || 1))}
+                />
+              </label>
+              <label>
+                Accent
+                <input type="color" value={draft.color} disabled={!canEdit} onChange={(event) => updateField("color", event.target.value)} />
+              </label>
+            </div>
+            <div className="combat-grid">
+              <div className="stat-card">
+                <span>Armor Class</span>
+                <strong>{draft.armorClass}</strong>
+                <input
+                  type="number"
+                  value={draft.armorClass}
+                  disabled={!canEdit}
+                  onChange={(event) => updateField("armorClass", Number(event.target.value || 0))}
+                />
+              </div>
+              <div className="stat-card">
+                <span>Initiative</span>
+                <strong>{formatModifier(draft.initiative)}</strong>
+                <input
+                  type="number"
+                  value={draft.initiative}
+                  disabled={!canEdit}
+                  onChange={(event) => updateField("initiative", Number(event.target.value || 0))}
+                />
+              </div>
+              <div className="stat-card">
+                <span>Proficiency</span>
+                <strong>{formatModifier(draft.proficiencyBonus)}</strong>
+                <input
+                  type="number"
+                  value={draft.proficiencyBonus}
+                  disabled={!canEdit}
+                  onChange={(event) => updateField("proficiencyBonus", Number(event.target.value || 0))}
+                />
+              </div>
+            </div>
+            <div className="hp-grid">
+              <label>
+                Max HP
+                <input
+                  type="number"
+                  value={draft.hitPoints.max}
+                  disabled={!canEdit}
+                  onChange={(event) => updateField("hitPoints", { ...draft.hitPoints, max: Number(event.target.value || 0) })}
+                />
+              </label>
+              <label>
+                Current HP
+                <input
+                  type="number"
+                  value={draft.hitPoints.current}
+                  disabled={!canEdit}
+                  onChange={(event) => updateField("hitPoints", { ...draft.hitPoints, current: Number(event.target.value || 0) })}
+                />
+              </label>
+              <label>
+                Temp HP
+                <input
+                  type="number"
+                  value={draft.hitPoints.temp}
+                  disabled={!canEdit}
+                  onChange={(event) => updateField("hitPoints", { ...draft.hitPoints, temp: Number(event.target.value || 0) })}
+                />
+              </label>
+            </div>
+          </article>
+
+          <article className="sheet-panel">
+            <div className="sheet-panel-head">
+              <h3>Abilities</h3>
+              <span className="small-kicker">Roll checks</span>
+            </div>
+            <div className="ability-card-grid">
+              {abilityOrder.map((ability) => {
+                const score = draft.abilities[ability.key];
+                const modifier = abilityModifier(score);
+                return (
+                  <div key={ability.key} className="ability-card">
+                    <header>
+                      <h4>{ability.label}</h4>
+                      <span>{formatModifier(modifier)}</span>
+                    </header>
+                    <input
+                      type="number"
+                      value={score}
+                      disabled={!canEdit}
+                      onChange={(event) => updateAbility(ability.key, Number(event.target.value || 0))}
+                    />
+                    <button
+                      type="button"
+                      disabled={!canRoll}
+                      onClick={() =>
+                        void onRoll(
+                          `1d20${modifier >= 0 ? `+${modifier}` : modifier}`,
+                          `${draft.name} ${ability.label}`
+                        )
+                      }
+                    >
+                      Roll
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </article>
+        </div>
+
+        <div className="monster-main-grid">
+          <article className="sheet-panel">
+            <div className="sheet-panel-head">
+              <h3>Traits</h3>
+            </div>
+            <label>
+              Traits
+              <textarea
+                rows={10}
+                value={draft.features.join("\n")}
+                disabled={!canEdit}
+                onChange={(event) => updateField("features", toLines(event.target.value))}
+              />
+            </label>
+          </article>
+
+          <article className="sheet-panel">
+            <div className="sheet-panel-head">
+              <h3>Actions</h3>
+              {canEdit && (
+                <button type="button" onClick={addAttack}>
+                  Add
+                </button>
+              )}
+            </div>
+            <div className="stack-list">
+              {draft.attacks.map((attack, index) => (
+                <div key={attack.id} className="editable-card">
+                  <div className="editable-card-head">
+                    <strong>{attack.name}</strong>
+                    <div className="action-line">
+                      <button
+                        type="button"
+                        disabled={!canRoll}
+                        onClick={() =>
+                          void onRoll(
+                            `1d20${attack.attackBonus >= 0 ? `+${attack.attackBonus}` : attack.attackBonus}`,
+                            `${draft.name} ${attack.name}`
+                          )
+                        }
+                      >
+                        Attack
+                      </button>
+                      {canEdit && (
+                        <button type="button" onClick={() => removeAt("attacks", index)}>
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="triple-grid">
+                    <label>
+                      Name
+                      <input
+                        value={attack.name}
+                        disabled={!canEdit}
+                        onChange={(event) => updateAttack(index, { name: event.target.value })}
+                      />
+                    </label>
+                    <label>
+                      To Hit
+                      <input
+                        type="number"
+                        value={attack.attackBonus}
+                        disabled={!canEdit}
+                        onChange={(event) => updateAttack(index, { attackBonus: Number(event.target.value || 0) })}
+                      />
+                    </label>
+                    <label>
+                      Damage
+                      <input
+                        value={attack.damage}
+                        disabled={!canEdit}
+                        onChange={(event) => updateAttack(index, { damage: event.target.value })}
+                      />
+                    </label>
+                  </div>
+                  <div className="double-grid">
+                    <label>
+                      Type
+                      <input
+                        value={attack.damageType}
+                        disabled={!canEdit}
+                        onChange={(event) => updateAttack(index, { damageType: event.target.value })}
+                      />
+                    </label>
+                    <label>
+                      Text
+                      <input
+                        value={attack.notes}
+                        disabled={!canEdit}
+                        onChange={(event) => updateAttack(index, { notes: event.target.value })}
+                      />
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="sheet-panel">
+            <div className="sheet-panel-head">
+              <h3>Spells</h3>
+            </div>
+            <label>
+              Spells
+              <textarea
+                rows={10}
+                value={draft.spells.join("\n")}
+                disabled={!canEdit}
+                onChange={(event) => updateField("spells", toLines(event.target.value))}
+              />
+            </label>
+          </article>
+
+          <article className="sheet-panel">
+            <div className="sheet-panel-head">
+              <h3>Notes</h3>
+            </div>
+            <label>
+              Notes
+              <textarea
+                rows={10}
+                value={draft.notes}
+                disabled={!canEdit}
+                onChange={(event) => updateField("notes", event.target.value)}
+              />
+            </label>
+          </article>
+        </div>
+      </section>
+    );
   }
 
   return (
