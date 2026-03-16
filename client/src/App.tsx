@@ -178,6 +178,15 @@ export default function App() {
     () => campaign?.actors.find((entry) => entry.id === selectedActorId) ?? campaign?.actors[0],
     [campaign?.actors, selectedActorId]
   );
+  const selectedActorOnMap = useMemo(
+    () =>
+      Boolean(
+        selectedActor &&
+          activeMap &&
+          campaign?.tokens.some((token) => token.actorId === selectedActor.id && token.mapId === activeMap.id)
+      ),
+    [activeMap, campaign?.tokens, selectedActor]
+  );
   const playerMembers = useMemo(
     () => campaign?.members.filter((member) => member.role === "player") ?? [],
     [campaign?.members]
@@ -447,8 +456,6 @@ export default function App() {
         token: session.token,
         body: nextMap
       });
-
-      setBanner({ tone: "info", text: "Map saved." });
     } catch (error) {
       setBanner({ tone: "error", text: toErrorMessage(error) });
     }
@@ -631,12 +638,20 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell workspace-shell">
+    <div className={`app-shell workspace-shell${selectedCampaignId && snapshot ? " is-room-active" : ""}`}>
       <header className="topbar">
-        <div>
+        <div className="topbar-brand">
           <p className="eyebrow">Logged in as {session.user.name}</p>
           <h1>DnD 2024 Board</h1>
         </div>
+        {campaign && (
+          <div className="topbar-room-status">
+            <span className="status-chip status-title">{campaign.name}</span>
+            <span className="status-chip">{activeMap?.name ?? "No map"}</span>
+            <span className="status-chip">{role.toUpperCase()}</span>
+            <span className={`status-chip status-${roomStatus}`}>{roomStatus}</span>
+          </div>
+        )}
         <div className="topbar-actions">
           <button type="button" onClick={() => void refreshCampaigns()}>
             Refresh Rooms
@@ -727,19 +742,27 @@ export default function App() {
         </main>
       ) : (
         <>
-          <main className="board-workspace">
-            <section className="map-stage">
-              <section className="dark-card stage-header-card">
-                <div className="panel-head">
-                  <div>
-                    <p className="panel-label">Campaign</p>
-                    <h2>{campaign.name}</h2>
-                    <p className="panel-caption">
-                      {activeMap?.name ?? "No map selected"} • {role.toUpperCase()} • {campaign.members.length} members
-                    </p>
-                  </div>
-                  <span className={`badge ${roomStatus === "online" ? "" : "subtle"}`}>{roomStatus}</span>
-                  <div className="map-stage-actions">
+          <main className="table-layout">
+            <section className="table-map-shell">
+              <BoardCanvas
+                map={activeMap}
+                tokens={campaign.tokens}
+                actors={campaign.actors}
+                selectedActor={selectedActor}
+                role={role}
+                currentUserId={session.user.id}
+                playerSeenCells={boardSeenCells}
+                fogPreviewUserId={fogPreviewUserId}
+                onSelectActor={setSelectedActorId}
+                onMoveActor={moveActor}
+                onToggleDoor={toggleDoor}
+                onUpdateMap={saveMap}
+              />
+
+              <aside className="table-overlay table-menu">
+                <section className="overlay-card overlay-nav">
+                  <p className="panel-label">Menu</p>
+                  <div className="overlay-nav-buttons">
                     <button type="button" onClick={() => setActivePopup("actors")}>
                       Actors
                     </button>
@@ -758,93 +781,67 @@ export default function App() {
                       Room
                     </button>
                   </div>
-                </div>
-              </section>
+                </section>
 
-              <section className="dark-card stage-status-card">
-                <div className="panel-head">
-                  <div>
-                    <p className="panel-label">Selected</p>
-                    <h2>{selectedActor?.name ?? "No actor selected"}</h2>
-                    <p className="panel-caption">
-                      {selectedActor
-                        ? campaign.tokens.some(
-                            (token) => token.actorId === selectedActor.id && token.mapId === activeMap?.id
-                          )
-                          ? `Drag ${selectedActor.name} on the board to preview movement, then release to move.`
-                          : `Click the active map to place ${selectedActor.name} on the grid.`
-                        : "Open Actors to select a character, NPC, or monster before placing it on the board."}
-                    </p>
+                <section className="overlay-card overlay-selection">
+                  <div className="overlay-selection-head">
+                    <div className="selected-actor-dot" style={{ background: selectedActor?.color ?? "#5d6470" }} />
+                    <div>
+                      <p className="panel-label">Selected</p>
+                      <h3>{selectedActor?.name ?? "No actor selected"}</h3>
+                    </div>
                   </div>
+                  <p className="overlay-selection-meta">
+                    {selectedActor ? `${selectedActor.kind}${selectedActorOnMap ? " • on map" : " • ready to place"}` : "Open Actors to pick a character, NPC, or monster."}
+                  </p>
                   {selectedActor && (
                     <button className="accent-button" type="button" onClick={() => setActivePopup("sheet")}>
                       Open Sheet
                     </button>
                   )}
-                </div>
+                </section>
+
                 {role === "dm" && playerMembers.length > 0 && (
-                  <div className="inline-form compact">
-                    <label>
-                      Fog Player
-                      <select
-                        value={dmFogUserId ?? ""}
-                        onChange={(event) => setDmFogUserId(event.target.value || null)}
-                      >
-                        {playerMembers.map((member) => (
-                          <option key={member.userId} value={member.userId}>
-                            {member.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="checkbox-row">
-                      <input
-                        type="checkbox"
-                        checked={dmFogEnabled && Boolean(dmFogUserId)}
-                        disabled={!dmFogUserId}
-                        onChange={(event) => setDmFogEnabled(event.target.checked)}
-                      />
-                      View Fog
-                    </label>
-                    {fogPreviewMember && dmFogEnabled && (
-                      <span className="badge subtle">Viewing {fogPreviewMember.name}</span>
-                    )}
-                    <button type="button" onClick={() => void resetFog()} disabled={!activeMap}>
-                      Reset Fog
-                    </button>
-                  </div>
+                  <section className="overlay-card overlay-fog-tools">
+                    <p className="panel-label">Fog</p>
+                    <div className="stack-form compact">
+                      <label>
+                        Player
+                        <select
+                          value={dmFogUserId ?? ""}
+                          onChange={(event) => setDmFogUserId(event.target.value || null)}
+                        >
+                          {playerMembers.map((member) => (
+                            <option key={member.userId} value={member.userId}>
+                              {member.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="checkbox-row">
+                        <input
+                          type="checkbox"
+                          checked={dmFogEnabled && Boolean(dmFogUserId)}
+                          disabled={!dmFogUserId}
+                          onChange={(event) => setDmFogEnabled(event.target.checked)}
+                        />
+                        View Fog
+                      </label>
+                      {fogPreviewMember && dmFogEnabled && (
+                        <span className="badge subtle">Viewing {fogPreviewMember.name}</span>
+                      )}
+                      <button type="button" onClick={() => void resetFog()} disabled={!activeMap}>
+                        Reset Fog
+                      </button>
+                    </div>
+                  </section>
                 )}
-              </section>
+              </aside>
 
-              <BoardCanvas
-                map={activeMap}
-                tokens={campaign.tokens}
-                actors={campaign.actors}
-                selectedActor={selectedActor}
-                role={role}
-                currentUserId={session.user.id}
-                playerSeenCells={boardSeenCells}
-                fogPreviewUserId={fogPreviewUserId}
-                onSelectActor={setSelectedActorId}
-                onMoveActor={moveActor}
-                onToggleDoor={toggleDoor}
-                onUpdateMap={saveMap}
-              />
+              <aside className="table-overlay table-chat">
+                <ChatPanel messages={campaign.chat} onSend={sendChat} />
+              </aside>
             </section>
-
-            <aside className="chat-rail">
-              <section className="dark-card chat-summary-card">
-                <div className="panel-head">
-                  <div>
-                    <p className="panel-label">Room Chat</p>
-                    <h2>{campaign.name}</h2>
-                  </div>
-                  <span className="badge">{role}</span>
-                </div>
-                <p className="panel-caption">Chat stays pinned while you work on the map.</p>
-              </section>
-              <ChatPanel messages={campaign.chat} onSend={sendChat} />
-            </aside>
           </main>
 
           {activePopup === "sheet" && (
