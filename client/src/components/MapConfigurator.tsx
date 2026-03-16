@@ -52,6 +52,9 @@ const maxBackgroundScale = 8;
 const defaultPreviewZoom = 1.8;
 const minPreviewZoom = 0.35;
 const maxPreviewZoom = 4;
+const defaultAlignScaleStep = 1;
+const minAlignScaleStep = 0.1;
+const maxAlignScaleStep = 10;
 const selectionDragThreshold = 4;
 
 export function MapConfigurator({ map, disabled = false, onChange, onUploadError }: MapConfiguratorProps) {
@@ -61,6 +64,7 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
   const [panning, setPanning] = useState<PanState | null>(null);
   const [viewportSize, setViewportSize] = useState<ViewportSize>({ width: 0, height: 0 });
   const [previewZoom, setPreviewZoom] = useState(defaultPreviewZoom);
+  const [alignScaleStep, setAlignScaleStep] = useState(defaultAlignScaleStep);
   const [editorMode, setEditorMode] = useState<EditorMode>("align");
   const [obstacleAnchor, setObstacleAnchor] = useState<Point | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
@@ -189,6 +193,7 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
 
   useEffect(() => {
     setPreviewZoom(defaultPreviewZoom);
+    setAlignScaleStep(defaultAlignScaleStep);
     setEditorMode("align");
     setObstacleAnchor(null);
     setHoverPoint(null);
@@ -464,7 +469,12 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
     event.preventDefault();
 
     if (editorMode === "align" && !disabled && previewRef.current && map.backgroundUrl) {
-      const nextScale = clamp(map.backgroundScale * (event.deltaY < 0 ? 1.05 : 0.95), minBackgroundScale, maxBackgroundScale);
+      const scaleFactor = 1 + alignScaleStep / 100;
+      const nextScale = clamp(
+        map.backgroundScale * (event.deltaY < 0 ? scaleFactor : 1 / scaleFactor),
+        minBackgroundScale,
+        maxBackgroundScale
+      );
 
       if (nextScale === map.backgroundScale) {
         return;
@@ -492,6 +502,16 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
 
   function adjustPreviewZoom(direction: 1 | -1) {
     setPreviewZoom((current) => clamp(current * (direction > 0 ? 1.15 : 0.87), minPreviewZoom, maxPreviewZoom));
+  }
+
+  function adjustAlignScaleStep(direction: 1 | -1) {
+    setAlignScaleStep((current) =>
+      clamp(
+        Number((current + direction * (current < 1 ? 0.1 : current < 3 ? 0.25 : 0.5)).toFixed(2)),
+        minAlignScaleStep,
+        maxAlignScaleStep
+      )
+    );
   }
 
   function removeObstacles(obstacleIds: string[]) {
@@ -529,7 +549,7 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
 
   const helperText =
     editorMode === "align"
-      ? "Drag the image to line up the cells. Use right or middle drag to pan the viewport, the mouse wheel to scale the image, and the view controls to zoom the workspace."
+      ? "Drag the image to line up the cells. Use right or middle drag to pan the viewport, the mouse wheel to scale the image by the alignment step, and the view controls to zoom the workspace."
       : editorMode === "select"
         ? selectedObstacleIds.length > 0
           ? `${selectedObstacleIds.length} obstacle${selectedObstacleIds.length === 1 ? "" : "s"} selected. Press Delete to remove them.`
@@ -563,6 +583,23 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
                 }}
               >
                 Reset View
+              </button>
+              <label className="map-inline-setting">
+                Align Step %
+                <input
+                  type="number"
+                  min={minAlignScaleStep}
+                  max={maxAlignScaleStep}
+                  step="0.1"
+                  value={alignScaleStep}
+                  onChange={(event) => setAlignScaleStep(clamp(Number(event.target.value || 0), minAlignScaleStep, maxAlignScaleStep))}
+                />
+              </label>
+              <button type="button" onClick={() => adjustAlignScaleStep(-1)}>
+                Step -
+              </button>
+              <button type="button" onClick={() => adjustAlignScaleStep(1)}>
+                Step +
               </button>
             </div>
           </div>

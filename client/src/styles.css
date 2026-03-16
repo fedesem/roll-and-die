@@ -689,6 +689,16 @@ p {
   justify-content: flex-end;
 }
 
+.map-inline-setting {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.map-inline-setting input {
+  width: 88px;
+}
+
 .map-preview-toolbar {
   display: flex;
   gap: 0.75rem;
