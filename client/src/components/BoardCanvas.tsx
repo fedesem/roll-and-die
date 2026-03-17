@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   useEffect,
   useMemo,
   useRef,
@@ -15,8 +16,11 @@ import type {
   BoardToken,
   CampaignMap,
   DrawingStroke,
+  MapPing,
+  MapViewportRecall,
   MemberRole,
-  Point
+  Point,
+  TokenMovementPreview
 } from "@shared/types";
 import {
   cellKey,
@@ -28,6 +32,7 @@ import {
   traceMovementPath,
   type MovementTrace
 } from "@shared/vision";
+import { readJson, writeJson } from "../lib/storage";
 
 type Tool = "select" | "draw";
 type SelectedMapItem = `drawing:${string}`;
@@ -47,10 +52,19 @@ interface BoardCanvasProps {
   onSetDmFogEnabled: (value: boolean) => void;
   onSetDmFogUserId: (value: string | null) => void;
   onResetFog: () => Promise<void>;
-  onSelectActor: (actorId: string) => void;
+  onSelectActor: (actorId: string | null) => void;
+  onSelectedMapItemCountChange: (count: number) => void;
+  movementPreviews: Array<{ actorId: string; mapId: string; preview: TokenMovementPreview }>;
+  pings: MapPing[];
+  viewRecall: MapViewportRecall | null;
   onMoveActor: (actorId: string, x: number, y: number) => Promise<void>;
+  onBroadcastMovePreview: (actorId: string, target: Point | null) => Promise<void>;
   onToggleDoor: (doorId: string) => Promise<void>;
-  onUpdateMap: (map: CampaignMap) => Promise<void>;
+  onCreateDrawing: (mapId: string, stroke: DrawingStroke) => Promise<void>;
+  onDeleteDrawings: (mapId: string, drawingIds: string[]) => Promise<void>;
+  onClearDrawings: (mapId: string) => Promise<void>;
+  onPing: (point: Point) => Promise<void>;
+  onPingAndRecall: (point: Point, center: Point, zoom: number) => Promise<void>;
 }
 
 interface DragState {
@@ -59,10 +73,14 @@ interface DragState {
 }
 
 interface PanState {
+  button: number;
   clientX: number;
   clientY: number;
   originX: number;
   originY: number;
+  menuPoint?: Point;
+  menuX?: number;
+  menuY?: number;
 }
 
 interface ViewportSize {
@@ -71,15 +89,23 @@ interface ViewportSize {
 }
 
 interface SelectionState {
+  additive: boolean;
   startX: number;
   startY: number;
   currentX: number;
   currentY: number;
 }
 
+interface ContextMenuState {
+  x: number;
+  y: number;
+  point: Point;
+}
+
 const minViewZoom = 0.35;
 const maxViewZoom = 4;
 const discoveredDrawingsStorageKey = "dnd-board-discovered-drawings";
+const boardViewStorageKeyPrefix = "dnd-board-view";
 const selectionDragThreshold = 4;
 
 export function BoardCanvas({
@@ -98,13 +124,27 @@ export function BoardCanvas({
   onSetDmFogUserId,
   onResetFog,
   onSelectActor,
+  onSelectedMapItemCountChange,
+  movementPreviews,
+  pings,
+  viewRecall,
   onMoveActor,
+  onBroadcastMovePreview,
   onToggleDoor,
-  onUpdateMap
+  onCreateDrawing,
+  onDeleteDrawings,
+  onClearDrawings,
+  onPing,
+  onPingAndRecall
 }: BoardCanvasProps) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const initializedMapIdRef = useRef<string | null>(null);
+  const skipNextPersistRef = useRef(false);
   const suppressSurfaceClickRef = useRef(false);
+  const suppressContextMenuRef = useRef(false);
+  const lastPreviewTargetKeyRef = useRef<string | null>(null);
+  const moveActorRef = useRef(onMoveActor);
+  const broadcastMovePreviewRef = useRef(onBroadcastMovePreview);
   const [tool, setTool] = useState<Tool>("select");
   const [strokeColor, setStrokeColor] = useState("#d3a232");
   const [strokeSize, setStrokeSize] = useState(4);
@@ -117,6 +157,7 @@ export function BoardCanvas({
   const [viewZoom, setViewZoom] = useState(1);
   const [viewPan, setViewPan] = useState<Point>({ x: 0, y: 0 });
   const [selectionBox, setSelectionBox] = useState<SelectionState | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [discoveredDrawingsByViewer, setDiscoveredDrawingsByViewer] = useState<Record<string, Record<string, string[]>>>(() =>
     readDiscoveredDrawingsMemory()
   );
@@ -162,6 +203,10 @@ export function BoardCanvas({
 
     return visibleTokens.filter((token) => currentVisibleCells.has(tokenCellKey(map, token)));
   }, [currentVisibleCells, map, usesRestrictedVision, visibleTokens]);
+  const filteredTokenByActorId = useMemo(
+    () => new Map(filteredTokens.map((token) => [token.actorId, token])),
+    [filteredTokens]
+  );
 
   const discoveredDrawingIds = useMemo(() => {
     if (!map) {
@@ -307,7 +352,29 @@ export function BoardCanvas({
   const moveArrowHeadSize = clamp(12 * worldScale, 8, 28);
   const moveLabelFontSize = clamp(14 * worldScale, 12, 28);
   const moveLabelOffset = clamp(12 * worldScale, 10, 24);
+  const viewCenter = useMemo(
+    () => ({
+      x: (viewportSize.width / 2 - viewPan.x) / worldScale,
+      y: (viewportSize.height / 2 - viewPan.y) / worldScale
+    }),
+    [viewportSize.height, viewportSize.width, viewPan.x, viewPan.y, worldScale]
+  );
   const normalizedSelectionBox = selectionBox ? normalizeSelectionRect(selectionBox) : null;
+  const visibleMovementPreviews = useMemo(
+    () =>
+      movementPreviews.filter((entry) => {
+        if (!map || entry.mapId !== map.id || entry.actorId === draggingToken?.actorId) {
+          return false;
+        }
+
+        return filteredTokenByActorId.has(entry.actorId);
+      }),
+    [draggingToken?.actorId, filteredTokenByActorId, map, movementPreviews]
+  );
+  const visiblePings = useMemo(
+    () => pings.filter((entry) => entry.mapId === map?.id),
+    [map?.id, pings]
+  );
 
   useEffect(() => {
     if (!boardRef.current) {
@@ -339,6 +406,11 @@ export function BoardCanvas({
   }, [discoveredDrawingsByViewer]);
 
   useEffect(() => {
+    moveActorRef.current = onMoveActor;
+    broadcastMovePreviewRef.current = onBroadcastMovePreview;
+  }, [onBroadcastMovePreview, onMoveActor]);
+
+  useEffect(() => {
     if (!boardRef.current) {
       return;
     }
@@ -364,16 +436,79 @@ export function BoardCanvas({
       return;
     }
 
-    const imageWidth = map.width * map.backgroundScale;
-    const imageHeight = map.height * map.backgroundScale;
+    const savedView = readBoardView(currentUserId, map.id);
 
-    setViewZoom(1);
-    setViewPan({
-      x: viewportSize.width / 2 - (map.backgroundOffsetX + imageWidth / 2) * baseScale,
-      y: viewportSize.height / 2 - (map.backgroundOffsetY + imageHeight / 2) * baseScale
-    });
+    if (savedView) {
+      const nextZoom = clamp(savedView.zoom, minViewZoom, maxViewZoom);
+      const nextWorldScale = baseScale * nextZoom;
+
+      setViewZoom(nextZoom);
+      setViewPan(
+        savedView.center
+          ? {
+              x: viewportSize.width / 2 - savedView.center.x * nextWorldScale,
+              y: viewportSize.height / 2 - savedView.center.y * nextWorldScale
+            }
+          : savedView.pan
+      );
+    } else {
+      const imageWidth = map.width * map.backgroundScale;
+      const imageHeight = map.height * map.backgroundScale;
+
+      setViewZoom(1);
+      setViewPan({
+        x: viewportSize.width / 2 - (map.backgroundOffsetX + imageWidth / 2) * baseScale,
+        y: viewportSize.height / 2 - (map.backgroundOffsetY + imageHeight / 2) * baseScale
+      });
+    }
+
+    skipNextPersistRef.current = true;
     initializedMapIdRef.current = map.id;
-  }, [baseScale, map, viewportSize.height, viewportSize.width]);
+  }, [baseScale, currentUserId, map, viewportSize.height, viewportSize.width]);
+
+  useEffect(() => {
+    if (!map) {
+      return;
+    }
+
+    if (skipNextPersistRef.current) {
+      skipNextPersistRef.current = false;
+      return;
+    }
+
+    if (viewportSize.width <= 0 || viewportSize.height <= 0) {
+      return;
+    }
+
+    writeBoardView(currentUserId, map.id, {
+      zoom: viewZoom,
+      center: {
+        x: (viewportSize.width / 2 - viewPan.x) / worldScale,
+        y: (viewportSize.height / 2 - viewPan.y) / worldScale
+      },
+      pan: viewPan
+    });
+  }, [currentUserId, map, viewPan, viewZoom, viewportSize.height, viewportSize.width, worldScale]);
+
+  useEffect(() => {
+    if (!map || !viewRecall || role === "dm" || viewportSize.width <= 0 || viewportSize.height <= 0) {
+      return;
+    }
+
+    if (viewRecall.mapId !== map.id) {
+      return;
+    }
+
+    const nextZoom = clamp(viewRecall.zoom, minViewZoom, maxViewZoom);
+    const nextWorldScale = baseScale * nextZoom;
+
+    setViewZoom(nextZoom);
+    setViewPan({
+      x: viewportSize.width / 2 - viewRecall.center.x * nextWorldScale,
+      y: viewportSize.height / 2 - viewRecall.center.y * nextWorldScale
+    });
+    setContextMenu(null);
+  }, [baseScale, map, role, viewRecall, viewportSize.height, viewportSize.width]);
 
   useEffect(() => {
     setSelectedMapItems([]);
@@ -381,6 +516,8 @@ export function BoardCanvas({
     setDraggingToken(null);
     setDraftPoints([]);
     setSelectionBox(null);
+    setContextMenu(null);
+    lastPreviewTargetKeyRef.current = null;
   }, [map?.id]);
 
   useEffect(() => {
@@ -432,11 +569,28 @@ export function BoardCanvas({
         return;
       }
 
-      setMovePreview(
-        traceMovementPath(map, draggingToken.start, point, {
-          ignoreWalls: isDungeonMaster
-        })
-      );
+      const trace = traceMovementPath(map, draggingToken.start, point, {
+        ignoreWalls: isDungeonMaster
+      });
+      setMovePreview(trace);
+
+      if (trace.steps === 0) {
+        if (lastPreviewTargetKeyRef.current !== null) {
+          lastPreviewTargetKeyRef.current = null;
+          void broadcastMovePreviewRef.current(draggingToken.actorId, null);
+        }
+        return;
+      }
+
+      const snappedTarget = snapPointToGrid(map, point);
+      const previewKey = `${snappedTarget.x}:${snappedTarget.y}`;
+
+      if (lastPreviewTargetKeyRef.current === previewKey) {
+        return;
+      }
+
+      lastPreviewTargetKeyRef.current = previewKey;
+      void broadcastMovePreviewRef.current(draggingToken.actorId, snappedTarget);
     }
 
     function handleWindowPointerUp(event: PointerEvent) {
@@ -448,14 +602,21 @@ export function BoardCanvas({
             })
           : null;
 
+      suppressSurfaceClickRef.current = true;
       setDraggingToken(null);
       setMovePreview(null);
+      setContextMenu(null);
+
+      if (lastPreviewTargetKeyRef.current !== null) {
+        lastPreviewTargetKeyRef.current = null;
+        void broadcastMovePreviewRef.current(draggingToken.actorId, null);
+      }
 
       if (!trace || trace.steps === 0) {
         return;
       }
 
-      void onMoveActor(draggingToken.actorId, trace.end.x, trace.end.y);
+      void moveActorRef.current(draggingToken.actorId, trace.end.x, trace.end.y);
     }
 
     window.addEventListener("pointermove", handleWindowPointerMove);
@@ -464,8 +625,13 @@ export function BoardCanvas({
     return () => {
       window.removeEventListener("pointermove", handleWindowPointerMove);
       window.removeEventListener("pointerup", handleWindowPointerUp);
+
+      if (lastPreviewTargetKeyRef.current !== null) {
+        lastPreviewTargetKeyRef.current = null;
+        void broadcastMovePreviewRef.current(draggingToken.actorId, null);
+      }
     };
-  }, [draggingToken, isDungeonMaster, map, onMoveActor]);
+  }, [draggingToken, isDungeonMaster, map]);
 
   useEffect(() => {
     if (!panning) {
@@ -473,13 +639,40 @@ export function BoardCanvas({
     }
 
     function handleWindowPointerMove(event: PointerEvent) {
+      const deltaX = event.clientX - panning.clientX;
+      const deltaY = event.clientY - panning.clientY;
+      const movedEnough = Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3;
+
+      if (panning.button === 2) {
+        if (!movedEnough) {
+          return;
+        }
+
+        suppressContextMenuRef.current = true;
+      }
+
       setViewPan({
-        x: panning.originX + (event.clientX - panning.clientX),
-        y: panning.originY + (event.clientY - panning.clientY)
+        x: panning.originX + deltaX,
+        y: panning.originY + deltaY
       });
     }
 
     function handleWindowPointerUp() {
+      if (
+        panning.button === 2 &&
+        !suppressContextMenuRef.current &&
+        typeof panning.menuX === "number" &&
+        typeof panning.menuY === "number" &&
+        panning.menuPoint
+      ) {
+        setContextMenu({
+          x: panning.menuX,
+          y: panning.menuY,
+          point: panning.menuPoint
+        });
+      }
+
+      suppressContextMenuRef.current = false;
       setPanning(null);
     }
 
@@ -491,6 +684,10 @@ export function BoardCanvas({
       window.removeEventListener("pointerup", handleWindowPointerUp);
     };
   }, [panning]);
+
+  useEffect(() => {
+    onSelectedMapItemCountChange(selectedMapItems.length);
+  }, [onSelectedMapItemCountChange, selectedMapItems.length]);
 
   useEffect(() => {
     if (!isDungeonMaster || selectedMapItems.length === 0 || !map) {
@@ -510,11 +707,9 @@ export function BoardCanvas({
       }
 
       event.preventDefault();
-      const selected = new Set(selectedMapItems);
+      const drawingIds = selectedMapItems.map((entry) => entry.slice("drawing:".length));
 
-      void commitMapUpdate((draft) => {
-        draft.drawings = draft.drawings.filter((drawing) => !selected.has(`drawing:${drawing.id}`));
-      });
+      void onDeleteDrawings(map.id, drawingIds);
       setSelectedMapItems([]);
     }
 
@@ -522,11 +717,7 @@ export function BoardCanvas({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isDungeonMaster, map, selectedMapItems]);
-
-  function cloneMap(source: CampaignMap) {
-    return JSON.parse(JSON.stringify(source)) as CampaignMap;
-  }
+  }, [isDungeonMaster, map, onDeleteDrawings, selectedMapItems]);
 
   function canControlActor(actor: ActorSheet) {
     return role === "dm" || (actor.kind === "character" && actor.ownerId === currentUserId);
@@ -563,20 +754,14 @@ export function BoardCanvas({
     };
   }
 
-  async function commitMapUpdate(mutator: (draft: CampaignMap) => void) {
-    if (!map) {
-      return;
-    }
+  function updateMapItemSelection(key: SelectedMapItem, additive: boolean) {
+    setSelectedMapItems((current) => {
+      if (!additive) {
+        return [key];
+      }
 
-    const draft = cloneMap(map);
-    mutator(draft);
-    await onUpdateMap(draft);
-  }
-
-  function updateMapItemSelection(key: SelectedMapItem) {
-    setSelectedMapItems((current) =>
-      current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key]
-    );
+      return current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key];
+    });
   }
 
   function selectDrawingsInBox(selection: SelectionState) {
@@ -595,13 +780,18 @@ export function BoardCanvas({
       .filter((drawing) => pathBoundsIntersectsRect(drawing.points.map(worldToScreen), rect))
       .map((drawing) => `drawing:${drawing.id}` satisfies SelectedMapItem);
 
-    setSelectedMapItems(nextSelected);
+    setSelectedMapItems((current) =>
+      selection.additive ? Array.from(new Set([...current, ...nextSelected])) : nextSelected
+    );
     suppressSurfaceClickRef.current = true;
   }
 
   function handleEmptyBoardClick() {
+    setContextMenu(null);
+
     if (tool === "select") {
       setSelectedMapItems([]);
+      onSelectActor(null);
     }
   }
 
@@ -610,6 +800,8 @@ export function BoardCanvas({
       suppressSurfaceClickRef.current = false;
       return;
     }
+
+    setContextMenu(null);
 
     if (!map || panning) {
       return;
@@ -633,6 +825,7 @@ export function BoardCanvas({
     }
 
     event.preventDefault();
+    setContextMenu(null);
     const actorId = event.dataTransfer.getData("application/x-dnd-actor-id");
 
     if (!actorId) {
@@ -656,20 +849,30 @@ export function BoardCanvas({
     }
 
     event.preventDefault();
+    setContextMenu(null);
+    suppressContextMenuRef.current = false;
+    const menuLocalPoint = event.button === 2 ? toLocalPoint(event.clientX, event.clientY) : null;
+    const menuWorldPoint = event.button === 2 ? toWorldPoint(event.clientX, event.clientY) : null;
     setPanning({
+      button: event.button,
       clientX: event.clientX,
       clientY: event.clientY,
       originX: viewPan.x,
-      originY: viewPan.y
+      originY: viewPan.y,
+      menuX: menuLocalPoint?.x,
+      menuY: menuLocalPoint?.y,
+      menuPoint: menuWorldPoint ?? undefined
     });
   }
 
   function handleBoardPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (!map || event.button !== 0 || event.target !== event.currentTarget) {
+    if (!map || event.button !== 0) {
       return;
     }
 
-    if (isDungeonMaster && tool === "select" && (!selectedActor || selectedToken)) {
+    setContextMenu(null);
+
+    if (isDungeonMaster && tool === "select") {
       const localPoint = toLocalPoint(event.clientX, event.clientY);
 
       if (!localPoint) {
@@ -677,6 +880,7 @@ export function BoardCanvas({
       }
 
       setSelectionBox({
+        additive: event.metaKey || event.ctrlKey || event.shiftKey,
         startX: localPoint.x,
         startY: localPoint.y,
         currentX: localPoint.x,
@@ -757,17 +961,14 @@ export function BoardCanvas({
     if (draftPoints.length > 1) {
       const points =
         point && draftPoints[draftPoints.length - 1] !== point ? [...draftPoints, point] : draftPoints;
+      const stroke: DrawingStroke = {
+        id: `drw_${crypto.randomUUID().slice(0, 8)}`,
+        color: strokeColor,
+        size: strokeSize,
+        points
+      };
 
-      await commitMapUpdate((draft) => {
-        const stroke: DrawingStroke = {
-          id: `drw_${crypto.randomUUID().slice(0, 8)}`,
-          color: strokeColor,
-          size: strokeSize,
-          points
-        };
-
-        draft.drawings.push(stroke);
-      });
+      await onCreateDrawing(map.id, stroke);
     }
 
     setDraftPoints([]);
@@ -802,13 +1003,15 @@ export function BoardCanvas({
   }
 
   async function clearInk() {
+    if (!map) {
+      return;
+    }
+
     if (!window.confirm("Clear all drawings from this map?")) {
       return;
     }
 
-    await commitMapUpdate((draft) => {
-      draft.drawings = [];
-    });
+    await onClearDrawings(map.id);
   }
 
   function handleTokenPointerDown(token: BoardToken, event: ReactPointerEvent<HTMLButtonElement>) {
@@ -825,6 +1028,7 @@ export function BoardCanvas({
       return;
     }
 
+    setContextMenu(null);
     onSelectActor(token.actorId);
 
     if (tool !== "select" || !canControlActor(actor)) {
@@ -839,16 +1043,18 @@ export function BoardCanvas({
 
   function handleMapItemClick(key: SelectedMapItem, event: ReactMouseEvent<SVGElement>) {
     event.stopPropagation();
+    setContextMenu(null);
 
     if (!isDungeonMaster || tool !== "select") {
       return;
     }
 
-    updateMapItemSelection(key);
+    updateMapItemSelection(key, event.metaKey || event.ctrlKey || event.shiftKey);
   }
 
   function handleDoorClick(doorId: string, event: ReactMouseEvent<SVGLineElement>) {
     event.stopPropagation();
+    setContextMenu(null);
 
     if (tool !== "select") {
       return;
@@ -864,6 +1070,10 @@ export function BoardCanvas({
         return `${index === 0 ? "M" : "L"} ${screen.x} ${screen.y}`;
       })
       .join(" ");
+  }
+
+  function handleContextMenu(event: ReactMouseEvent<HTMLDivElement>) {
+    event.preventDefault();
   }
 
   if (!map) {
@@ -954,6 +1164,11 @@ export function BoardCanvas({
           ref={boardRef}
           className="board-surface"
           onClick={(event) => {
+            if (suppressSurfaceClickRef.current) {
+              suppressSurfaceClickRef.current = false;
+              return;
+            }
+
             handleEmptyBoardClick();
             void handleBoardClick(event);
           }}
@@ -973,7 +1188,7 @@ export function BoardCanvas({
           onWheel={handleWheel}
           onDragOver={(event) => event.preventDefault()}
           onDrop={(event) => void handleBoardDrop(event)}
-          onContextMenu={(event) => event.preventDefault()}
+          onContextMenu={handleContextMenu}
         >
           {backgroundRect && (
             <div
@@ -1115,6 +1330,29 @@ export function BoardCanvas({
                 })()}
               </>
             )}
+            {visibleMovementPreviews.map((entry) => {
+              const token = filteredTokenByActorId.get(entry.actorId);
+              const stroke = token?.color ?? "rgba(242, 187, 63, 0.82)";
+              const end = worldToScreen(entry.preview.end);
+
+              return (
+                <g key={`preview:${entry.actorId}`} opacity={0.92}>
+                  <path
+                    d={toSvgPathWorld(entry.preview.points)}
+                    className={`board-move-path board-shared-move-path ${entry.preview.blocked ? "is-blocked" : ""}`}
+                    markerEnd="url(#move-arrowhead)"
+                    style={{ stroke, strokeWidth: moveArrowStrokeWidth }}
+                  />
+                  <circle
+                    cx={end.x}
+                    cy={end.y}
+                    r={Math.max(8, map.grid.cellSize * worldScale * 0.12)}
+                    className="board-target-ring"
+                    style={{ stroke }}
+                  />
+                </g>
+              );
+            })}
           </svg>
 
           {((isDungeonMaster && tool === "select") || visibleObstacles.some((wall) => wall.kind === "door")) && (
@@ -1177,6 +1415,63 @@ export function BoardCanvas({
               );
             })}
           </div>
+          <div className="board-ping-layer">
+            {visiblePings.map((ping) => {
+              const center = worldToScreen(ping.point);
+              const coreSize = Math.max(20, map.grid.cellSize * worldScale * 0.28);
+              const ringSize = coreSize * 4.8;
+              const pingStyle = {
+                left: center.x,
+                top: center.y,
+                "--ping-core-size": `${coreSize}px`,
+                "--ping-ring-size": `${ringSize}px`
+              } as CSSProperties;
+
+              return (
+                <div key={ping.id} className="board-ping" style={pingStyle}>
+                  <span className="board-ping-core" />
+                  <span className="board-ping-ring" />
+                  <span className="board-ping-ring board-ping-ring-delay" />
+                </div>
+              );
+            })}
+          </div>
+          {contextMenu && (
+            <div
+              className="board-context-menu"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+              onPointerDown={(event) => event.stopPropagation()}
+              onPointerUp={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+            >
+              <button
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={() => {
+                  void onPing(contextMenu.point);
+                  setContextMenu(null);
+                }}
+              >
+                Ping here
+              </button>
+              {isDungeonMaster && (
+                <button
+                  type="button"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={() => {
+                    void onPingAndRecall(contextMenu.point, viewCenter, viewZoom);
+                    setContextMenu(null);
+                  }}
+                >
+                  Ping and recall here
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1253,6 +1548,49 @@ function initials(label: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+function boardViewStorageKey(userId: string, mapId: string) {
+  return `${boardViewStorageKeyPrefix}:${userId}:${mapId}`;
+}
+
+function readBoardView(userId: string, mapId: string) {
+  const value = readJson<{
+    zoom?: unknown;
+    center?: { x?: unknown; y?: unknown };
+    pan?: { x?: unknown; y?: unknown };
+  }>(boardViewStorageKey(userId, mapId));
+
+  const hasCenter =
+    value &&
+    value.center &&
+    typeof value.center.x === "number" &&
+    typeof value.center.y === "number";
+  const hasPan = value && value.pan && typeof value.pan.x === "number" && typeof value.pan.y === "number";
+
+  if (!value || typeof value.zoom !== "number" || (!hasCenter && !hasPan)) {
+    return null;
+  }
+
+  return {
+    zoom: value.zoom,
+    center: hasCenter
+      ? {
+          x: value.center!.x as number,
+          y: value.center!.y as number
+        }
+      : undefined,
+    pan: hasPan
+      ? {
+          x: value.pan!.x as number,
+          y: value.pan!.y as number
+        }
+      : { x: 0, y: 0 }
+  };
+}
+
+function writeBoardView(userId: string, mapId: string, value: { zoom: number; center: Point; pan: Point }) {
+  writeJson(boardViewStorageKey(userId, mapId), value);
 }
 
 function readDiscoveredDrawingsMemory() {

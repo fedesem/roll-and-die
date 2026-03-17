@@ -210,6 +210,11 @@ export interface BoardToken {
   visible: boolean;
 }
 
+export interface MapActorAssignment {
+  actorId: string;
+  mapId: string;
+}
+
 export interface DiceRoll {
   id: string;
   label: string;
@@ -241,6 +246,7 @@ export interface Campaign {
   invites: CampaignInvite[];
   actors: ActorSheet[];
   maps: CampaignMap[];
+  mapAssignments: MapActorAssignment[];
   tokens: BoardToken[];
   chat: ChatMessage[];
   exploration: Record<string, Record<string, CellKey[]>>;
@@ -275,6 +281,29 @@ export interface CampaignSnapshot {
   playerVision: Record<string, CellKey[]>;
 }
 
+export interface TokenMovementPreview {
+  blocked: boolean;
+  end: Point;
+  points: Point[];
+  steps: number;
+}
+
+export interface MapPing {
+  id: string;
+  mapId: string;
+  point: Point;
+  userId: string;
+  userName: string;
+  createdAt: string;
+}
+
+export interface MapViewportRecall {
+  id: string;
+  mapId: string;
+  center: Point;
+  zoom: number;
+}
+
 export type ClientRoomMessage =
   | {
       type: "room:join";
@@ -297,8 +326,41 @@ export type ClientRoomMessage =
       y: number;
     }
   | {
+      type: "token:preview";
+      actorId: string;
+      target: Point | null;
+    }
+  | {
+      type: "drawing:create";
+      mapId: string;
+      stroke: DrawingStroke;
+    }
+  | {
+      type: "drawing:delete";
+      mapId: string;
+      drawingIds: string[];
+    }
+  | {
+      type: "drawing:clear";
+      mapId: string;
+    }
+  | {
       type: "map:set-active";
       mapId: string;
+    }
+  | {
+      type: "map:ping";
+      mapId: string;
+      pingId?: string;
+      point: Point;
+    }
+  | {
+      type: "map:ping-recall";
+      mapId: string;
+      pingId?: string;
+      point: Point;
+      center: Point;
+      zoom: number;
     }
   | {
       type: "fog:reset";
@@ -313,6 +375,20 @@ export type ServerRoomMessage =
   | {
       type: "room:snapshot";
       snapshot: CampaignSnapshot;
+    }
+  | {
+      type: "room:token-preview";
+      actorId: string;
+      mapId: string;
+      preview: TokenMovementPreview | null;
+    }
+  | {
+      type: "room:ping";
+      ping: MapPing;
+    }
+  | {
+      type: "room:view-recall";
+      recall: MapViewportRecall;
     }
   | {
       type: "room:error";

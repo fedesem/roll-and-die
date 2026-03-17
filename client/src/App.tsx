@@ -1,5 +1,5 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Castle, CircleOff, Eye, FilePlus2, Map, Pencil, ScrollText, Trash2, Users } from "lucide-react";
+import { Castle, Eye, FilePlus2, Map as MapIcon, Minus, Pencil, Plus, ScrollText, Trash2, Users } from "lucide-react";
 
 import type {
   ActorKind,
@@ -9,9 +9,13 @@ import type {
   CampaignSnapshot,
   CampaignSummary,
   ClientRoomMessage,
+  MapPing,
+  MapViewportRecall,
   MemberRole,
   MonsterTemplate,
-  ServerRoomMessage
+  Point,
+  ServerRoomMessage,
+  TokenMovementPreview
 } from "@shared/types";
 
 import { apiRequest } from "./api";
@@ -30,10 +34,17 @@ const sessionStorageKey = "dnd-board-session";
 const selectedCampaignStorageKey = "dnd-board-selected-campaign";
 
 type AuthMode = "login" | "register";
+type ActorTypeFilter = "all" | ActorKind;
 
 interface BannerState {
   tone: "info" | "error";
   text: string;
+}
+
+interface SharedMovementPreviewState {
+  actorId: string;
+  mapId: string;
+  preview: TokenMovementPreview;
 }
 
 export default function App() {
@@ -48,11 +59,14 @@ export default function App() {
   const [snapshot, setSnapshot] = useState<CampaignSnapshot | null>(null);
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
   const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
+  const [selectedBoardItemCount, setSelectedBoardItemCount] = useState(0);
   const [banner, setBanner] = useState<BannerState | null>(null);
   const [createCampaignName, setCreateCampaignName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [actorSearch, setActorSearch] = useState("");
   const [mapActorSearch, setMapActorSearch] = useState("");
+  const [actorTypeFilter, setActorTypeFilter] = useState<ActorTypeFilter>("all");
+  const [mapActorTypeFilter, setMapActorTypeFilter] = useState<ActorTypeFilter>("all");
   const [actorCreatorKind, setActorCreatorKind] = useState<ActorKind>("character");
   const [actorCreatorOpen, setActorCreatorOpen] = useState(false);
   const [actorDraft, setActorDraft] = useState<ActorSheet | null>(() => createClientActorDraft("character", session?.user.id));
@@ -66,6 +80,9 @@ export default function App() {
   const [dmFogUserId, setDmFogUserId] = useState<string | null>(null);
   const [activePopup, setActivePopup] = useState<"sheet" | "actors" | "maps" | "room" | null>(null);
   const [roomStatus, setRoomStatus] = useState<"offline" | "connecting" | "online">("offline");
+  const [mapPings, setMapPings] = useState<MapPing[]>([]);
+  const [viewportRecall, setViewportRecall] = useState<MapViewportRecall | null>(null);
+  const [sharedMovementPreviews, setSharedMovementPreviews] = useState<Record<string, SharedMovementPreviewState>>({});
   const roomSocketRef = useRef<WebSocket | null>(null);
 
   const deferredMonsterQuery = useDeferredValue(monsterQuery);
@@ -124,16 +141,22 @@ export default function App() {
 
       setRoomStatus("offline");
       setSnapshot(null);
+      setMapPings([]);
+      setViewportRecall(null);
+      setSharedMovementPreviews({});
       return;
     }
 
     setSnapshot(null);
     setRoomStatus("connecting");
-    const socket = new WebSocket(buildRoomSocketUrl());
-    roomSocketRef.current = socket;
     let disposed = false;
+    let socket: WebSocket | null = null;
 
     const handleOpen = () => {
+      if (!socket) {
+        return;
+      }
+
       socket.send(
         JSON.stringify({
           type: "room:join",
@@ -152,6 +175,40 @@ export default function App() {
           startTransition(() => {
             setSnapshot(message.snapshot);
           });
+          return;
+        }
+
+        if (message.type === "room:token-preview") {
+          setSharedMovementPreviews((current) => {
+            if (!message.preview) {
+              if (!current[message.actorId]) {
+                return current;
+              }
+
+              const next = { ...current };
+              delete next[message.actorId];
+              return next;
+            }
+
+            return {
+              ...current,
+              [message.actorId]: {
+                actorId: message.actorId,
+                mapId: message.mapId,
+                preview: message.preview
+              }
+            };
+          });
+          return;
+        }
+
+        if (message.type === "room:ping") {
+          enqueuePing(message.ping);
+          return;
+        }
+
+        if (message.type === "room:view-recall") {
+          setViewportRecall(message.recall);
           return;
         }
 
@@ -180,29 +237,45 @@ export default function App() {
       }
     };
 
-    socket.addEventListener("open", handleOpen);
-    socket.addEventListener("message", handleMessage);
-    socket.addEventListener("close", handleClose);
-    socket.addEventListener("error", handleError);
+    const connectTimeoutId = window.setTimeout(() => {
+      if (disposed) {
+        return;
+      }
+
+      socket = new WebSocket(buildRoomSocketUrl());
+      roomSocketRef.current = socket;
+      socket.addEventListener("open", handleOpen);
+      socket.addEventListener("message", handleMessage);
+      socket.addEventListener("close", handleClose);
+      socket.addEventListener("error", handleError);
+    }, 0);
 
     return () => {
       disposed = true;
-      socket.removeEventListener("open", handleOpen);
-      socket.removeEventListener("message", handleMessage);
-      socket.removeEventListener("close", handleClose);
-      socket.removeEventListener("error", handleError);
+      window.clearTimeout(connectTimeoutId);
+
+      socket?.removeEventListener("open", handleOpen);
+      socket?.removeEventListener("message", handleMessage);
+      socket?.removeEventListener("close", handleClose);
+      socket?.removeEventListener("error", handleError);
 
       if (roomSocketRef.current === socket) {
         roomSocketRef.current = null;
       }
 
-      if (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN) {
+      if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
         socket.close();
       }
 
       setRoomStatus("offline");
     };
   }, [selectedCampaignId, session?.token]);
+
+  useEffect(() => {
+    setMapPings([]);
+    setViewportRecall(null);
+    setSharedMovementPreviews({});
+  }, [selectedCampaignId]);
 
   function setSelectedCampaignId(nextCampaignId: string | null, options?: { replace?: boolean }) {
     setSelectedCampaignIdState(nextCampaignId);
@@ -211,13 +284,6 @@ export default function App() {
 
   const campaign = snapshot?.campaign;
   const role = snapshot?.role ?? "player";
-  const preferredActor = useMemo(
-    () =>
-      campaign?.actors.find(
-        (entry) => role === "dm" || (entry.kind === "character" && entry.ownerId === session?.user.id)
-      ) ?? campaign?.actors[0],
-    [campaign?.actors, role, session?.user.id]
-  );
   const activeMap = useMemo(
     () => campaign?.maps.find((entry) => entry.id === campaign.activeMapId) ?? campaign?.maps[0],
     [campaign?.activeMapId, campaign?.maps]
@@ -227,23 +293,8 @@ export default function App() {
     [activeMap, campaign?.maps, selectedMapId]
   );
   const selectedActor = useMemo(
-    () => campaign?.actors.find((entry) => entry.id === selectedActorId) ?? preferredActor,
-    [campaign?.actors, preferredActor, selectedActorId]
-  );
-  const canViewSelectedSheet = Boolean(
-    selectedActor &&
-      (role === "dm" ||
-        selectedActor.sheetAccess === "full" ||
-        (selectedActor.kind === "character" && selectedActor.ownerId === session?.user.id))
-  );
-  const selectedActorOnMap = useMemo(
-    () =>
-      Boolean(
-        selectedActor &&
-          activeMap &&
-          campaign?.tokens.some((token) => token.actorId === selectedActor.id && token.mapId === activeMap.id)
-      ),
-    [activeMap, campaign?.tokens, selectedActor]
+    () => campaign?.actors.find((entry) => entry.id === selectedActorId) ?? null,
+    [campaign?.actors, selectedActorId]
   );
   const activeMapTokens = useMemo(
     () => campaign?.tokens.filter((token) => token.mapId === activeMap?.id && token.visible) ?? [],
@@ -285,13 +336,71 @@ export default function App() {
       return boardVisibleCells.has(cell) || boardSeenCellSet.has(cell);
     });
   }, [activeMap, activeMapTokens, boardSeenCellSet, boardVisibleCells, role]);
+  const activeMapAssignments = useMemo(
+    () => campaign?.mapAssignments.filter((assignment) => assignment.mapId === activeMap?.id) ?? [],
+    [activeMap?.id, campaign?.mapAssignments]
+  );
+  const activeMapTokenByActorId = useMemo(
+    () => new Map(activeMapTokens.map((token) => [token.actorId, token])),
+    [activeMapTokens]
+  );
+  const visibleMapTokenByActorId = useMemo(
+    () => new Map(visibleMapTokens.map((token) => [token.actorId, token])),
+    [visibleMapTokens]
+  );
   const currentMapRoster = useMemo(
     () =>
-      visibleMapTokens.map((token) => ({
-        token,
-        actor: campaign?.actors.find((entry) => entry.id === token.actorId)
-      })),
-    [campaign?.actors, visibleMapTokens]
+      activeMapAssignments.flatMap((assignment) => {
+        const actor = campaign?.actors.find((entry) => entry.id === assignment.actorId) ?? null;
+        const token = activeMapTokenByActorId.get(assignment.actorId) ?? null;
+        const visibleToken = visibleMapTokenByActorId.get(assignment.actorId) ?? null;
+
+        if (role === "dm") {
+          if (!actor) {
+            return [];
+          }
+
+          return [
+            {
+              actor,
+              actorKind: actor.kind,
+              assignment,
+              color: token?.color ?? actor.color,
+              label: token?.label ?? actor.name,
+              token
+            }
+          ];
+        }
+
+        if (actor && actor.kind === "character" && actor.ownerId === session?.user.id) {
+          return [
+            {
+              actor,
+              actorKind: actor.kind,
+              assignment,
+              color: token?.color ?? actor.color,
+              label: token?.label ?? actor.name,
+              token
+            }
+          ];
+        }
+
+        if (!visibleToken) {
+          return [];
+        }
+
+        return [
+          {
+            actor: null,
+            actorKind: visibleToken.actorKind,
+            assignment,
+            color: visibleToken.color,
+            label: visibleToken.label,
+            token: visibleToken
+          }
+        ];
+      }),
+    [activeMapAssignments, activeMapTokenByActorId, campaign?.actors, role, session?.user.id, visibleMapTokenByActorId]
   );
   const normalizedActorSearch = actorSearch.trim().toLowerCase();
   const normalizedMapActorSearch = mapActorSearch.trim().toLowerCase();
@@ -302,30 +411,34 @@ export default function App() {
 
     return campaign.actors
       .filter((actor) =>
-        normalizedActorSearch
+        (actorTypeFilter === "all" || actor.kind === actorTypeFilter) &&
+        (normalizedActorSearch
           ? [actor.name, actor.kind, actor.species, actor.className].some((value) =>
               value.toLowerCase().includes(normalizedActorSearch)
             )
-          : true
+          : true)
       )
       .map((actor) => ({
       actor,
       activeMaps: campaign.maps.filter((map) =>
-        campaign.tokens.some((token) => token.actorId === actor.id && token.mapId === map.id)
+        campaign.mapAssignments.some((assignment) => assignment.actorId === actor.id && assignment.mapId === map.id)
       ),
-      onCurrentMap: campaign.tokens.some((token) => token.actorId === actor.id && token.mapId === activeMap?.id)
+      onCurrentMap: campaign.mapAssignments.some(
+        (assignment) => assignment.actorId === actor.id && assignment.mapId === activeMap?.id
+      )
     }));
-  }, [activeMap?.id, campaign, normalizedActorSearch, role]);
+  }, [activeMap?.id, actorTypeFilter, campaign, normalizedActorSearch, role]);
   const filteredCurrentMapRoster = useMemo(
     () =>
-      currentMapRoster.filter(({ actor, token }) =>
-        normalizedMapActorSearch
-          ? [token.label, token.actorKind, actor?.name ?? "", actor?.species ?? ""].some((value) =>
+      currentMapRoster.filter(({ actor, actorKind, label }) =>
+        (mapActorTypeFilter === "all" || actorKind === mapActorTypeFilter) &&
+        (normalizedMapActorSearch
+          ? [label, actorKind, actor?.name ?? "", actor?.species ?? ""].some((value) =>
               value.toLowerCase().includes(normalizedMapActorSearch)
             )
-          : true
+          : true)
       ),
-    [currentMapRoster, normalizedMapActorSearch]
+    [currentMapRoster, mapActorTypeFilter, normalizedMapActorSearch]
   );
   const playerMembers = useMemo(
     () => campaign?.members.filter((member) => member.role === "player") ?? [],
@@ -360,6 +473,8 @@ export default function App() {
       setSelectedMonsterId(null);
       setActorSearch("");
       setMapActorSearch("");
+      setActorTypeFilter("all");
+      setMapActorTypeFilter("all");
       setActorCreatorOpen(false);
       setActorCreatorKind("character");
       setActorDraft(createClientActorDraft("character", session?.user.id));
@@ -376,10 +491,10 @@ export default function App() {
       setSelectedMapId(campaign.activeMapId || campaign.maps[0]?.id || null);
     }
 
-    if (!selectedActorId || !campaign.actors.some((entry) => entry.id === selectedActorId)) {
-      setSelectedActorId(preferredActor?.id ?? null);
+    if (selectedActorId && !campaign.actors.some((entry) => entry.id === selectedActorId)) {
+      setSelectedActorId(null);
     }
-  }, [campaign, preferredActor?.id, selectedActorId, selectedMapId]);
+  }, [campaign, selectedActorId, selectedMapId]);
 
   useEffect(() => {
     if (role !== "dm") {
@@ -443,6 +558,10 @@ export default function App() {
       const target = event.target as HTMLElement | null;
       const tagName = target?.tagName;
 
+      if (event.defaultPrevented || selectedBoardItemCount > 0) {
+        return;
+      }
+
       if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || target?.isContentEditable) {
         return;
       }
@@ -455,7 +574,7 @@ export default function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeMap, campaign?.tokens, role, selectedActor]);
+  }, [activeMap, campaign?.tokens, role, selectedActor, selectedBoardItemCount]);
 
   const editingMap = mapEditorMode === "create" ? newMapDraft : mapEditorMode === "edit" ? mapDraft : null;
 
@@ -485,6 +604,13 @@ export default function App() {
     }
 
     socket.send(JSON.stringify(message));
+  }
+
+  function enqueuePing(ping: MapPing) {
+    setMapPings((current) => (current.some((entry) => entry.id === ping.id) ? current : [...current, ping]));
+    window.setTimeout(() => {
+      setMapPings((current) => current.filter((entry) => entry.id !== ping.id));
+    }, 2200);
   }
 
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
@@ -630,22 +756,36 @@ export default function App() {
     }
   }
 
-  async function addActorToCurrentMap(actorId: string) {
+  async function assignActorToCurrentMap(actorId: string) {
     if (!session || !selectedCampaignId || !activeMap) {
       return;
     }
 
     try {
-      await apiRequest(`/campaigns/${selectedCampaignId}/tokens`, {
+      await apiRequest(`/campaigns/${selectedCampaignId}/maps/${activeMap.id}/actors`, {
         method: "POST",
         token: session.token,
-        body: {
-          actorId,
-          mapId: activeMap.id,
-          x: activeMap.grid.offsetX + activeMap.width / 2,
-          y: activeMap.grid.offsetY + activeMap.height / 2
-        }
+        body: { actorId }
       });
+    } catch (error) {
+      setBanner({ tone: "error", text: toErrorMessage(error) });
+    }
+  }
+
+  async function removeActorFromCurrentMap(actorId: string) {
+    if (!session || !selectedCampaignId || !activeMap) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/campaigns/${selectedCampaignId}/maps/${activeMap.id}/actors/${actorId}`, {
+        method: "DELETE",
+        token: session.token
+      });
+
+      if (selectedActorId === actorId) {
+        setSelectedActorId(null);
+      }
     } catch (error) {
       setBanner({ tone: "error", text: toErrorMessage(error) });
     }
@@ -799,6 +939,129 @@ export default function App() {
         y
       });
     } catch (error) {
+      setBanner({ tone: "error", text: toErrorMessage(error) });
+    }
+  }
+
+  async function broadcastMovePreview(actorId: string, target: Point | null) {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    try {
+      await sendRoomMessage({
+        type: "token:preview",
+        actorId,
+        target
+      });
+    } catch (error) {
+      setBanner({ tone: "error", text: toErrorMessage(error) });
+    }
+  }
+
+  async function createDrawing(mapId: string, stroke: { id: string; color: string; size: number; points: Point[] }) {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    try {
+      await sendRoomMessage({
+        type: "drawing:create",
+        mapId,
+        stroke
+      });
+    } catch (error) {
+      setBanner({ tone: "error", text: toErrorMessage(error) });
+    }
+  }
+
+  async function deleteDrawings(mapId: string, drawingIds: string[]) {
+    if (!selectedCampaignId || drawingIds.length === 0) {
+      return;
+    }
+
+    try {
+      await sendRoomMessage({
+        type: "drawing:delete",
+        mapId,
+        drawingIds
+      });
+    } catch (error) {
+      setBanner({ tone: "error", text: toErrorMessage(error) });
+    }
+  }
+
+  async function clearDrawings(mapId: string) {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    try {
+      await sendRoomMessage({
+        type: "drawing:clear",
+        mapId
+      });
+    } catch (error) {
+      setBanner({ tone: "error", text: toErrorMessage(error) });
+    }
+  }
+
+  async function pingMap(point: Point) {
+    if (!selectedCampaignId || !activeMap || !session) {
+      return;
+    }
+
+    const ping: MapPing = {
+      id: `png_${crypto.randomUUID().slice(0, 8)}`,
+      mapId: activeMap.id,
+      point,
+      userId: session.user.id,
+      userName: session.user.name,
+      createdAt: new Date().toISOString()
+    };
+
+    enqueuePing(ping);
+
+    try {
+      await sendRoomMessage({
+        type: "map:ping",
+        pingId: ping.id,
+        mapId: activeMap.id,
+        point
+      });
+    } catch (error) {
+      setMapPings((current) => current.filter((entry) => entry.id !== ping.id));
+      setBanner({ tone: "error", text: toErrorMessage(error) });
+    }
+  }
+
+  async function pingAndRecallMap(point: Point, center: Point, zoom: number) {
+    if (!selectedCampaignId || !activeMap || !session) {
+      return;
+    }
+
+    const ping: MapPing = {
+      id: `png_${crypto.randomUUID().slice(0, 8)}`,
+      mapId: activeMap.id,
+      point,
+      userId: session.user.id,
+      userName: session.user.name,
+      createdAt: new Date().toISOString()
+    };
+
+    enqueuePing(ping);
+
+    try {
+      await sendRoomMessage({
+        type: "map:ping-recall",
+        pingId: ping.id,
+        mapId: activeMap.id,
+        point,
+        center,
+        zoom
+      });
+    } catch (error) {
+      setMapPings((current) => current.filter((entry) => entry.id !== ping.id));
       setBanner({ tone: "error", text: toErrorMessage(error) });
     }
   }
@@ -1035,9 +1298,18 @@ export default function App() {
                 onSetDmFogUserId={setDmFogUserId}
                 onResetFog={resetFog}
                 onSelectActor={setSelectedActorId}
+                onSelectedMapItemCountChange={setSelectedBoardItemCount}
+                movementPreviews={Object.values(sharedMovementPreviews)}
+                pings={mapPings}
+                viewRecall={viewportRecall}
                 onMoveActor={moveActor}
+                onBroadcastMovePreview={broadcastMovePreview}
                 onToggleDoor={toggleDoor}
-                onUpdateMap={saveMap}
+                onCreateDrawing={createDrawing}
+                onDeleteDrawings={deleteDrawings}
+                onClearDrawings={clearDrawings}
+                onPing={pingMap}
+                onPingAndRecall={pingAndRecallMap}
               />
 
               <aside className="table-overlay table-menu">
@@ -1049,7 +1321,7 @@ export default function App() {
                       <span>Actors</span>
                     </button>
                     <button type="button" onClick={() => setActivePopup("maps")}>
-                      <Map size={15} />
+                      <MapIcon size={15} />
                       <span>Maps</span>
                     </button>
                     <button type="button" disabled={!selectedActor} onClick={() => setActivePopup("sheet")}>
@@ -1063,78 +1335,69 @@ export default function App() {
                   </div>
                 </section>
 
-                <section className="overlay-card overlay-selection">
-                  <div className="overlay-selection-head">
-                    <div className="selected-actor-dot" style={{ background: selectedActor?.color ?? "#5d6470" }} />
-                    <div>
-                      <p className="panel-label">Selected</p>
-                      <h3>{selectedActor?.name ?? "No actor selected"}</h3>
-                    </div>
-                  </div>
-                  <p className="overlay-selection-meta">
-                    {selectedActor ? `${selectedActor.kind}${selectedActorOnMap ? " • on map" : " • ready to place"}` : "Open Actors to pick a character, NPC, or monster."}
-                  </p>
-                  {selectedActor && (
-                    <button
-                      className="accent-button"
-                      type="button"
-                      disabled={!canViewSelectedSheet}
-                      onClick={() => setActivePopup("sheet")}
-                    >
-                      Open Sheet
-                    </button>
-                  )}
-                </section>
-
                 <section className="overlay-card overlay-active-actors">
                   <div className="panel-head">
                     <div>
                       <p className="panel-label">Map</p>
-                      <h3>Current map actors</h3>
+                      <h3>Actors</h3>
                     </div>
                     <span className="badge subtle">{filteredCurrentMapRoster.length}</span>
                   </div>
                   <div className="list-stack compact-list">
-                    {filteredCurrentMapRoster.map(({ actor, token }) => {
+                    {filteredCurrentMapRoster.map(({ actor, assignment, color, label }) => {
                       const canSelect = Boolean(actor);
                       const canDrag = Boolean(
                         actor && (role === "dm" || (actor.kind === "character" && actor.ownerId === session.user.id))
                       );
 
                       return (
-                        <div key={token.id} className="overlay-token-row">
-                          <button
-                            type="button"
-                            className={`overlay-token-chip ${actor && selectedActor?.id === actor.id ? "is-selected" : ""}`}
-                            disabled={!canSelect}
-                            draggable={canDrag}
-                            title={token.label}
-                            onClick={() => {
-                              if (actor) {
-                                setSelectedActorId(actor.id);
-                              }
-                            }}
-                            onDragStart={(event) => {
-                              if (!actor) {
-                                event.preventDefault();
-                                return;
-                              }
+                        <div key={`${assignment.mapId}:${assignment.actorId}`} className="overlay-token-row">
+                          <div className={`overlay-token-chip ${actor && selectedActor?.id === actor.id ? "is-selected" : ""}`}>
+                            <button
+                              type="button"
+                              className="overlay-token-drag"
+                              disabled={!canDrag}
+                              draggable={canDrag}
+                              title={canDrag ? `Drag ${label} onto the board` : label}
+                              onClick={() => {
+                                if (actor) {
+                                  setSelectedActorId(actor.id);
+                                }
+                              }}
+                              onDragStart={(event) => {
+                                if (!actor) {
+                                  event.preventDefault();
+                                  return;
+                                }
 
-                              event.dataTransfer.setData("application/x-dnd-actor-id", actor.id);
-                              event.dataTransfer.effectAllowed = "move";
-                              setSelectedActorId(actor.id);
-                            }}
-                          >
-                            <span className="overlay-token-dot" style={{ background: token.color }}>
-                              {token.label
-                                .split(/\s+/)
-                                .filter(Boolean)
-                                .slice(0, 2)
-                                .map((part) => part[0]?.toUpperCase() ?? "")
-                                .join("")}
-                            </span>
-                            <span className="overlay-token-name">{token.label}</span>
-                          </button>
+                                event.dataTransfer.setData("application/x-dnd-actor-id", actor.id);
+                                event.dataTransfer.effectAllowed = "move";
+                                setSelectedActorId(actor.id);
+                              }}
+                            >
+                              <span className="overlay-token-dot" style={{ background: color }}>
+                                {label
+                                  .split(/\s+/)
+                                  .filter(Boolean)
+                                  .slice(0, 2)
+                                  .map((part) => part[0]?.toUpperCase() ?? "")
+                                  .join("")}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              className="overlay-token-name-button"
+                              disabled={!canSelect}
+                              title={label}
+                              onClick={() => {
+                                if (actor) {
+                                  setSelectedActorId(actor.id);
+                                }
+                              }}
+                            >
+                              <span className="overlay-token-name">{label}</span>
+                            </button>
+                          </div>
                           {actor && (
                             <button
                               className="icon-action-button overlay-token-sheet-button"
@@ -1159,7 +1422,7 @@ export default function App() {
                       );
                     })}
                     {filteredCurrentMapRoster.length === 0 && (
-                      <p className="empty-state">No actors are active on this map.</p>
+                      <p className="empty-state">No actors are assigned to this map.</p>
                     )}
                   </div>
                 </section>
@@ -1195,31 +1458,30 @@ export default function App() {
                       </div>
                       <span className="badge subtle">{availableActors.length}</span>
                     </div>
-                    <input
-                      placeholder="Search available actors"
-                      value={actorSearch}
-                      onChange={(event) => setActorSearch(event.target.value)}
-                    />
+                    <div className="actor-filter-row">
+                      <input
+                        placeholder="Search available actors"
+                        value={actorSearch}
+                        onChange={(event) => setActorSearch(event.target.value)}
+                      />
+                      <select value={actorTypeFilter} onChange={(event) => setActorTypeFilter(event.target.value as ActorTypeFilter)}>
+                        <option value="all">All types</option>
+                        <option value="character">Characters</option>
+                        <option value="npc">NPCs</option>
+                        <option value="monster">Monsters</option>
+                        <option value="static">Static</option>
+                      </select>
+                    </div>
                     <div className="actor-list-scroll">
                       <div className="list-stack">
                         {availableActors.map(({ actor, activeMaps, onCurrentMap }) => (
-                          <div key={actor.id} className="popup-row">
-                            <button
-                              className={`list-row ${selectedActor?.id === actor.id ? "is-selected" : ""}`}
-                              type="button"
-                              draggable
-                              onClick={() => setSelectedActorId(actor.id)}
-                              onDragStart={(event) => {
-                                event.dataTransfer.setData("application/x-dnd-actor-id", actor.id);
-                                event.dataTransfer.effectAllowed = "move";
-                                setSelectedActorId(actor.id);
-                              }}
-                            >
+                          <div key={actor.id} className="popup-row actor-popup-row">
+                            <div className={`list-row actor-list-row-static ${selectedActor?.id === actor.id ? "is-selected" : ""}`}>
                               <div className="actor-row-main">
                                 <span className="actor-row-name">{actor.name}</span>
                                 <div className="actor-row-meta">
                                   <span className="badge subtle">{actor.kind}</span>
-                                  {onCurrentMap && <span className="badge subtle">Current</span>}
+                                  {onCurrentMap && <span className="badge subtle">Assigned</span>}
                                   {activeMaps.map((map) => (
                                     <span key={map.id} className="badge map-badge">
                                       {map.name}
@@ -1227,38 +1489,50 @@ export default function App() {
                                   ))}
                                 </div>
                               </div>
-                            </button>
-                            <button
-                              className="icon-action-button"
-                              type="button"
-                              title="Open sheet"
-                              onClick={() => {
-                                setSelectedActorId(actor.id);
-                                setActivePopup("sheet");
-                              }}
-                            >
-                              <ScrollText size={15} />
-                            </button>
-                            {role === "dm" && onCurrentMap && (
+                            </div>
+                            <div className="actor-list-actions">
                               <button
                                 className="icon-action-button"
                                 type="button"
-                                title="Add to current map"
-                                onClick={() => void addActorToCurrentMap(actor.id)}
+                                title="Open sheet"
+                                onClick={() => {
+                                  setSelectedActorId(actor.id);
+                                  setActivePopup("sheet");
+                                }}
                               >
-                                <Map size={15} />
+                                <ScrollText size={15} />
                               </button>
-                            )}
-                            {role === "dm" && actor.ownerId === session.user.id && (
-                              <button
-                                type="button"
-                                className="icon-action-button danger-button"
-                                title="Delete actor"
-                                onClick={() => void deleteActor(actor)}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            )}
+                              {role === "dm" && !onCurrentMap && (
+                                <button
+                                  className="icon-action-button"
+                                  type="button"
+                                  title="Add actor to map"
+                                  onClick={() => void assignActorToCurrentMap(actor.id)}
+                                >
+                                  <Plus size={15} />
+                                </button>
+                              )}
+                              {role === "dm" && onCurrentMap && (
+                                <button
+                                  className="icon-action-button"
+                                  type="button"
+                                  title="Remove actor from map"
+                                  onClick={() => void removeActorFromCurrentMap(actor.id)}
+                                >
+                                  <Minus size={15} />
+                                </button>
+                              )}
+                              {role === "dm" && actor.ownerId === session.user.id && (
+                                <button
+                                  type="button"
+                                  className="icon-action-button danger-button"
+                                  title="Delete actor"
+                                  onClick={() => void deleteActor(actor)}
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         ))}
                         {availableActors.length === 0 && <p className="empty-state">No actors match that search.</p>}
@@ -1267,76 +1541,41 @@ export default function App() {
                   </section>
                 )}
 
-                <section
-                  className="dark-card popup-card actor-list-card"
-                  onDragOver={(event) => {
-                    if (role === "dm") {
-                      event.preventDefault();
-                    }
-                  }}
-                  onDrop={(event) => {
-                    if (role !== "dm") {
-                      return;
-                    }
-
-                    const actorId = event.dataTransfer.getData("application/x-dnd-actor-id");
-
-                    if (!actorId) {
-                      return;
-                    }
-
-                    event.preventDefault();
-                    void addActorToCurrentMap(actorId);
-                  }}
-                >
+                <section className="dark-card popup-card actor-list-card">
                   <div className="panel-head">
                     <div>
                       <p className="panel-label">Map</p>
-                      <h2>Current map actors</h2>
+                      <h2>Actors on map</h2>
                     </div>
                     <span className="badge subtle">{filteredCurrentMapRoster.length}</span>
                   </div>
-                  <input
-                    placeholder="Search current map actors"
-                    value={mapActorSearch}
-                    onChange={(event) => setMapActorSearch(event.target.value)}
-                  />
-                  <div className="actor-list-scroll">
-                    <div className="list-stack">
-                      {filteredCurrentMapRoster.map(({ actor, token }) => {
-                        const canSelect = Boolean(actor);
-                        const canDrag = Boolean(
-                          actor && (role === "dm" || (actor.kind === "character" && actor.ownerId === session.user.id))
-                        );
-                        const canDeleteToken = role === "dm";
+                  <div className="actor-filter-row">
+                    <input
+                      placeholder="Search current map actors"
+                      value={mapActorSearch}
+                      onChange={(event) => setMapActorSearch(event.target.value)}
+                    />
+                    <select value={mapActorTypeFilter} onChange={(event) => setMapActorTypeFilter(event.target.value as ActorTypeFilter)}>
+                      <option value="all">All types</option>
+                      <option value="character">Characters</option>
+                      <option value="npc">NPCs</option>
+                      <option value="monster">Monsters</option>
+                      <option value="static">Static</option>
+                    </select>
+                  </div>
+                    <div className="actor-list-scroll">
+                      <div className="list-stack">
+                      {filteredCurrentMapRoster.map(({ actor, token, actorKind, assignment, label }) => {
+                        const canRemoveFromMap = role === "dm" && Boolean(actor);
 
                         return (
-                          <div key={token.id} className="popup-row">
-                            <button
-                              className={`list-row ${actor && selectedActor?.id === actor.id ? "is-selected" : ""}`}
-                              type="button"
-                              disabled={!canSelect}
-                              draggable={canDrag}
-                              onClick={() => {
-                                if (actor) {
-                                  setSelectedActorId(actor.id);
-                                }
-                              }}
-                              onDragStart={(event) => {
-                                if (!actor) {
-                                  event.preventDefault();
-                                  return;
-                                }
-
-                                event.dataTransfer.setData("application/x-dnd-actor-id", actor.id);
-                                event.dataTransfer.effectAllowed = "move";
-                                setSelectedActorId(actor.id);
-                              }}
-                            >
+                          <div key={`${assignment.mapId}:${assignment.actorId}`} className="popup-row actor-popup-row">
+                            <div className={`list-row actor-list-row-static ${actor && selectedActor?.id === actor.id ? "is-selected" : ""}`}>
                               <div className="actor-row-main">
-                                <span className="actor-row-name">{token.label}</span>
+                                <span className="actor-row-name">{label}</span>
                                 <div className="actor-row-meta">
-                                  <span className="badge subtle">{token.actorKind}</span>
+                                  <span className="badge subtle">{actorKind}</span>
+                                  {token && <span className="badge subtle">On board</span>}
                                   {actor ? (
                                     <span className="badge subtle">
                                       {role === "dm" ? "Sheet" : actor.ownerId === session.user.id ? "Yours" : "Seen"}
@@ -1346,41 +1585,43 @@ export default function App() {
                                   )}
                                 </div>
                               </div>
-                            </button>
-                            {actor && (
-                              <button
-                                className="icon-action-button"
-                                type="button"
-                                title="Open sheet"
-                                disabled={
-                                  !(
-                                    role === "dm" ||
-                                    actor.sheetAccess === "full" ||
-                                    (actor.kind === "character" && actor.ownerId === session.user.id)
-                                  )
-                                }
-                                onClick={() => {
-                                  setSelectedActorId(actor.id);
-                                  setActivePopup("sheet");
-                                }}
-                              >
-                                <ScrollText size={15} />
-                              </button>
-                            )}
-                            {canDeleteToken && (
-                              <button
-                                className="icon-action-button"
-                                type="button"
-                                title="Remove token"
-                                onClick={() => void removeToken(token.id, token.label, true)}
-                              >
-                                <CircleOff size={15} />
-                              </button>
-                            )}
+                            </div>
+                            <div className="actor-list-actions">
+                              {actor && (
+                                <button
+                                  className="icon-action-button"
+                                  type="button"
+                                  title="Open sheet"
+                                  disabled={
+                                    !(
+                                      role === "dm" ||
+                                      actor.sheetAccess === "full" ||
+                                      (actor.kind === "character" && actor.ownerId === session.user.id)
+                                    )
+                                  }
+                                  onClick={() => {
+                                    setSelectedActorId(actor.id);
+                                    setActivePopup("sheet");
+                                  }}
+                                >
+                                  <ScrollText size={15} />
+                                </button>
+                              )}
+                              {canRemoveFromMap && actor && (
+                                <button
+                                  className="icon-action-button"
+                                  type="button"
+                                  title="Remove actor from map"
+                                  onClick={() => void removeActorFromCurrentMap(actor.id)}
+                                >
+                                  <Minus size={15} />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
-                      {filteredCurrentMapRoster.length === 0 && <p className="empty-state">No actors are active on this map.</p>}
+                      {filteredCurrentMapRoster.length === 0 && <p className="empty-state">No actors are assigned to this map.</p>}
                     </div>
                   </div>
                 </section>

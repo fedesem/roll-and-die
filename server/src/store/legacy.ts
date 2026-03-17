@@ -76,6 +76,22 @@ function normalizeCampaign(campaign: Campaign): Campaign {
       }))
     : [];
   const activeMapId = campaign.activeMapId || maps[0]?.id || "";
+  const derivedAssignments = Array.isArray(campaign.tokens)
+    ? Array.from(
+        new Map(
+          campaign.tokens.map((token) => [`${token.mapId}:${token.actorId}`, { mapId: token.mapId, actorId: token.actorId }])
+        ).values()
+      )
+    : [];
+  const normalizedAssignments = Array.isArray((campaign as Partial<Campaign>).mapAssignments)
+    ? ((campaign as Partial<Campaign>).mapAssignments ?? [])
+        .filter(
+          (assignment): assignment is Campaign["mapAssignments"][number] =>
+            Boolean(assignment) &&
+            typeof assignment?.actorId === "string" &&
+            typeof assignment?.mapId === "string"
+        )
+    : derivedAssignments;
 
   return {
     ...campaign,
@@ -88,6 +104,11 @@ function normalizeCampaign(campaign: Campaign): Campaign {
         }))
       : [],
     maps,
+    mapAssignments: Array.from(
+      new Map(
+        normalizedAssignments.map((assignment) => [`${assignment.mapId}:${assignment.actorId}`, assignment])
+      ).values()
+    ),
     tokens: Array.isArray(campaign.tokens) ? campaign.tokens : [],
     chat: Array.isArray(campaign.chat) ? campaign.chat : [],
     invites: Array.isArray(campaign.invites) ? campaign.invites : [],

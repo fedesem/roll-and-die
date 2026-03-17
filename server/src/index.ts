@@ -25,6 +25,8 @@ import type {
   CurrencyPouch,
   HitPoints,
   InventoryEntry,
+  MapPing,
+  MapViewportRecall,
   MapWall,
   DrawingStroke,
   FogRect,
@@ -34,6 +36,7 @@ import type {
   ServerRoomMessage,
   SkillEntry,
   SpellSlotTrack,
+  TokenMovementPreview,
   UserProfile
 } from "../../shared/types.js";
 import {
@@ -146,6 +149,7 @@ app.post(
         invites: [],
         actors: [],
         maps: [initialMap],
+        mapAssignments: [],
         tokens: [],
         exploration: {},
         chat: [
@@ -412,6 +416,74 @@ app.put(
 );
 
 app.post(
+  "/api/campaigns/:campaignId/maps/:mapId/actors",
+  wrap(async (request, response) => {
+    const user = requireUser(request);
+    const campaignId = routeParam(request.params.campaignId, "campaignId");
+    const mapId = routeParam(request.params.mapId, "mapId");
+    const actorId = getRequiredString(request.body?.actorId, "Actor");
+
+    await mutateDatabase((database) => {
+      const { campaign } = requireCampaignMember(database, campaignId, user.id);
+      requireDungeonMaster(campaign, user.id);
+
+      if (!campaign.maps.some((entry) => entry.id === mapId)) {
+        throw new HttpError(404, "Map not found.");
+      }
+
+      if (!campaign.actors.some((entry) => entry.id === actorId)) {
+        throw new HttpError(404, "Actor not found.");
+      }
+
+      if (!hasMapAssignment(campaign, actorId, mapId)) {
+        campaign.mapAssignments.push({ actorId, mapId });
+      }
+    });
+
+    await broadcastCampaignToRoom(campaignId);
+    response.status(204).send();
+  })
+);
+
+app.delete(
+  "/api/campaigns/:campaignId/maps/:mapId/actors/:actorId",
+  wrap(async (request, response) => {
+    const user = requireUser(request);
+    const campaignId = routeParam(request.params.campaignId, "campaignId");
+    const mapId = routeParam(request.params.mapId, "mapId");
+    const actorId = routeParam(request.params.actorId, "actorId");
+
+    await mutateDatabase((database) => {
+      const { campaign } = requireCampaignMember(database, campaignId, user.id);
+      requireDungeonMaster(campaign, user.id);
+
+      if (!campaign.maps.some((entry) => entry.id === mapId)) {
+        throw new HttpError(404, "Map not found.");
+      }
+
+      if (!campaign.actors.some((entry) => entry.id === actorId)) {
+        throw new HttpError(404, "Actor not found.");
+      }
+
+      const beforeAssignments = campaign.mapAssignments.length;
+      campaign.mapAssignments = campaign.mapAssignments.filter(
+        (assignment) => !(assignment.actorId === actorId && assignment.mapId === mapId)
+      );
+
+      if (campaign.mapAssignments.length === beforeAssignments) {
+        throw new HttpError(404, "Actor is not assigned to that map.");
+      }
+
+      campaign.tokens = campaign.tokens.filter((token) => !(token.actorId === actorId && token.mapId === mapId));
+      updateExplorationForCampaign(campaign);
+    });
+
+    await broadcastCampaignToRoom(campaignId);
+    response.status(204).send();
+  })
+);
+
+app.post(
   "/api/campaigns/:campaignId/tokens",
   wrap(async (request, response) => {
     const user = requireUser(request);
@@ -440,6 +512,10 @@ app.post(
 
       if (!canManageActor(role, user.id, actor)) {
         throw new HttpError(403, "You cannot place that actor.");
+      }
+
+      if (!hasMapAssignment(campaign, actorId, mapId)) {
+        throw new HttpError(403, "Assign the actor to that map first.");
       }
 
       const snapped = snapPointToGrid(map, { x, y });
@@ -514,6 +590,10 @@ app.put(
 
       if (!targetMap) {
         throw new HttpError(404, "Map not found.");
+      }
+
+      if (!hasMapAssignment(campaign, token.actorId, nextMapId)) {
+        throw new HttpError(403, "Assign the actor to that map first.");
       }
 
       const snapped = snapPointToGrid(targetMap, {
@@ -600,6 +680,7 @@ app.delete(
       }
 
       campaign.actors.splice(actorIndex, 1);
+      campaign.mapAssignments = campaign.mapAssignments.filter((assignment) => assignment.actorId !== actorId);
       campaign.tokens = campaign.tokens.filter((token) => token.actorId !== actorId);
       updateExplorationForCampaign(campaign);
     });
@@ -814,6 +895,16 @@ function sendSocketMessage(connection: RoomConnection, message: ServerRoomMessag
   connection.socket.send(JSON.stringify(message));
 }
 
+function broadcastSocketMessageToRoom(campaignId: string, message: ServerRoomMessage) {
+  for (const connection of roomConnections) {
+    if (!connection.user || connection.campaignId !== campaignId) {
+      continue;
+    }
+
+    sendSocketMessage(connection, message);
+  }
+}
+
 async function broadcastCampaignToRoom(campaignId: string) {
   const database = await readDatabase();
   const campaign = database.campaigns.find((entry) => entry.id === campaignId);
@@ -950,9 +1041,12 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "token:move") {
+      let activeMapId = "";
+
       await mutateDatabase((database) => {
         const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
         const activeMap = requireActiveMap(campaign);
+        activeMapId = activeMap.id;
         const actor = campaign.actors.find((entry) => entry.id === payload.actorId);
 
         if (!actor) {
@@ -961,6 +1055,10 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
 
         if (!canManageActor(role, user.id, actor)) {
           throw new HttpError(403, "You cannot move that token.");
+        }
+
+        if (!hasMapAssignment(campaign, actor.id, activeMap.id)) {
+          throw new HttpError(403, "Assign the actor to the active map first.");
         }
 
         const snapped = snapPointToGrid(activeMap, {
@@ -995,6 +1093,135 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         updateExplorationForCampaign(campaign);
       });
 
+      broadcastSocketMessageToRoom(campaignId, {
+        type: "room:token-preview",
+        actorId: payload.actorId,
+        mapId: activeMapId,
+        preview: null
+      });
+      await broadcastCampaignToRoom(campaignId);
+      return;
+    }
+
+    if (payload.type === "token:preview") {
+      const database = await readDatabase();
+      const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
+      const activeMap = requireActiveMap(campaign);
+      const actor = campaign.actors.find((entry) => entry.id === payload.actorId);
+
+      if (!actor) {
+        throw new HttpError(404, "Actor not found.");
+      }
+
+      if (!canManageActor(role, user.id, actor)) {
+        throw new HttpError(403, "You cannot move that token.");
+      }
+
+      const existing = campaign.tokens.find((entry) => entry.actorId === actor.id && entry.mapId === activeMap.id);
+
+      if (!existing) {
+        broadcastSocketMessageToRoom(campaignId, {
+          type: "room:token-preview",
+          actorId: actor.id,
+          mapId: activeMap.id,
+          preview: null
+        });
+        return;
+      }
+
+      if (!payload.target) {
+        broadcastSocketMessageToRoom(campaignId, {
+          type: "room:token-preview",
+          actorId: actor.id,
+          mapId: activeMap.id,
+          preview: null
+        });
+        return;
+      }
+
+      const snapped = snapPointToGrid(activeMap, {
+        x: getRequiredNumber(payload.target.x, "Preview X"),
+        y: getRequiredNumber(payload.target.y, "Preview Y")
+      });
+      const trace = traceMovementPath(activeMap, { x: existing.x, y: existing.y }, snapped, {
+        ignoreWalls: role === "dm"
+      });
+      const preview: TokenMovementPreview = {
+        blocked: trace.blocked,
+        end: trace.end,
+        points: trace.points,
+        steps: trace.steps
+      };
+
+      broadcastSocketMessageToRoom(campaignId, {
+        type: "room:token-preview",
+        actorId: actor.id,
+        mapId: activeMap.id,
+        preview
+      });
+      return;
+    }
+
+    if (payload.type === "drawing:create") {
+      await mutateDatabase((database) => {
+        const { campaign } = requireCampaignMember(database, campaignId, user.id);
+        requireDungeonMaster(campaign, user.id);
+        const activeMap = requireActiveMap(campaign);
+
+        if (payload.mapId !== activeMap.id) {
+          throw new HttpError(403, "Drawings can only be added to the active map.");
+        }
+
+        const strokes = sanitizeDrawings([payload.stroke], []);
+
+        if (strokes.length === 0) {
+          throw new HttpError(400, "Drawing stroke is empty.");
+        }
+
+        activeMap.drawings = sanitizeDrawings([...activeMap.drawings, ...strokes], activeMap.drawings);
+      });
+
+      await broadcastCampaignToRoom(campaignId);
+      return;
+    }
+
+    if (payload.type === "drawing:delete") {
+      await mutateDatabase((database) => {
+        const { campaign } = requireCampaignMember(database, campaignId, user.id);
+        requireDungeonMaster(campaign, user.id);
+        const activeMap = requireActiveMap(campaign);
+
+        if (payload.mapId !== activeMap.id) {
+          throw new HttpError(403, "Drawings can only be removed from the active map.");
+        }
+
+        if (!Array.isArray(payload.drawingIds)) {
+          throw new HttpError(400, "Drawing ids are required.");
+        }
+
+        const drawingIds = new Set(
+          payload.drawingIds.filter((entry): entry is string => typeof entry === "string").slice(0, 300)
+        );
+        activeMap.drawings = activeMap.drawings.filter((drawing) => !drawingIds.has(drawing.id));
+      });
+
+      await broadcastCampaignToRoom(campaignId);
+      return;
+    }
+
+    if (payload.type === "drawing:clear") {
+      await mutateDatabase((database) => {
+        const { campaign } = requireCampaignMember(database, campaignId, user.id);
+        requireDungeonMaster(campaign, user.id);
+        const activeMap = requireActiveMap(campaign);
+
+        if (payload.mapId !== activeMap.id) {
+          throw new HttpError(403, "Drawings can only be cleared from the active map.");
+        }
+
+        activeMap.drawings = [];
+      });
+
       await broadcastCampaignToRoom(campaignId);
       return;
     }
@@ -1013,6 +1240,76 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
       });
 
       await broadcastCampaignToRoom(campaignId);
+      return;
+    }
+
+    if (payload.type === "map:ping") {
+      const database = await readDatabase();
+      const { campaign } = requireCampaignMember(database, campaignId, user.id);
+      const activeMap = requireActiveMap(campaign);
+
+      if (payload.mapId !== activeMap.id) {
+        throw new HttpError(403, "Pinging is only available on the active map.");
+      }
+
+      const ping: MapPing = {
+        id: typeof payload.pingId === "string" && payload.pingId ? payload.pingId : createId("png"),
+        mapId: activeMap.id,
+        point: {
+          x: getRequiredNumber(payload.point?.x, "Ping X"),
+          y: getRequiredNumber(payload.point?.y, "Ping Y")
+        },
+        userId: user.id,
+        userName: user.name,
+        createdAt: now()
+      };
+
+      broadcastSocketMessageToRoom(campaignId, {
+        type: "room:ping",
+        ping
+      });
+      return;
+    }
+
+    if (payload.type === "map:ping-recall") {
+      const database = await readDatabase();
+      const { campaign } = requireCampaignMember(database, campaignId, user.id);
+      requireDungeonMaster(campaign, user.id);
+      const activeMap = requireActiveMap(campaign);
+
+      if (payload.mapId !== activeMap.id) {
+        throw new HttpError(403, "Pinging is only available on the active map.");
+      }
+
+      const recall: MapViewportRecall = {
+        id: createId("rec"),
+        mapId: activeMap.id,
+        center: {
+          x: getRequiredNumber(payload.center?.x, "Recall center X"),
+          y: getRequiredNumber(payload.center?.y, "Recall center Y")
+        },
+        zoom: getRequiredNumber(payload.zoom, "Recall zoom")
+      };
+      const ping: MapPing = {
+        id: typeof payload.pingId === "string" && payload.pingId ? payload.pingId : createId("png"),
+        mapId: activeMap.id,
+        point: {
+          x: getRequiredNumber(payload.point?.x, "Ping X"),
+          y: getRequiredNumber(payload.point?.y, "Ping Y")
+        },
+        userId: user.id,
+        userName: user.name,
+        createdAt: now()
+      };
+
+      broadcastSocketMessageToRoom(campaignId, {
+        type: "room:view-recall",
+        recall
+      });
+      broadcastSocketMessageToRoom(campaignId, {
+        type: "room:ping",
+        ping
+      });
       return;
     }
 
@@ -1367,6 +1664,10 @@ function canManageActor(role: MemberRole, userId: string, actor: ActorSheet) {
   }
 
   return actor.kind === "character" && actor.ownerId === userId;
+}
+
+function hasMapAssignment(campaign: Campaign, actorId: string, mapId: string) {
+  return campaign.mapAssignments.some((assignment) => assignment.actorId === actorId && assignment.mapId === mapId);
 }
 
 function canToggleDoor(

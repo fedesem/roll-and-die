@@ -9,6 +9,7 @@ import type {
   Campaign,
   CampaignInvite,
   CampaignMap,
+  MapActorAssignment,
   CampaignMember,
   ChatMessage,
   DiceRoll,
@@ -47,6 +48,7 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     invites: [],
     actors: [],
     maps: [],
+    mapAssignments: [],
     tokens: [],
     chat: [],
     exploration: {}
@@ -472,6 +474,20 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     drawingsById.get(row.strokeId)?.points.push({ x: row.x, y: row.y });
   }
 
+  for (const row of readAll<{ campaignId: string; mapId: string; actorId: string }>(
+    database,
+    `
+      SELECT campaign_id as campaignId, map_id as mapId, actor_id as actorId
+      FROM map_actor_assignments
+      ORDER BY campaign_id, map_id, actor_id
+    `
+  )) {
+    campaignsById.get(row.campaignId)?.mapAssignments.push({
+      mapId: row.mapId,
+      actorId: row.actorId
+    } satisfies MapActorAssignment);
+  }
+
   for (const row of readAll<{ id: string; campaignId: string; actorId: string; actorKind: ActorKind; mapId: string; x: number; y: number; size: number; color: string; label: string; visible: number }>(
     database,
     `
@@ -642,6 +658,10 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
     INSERT INTO map_drawing_points (stroke_id, sort_order, x, y)
     VALUES (?, ?, ?, ?)
   `);
+  const insertMapActorAssignment = database.prepare(`
+    INSERT INTO map_actor_assignments (campaign_id, map_id, actor_id)
+    VALUES (?, ?, ?)
+  `);
   const insertToken = database.prepare(`
     INSERT INTO tokens (id, campaign_id, sort_order, actor_id, actor_kind, map_id, x, y, size, color, label, visible)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -788,6 +808,10 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
       });
     });
 
+    campaign.mapAssignments.forEach((assignment) => {
+      insertMapActorAssignment.run(campaign.id, assignment.mapId, assignment.actorId);
+    });
+
     campaign.tokens.forEach((token, tokenOrder) => {
       insertToken.run(token.id, campaign.id, tokenOrder, token.actorId, token.actorKind, token.mapId, token.x, token.y, token.size, token.color, token.label, toIntegerBoolean(token.visible));
     });
@@ -824,6 +848,7 @@ export function clearRelationalTables(database: DatabaseSync) {
     DELETE FROM chat_rolls;
     DELETE FROM chat_messages;
     DELETE FROM exploration_cells;
+    DELETE FROM map_actor_assignments;
     DELETE FROM tokens;
     DELETE FROM map_drawing_points;
     DELETE FROM map_drawings;
