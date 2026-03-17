@@ -1,5 +1,5 @@
-import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Castle, CircleOff, Eye, FilePlus2, Map, Pencil, ScrollText, Trash2, Users, X } from "lucide-react";
+import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Castle, CircleOff, Eye, FilePlus2, Map, Pencil, ScrollText, Trash2, Users } from "lucide-react";
 
 import type {
   ActorKind,
@@ -19,6 +19,11 @@ import { BoardCanvas } from "./components/BoardCanvas";
 import { CharacterSheet } from "./components/CharacterSheet";
 import { ChatPanel } from "./components/ChatPanel";
 import { MapConfigurator } from "./components/MapConfigurator";
+import { WorkspaceModal } from "./components/WorkspaceModal";
+import { createClientActorDraft, createClientMapDraft, cloneMap, formatMonsterModifier } from "./lib/drafts";
+import { toErrorMessage } from "./lib/errors";
+import { readJson, writeJson } from "./lib/storage";
+import { useAppRouter } from "./router";
 import { computeVisibleCellsForUser, tokenCellKey } from "@shared/vision";
 
 const sessionStorageKey = "dnd-board-session";
@@ -32,12 +37,13 @@ interface BannerState {
 }
 
 export default function App() {
+  const { route, navigate } = useAppRouter();
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [authForm, setAuthForm] = useState({ name: "", email: "", password: "" });
   const [session, setSession] = useState<AuthPayload | null>(() => readJson<AuthPayload>(sessionStorageKey));
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(() =>
-    readJson<string>(selectedCampaignStorageKey)
+  const [selectedCampaignId, setSelectedCampaignIdState] = useState<string | null>(() =>
+    route.name === "campaign" ? route.campaignId : readJson<string>(selectedCampaignStorageKey)
   );
   const [snapshot, setSnapshot] = useState<CampaignSnapshot | null>(null);
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
@@ -85,6 +91,18 @@ export default function App() {
   useEffect(() => {
     writeJson(selectedCampaignStorageKey, selectedCampaignId);
   }, [selectedCampaignId]);
+
+  useEffect(() => {
+    if (route.name === "campaign") {
+      setSelectedCampaignIdState((current) => (current === route.campaignId ? current : route.campaignId));
+    }
+  }, [route]);
+
+  useEffect(() => {
+    if (route.name === "home" && selectedCampaignId && session) {
+      navigate({ name: "campaign", campaignId: selectedCampaignId }, { replace: true });
+    }
+  }, [navigate, route.name, selectedCampaignId, session]);
 
   useEffect(() => {
     if (!session) {
@@ -185,6 +203,11 @@ export default function App() {
       setRoomStatus("offline");
     };
   }, [selectedCampaignId, session?.token]);
+
+  function setSelectedCampaignId(nextCampaignId: string | null, options?: { replace?: boolean }) {
+    setSelectedCampaignIdState(nextCampaignId);
+    navigate(nextCampaignId ? { name: "campaign", campaignId: nextCampaignId } : { name: "home" }, options);
+  }
 
   const campaign = snapshot?.campaign;
   const role = snapshot?.role ?? "player";
@@ -1712,33 +1735,6 @@ export default function App() {
   );
 }
 
-function readJson<T>(key: string) {
-  const raw = window.localStorage.getItem(key);
-
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
-}
-
-function writeJson(key: string, value: unknown) {
-  if (value === null || value === undefined) {
-    window.localStorage.removeItem(key);
-    return;
-  }
-
-  window.localStorage.setItem(key, JSON.stringify(value));
-}
-
-function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Unexpected error.";
-}
-
 function buildRoomSocketUrl() {
   const configured = import.meta.env.VITE_WS_URL;
 
@@ -1748,151 +1744,4 @@ function buildRoomSocketUrl() {
 
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   return `${protocol}//${window.location.host}/ws`;
-}
-
-function cloneMap(map: CampaignMap) {
-  return JSON.parse(JSON.stringify(map)) as CampaignMap;
-}
-
-function formatMonsterModifier(score: number) {
-  const modifier = Math.floor((score - 10) / 2);
-  return modifier >= 0 ? `+${modifier}` : `${modifier}`;
-}
-
-function createClientMapDraft(name = "Encounter Map"): CampaignMap {
-  return {
-    id: `draft_${crypto.randomUUID().slice(0, 8)}`,
-    name,
-    backgroundUrl: "",
-    backgroundOffsetX: 0,
-    backgroundOffsetY: 0,
-    backgroundScale: 1,
-    width: 1600,
-    height: 1200,
-    grid: {
-      show: true,
-      cellSize: 70,
-      scale: 1,
-      offsetX: 0,
-      offsetY: 0,
-      color: "rgba(220, 182, 92, 0.5)"
-    },
-    walls: [],
-    drawings: [],
-    fog: [],
-    visibilityVersion: 1
-  };
-}
-
-function createClientActorDraft(kind: ActorKind, currentUserId?: string): ActorSheet {
-  return {
-    id: `draft_${crypto.randomUUID().slice(0, 8)}`,
-    campaignId: "",
-    ownerId: kind === "character" ? currentUserId ?? "draft-owner" : undefined,
-    name: kind === "static" ? "New Static Actor" : "New Actor",
-    kind,
-    className:
-      kind === "npc"
-        ? "Supporting Role"
-        : kind === "monster"
-          ? "Monster"
-          : kind === "static"
-            ? "2 x 4"
-            : "Adventurer",
-    species: kind === "monster" ? "Bestiary" : kind === "static" ? "Vehicle" : "Human",
-    background: kind === "monster" ? "" : kind === "static" ? "500 kg" : "Wayfarer",
-    alignment: "Neutral",
-    level: 1,
-    challengeRating: kind === "monster" ? "1" : "",
-    experience: 0,
-    spellcastingAbility: "wis",
-    armorClass: 14,
-    initiative: 2,
-    speed: 30,
-    proficiencyBonus: 2,
-    inspiration: false,
-    visionRange: 6,
-    hitPoints: { current: 12, max: 12, temp: 0 },
-    hitDice: "1d8",
-    abilities: { str: 10, dex: 14, con: 12, int: 10, wis: 12, cha: 10 },
-    skills: [
-      { id: `sk_${crypto.randomUUID().slice(0, 8)}`, name: "Acrobatics", ability: "dex", proficient: false, expertise: false },
-      { id: `sk_${crypto.randomUUID().slice(0, 8)}`, name: "Perception", ability: "wis", proficient: true, expertise: false },
-      { id: `sk_${crypto.randomUUID().slice(0, 8)}`, name: "Stealth", ability: "dex", proficient: false, expertise: false }
-    ],
-    spellSlots: Array.from({ length: 9 }, (_, index) => ({ level: index + 1, total: 0, used: 0 })),
-    features: ["Second Wind"],
-    spells: ["Guidance"],
-    talents: ["Perception"],
-    feats: ["Lucky"],
-    attacks: [
-      {
-        id: `atk_${crypto.randomUUID().slice(0, 8)}`,
-        name: "Quarterstaff",
-        attackBonus: 4,
-        damage: "1d6+2",
-        damageType: "Bludgeoning",
-        notes: ""
-      }
-    ],
-    armorItems: [
-      {
-        id: `arm_${crypto.randomUUID().slice(0, 8)}`,
-        name: "Leather Armor",
-        armorClass: 11,
-        notes: ""
-      }
-    ],
-    resources: [
-      {
-        id: `res_${crypto.randomUUID().slice(0, 8)}`,
-        name: "Second Wind",
-        current: 1,
-        max: 1,
-        resetOn: "Short Rest"
-      }
-    ],
-    inventory: [
-      { id: `inv_${crypto.randomUUID().slice(0, 8)}`, name: "Bedroll", quantity: 1 },
-      { id: `inv_${crypto.randomUUID().slice(0, 8)}`, name: "Torch", quantity: 5 }
-    ],
-    currency: { pp: 0, gp: 15, ep: 0, sp: 5, cp: 12 },
-    notes: "",
-    color:
-      kind === "npc"
-        ? "#d98f46"
-        : kind === "monster"
-          ? "#ae4a39"
-          : kind === "static"
-            ? "#6e8897"
-            : "#8cae75"
-  };
-}
-
-interface WorkspaceModalProps {
-  title: string;
-  onClose: () => void;
-  size?: "default" | "compact" | "wide" | "full";
-  children: ReactNode;
-}
-
-function WorkspaceModal({ title, onClose, size = "default", children }: WorkspaceModalProps) {
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <section
-        className={`modal-card ${size !== "default" ? size : ""}`}
-        onClick={(event) => {
-          event.stopPropagation();
-        }}
-      >
-        <div className="modal-head">
-          <h2>{title}</h2>
-          <button type="button" className="icon-action-button modal-close-button" onClick={onClose} aria-label="Close popup">
-            <X size={16} />
-          </button>
-        </div>
-        <div className="modal-body">{children}</div>
-      </section>
-    </div>
-  );
 }

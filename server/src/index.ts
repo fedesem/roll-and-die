@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID, scryptSync } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 
 import cors from "cors";
@@ -42,24 +42,19 @@ import {
   snapPointToGridIntersection,
   traceMovementPath
 } from "../../shared/vision.js";
+import { HttpError } from "./http/errors.js";
+import { wrap } from "./http/wrap.js";
+import { createAuthRouter } from "./routes/authRoutes.js";
+import { createAuthMiddleware, requireUser, toUserProfile } from "./services/authService.js";
 import { monsterCatalog } from "./catalog.js";
 import { rollDice } from "./dice.js";
-import { mutateDatabase, readDatabase, type Database, type StoredUser } from "./store.js";
+import { mutateDatabase, readDatabase, type Database } from "./store.js";
 
 declare global {
   namespace Express {
     interface Request {
       user?: UserProfile;
     }
-  }
-}
-
-class HttpError extends Error {
-  constructor(
-    public readonly statusCode: number,
-    message: string
-  ) {
-    super(message);
   }
 }
 
@@ -105,109 +100,12 @@ app.use(
 );
 app.use(express.json({ limit: "20mb" }));
 
-app.use(
-  wrap(async (request, _response, next) => {
-    const authorization = request.header("authorization");
-
-    if (!authorization?.startsWith("Bearer ")) {
-      next();
-      return;
-    }
-
-    const token = authorization.slice("Bearer ".length);
-    const database = await readDatabase();
-    const session = database.sessions.find((entry) => entry.token === token);
-    const user = session ? database.users.find((entry) => entry.id === session.userId) : undefined;
-
-    if (user) {
-      request.user = toUserProfile(user);
-    }
-
-    next();
-  })
-);
+app.use(wrap(createAuthMiddleware()));
 
 app.get("/api/health", (_request, response) => {
   response.json({ ok: true });
 });
-
-app.post(
-  "/api/auth/register",
-  wrap(async (request, response) => {
-    const name = getRequiredString(request.body?.name, "Name");
-    const email = getRequiredString(request.body?.email, "Email").toLowerCase();
-    const password = getRequiredString(request.body?.password, "Password");
-
-    if (password.length < 6) {
-      throw new HttpError(400, "Password must be at least 6 characters.");
-    }
-
-    const payload = await mutateDatabase((database) => {
-      if (database.users.some((entry) => entry.email === email)) {
-        throw new HttpError(409, "An account already exists for that email.");
-      }
-
-      const user: StoredUser = {
-        id: createId("usr"),
-        name,
-        email,
-        ...createPassword(password)
-      };
-      const token = createToken();
-
-      database.users.push(user);
-      database.sessions.push({
-        token,
-        userId: user.id,
-        createdAt: now()
-      });
-
-      return {
-        token,
-        user: toUserProfile(user)
-      };
-    });
-
-    response.status(201).json(payload);
-  })
-);
-
-app.post(
-  "/api/auth/login",
-  wrap(async (request, response) => {
-    const email = getRequiredString(request.body?.email, "Email").toLowerCase();
-    const password = getRequiredString(request.body?.password, "Password");
-
-    const payload = await mutateDatabase((database) => {
-      const user = database.users.find((entry) => entry.email === email);
-
-      if (!user || user.passwordHash !== hashPassword(password, user.salt)) {
-        throw new HttpError(401, "Invalid email or password.");
-      }
-
-      const token = createToken();
-      database.sessions.push({
-        token,
-        userId: user.id,
-        createdAt: now()
-      });
-
-      return {
-        token,
-        user: toUserProfile(user)
-      };
-    });
-
-    response.json(payload);
-  })
-);
-
-app.get(
-  "/api/auth/me",
-  wrap(async (request, response) => {
-    response.json(requireUser(request));
-  })
-);
+app.use("/api/auth", createAuthRouter());
 
 app.get(
   "/api/campaigns",
@@ -822,53 +720,12 @@ httpServer.listen(port, () => {
   console.log(`DnD board API listening on http://localhost:${port}`);
 });
 
-function wrap(
-  handler: (request: Request, response: Response, next: NextFunction) => Promise<void> | void
-) {
-  return (request: Request, response: Response, next: NextFunction) => {
-    Promise.resolve(handler(request, response, next)).catch(next);
-  };
-}
-
 function createId(prefix: string) {
   return `${prefix}_${randomUUID().slice(0, 8)}`;
 }
 
 function now() {
   return new Date().toISOString();
-}
-
-function createToken() {
-  return `${createId("session")}_${randomBytes(10).toString("hex")}`;
-}
-
-function createPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-
-  return {
-    salt,
-    passwordHash: hashPassword(password, salt)
-  };
-}
-
-function hashPassword(password: string, salt: string) {
-  return scryptSync(password, salt, 64).toString("hex");
-}
-
-function toUserProfile(user: StoredUser): UserProfile {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email
-  };
-}
-
-function requireUser(request: Request) {
-  if (!request.user) {
-    throw new HttpError(401, "Authentication required.");
-  }
-
-  return request.user;
 }
 
 async function readCampaignForMember(campaignId: string, userId: string) {

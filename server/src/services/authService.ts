@@ -1,0 +1,69 @@
+import { randomBytes, randomUUID, scryptSync } from "node:crypto";
+import type { NextFunction, Request, Response } from "express";
+
+import type { UserProfile } from "../../../shared/types.js";
+import { readDatabase, type StoredUser } from "../store.js";
+import { HttpError } from "../http/errors.js";
+
+export function createId(prefix: string) {
+  return `${prefix}_${randomUUID().slice(0, 8)}`;
+}
+
+export function now() {
+  return new Date().toISOString();
+}
+
+export function createToken() {
+  return `${createId("session")}_${randomBytes(10).toString("hex")}`;
+}
+
+export function createPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+
+  return {
+    salt,
+    passwordHash: hashPassword(password, salt)
+  };
+}
+
+export function hashPassword(password: string, salt: string) {
+  return scryptSync(password, salt, 64).toString("hex");
+}
+
+export function toUserProfile(user: StoredUser): UserProfile {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email
+  };
+}
+
+export function requireUser(request: Request) {
+  if (!request.user) {
+    throw new HttpError(401, "Authentication required.");
+  }
+
+  return request.user;
+}
+
+export function createAuthMiddleware() {
+  return async (request: Request, _response: Response, next: NextFunction) => {
+    const authorization = request.header("authorization");
+
+    if (!authorization?.startsWith("Bearer ")) {
+      next();
+      return;
+    }
+
+    const token = authorization.slice("Bearer ".length);
+    const database = await readDatabase();
+    const session = database.sessions.find((entry) => entry.token === token);
+    const user = session ? database.users.find((entry) => entry.id === session.userId) : undefined;
+
+    if (user) {
+      request.user = toUserProfile(user);
+    }
+
+    next();
+  };
+}
