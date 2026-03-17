@@ -3,10 +3,12 @@ import {
   useMemo,
   useRef,
   useState,
+  type DragEvent as ReactDragEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent
 } from "react";
+import { Eye, EyeOff, MousePointer2, PencilLine, RotateCcw, Trash2 } from "lucide-react";
 
 import type {
   ActorSheet,
@@ -39,6 +41,12 @@ interface BoardCanvasProps {
   currentUserId: string;
   playerSeenCells: string[];
   fogPreviewUserId?: string;
+  fogPlayers: Array<{ userId: string; name: string }>;
+  dmFogEnabled: boolean;
+  dmFogUserId: string | null;
+  onSetDmFogEnabled: (value: boolean) => void;
+  onSetDmFogUserId: (value: string | null) => void;
+  onResetFog: () => Promise<void>;
   onSelectActor: (actorId: string) => void;
   onMoveActor: (actorId: string, x: number, y: number) => Promise<void>;
   onToggleDoor: (doorId: string) => Promise<void>;
@@ -83,6 +91,12 @@ export function BoardCanvas({
   currentUserId,
   playerSeenCells,
   fogPreviewUserId,
+  fogPlayers,
+  dmFogEnabled,
+  dmFogUserId,
+  onSetDmFogEnabled,
+  onSetDmFogUserId,
+  onResetFog,
   onSelectActor,
   onMoveActor,
   onToggleDoor,
@@ -613,6 +627,29 @@ export function BoardCanvas({
     }
   }
 
+  async function handleBoardDrop(event: ReactDragEvent<HTMLDivElement>) {
+    if (!map) {
+      return;
+    }
+
+    event.preventDefault();
+    const actorId = event.dataTransfer.getData("application/x-dnd-actor-id");
+
+    if (!actorId) {
+      return;
+    }
+
+    const point = toWorldPoint(event.clientX, event.clientY);
+
+    if (!point) {
+      return;
+    }
+
+    onSelectActor(actorId);
+    const snapped = snapPointToGrid(map, point);
+    await onMoveActor(actorId, snapped.x, snapped.y);
+  }
+
   function handleBoardPointerDownCapture(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.button !== 1 && event.button !== 2) {
       return;
@@ -842,40 +879,75 @@ export function BoardCanvas({
     <section className="board-panel">
       <div className="board-toolbar">
         <div className="segmented">
-          <button className={tool === "select" ? "is-active" : ""} type="button" onClick={() => setTool("select")}>
-            Select
+          <button
+            className={tool === "select" ? "is-active" : ""}
+            type="button"
+            title="Select"
+            aria-label="Select"
+            onClick={() => setTool("select")}
+          >
+            <MousePointer2 size={15} />
           </button>
           {isDungeonMaster && (
-            <button className={tool === "draw" ? "is-active" : ""} type="button" onClick={() => setTool("draw")}>
-              Draw
+            <button
+              className={tool === "draw" ? "is-active" : ""}
+              type="button"
+              title="Draw"
+              aria-label="Draw"
+              onClick={() => setTool("draw")}
+            >
+              <PencilLine size={15} />
             </button>
           )}
         </div>
         <div className="tool-meta">
           <span className="board-zoom-chip">Zoom {Math.round(viewZoom * 100)}%</span>
-          {isDungeonMaster && (
+          {isDungeonMaster && fogPlayers.length > 0 && (
             <>
-              <label>
-                Ink
-                <input type="color" value={strokeColor} onChange={(event) => setStrokeColor(event.target.value)} />
-              </label>
-              <label>
-                Size
-                <input
-                  type="range"
-                  min="1"
-                  max="16"
-                  value={strokeSize}
-                  onChange={(event) => setStrokeSize(Number(event.target.value))}
-                />
-              </label>
-              <button type="button" onClick={() => void clearInk()}>
-                Clear Ink
+              <select value={dmFogUserId ?? ""} onChange={(event) => onSetDmFogUserId(event.target.value || null)}>
+                {fogPlayers.map((member) => (
+                  <option key={member.userId} value={member.userId}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className={`icon-action-button ${dmFogEnabled ? "is-active" : ""}`}
+                title={dmFogEnabled ? "Hide player fog" : "View player fog"}
+                disabled={!dmFogUserId}
+                onClick={() => onSetDmFogEnabled(!dmFogEnabled)}
+              >
+                {dmFogEnabled ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+              <button type="button" className="icon-action-button" title="Reset fog" onClick={() => void onResetFog()}>
+                <RotateCcw size={15} />
               </button>
             </>
           )}
         </div>
       </div>
+      {isDungeonMaster && tool === "draw" && (
+        <div className="board-draw-controls">
+          <label>
+            Ink
+            <input type="color" value={strokeColor} onChange={(event) => setStrokeColor(event.target.value)} />
+          </label>
+          <label>
+            Size
+            <input
+              type="range"
+              min="1"
+              max="16"
+              value={strokeSize}
+              onChange={(event) => setStrokeSize(Number(event.target.value))}
+            />
+          </label>
+          <button type="button" className="icon-action-button" title="Clear ink" onClick={() => void clearInk()}>
+            <Trash2 size={15} />
+          </button>
+        </div>
+      )}
 
       <div className="board-scroll">
         <div
@@ -899,6 +971,8 @@ export function BoardCanvas({
             }
           }}
           onWheel={handleWheel}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={(event) => void handleBoardDrop(event)}
           onContextMenu={(event) => event.preventDefault()}
         >
           {backgroundRect && (

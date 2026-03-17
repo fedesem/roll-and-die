@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { SendHorizontal } from "lucide-react";
 
 import type { ChatMessage } from "@shared/types";
 
@@ -17,14 +18,6 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
 
   return (
     <section className="chat-panel">
-      <div className="panel-head">
-        <div>
-          <p className="panel-label">Room Chat</p>
-          <h2>Dice and table chatter</h2>
-        </div>
-        <p className="panel-caption">Manual rolls use `/roll 1d20+5`.</p>
-      </div>
-
       <div className="chat-log">
         {messages.map((message) => (
           <article key={message.id} className={`chat-message ${message.kind}`}>
@@ -65,8 +58,8 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
         />
-        <button className="accent-button" type="submit">
-          Send
+        <button className="accent-button icon-action-button" type="submit" aria-label="Send message">
+          <SendHorizontal size={15} />
         </button>
       </form>
     </section>

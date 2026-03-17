@@ -1,6 +1,6 @@
 export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 export type MemberRole = "dm" | "player";
-export type ActorKind = "character" | "npc" | "monster";
+export type ActorKind = "character" | "npc" | "monster" | "static";
 export type ChatMessageKind = "message" | "roll" | "system";
 export type CellKey = string;
 

@@ -79,6 +79,70 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
     );
   }
 
+  if (draft.kind === "static") {
+    return (
+      <section className="sheet-shell monster-sheet-shell">
+        <div className="sheet-toolbar">
+          <div>
+            <p className="panel-label">Static Actor</p>
+            <h2>{draft.name}</h2>
+            <p className="panel-caption">For vehicles, scenery, siege gear, and other non-character pieces.</p>
+          </div>
+          {canEdit && (
+            <button className="accent-button" type="button" onClick={() => void onSave(draft)}>
+              Save
+            </button>
+          )}
+        </div>
+
+        <div className="monster-stat-grid">
+          <article className="sheet-panel">
+            <div className="sheet-panel-head">
+              <h3>Overview</h3>
+            </div>
+            <div className="sheet-form-grid">
+              <label>
+                Name
+                <input value={draft.name} disabled={!canEdit} onChange={(event) => updateField("name", event.target.value)} />
+              </label>
+              <label>
+                Type
+                <input value={draft.species} disabled={!canEdit} onChange={(event) => updateField("species", event.target.value)} />
+              </label>
+              <label>
+                Size
+                <input value={draft.className} disabled={!canEdit} onChange={(event) => updateField("className", event.target.value)} />
+              </label>
+              <label>
+                Weight
+                <input value={draft.background} disabled={!canEdit} onChange={(event) => updateField("background", event.target.value)} />
+              </label>
+              <label>
+                Accent
+                <input type="color" value={draft.color} disabled={!canEdit} onChange={(event) => updateField("color", event.target.value)} />
+              </label>
+            </div>
+          </article>
+
+          <article className="sheet-panel">
+            <div className="sheet-panel-head">
+              <h3>Description</h3>
+            </div>
+            <label>
+              Description
+              <textarea
+                rows={12}
+                value={draft.notes}
+                disabled={!canEdit}
+                onChange={(event) => updateField("notes", event.target.value)}
+              />
+            </label>
+          </article>
+        </div>
+      </section>
+    );
+  }
+
   const spellModifier = abilityModifier(draft.abilities[draft.spellcastingAbility]);
   const spellSaveDc = 8 + draft.proficiencyBonus + spellModifier;
   const spellAttack = draft.proficiencyBonus + spellModifier;

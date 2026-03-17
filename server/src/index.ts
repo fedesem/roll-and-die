@@ -452,7 +452,7 @@ app.post(
         throw new HttpError(404, "Monster template not found.");
       }
 
-      const actor = createMonsterActor(campaignId, template);
+      const actor = createMonsterActor(campaignId, user.id, template);
       campaign.actors.unshift(actor);
       return actor;
     });
@@ -643,6 +643,71 @@ app.put(
 
     await broadcastCampaignToRoom(campaignId);
     response.json(token);
+  })
+);
+
+app.delete(
+  "/api/campaigns/:campaignId/tokens/:tokenId",
+  wrap(async (request, response) => {
+    const user = requireUser(request);
+    const campaignId = routeParam(request.params.campaignId, "campaignId");
+    const tokenId = routeParam(request.params.tokenId, "tokenId");
+
+    await mutateDatabase((database) => {
+      const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
+
+      if (role !== "dm") {
+        throw new HttpError(403, "Only the DM can remove tokens.");
+      }
+
+      const tokenIndex = campaign.tokens.findIndex((entry) => entry.id === tokenId);
+
+      if (tokenIndex < 0) {
+        throw new HttpError(404, "Token not found.");
+      }
+
+      campaign.tokens.splice(tokenIndex, 1);
+      updateExplorationForCampaign(campaign);
+    });
+
+    await broadcastCampaignToRoom(campaignId);
+    response.status(204).send();
+  })
+);
+
+app.delete(
+  "/api/campaigns/:campaignId/actors/:actorId",
+  wrap(async (request, response) => {
+    const user = requireUser(request);
+    const campaignId = routeParam(request.params.campaignId, "campaignId");
+    const actorId = routeParam(request.params.actorId, "actorId");
+
+    await mutateDatabase((database) => {
+      const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
+
+      if (role !== "dm") {
+        throw new HttpError(403, "Only the DM can delete actors.");
+      }
+
+      const actorIndex = campaign.actors.findIndex((entry) => entry.id === actorId);
+
+      if (actorIndex < 0) {
+        throw new HttpError(404, "Actor not found.");
+      }
+
+      const actor = campaign.actors[actorIndex];
+
+      if (actor.ownerId !== user.id) {
+        throw new HttpError(403, "You can only delete actors you own.");
+      }
+
+      campaign.actors.splice(actorIndex, 1);
+      campaign.tokens = campaign.tokens.filter((token) => token.actorId !== actorId);
+      updateExplorationForCampaign(campaign);
+    });
+
+    await broadcastCampaignToRoom(campaignId);
+    response.status(204).send();
   })
 );
 
@@ -1196,11 +1261,11 @@ function parseRole(value: unknown): MemberRole {
 }
 
 function parseActorKind(value: unknown): ActorKind {
-  if (value === "character" || value === "npc" || value === "monster") {
+  if (value === "character" || value === "npc" || value === "monster" || value === "static") {
     return value;
   }
 
-  throw new HttpError(400, "Actor kind must be character, npc, or monster.");
+  throw new HttpError(400, "Actor kind must be character, npc, monster, or static.");
 }
 
 function parseAbilityKey(value: unknown, fallback: AbilityKey): AbilityKey {
@@ -1254,9 +1319,16 @@ function createDefaultActor(
     ownerId: kind === "character" ? userId : role === "dm" ? userId : undefined,
     name,
     kind,
-    className: kind === "npc" ? "Supporting Role" : kind === "monster" ? "Monster" : "Adventurer",
-    species: kind === "monster" ? "Bestiary" : "Human",
-    background: kind === "monster" ? "" : "Wayfarer",
+    className:
+      kind === "npc"
+        ? "Supporting Role"
+        : kind === "monster"
+          ? "Monster"
+          : kind === "static"
+            ? "2 x 4"
+            : "Adventurer",
+    species: kind === "monster" ? "Bestiary" : kind === "static" ? "Vehicle" : "Human",
+    background: kind === "monster" ? "" : kind === "static" ? "500 kg" : "Wayfarer",
     alignment: "Neutral",
     level: 1,
     challengeRating: kind === "monster" ? "1" : "",
@@ -1311,17 +1383,25 @@ function createDefaultActor(
     ],
     currency: { pp: 0, gp: 15, ep: 0, sp: 5, cp: 12 },
     notes: "",
-    color: kind === "npc" ? "#d98f46" : kind === "monster" ? "#ae4a39" : "#8cae75"
+    color:
+      kind === "npc"
+        ? "#d98f46"
+        : kind === "monster"
+          ? "#ae4a39"
+          : kind === "static"
+            ? "#6e8897"
+            : "#8cae75"
   };
 }
 
-function createMonsterActor(campaignId: string, template: (typeof monsterCatalog)[number]): ActorSheet {
+function createMonsterActor(campaignId: string, userId: string, template: (typeof monsterCatalog)[number]): ActorSheet {
   const dexModifier = abilityModifier(template.abilities.dex);
   const proficiencyBonus = template.challengeRating === "10" ? 4 : 2;
 
   return {
     id: createId("act"),
     campaignId,
+    ownerId: userId,
     templateId: template.id,
     name: template.name,
     kind: "monster",

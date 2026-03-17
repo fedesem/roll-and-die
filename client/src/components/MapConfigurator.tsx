@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent
 } from "react";
+import { DoorOpen, MousePointer2, Move, RotateCcw, Square, Trash2, Waves, ZoomIn, ZoomOut } from "lucide-react";
 
 import type { CampaignMap, MapWall, MapWallKind, Point } from "@shared/types";
 import { snapPointToGridIntersection } from "@shared/vision";
@@ -316,6 +317,14 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
   }
 
   function handlePreviewPointerDownCapture(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button === 2 && editorMode !== "align" && editorMode !== "select") {
+      event.preventDefault();
+      setEditorMode("select");
+      setObstacleAnchor(null);
+      setHoverPoint(null);
+      return;
+    }
+
     if (event.button !== 1 && event.button !== 2) {
       return;
     }
@@ -461,7 +470,7 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
     };
 
     updateWalls([...map.walls, obstacle]);
-    setObstacleAnchor(null);
+    setObstacleAnchor(snappedPoint);
     setSelectedObstacleIds([obstacle.id]);
   }
 
@@ -555,8 +564,8 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
           ? `${selectedObstacleIds.length} obstacle${selectedObstacleIds.length === 1 ? "" : "s"} selected. Press Delete to remove them.`
           : "Click obstacles to toggle selection or drag a box to select multiple. Use right or middle drag to pan."
         : obstacleAnchor
-          ? `Click a second snapped border point to place the ${obstacleLabel(editorMode).toLowerCase()}. Use right or middle drag to pan.`
-          : `Click two snapped border points to place a ${obstacleLabel(editorMode).toLowerCase()}. Use right or middle drag to pan.`;
+          ? `Click the next snapped border point to continue the ${obstacleLabel(editorMode).toLowerCase()}. Right click ends the chain and returns to select.`
+          : `Click two snapped border points to place a ${obstacleLabel(editorMode).toLowerCase()}. Right click returns to select.`;
 
   return (
     <div className="map-editor">
@@ -569,20 +578,22 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
             </div>
             <div className="map-preview-actions">
               <span className="board-zoom-chip">View {Math.round(previewZoom * 100)}%</span>
-              <button type="button" onClick={() => adjustPreviewZoom(-1)}>
-                -
+              <button type="button" className="icon-action-button" onClick={() => adjustPreviewZoom(-1)} title="Zoom out">
+                <ZoomOut size={15} />
               </button>
-              <button type="button" onClick={() => adjustPreviewZoom(1)}>
-                +
+              <button type="button" className="icon-action-button" onClick={() => adjustPreviewZoom(1)} title="Zoom in">
+                <ZoomIn size={15} />
               </button>
               <button
                 type="button"
+                className="icon-action-button"
+                title="Reset view"
                 onClick={() => {
                   setPreviewZoom(defaultPreviewZoom);
                   setViewPan({ x: 0, y: 0 });
                 }}
               >
-                Reset View
+                <RotateCcw size={15} />
               </button>
               <label className="map-inline-setting">
                 Align Step %
@@ -595,82 +606,22 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
                   onChange={(event) => setAlignScaleStep(clamp(Number(event.target.value || 0), minAlignScaleStep, maxAlignScaleStep))}
                 />
               </label>
-              <button type="button" onClick={() => adjustAlignScaleStep(-1)}>
-                Step -
-              </button>
-              <button type="button" onClick={() => adjustAlignScaleStep(1)}>
-                Step +
-              </button>
             </div>
-          </div>
-
-          <div className="map-preview-toolbar">
-            <div className="segmented map-preview-tools">
-              <button
-                className={editorMode === "select" ? "is-active" : ""}
-                type="button"
-                disabled={disabled}
-                onClick={() => {
-                  setEditorMode("select");
-                  setObstacleAnchor(null);
-                }}
-              >
-                Select
-              </button>
-              <button
-                className={editorMode === "align" ? "is-active" : ""}
-                type="button"
-                onClick={() => {
-                  setEditorMode("align");
-                  setObstacleAnchor(null);
-                }}
-              >
-                Align
-              </button>
-              <button
-                className={editorMode === "wall" ? "is-active" : ""}
-                type="button"
-                disabled={disabled}
-                onClick={() => setEditorMode("wall")}
-              >
-                Wall
-              </button>
-              <button
-                className={editorMode === "transparent" ? "is-active" : ""}
-                type="button"
-                disabled={disabled}
-                onClick={() => setEditorMode("transparent")}
-              >
-                Transparent
-              </button>
-              <button
-                className={editorMode === "door" ? "is-active" : ""}
-                type="button"
-                disabled={disabled}
-                onClick={() => setEditorMode("door")}
-              >
-                Door
-              </button>
-            </div>
-
-            {obstacleAnchor && editorMode !== "align" && editorMode !== "select" && (
-              <button
-                type="button"
-                onClick={() => {
-                  setObstacleAnchor(null);
-                  setHoverPoint(null);
-                }}
-              >
-                Cancel Segment
-              </button>
-            )}
           </div>
 
           <div
             ref={previewRef}
             className={`map-preview-stage ${dragging || panning ? "is-dragging" : ""} ${editorMode !== "align" ? "is-editing" : ""} mode-${editorMode}`}
             onClick={handlePreviewClick}
-            onContextMenu={(event) => event.preventDefault()}
+            onContextMenu={(event) => {
+              event.preventDefault();
+
+              if (editorMode !== "align" && editorMode !== "select") {
+                setEditorMode("select");
+                setObstacleAnchor(null);
+                setHoverPoint(null);
+              }
+            }}
             onPointerDownCapture={handlePreviewPointerDownCapture}
             onPointerDown={handlePreviewPointerDown}
             onPointerMove={handlePreviewPointerMove}
@@ -694,6 +645,84 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
             }}
             onWheel={handlePreviewWheel}
           >
+            <div className="map-preview-overlay-tools">
+              <button
+                className={`icon-action-button ${editorMode === "select" ? "is-active" : ""}`}
+                type="button"
+                disabled={disabled}
+                title="Select"
+                onClick={() => {
+                  setEditorMode("select");
+                  setObstacleAnchor(null);
+                  setHoverPoint(null);
+                }}
+              >
+                <MousePointer2 size={15} />
+              </button>
+              <button
+                className={`icon-action-button ${editorMode === "align" ? "is-active" : ""}`}
+                type="button"
+                title="Align image"
+                onClick={() => {
+                  setEditorMode("align");
+                  setObstacleAnchor(null);
+                  setHoverPoint(null);
+                }}
+              >
+                <Move size={15} />
+              </button>
+              <button
+                className={`icon-action-button ${editorMode === "wall" ? "is-active" : ""}`}
+                type="button"
+                disabled={disabled}
+                title="Wall"
+                onClick={() => {
+                  setEditorMode("wall");
+                  setObstacleAnchor(null);
+                }}
+              >
+                <Square size={15} />
+              </button>
+              <button
+                className={`icon-action-button ${editorMode === "transparent" ? "is-active" : ""}`}
+                type="button"
+                disabled={disabled}
+                title="Transparent wall"
+                onClick={() => {
+                  setEditorMode("transparent");
+                  setObstacleAnchor(null);
+                }}
+              >
+                <Waves size={15} />
+              </button>
+              <button
+                className={`icon-action-button ${editorMode === "door" ? "is-active" : ""}`}
+                type="button"
+                disabled={disabled}
+                title="Door"
+                onClick={() => {
+                  setEditorMode("door");
+                  setObstacleAnchor(null);
+                }}
+              >
+                <DoorOpen size={15} />
+              </button>
+              <button
+                className="icon-action-button danger-button"
+                type="button"
+                disabled={disabled || (selectedObstacleIds.length === 0 && map.walls.length === 0)}
+                title={selectedObstacleIds.length > 0 ? "Delete selected" : "Clear all obstacles"}
+                onClick={() => {
+                  if (selectedObstacleIds.length > 0) {
+                    removeObstacles(selectedObstacleIds);
+                    return;
+                  }
+                  clearObstacles();
+                }}
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
             {map.backgroundUrl && (
               <div
                 className="map-preview-image"
@@ -837,58 +866,20 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
               </label>
               <label>
                 Grid Color
-                <input value={map.grid.color} disabled={disabled} onChange={(event) => updateGrid("color", event.target.value)} />
+                <div className="color-input-row">
+                  <input
+                    type="color"
+                    value={toColorInputValue(map.grid.color)}
+                    disabled={disabled}
+                    onChange={(event) => updateGrid("color", event.target.value)}
+                  />
+                  <input value={map.grid.color} disabled={disabled} onChange={(event) => updateGrid("color", event.target.value)} />
+                </div>
               </label>
               <label className="checkbox-row">
                 <input type="checkbox" checked={map.grid.show} disabled={disabled} onChange={(event) => updateGrid("show", event.target.checked)} />
                 Show grid
               </label>
-            </div>
-          </div>
-
-          <div className="map-form-section">
-            <div className="panel-head">
-              <div>
-                <p className="panel-label">Obstacles</p>
-                <h3>{map.walls.length} segments</h3>
-              </div>
-            </div>
-            <p className="panel-caption">
-              Normal walls block sight and movement and stay DM-only. Transparent walls block movement only. Doors block both until opened on the board.
-            </p>
-            <div className="inline-form compact">
-              <button type="button" disabled={disabled || selectedObstacleIds.length === 0} onClick={() => removeObstacles(selectedObstacleIds)}>
-                Delete Selected
-              </button>
-              <button type="button" disabled={disabled || map.walls.length === 0} onClick={clearObstacles}>
-                Clear Walls
-              </button>
-            </div>
-            <div className="map-obstacle-list">
-              {map.walls.map((wall) => (
-                <div key={wall.id} className="map-obstacle-row">
-                  <button
-                    className={`list-row ${selectedObstacleIds.includes(wall.id) ? "is-selected" : ""}`}
-                    type="button"
-                    onClick={() => toggleObstacleSelection(wall.id)}
-                  >
-                    <span>{obstacleLabel(wall.kind)}</span>
-                    <small>
-                      {formatPoint(wall.start)} to {formatPoint(wall.end)}
-                      {wall.kind === "door" ? ` • ${wall.isOpen ? "open" : "closed"}` : ""}
-                    </small>
-                  </button>
-                  {wall.kind === "door" && (
-                    <button type="button" disabled={disabled} onClick={() => toggleDoorState(wall.id)}>
-                      {wall.isOpen ? "Close" : "Open"}
-                    </button>
-                  )}
-                  <button type="button" disabled={disabled} onClick={() => removeObstacles([wall.id])}>
-                    Delete
-                  </button>
-                </div>
-              ))}
-              {map.walls.length === 0 && <p className="empty-state">No walls or doors yet. Use the preview tools to place them on grid borders.</p>}
             </div>
           </div>
         </div>
@@ -976,6 +967,22 @@ function formatPoint(point: Point) {
 
 function samePoint(a: Point, b: Point) {
   return Math.abs(a.x - b.x) < 0.0001 && Math.abs(a.y - b.y) < 0.0001;
+}
+
+function toColorInputValue(value: string) {
+  if (/^#[0-9a-f]{6}$/i.test(value)) {
+    return value;
+  }
+
+  const rgbaMatch = value.match(/^rgba?\(\s*(\d{1,3})[\s,]+(\d{1,3})[\s,]+(\d{1,3})/i);
+
+  if (rgbaMatch) {
+    return `#${[rgbaMatch[1], rgbaMatch[2], rgbaMatch[3]]
+      .map((entry) => Math.max(0, Math.min(255, Number(entry))).toString(16).padStart(2, "0"))
+      .join("")}`;
+  }
+
+  return "#dcb65c";
 }
 
 function normalizeSelectionRect(rect: SelectionState) {
