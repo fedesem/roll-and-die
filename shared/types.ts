@@ -147,10 +147,18 @@ export interface Point {
   y: number;
 }
 
+export type DrawingKind = "freehand" | "circle" | "square" | "star";
+
 export interface DrawingStroke {
   id: string;
+  ownerId?: string;
+  kind: DrawingKind;
   color: string;
+  strokeOpacity: number;
+  fillColor: string;
+  fillOpacity: number;
   size: number;
+  rotation: number;
   points: Point[];
 }
 
@@ -288,6 +296,18 @@ export interface TokenMovementPreview {
   steps: number;
 }
 
+export type MeasureKind = "line" | "cone" | "beam" | "emanation" | "square";
+export type MeasureSnapMode = "center" | "corner" | "none";
+
+export interface MeasurePreview {
+  kind: MeasureKind;
+  start: Point;
+  end: Point;
+  snapMode: MeasureSnapMode;
+  coneAngle: 45 | 60 | 90;
+  beamWidthSquares: number;
+}
+
 export interface MapPing {
   id: string;
   mapId: string;
@@ -331,9 +351,22 @@ export type ClientRoomMessage =
       target: Point | null;
     }
   | {
+      type: "measure:preview";
+      preview: MeasurePreview | null;
+    }
+  | {
       type: "drawing:create";
       mapId: string;
       stroke: DrawingStroke;
+    }
+  | {
+      type: "drawing:update";
+      mapId: string;
+      drawings: Array<{
+        id: string;
+        points: Point[];
+        rotation: number;
+      }>;
     }
   | {
       type: "drawing:delete";
@@ -381,6 +414,12 @@ export type ServerRoomMessage =
       actorId: string;
       mapId: string;
       preview: TokenMovementPreview | null;
+    }
+  | {
+      type: "room:measure-preview";
+      userId: string;
+      mapId: string;
+      preview: MeasurePreview | null;
     }
   | {
       type: "room:ping";

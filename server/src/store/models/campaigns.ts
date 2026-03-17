@@ -13,6 +13,7 @@ import type {
   CampaignMember,
   ChatMessage,
   DiceRoll,
+  DrawingKind,
   DrawingStroke,
   InventoryEntry,
   MapWall,
@@ -450,15 +451,47 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     } satisfies MapWall);
   }
 
-  for (const row of readAll<{ id: string; mapId: string; color: string; size: number }>(
+  for (const row of readAll<{
+    id: string;
+    mapId: string;
+    ownerId: string | null;
+    kind: DrawingKind;
+    color: string;
+    strokeOpacity: number;
+    fillColor: string;
+    fillOpacity: number;
+    size: number;
+    rotation: number;
+  }>(
     database,
     `
-      SELECT id, map_id as mapId, color, size
+      SELECT
+        id,
+        map_id as mapId,
+        owner_id as ownerId,
+        kind,
+        color,
+        stroke_opacity as strokeOpacity,
+        fill_color as fillColor,
+        fill_opacity as fillOpacity,
+        size,
+        rotation
       FROM map_drawings
       ORDER BY map_id, sort_order, id
     `
   )) {
-    const stroke: DrawingStroke = { id: row.id, color: row.color, size: row.size, points: [] };
+    const stroke: DrawingStroke = {
+      id: row.id,
+      ownerId: row.ownerId ?? undefined,
+      kind: row.kind ?? "freehand",
+      color: row.color,
+      strokeOpacity: row.strokeOpacity ?? 1,
+      fillColor: row.fillColor ?? "",
+      fillOpacity: row.fillOpacity ?? 0.22,
+      size: row.size,
+      rotation: row.rotation ?? 0,
+      points: []
+    };
     mapsById.get(row.mapId)?.drawings.push(stroke);
     drawingsById.set(stroke.id, stroke);
   }
@@ -651,8 +684,8 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertMapDrawing = database.prepare(`
-    INSERT INTO map_drawings (id, map_id, sort_order, color, size)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO map_drawings (id, map_id, sort_order, owner_id, kind, color, stroke_opacity, fill_color, fill_opacity, size, rotation)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertMapDrawingPoint = database.prepare(`
     INSERT INTO map_drawing_points (stroke_id, sort_order, x, y)
@@ -801,7 +834,19 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
       });
 
       map.drawings.forEach((stroke, strokeOrder) => {
-        insertMapDrawing.run(stroke.id, map.id, strokeOrder, stroke.color, stroke.size);
+        insertMapDrawing.run(
+          stroke.id,
+          map.id,
+          strokeOrder,
+          stroke.ownerId ?? null,
+          stroke.kind ?? "freehand",
+          stroke.color,
+          stroke.strokeOpacity ?? 1,
+          stroke.fillColor ?? "",
+          stroke.fillOpacity ?? 0.22,
+          stroke.size,
+          stroke.rotation ?? 0
+        );
         stroke.points.forEach((point, pointOrder) => {
           insertMapDrawingPoint.run(stroke.id, pointOrder, point.x, point.y);
         });

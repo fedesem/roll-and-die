@@ -9,8 +9,10 @@ import type {
   CampaignSnapshot,
   CampaignSummary,
   ClientRoomMessage,
+  DrawingStroke,
   MapPing,
   MapViewportRecall,
+  MeasurePreview,
   MemberRole,
   MonsterTemplate,
   Point,
@@ -45,6 +47,12 @@ interface SharedMovementPreviewState {
   actorId: string;
   mapId: string;
   preview: TokenMovementPreview;
+}
+
+interface SharedMeasurePreviewState {
+  userId: string;
+  mapId: string;
+  preview: MeasurePreview;
 }
 
 export default function App() {
@@ -83,6 +91,7 @@ export default function App() {
   const [mapPings, setMapPings] = useState<MapPing[]>([]);
   const [viewportRecall, setViewportRecall] = useState<MapViewportRecall | null>(null);
   const [sharedMovementPreviews, setSharedMovementPreviews] = useState<Record<string, SharedMovementPreviewState>>({});
+  const [sharedMeasurePreviews, setSharedMeasurePreviews] = useState<Record<string, SharedMeasurePreviewState>>({});
   const roomSocketRef = useRef<WebSocket | null>(null);
 
   const deferredMonsterQuery = useDeferredValue(monsterQuery);
@@ -144,6 +153,7 @@ export default function App() {
       setMapPings([]);
       setViewportRecall(null);
       setSharedMovementPreviews({});
+      setSharedMeasurePreviews({});
       return;
     }
 
@@ -194,6 +204,30 @@ export default function App() {
               ...current,
               [message.actorId]: {
                 actorId: message.actorId,
+                mapId: message.mapId,
+                preview: message.preview
+              }
+            };
+          });
+          return;
+        }
+
+        if (message.type === "room:measure-preview") {
+          setSharedMeasurePreviews((current) => {
+            if (!message.preview) {
+              if (!current[message.userId]) {
+                return current;
+              }
+
+              const next = { ...current };
+              delete next[message.userId];
+              return next;
+            }
+
+            return {
+              ...current,
+              [message.userId]: {
+                userId: message.userId,
                 mapId: message.mapId,
                 preview: message.preview
               }
@@ -275,6 +309,7 @@ export default function App() {
     setMapPings([]);
     setViewportRecall(null);
     setSharedMovementPreviews({});
+    setSharedMeasurePreviews({});
   }, [selectedCampaignId]);
 
   function setSelectedCampaignId(nextCampaignId: string | null, options?: { replace?: boolean }) {
@@ -959,7 +994,22 @@ export default function App() {
     }
   }
 
-  async function createDrawing(mapId: string, stroke: { id: string; color: string; size: number; points: Point[] }) {
+  async function broadcastMeasurePreview(preview: MeasurePreview | null) {
+    if (!selectedCampaignId) {
+      return;
+    }
+
+    try {
+      await sendRoomMessage({
+        type: "measure:preview",
+        preview
+      });
+    } catch (error) {
+      setBanner({ tone: "error", text: toErrorMessage(error) });
+    }
+  }
+
+  async function createDrawing(mapId: string, stroke: DrawingStroke) {
     if (!selectedCampaignId) {
       return;
     }
@@ -969,6 +1019,22 @@ export default function App() {
         type: "drawing:create",
         mapId,
         stroke
+      });
+    } catch (error) {
+      setBanner({ tone: "error", text: toErrorMessage(error) });
+    }
+  }
+
+  async function updateDrawings(mapId: string, drawings: Array<{ id: string; points: Point[]; rotation: number }>) {
+    if (!selectedCampaignId || drawings.length === 0) {
+      return;
+    }
+
+    try {
+      await sendRoomMessage({
+        type: "drawing:update",
+        mapId,
+        drawings
       });
     } catch (error) {
       setBanner({ tone: "error", text: toErrorMessage(error) });
@@ -1300,12 +1366,15 @@ export default function App() {
                 onSelectActor={setSelectedActorId}
                 onSelectedMapItemCountChange={setSelectedBoardItemCount}
                 movementPreviews={Object.values(sharedMovementPreviews)}
+                measurePreviews={Object.values(sharedMeasurePreviews)}
                 pings={mapPings}
                 viewRecall={viewportRecall}
                 onMoveActor={moveActor}
                 onBroadcastMovePreview={broadcastMovePreview}
+                onBroadcastMeasurePreview={broadcastMeasurePreview}
                 onToggleDoor={toggleDoor}
                 onCreateDrawing={createDrawing}
+                onUpdateDrawings={updateDrawings}
                 onDeleteDrawings={deleteDrawings}
                 onClearDrawings={clearDrawings}
                 onPing={pingMap}

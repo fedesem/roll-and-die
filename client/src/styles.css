@@ -65,6 +65,11 @@ button:hover {
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
 }
 
+.board-rotate-handle:hover,
+.board-rotate-handle:active {
+  transform: translate(-50%, -50%);
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -980,6 +985,10 @@ p {
   overscroll-behavior: contain;
 }
 
+.board-surface.is-panning {
+  cursor: grabbing;
+}
+
 .board-toolbar .segmented {
   gap: 0.45rem;
   flex-wrap: nowrap;
@@ -1013,7 +1022,8 @@ p {
   white-space: nowrap;
 }
 
-.board-draw-controls {
+.board-draw-controls,
+.board-measure-controls {
   position: absolute;
   top: 4.15rem;
   left: 50%;
@@ -1028,9 +1038,11 @@ p {
   background: rgba(13, 16, 20, 0.74);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(18px);
+  flex-wrap: wrap;
 }
 
-.board-draw-controls label {
+.board-draw-controls label,
+.board-measure-controls label {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -1044,6 +1056,38 @@ p {
   border-radius: 999px;
   border: 1px solid rgba(245, 198, 92, 0.26);
   background: rgba(255, 255, 255, 0.04);
+}
+
+.board-measure-controls select {
+  min-width: 5.75rem;
+}
+
+.board-measure-kind-picker button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2rem;
+  min-height: 2rem;
+  padding: 0.35rem;
+}
+
+.board-inline-toggle {
+  padding-inline-start: 0.2rem;
+  white-space: nowrap;
+}
+
+.board-inline-toggle input {
+  accent-color: var(--gold-strong);
+}
+
+.board-shape-picker {
+  gap: 0.35rem;
+}
+
+.board-shape-picker button {
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0.35rem;
 }
 
 .board-background {
@@ -1167,11 +1211,32 @@ p {
   cursor: pointer;
 }
 
+.board-select-hit.is-shape {
+  fill: rgba(0, 0, 0, 0.001);
+  pointer-events: all;
+}
+
 .board-door-hit {
   fill: none;
   stroke: transparent;
   pointer-events: stroke;
   cursor: pointer;
+}
+
+.board-rotate-handle {
+  position: absolute;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  padding: 0;
+  min-width: 0;
+  border-radius: 999px;
+  fill: rgba(242, 187, 63, 0.98);
+  stroke: rgba(255, 245, 210, 0.96);
+  border: 2px solid rgba(255, 245, 210, 0.96);
+  background: rgba(242, 187, 63, 0.98);
+  filter: drop-shadow(0 0 10px rgba(242, 187, 63, 0.38));
+  cursor: grab;
+  pointer-events: all;
 }
 
 .selection-rect {
@@ -1210,6 +1275,25 @@ p {
   font-weight: 700;
   paint-order: stroke;
   stroke: rgba(17, 17, 18, 0.9);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.board-measure-path,
+.board-shared-measure-path {
+  filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.18));
+}
+
+.board-measure-anchor {
+  filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.18));
+}
+
+.board-measure-label {
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  paint-order: stroke;
+  stroke: rgba(16, 18, 22, 0.92);
   stroke-width: 3px;
   stroke-linejoin: round;
 }

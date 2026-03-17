@@ -28,6 +28,9 @@ import type {
   MapPing,
   MapViewportRecall,
   MapWall,
+  MeasureKind,
+  MeasurePreview,
+  MeasureSnapMode,
   DrawingStroke,
   FogRect,
   MemberRole,
@@ -779,6 +782,25 @@ websocketServer.on("connection", (socket: WebSocket) => {
   });
 
   socket.on("close", () => {
+    if (connection.user && connection.campaignId) {
+      void readDatabase()
+        .then((database) => {
+          const campaign = database.campaigns.find((entry) => entry.id === connection.campaignId);
+
+          if (!campaign) {
+            return;
+          }
+
+          broadcastSocketMessageToRoom(connection.campaignId!, {
+            type: "room:measure-preview",
+            userId: connection.user!.id,
+            mapId: campaign.activeMapId,
+            preview: null
+          });
+        })
+        .catch(() => undefined);
+    }
+
     roomConnections.delete(connection);
   });
 });
@@ -1162,17 +1184,39 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
       return;
     }
 
+    if (payload.type === "measure:preview") {
+      const database = await readDatabase();
+      const { campaign } = requireCampaignMember(database, campaignId, user.id);
+      const activeMap = requireActiveMap(campaign);
+      const preview = payload.preview ? sanitizeMeasurePreview(payload.preview, activeMap) : null;
+
+      broadcastSocketMessageToRoom(campaignId, {
+        type: "room:measure-preview",
+        userId: user.id,
+        mapId: activeMap.id,
+        preview
+      });
+      return;
+    }
+
     if (payload.type === "drawing:create") {
       await mutateDatabase((database) => {
         const { campaign } = requireCampaignMember(database, campaignId, user.id);
-        requireDungeonMaster(campaign, user.id);
         const activeMap = requireActiveMap(campaign);
 
         if (payload.mapId !== activeMap.id) {
           throw new HttpError(403, "Drawings can only be added to the active map.");
         }
 
-        const strokes = sanitizeDrawings([payload.stroke], []);
+        const strokes = sanitizeDrawings(
+          [
+            {
+              ...payload.stroke,
+              ownerId: user.id
+            }
+          ],
+          []
+        );
 
         if (strokes.length === 0) {
           throw new HttpError(400, "Drawing stroke is empty.");
@@ -1185,10 +1229,69 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
       return;
     }
 
+    if (payload.type === "drawing:update") {
+      await mutateDatabase((database) => {
+        const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
+        const activeMap = requireActiveMap(campaign);
+
+        if (payload.mapId !== activeMap.id) {
+          throw new HttpError(403, "Drawings can only be edited on the active map.");
+        }
+
+        if (!Array.isArray(payload.drawings) || payload.drawings.length === 0) {
+          throw new HttpError(400, "Drawing updates are required.");
+        }
+
+        const nextDrawings = [...activeMap.drawings];
+
+        for (const update of payload.drawings.slice(0, 100)) {
+          if (!update || typeof update !== "object" || typeof update.id !== "string") {
+            continue;
+          }
+
+          const drawingIndex = nextDrawings.findIndex((entry) => entry.id === update.id);
+
+          if (drawingIndex < 0) {
+            continue;
+          }
+
+          const existing = nextDrawings[drawingIndex];
+
+          if (!canManageDrawing(role, user.id, existing)) {
+            throw new HttpError(403, "You can only edit your own drawings.");
+          }
+
+          const [sanitized] = sanitizeDrawings(
+            [
+              {
+                ...existing,
+                points: Array.isArray(update.points) ? update.points : existing.points,
+                rotation: typeof update.rotation === "number" ? update.rotation : existing.rotation
+              }
+            ],
+            [existing]
+          );
+
+          if (!sanitized) {
+            throw new HttpError(400, "Drawing update is invalid.");
+          }
+
+          nextDrawings[drawingIndex] = {
+            ...sanitized,
+            ownerId: existing.ownerId
+          };
+        }
+
+        activeMap.drawings = nextDrawings;
+      });
+
+      await broadcastCampaignToRoom(campaignId);
+      return;
+    }
+
     if (payload.type === "drawing:delete") {
       await mutateDatabase((database) => {
-        const { campaign } = requireCampaignMember(database, campaignId, user.id);
-        requireDungeonMaster(campaign, user.id);
+        const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
         const activeMap = requireActiveMap(campaign);
 
         if (payload.mapId !== activeMap.id) {
@@ -1202,6 +1305,17 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         const drawingIds = new Set(
           payload.drawingIds.filter((entry): entry is string => typeof entry === "string").slice(0, 300)
         );
+
+        for (const drawing of activeMap.drawings) {
+          if (!drawingIds.has(drawing.id)) {
+            continue;
+          }
+
+          if (!canManageDrawing(role, user.id, drawing)) {
+            throw new HttpError(403, "You can only delete your own drawings.");
+          }
+        }
+
         activeMap.drawings = activeMap.drawings.filter((drawing) => !drawingIds.has(drawing.id));
       });
 
@@ -1431,6 +1545,61 @@ function parseAbilityKey(value: unknown, fallback: AbilityKey): AbilityKey {
     value === "cha"
     ? value
     : fallback;
+}
+
+function parseMeasureKind(value: unknown): MeasureKind {
+  if (value === "line" || value === "cone" || value === "beam" || value === "emanation" || value === "square") {
+    return value;
+  }
+
+  throw new HttpError(400, "Measure kind must be line, cone, beam, emanation, or square.");
+}
+
+function parseMeasureSnapMode(value: unknown): MeasureSnapMode {
+  if (value === "center" || value === "corner" || value === "none") {
+    return value;
+  }
+
+  throw new HttpError(400, "Measure snap mode must be center, corner, or none.");
+}
+
+function sanitizeMeasurePreview(preview: MeasurePreview, map: CampaignMap): MeasurePreview {
+  const snapMode = parseMeasureSnapMode(preview.snapMode);
+
+  return {
+    kind: parseMeasureKind(preview.kind),
+    start: snapMeasurePreviewPoint(
+      map,
+      {
+        x: getRequiredNumber(preview.start?.x, "Measure start X"),
+        y: getRequiredNumber(preview.start?.y, "Measure start Y")
+      },
+      snapMode
+    ),
+    end: snapMeasurePreviewPoint(
+      map,
+      {
+        x: getRequiredNumber(preview.end?.x, "Measure end X"),
+        y: getRequiredNumber(preview.end?.y, "Measure end Y")
+      },
+      snapMode
+    ),
+    snapMode,
+    coneAngle: preview.coneAngle === 45 || preview.coneAngle === 60 || preview.coneAngle === 90 ? preview.coneAngle : 60,
+    beamWidthSquares: getOptionalNumber(preview.beamWidthSquares, 1, 1, 12)
+  };
+}
+
+function snapMeasurePreviewPoint(map: CampaignMap, point: Point, snapMode: MeasureSnapMode) {
+  if (snapMode === "center") {
+    return snapPointToGrid(map, point);
+  }
+
+  if (snapMode === "corner") {
+    return snapPointToGridIntersection(map, point);
+  }
+
+  return point;
 }
 
 function createDefaultMap(name: string): CampaignMap {
@@ -1664,6 +1833,10 @@ function canManageActor(role: MemberRole, userId: string, actor: ActorSheet) {
   }
 
   return actor.kind === "character" && actor.ownerId === userId;
+}
+
+function canManageDrawing(role: MemberRole, userId: string, drawing: DrawingStroke) {
+  return role === "dm" || drawing.ownerId === userId;
 }
 
 function hasMapAssignment(campaign: Campaign, actorId: string, mapId: string) {
@@ -2078,7 +2251,7 @@ function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {
   }
 
   return value
-    .map((entry) => {
+    .map((entry): DrawingStroke | null => {
       if (!entry || typeof entry !== "object" || !Array.isArray((entry as Partial<DrawingStroke>).points)) {
         return null;
       }
@@ -2089,18 +2262,31 @@ function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {
         .map((point) => ({ x: point.x, y: point.y }))
         .slice(0, 800);
 
+      const kind =
+        stroke.kind === "circle" || stroke.kind === "square" || stroke.kind === "star" || stroke.kind === "freehand"
+          ? stroke.kind
+          : "freehand";
+
       if (points.length < 2) {
         return null;
       }
 
-      return {
+      const sanitized: DrawingStroke = {
         id: typeof stroke.id === "string" ? stroke.id : createId("drw"),
+        ownerId: typeof stroke.ownerId === "string" && stroke.ownerId ? stroke.ownerId : undefined,
+        kind,
         color: typeof stroke.color === "string" ? stroke.color : "#d9a641",
+        strokeOpacity: typeof stroke.strokeOpacity === "number" ? Math.min(1, Math.max(0, stroke.strokeOpacity)) : 1,
+        fillColor: typeof stroke.fillColor === "string" ? stroke.fillColor : "",
+        fillOpacity: typeof stroke.fillOpacity === "number" ? Math.min(1, Math.max(0, stroke.fillOpacity)) : 0.22,
         size: typeof stroke.size === "number" ? Math.min(24, Math.max(1, stroke.size)) : 4,
+        rotation: typeof stroke.rotation === "number" ? Math.min(360, Math.max(-360, stroke.rotation)) : 0,
         points
       };
+
+      return sanitized;
     })
-    .filter((entry): entry is DrawingStroke => Boolean(entry))
+    .filter((entry): entry is DrawingStroke => entry !== null)
     .slice(0, 300);
 }
 

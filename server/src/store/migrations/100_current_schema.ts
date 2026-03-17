@@ -195,8 +195,14 @@ export const currentSchemaMigration: Migration = {
         id TEXT PRIMARY KEY,
         map_id TEXT NOT NULL REFERENCES maps(id) ON DELETE CASCADE,
         sort_order INTEGER NOT NULL,
+        owner_id TEXT,
+        kind TEXT NOT NULL DEFAULT 'freehand' CHECK (kind IN ('freehand', 'circle', 'square', 'star')),
         color TEXT NOT NULL,
-        size REAL NOT NULL
+        stroke_opacity REAL NOT NULL DEFAULT 1,
+        fill_color TEXT NOT NULL DEFAULT '',
+        fill_opacity REAL NOT NULL DEFAULT 0.22,
+        size REAL NOT NULL,
+        rotation REAL NOT NULL DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS map_drawing_points (

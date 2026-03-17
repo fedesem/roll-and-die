@@ -64,6 +64,16 @@ function normalizeCampaign(campaign: Campaign): Campaign {
         backgroundOffsetX: map.backgroundOffsetX ?? 0,
         backgroundOffsetY: map.backgroundOffsetY ?? 0,
         backgroundScale: map.backgroundScale ?? 1,
+        drawings: Array.isArray(map.drawings)
+          ? map.drawings.map((drawing) => ({
+              ...drawing,
+              kind: drawing.kind ?? "freehand",
+              strokeOpacity: typeof drawing.strokeOpacity === "number" ? drawing.strokeOpacity : 1,
+              fillColor: drawing.fillColor ?? "",
+              fillOpacity: typeof drawing.fillOpacity === "number" ? drawing.fillOpacity : 0.22,
+              rotation: typeof drawing.rotation === "number" ? drawing.rotation : 0
+            }))
+          : [],
         fog: [],
         visibilityVersion: map.visibilityVersion ?? 1,
         walls: Array.isArray(map.walls)
