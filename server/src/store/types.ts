@@ -38,7 +38,6 @@ export interface Migration {
 }
 
 export const sqlitePath = resolve(process.cwd(), "data", "app.sqlite");
-export const legacyJsonPath = resolve(process.cwd(), "data", "db.json");
 
 export const defaultDatabase: Database = {
   users: [],

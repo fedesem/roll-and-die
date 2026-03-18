@@ -1,12 +1,7 @@
-import { existsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
-import type { DatabaseSync } from "node:sqlite";
-
 import type { Campaign } from "../../../shared/types.js";
-import { defaultDatabase, legacyJsonPath, type Database } from "./types.js";
-import { readCount, tableExists } from "./helpers.js";
+import { defaultDatabase, type Database } from "./types.js";
 
-export function normalizeDatabase(database: Database): Database {
+export function normalizeStoreState(database: Database): Database {
   return {
     users: Array.isArray(database.users)
       ? database.users.map((user) => ({
@@ -25,50 +20,7 @@ export function normalizeDatabase(database: Database): Database {
             classes: Array.isArray(database.compendium.classes) ? database.compendium.classes : []
           }
         : defaultDatabase.compendium
-  };
-}
-
-export function hasRelationalData(database: DatabaseSync) {
-  return (
-    readCount(database, "users") > 0 || readCount(database, "sessions") > 0 || readCount(database, "campaigns") > 0
-  );
-}
-
-export async function loadLegacyDatabase(database: DatabaseSync) {
-  const fromBlob = loadLegacyBlob(database);
-
-  if (fromBlob) {
-    return fromBlob;
-  }
-
-  if (!existsSync(legacyJsonPath)) {
-    return defaultDatabase;
-  }
-
-  try {
-    const raw = await readFile(legacyJsonPath, "utf8");
-    return normalizeDatabase(JSON.parse(raw) as Database);
-  } catch {
-    return defaultDatabase;
-  }
-}
-
-function loadLegacyBlob(database: DatabaseSync) {
-  if (!tableExists(database, "app_state")) {
-    return null;
-  }
-
-  const row = database.prepare("SELECT data FROM app_state WHERE id = 1").get() as { data: string } | undefined;
-
-  if (!row?.data) {
-    return null;
-  }
-
-  try {
-    return normalizeDatabase(JSON.parse(row.data) as Database);
-  } catch {
-    return null;
-  }
+      };
 }
 
 function normalizeCampaign(campaign: Campaign): Campaign {

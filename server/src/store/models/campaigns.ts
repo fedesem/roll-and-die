@@ -22,7 +22,7 @@ import type {
   SpellSlotTrack
 } from "../../../../shared/types.js";
 import type { Database } from "../types.js";
-import { normalizeDatabase } from "../legacy.js";
+import { normalizeStoreState } from "../normalization.js";
 import { parseCellKey, readAll, toBoolean, toIntegerBoolean } from "../helpers.js";
 
 export function readCampaigns(database: DatabaseSync): Campaign[] {
@@ -619,7 +619,7 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     cells.push(`${row.columnIndex}:${row.rowIndex}`);
   }
 
-  return normalizeDatabase({
+  return normalizeStoreState({
     users: [],
     sessions: [],
     campaigns,
@@ -633,7 +633,7 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
 }
 
 export function writeCampaigns(database: DatabaseSync, state: Database) {
-  const normalized = normalizeDatabase(state);
+  const normalized = normalizeStoreState(state);
 
   const insertCampaign = database.prepare(`
     INSERT INTO campaigns (id, sort_order, name, created_at, created_by, active_map_id)

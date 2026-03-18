@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import { migrations } from "./migrations/index.js";
-import { normalizeDatabase } from "./legacy.js";
+import { normalizeStoreState } from "./normalization.js";
 import { clearRelationalTables, readCampaigns, writeCampaigns } from "./models/campaigns.js";
 import { clearCompendiumTables, readCompendium, writeCompendium } from "./models/compendium.js";
 import { readUsersAndSessions, writeUsersAndSessions } from "./models/users.js";
@@ -61,7 +61,7 @@ export class SqlitePersistenceAdapter implements PersistenceAdapter {
     const campaigns = readCampaigns(database);
     const compendium = readCompendium(database);
 
-    return normalizeDatabase({
+    return normalizeStoreState({
       users,
       sessions,
       campaigns,
@@ -72,7 +72,7 @@ export class SqlitePersistenceAdapter implements PersistenceAdapter {
   async write(state: Database) {
     await this.initialize();
     await runInTransaction(this.getDatabase(), () => {
-      const normalized = normalizeDatabase(state);
+      const normalized = normalizeStoreState(state);
       clearCompendiumTables(this.getDatabase());
       clearRelationalTables(this.getDatabase());
       writeUsersAndSessions(this.getDatabase(), normalized);

@@ -2,6 +2,12 @@
 
 This repository is organized around feature boundaries and explicit responsibility splits. New code should preserve those boundaries instead of growing orchestration files again.
 
+More specific rules now live in:
+- [client/AGENTS.md](client/AGENTS.md)
+- [server/AGENTS.md](server/AGENTS.md)
+
+Use this root file for cross-cutting rules, then follow the nearest child `AGENTS.md` for client or server work.
+
 ## Core Rules
 
 1. Keep pages thin.
@@ -101,12 +107,17 @@ When a contract already exists in `@shared/types`, reuse it directly or derive f
 3. Persistence access must go through store models under `server/src/store/models`.
 4. Database-specific behavior must stay behind the store adapter/model boundary.
 5. Each schema change gets its own migration file under `server/src/store/migrations`.
+6. `server/src/index.ts` stays as app composition only. Do not move route logic or websocket business logic back into it.
+7. Realtime room behavior belongs in `server/src/realtime/roomGateway.ts` and related services, not inside HTTP controllers.
+8. Request validation should use shared zod contracts plus `server/src/http/validation.ts`, not ad hoc object parsing.
+9. Structured request logging goes through `request.log` from `server/src/logger.ts`.
 
 ## Shared Models
 
-- Shared cross-client/server contracts belong in `shared/types.ts`.
+- Shared HTTP and websocket DTO/schema contracts belong in `shared/contracts/*`.
+- Shared domain models and game-state types belong in `shared/types.ts`.
 - Shared pure game logic belongs in `shared/*` when both client and server need the same rules.
-- Do not duplicate transport or domain shapes locally if they already exist in `@shared/types`.
+- Do not duplicate transport or domain shapes locally if they already exist in `shared/contracts/*` or `@shared/types`.
 
 ## CSS and Styling
 
@@ -132,13 +143,18 @@ Refactor before adding more code when any of these are true:
 - Presentational subcomponents for large views
 - Store model separation on the server
 - One migration per file
+- Shared zod transport schemas for request/response/socket validation
+- Structured request logging on the server
+- React Query only for non-realtime REST screens
 
 ## Avoid
 
 - Direct `apiRequest` usage in pages or large components
 - Direct websocket message wiring inside view components
 - Reintroducing giant all-purpose files like old `App.tsx`
+- Reintroducing giant all-purpose files like old `server/src/index.ts`
 - Duplicating shared domain types
+- Duplicating API or websocket DTOs locally
 - Mixing database schema concerns into controllers
 
 ## Verification
