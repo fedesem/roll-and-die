@@ -5,7 +5,10 @@ import type { SpellEntry } from "@shared/types";
 import { ClassPreviewCard, FeatPreviewCard, MonsterPreviewCard, PreviewError, PreviewPlaceholder, SpellPreviewCard, UserPreviewCard } from "./admin/AdminPreview";
 import { useAdminOverviewQuery } from "../features/admin/useAdminOverviewQuery";
 import {
+  clearCompendiumItems,
   createCompendiumItem,
+  deleteAdminUser,
+  deleteCompendiumItem,
   demoteAdminUser,
   importCompendiumItems,
   promoteAdminUser
@@ -66,11 +69,11 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     feats: null,
     classes: null
   });
-  const [jsonImport, setJsonImport] = useState<Record<CompendiumTab, string>>({
-    spells: "",
-    monsters: "",
-    feats: "",
-    classes: ""
+  const [importFiles, setImportFiles] = useState<Record<CompendiumTab, { name: string; content: string } | null>>({
+    spells: null,
+    monsters: null,
+    feats: null,
+    classes: null
   });
   const [spellForm, setSpellForm] = useState<SpellFormState>(createSpellForm());
   const [monsterForm, setMonsterForm] = useState<MonsterFormState>(createMonsterForm());
@@ -137,15 +140,16 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
       return null;
     }
 
-    const value = jsonImport[activeCompendiumTab];
+    const file = importFiles[activeCompendiumTab];
+    const value = file?.content ?? "";
 
     if (!value.trim()) {
-      return { valid: false, message: "Paste one JSON object or an array to import." };
+      return { valid: false, message: "Upload one JSON file containing one object or an array." };
     }
 
     try {
       const parsed = JSON.parse(value) as unknown;
-      const count = Array.isArray(parsed) ? parsed.length : 1;
+      const count = resolveImportEntryCount(activeCompendiumTab, parsed);
       return {
         valid: true,
         message: `${count} ${count === 1 ? singularLabel(activeCompendiumTab) : labelForTab(activeCompendiumTab)} ready to import.`
@@ -153,7 +157,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     } catch (error) {
       return { valid: false, message: toErrorMessage(error) };
     }
-  }, [activeCompendiumTab, jsonImport]);
+  }, [activeCompendiumTab, importFiles]);
   const importExample = useMemo(
     () => (activeCompendiumTab ? getImportExample(activeCompendiumTab) : ""),
     [activeCompendiumTab]
@@ -179,6 +183,17 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     }
   }
 
+  async function removeUser(userId: string) {
+    try {
+      await deleteAdminUser(token, userId);
+      setSelectedIds((current) => ({ ...current, users: null }));
+      onStatus("info", "User deleted.");
+      await refreshOverview();
+    } catch (error) {
+      onStatus("error", toErrorMessage(error));
+    }
+  }
+
   async function createEntry(kind: CompendiumTab, entry: unknown, reset: () => void) {
     try {
       const created = await createCompendiumItem(token, kind, entry);
@@ -195,12 +210,44 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
 
   async function importEntries(kind: CompendiumTab) {
     try {
-      const payload = JSON.parse(jsonImport[kind]) as unknown;
+      const file = importFiles[kind];
+
+      if (!file?.content.trim()) {
+        throw new Error("Upload a JSON file first.");
+      }
+
+      const payload = JSON.parse(file.content) as unknown;
       await importCompendiumItems(token, kind, payload);
 
-      setJsonImport((current) => ({ ...current, [kind]: "" }));
+      setImportFiles((current) => ({ ...current, [kind]: null }));
       setMode("list");
       onStatus("info", `${labelForTab(kind)} import completed.`);
+      await refreshOverview();
+    } catch (error) {
+      onStatus("error", toErrorMessage(error));
+    }
+  }
+
+  async function removeCompendiumEntry(kind: CompendiumTab, itemId: string) {
+    try {
+      await deleteCompendiumItem(token, kind, itemId);
+      setSelectedIds((current) => ({ ...current, [kind]: null }));
+      onStatus("info", `${singularLabel(kind)} deleted.`);
+      await refreshOverview();
+    } catch (error) {
+      onStatus("error", toErrorMessage(error));
+    }
+  }
+
+  async function clearCompendium(kind: CompendiumTab) {
+    if (!window.confirm(`Clear all ${labelForTab(kind).toLowerCase()}? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await clearCompendiumItems(token, kind);
+      setSelectedIds((current) => ({ ...current, [kind]: null }));
+      onStatus("info", `${labelForTab(kind)} cleared.`);
       await refreshOverview();
     } catch (error) {
       onStatus("error", toErrorMessage(error));
@@ -228,6 +275,28 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     try {
       const imageUrl = await readFileAsDataUrl(file);
       setMonsterForm((current) => ({ ...current, imageUrl }));
+    } catch (error) {
+      onStatus("error", toErrorMessage(error));
+    }
+  }
+
+  async function handleImportFileChange(kind: CompendiumTab, event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const content = await file.text();
+      setImportFiles((current) => ({
+        ...current,
+        [kind]: {
+          name: file.name,
+          content
+        }
+      }));
     } catch (error) {
       onStatus("error", toErrorMessage(error));
     }
@@ -299,7 +368,19 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                   <p className="panel-label">Library</p>
                   <h3>{labelForTab(tab)}</h3>
                 </div>
-                <span className="badge subtle">{countForTab(tab, counts)}</span>
+                <div className="admin-row-actions">
+                  <span className="badge subtle">{countForTab(tab, counts)}</span>
+                  {tab !== "users" ? (
+                    <button
+                      type="button"
+                      className="danger-button"
+                      disabled={countForTab(tab, counts) === 0}
+                      onClick={() => void clearCompendium(tab)}
+                    >
+                      Clear all
+                    </button>
+                  ) : null}
+                </div>
               </div>
               <label className="admin-search-field">
                 <span>Search</span>
@@ -431,15 +512,41 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         Promote
                       </button>
                     )}
+                    <button type="button" className="danger-button" onClick={() => void removeUser(selectedUser.id)}>
+                      Delete
+                    </button>
+                  </div>
+                ) : tab !== "users" ? (
+                  <div className="admin-row-actions">
+                    {tab === "spells" && selectedSpell ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("spells", selectedSpell.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "monsters" && selectedMonster ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("monsters", selectedMonster.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "feats" && selectedFeat ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("feats", selectedFeat.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "classes" && selectedClass ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("classes", selectedClass.id)}>
+                        Delete
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
 
               {tab === "users" && (selectedUser ? <UserPreviewCard user={selectedUser} /> : <PreviewPlaceholder title="Users" message="Select a user to inspect details and manage access." />)}
-              {tab === "spells" && (selectedSpell ? <SpellPreviewCard spell={selectedSpell} /> : <PreviewPlaceholder title="Spells" message="Select a spell to preview it here." />)}
-              {tab === "monsters" && (selectedMonster ? <MonsterPreviewCard monster={selectedMonster} /> : <PreviewPlaceholder title="Monsters" message="Select a monster to preview it here." />)}
-              {tab === "feats" && (selectedFeat ? <FeatPreviewCard feat={selectedFeat} /> : <PreviewPlaceholder title="Feats" message="Select a feat to preview it here." />)}
-              {tab === "classes" && (selectedClass ? <ClassPreviewCard entry={selectedClass} /> : <PreviewPlaceholder title="Classes" message="Select a class to preview it here." />)}
+              {tab === "spells" && (selectedSpell ? <SpellPreviewCard spell={selectedSpell} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Spells" message="Select a spell to preview it here." />)}
+              {tab === "monsters" && (selectedMonster ? <MonsterPreviewCard monster={selectedMonster} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Monsters" message="Select a monster to preview it here." />)}
+              {tab === "feats" && (selectedFeat ? <FeatPreviewCard feat={selectedFeat} spellEntries={overview?.compendium.spells ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Feats" message="Select a feat to preview it here." />)}
+              {tab === "classes" && (selectedClass ? <ClassPreviewCard entry={selectedClass} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} /> : <PreviewPlaceholder title="Classes" message="Select a class to preview it here." />)}
             </section>
           </div>
         ) : mode === "add" ? (
@@ -540,6 +647,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                   <Field label="Challenge rating"><input value={monsterForm.challengeRating} onChange={(event) => setMonsterForm({ ...monsterForm, challengeRating: event.target.value })} /></Field>
                   <Field label="Armor class"><input value={monsterForm.armorClass} onChange={(event) => setMonsterForm({ ...monsterForm, armorClass: event.target.value })} /></Field>
                   <Field label="Hit points"><input value={monsterForm.hitPoints} onChange={(event) => setMonsterForm({ ...monsterForm, hitPoints: event.target.value })} /></Field>
+                  <Field label="Initiative"><input value={monsterForm.initiative} onChange={(event) => setMonsterForm({ ...monsterForm, initiative: event.target.value })} /></Field>
                   <Field label="Experience"><input value={monsterForm.xp} onChange={(event) => setMonsterForm({ ...monsterForm, xp: event.target.value })} /></Field>
                   <Field label="Proficiency bonus"><input value={monsterForm.proficiencyBonus} onChange={(event) => setMonsterForm({ ...monsterForm, proficiencyBonus: event.target.value })} /></Field>
                   <Field label="Passive perception"><input value={monsterForm.passivePerception} onChange={(event) => setMonsterForm({ ...monsterForm, passivePerception: event.target.value })} /></Field>
@@ -624,10 +732,10 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                   <h3>{singularLabel(tab)} preview</h3>
                 </div>
               </div>
-              {tab === "spells" && (spellPreview.entry ? <SpellPreviewCard spell={spellPreview.entry} /> : <PreviewError title="Spell" message={spellPreview.error ?? "Fill in the form to preview the spell."} />)}
-              {tab === "monsters" && (monsterPreview.entry ? <MonsterPreviewCard monster={monsterPreview.entry} /> : <PreviewError title="Monster" message={monsterPreview.error ?? "Fill in the form to preview the monster."} />)}
-              {tab === "feats" && (featPreview.entry ? <FeatPreviewCard feat={featPreview.entry} /> : <PreviewError title="Feat" message={featPreview.error ?? "Fill in the form to preview the feat."} />)}
-              {tab === "classes" && (classPreview.entry ? <ClassPreviewCard entry={classPreview.entry} /> : <PreviewError title="Class" message={classPreview.error ?? "Fill in the form to preview the class."} />)}
+              {tab === "spells" && (spellPreview.entry ? <SpellPreviewCard spell={spellPreview.entry} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewError title="Spell" message={spellPreview.error ?? "Fill in the form to preview the spell."} />)}
+              {tab === "monsters" && (monsterPreview.entry ? <MonsterPreviewCard monster={monsterPreview.entry} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewError title="Monster" message={monsterPreview.error ?? "Fill in the form to preview the monster."} />)}
+              {tab === "feats" && (featPreview.entry ? <FeatPreviewCard feat={featPreview.entry} spellEntries={overview?.compendium.spells ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewError title="Feat" message={featPreview.error ?? "Fill in the form to preview the feat."} />)}
+              {tab === "classes" && (classPreview.entry ? <ClassPreviewCard entry={classPreview.entry} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} /> : <PreviewError title="Class" message={classPreview.error ?? "Fill in the form to preview the class."} />)}
             </section>
           </div>
         ) : (
@@ -646,25 +754,47 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                       void importEntries(activeCompendiumTab);
                     }
                   }}
-                  disabled={!activeCompendiumTab || !jsonImport[activeCompendiumTab].trim()}
+                  disabled={!activeCompendiumTab || !importFiles[activeCompendiumTab]?.content.trim()}
                 >
                   Import
                 </button>
               </div>
               <label className="admin-search-field">
-                <span>JSON payload</span>
-                <textarea
-                  className="admin-json"
-                  value={activeCompendiumTab ? jsonImport[activeCompendiumTab] : ""}
-                  onChange={(event) => {
-                    if (!activeCompendiumTab) {
-                      return;
-                    }
+                <span>JSON file</span>
+                <div className="admin-import-upload">
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={(event) => {
+                      if (!activeCompendiumTab) {
+                        return;
+                      }
 
-                    setJsonImport((current) => ({ ...current, [activeCompendiumTab]: event.target.value }));
-                  }}
-                  placeholder={`Paste one ${singularLabel(tab).toLowerCase()} object or an array of ${labelForTab(tab).toLowerCase()}.`}
-                />
+                      void handleImportFileChange(activeCompendiumTab, event);
+                    }}
+                  />
+                  <div className="admin-import-file-meta">
+                    <strong>{activeCompendiumTab ? importFiles[activeCompendiumTab]?.name ?? "No file selected" : "No file selected"}</strong>
+                    <small>
+                      {activeCompendiumTab && importFiles[activeCompendiumTab]?.content
+                        ? `${importFiles[activeCompendiumTab]?.content.length.toLocaleString()} characters loaded`
+                        : `Upload one ${singularLabel(tab).toLowerCase()} object or an array of ${labelForTab(tab).toLowerCase()}.`}
+                    </small>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!activeCompendiumTab) {
+                        return;
+                      }
+
+                      setImportFiles((current) => ({ ...current, [activeCompendiumTab]: null }));
+                    }}
+                    disabled={!activeCompendiumTab || !importFiles[activeCompendiumTab]}
+                  >
+                    Clear file
+                  </button>
+                </div>
               </label>
               <label className="admin-search-field">
                 <span>Example JSON</span>
@@ -682,7 +812,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
               {importSummary?.valid ? (
                 <PreviewPlaceholder title="Ready" message={importSummary.message} />
               ) : (
-                <PreviewError title="Import" message={importSummary?.message ?? "Paste JSON to validate the import payload."} />
+                <PreviewError title="Import" message={importSummary?.message ?? "Upload a JSON file to validate the import payload."} />
               )}
             </section>
           </div>
@@ -693,3 +823,31 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
 }
 
 const Field = AdminField;
+
+function resolveImportEntryCount(kind: CompendiumTab, parsed: unknown) {
+  if (Array.isArray(parsed)) {
+    return parsed.length;
+  }
+
+  if (typeof parsed === "object" && parsed !== null) {
+    const record = parsed as Record<string, unknown>;
+
+    if (kind === "monsters" && Array.isArray(record.monster)) {
+      return record.monster.length;
+    }
+
+    if (kind === "spells" && Array.isArray(record.spell)) {
+      return record.spell.length;
+    }
+
+    if (kind === "feats" && Array.isArray(record.feat)) {
+      return record.feat.length;
+    }
+
+    if (kind === "classes" && Array.isArray(record.class)) {
+      return record.class.length;
+    }
+  }
+
+  return 1;
+}

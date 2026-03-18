@@ -6,6 +6,7 @@ import type {
   MonsterAttackType,
   MonsterSense,
   MonsterSkillBonus,
+  MonsterSpellcastingEntry,
   MonsterTemplate,
   SpellEntry
 } from "@shared/types";
@@ -41,6 +42,7 @@ export interface MonsterFormState {
   challengeRating: string;
   armorClass: string;
   hitPoints: string;
+  initiative: string;
   walk: string;
   fly: string;
   burrow: string;
@@ -64,6 +66,7 @@ export interface MonsterFormState {
   immunitiesText: string;
   traitsText: string;
   spellsText: string;
+  spellcastingJson: string;
   actionsJson: string;
   bonusActionsJson: string;
   reactionsJson: string;
@@ -128,6 +131,7 @@ export function createMonsterForm(): MonsterFormState {
     challengeRating: "1",
     armorClass: "10",
     hitPoints: "1",
+    initiative: "0",
     walk: "30",
     fly: "0",
     burrow: "0",
@@ -151,6 +155,7 @@ export function createMonsterForm(): MonsterFormState {
     immunitiesText: "",
     traitsText: "",
     spellsText: "",
+    spellcastingJson: "[]",
     actionsJson: "[]",
     bonusActionsJson: "[]",
     reactionsJson: "[]",
@@ -222,6 +227,7 @@ export function monsterFormToEntry(form: MonsterFormState): Omit<MonsterTemplate
     challengeRating: form.challengeRating.trim(),
     armorClass: Number(form.armorClass) || 10,
     hitPoints: Number(form.hitPoints) || 1,
+    initiative: Number(form.initiative) || 0,
     speed: Number(form.walk) || 30,
     speedModes: {
       walk: Number(form.walk) || 30,
@@ -257,6 +263,7 @@ export function monsterFormToEntry(form: MonsterFormState): Omit<MonsterTemplate
     lairActions: parseJsonArray<MonsterActionEntry>(form.lairActionsJson),
     regionalEffects: parseJsonArray<MonsterActionEntry>(form.regionalEffectsJson),
     spells: splitList(form.spellsText),
+    spellcasting: parseJsonArray<MonsterSpellcastingEntry>(form.spellcastingJson),
     habitat: form.habitat.trim(),
     treasure: form.treasure.trim(),
     imageUrl: form.imageUrl.trim(),

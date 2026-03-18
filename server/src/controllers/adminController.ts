@@ -15,7 +15,11 @@ import { HttpError } from "../http/errors.js";
 import { parseWithSchema, requireRouteParam } from "../http/validation.js";
 import { mutateDatabase, readDatabase } from "../store.js";
 import { requireAdmin, toUserProfile } from "../services/authService.js";
-import { sanitizeCompendiumEntry, type CompendiumKind } from "../services/compendiumService.js";
+import {
+  normalizeCompendiumImportEntries,
+  sanitizeCompendiumEntry,
+  type CompendiumKind
+} from "../services/compendiumService.js";
 
 function parseCompendiumCreateBody(kind: CompendiumKind, value: unknown) {
   switch (kind) {
@@ -100,6 +104,63 @@ export const adminController = {
     });
   },
 
+  async deleteUser(request: Request, response: Response) {
+    const admin = requireAdmin(request);
+    const targetUserId = requireRouteParam(request.params.userId, "userId");
+
+    if (targetUserId === admin.id) {
+      throw new HttpError(400, "You cannot delete yourself.");
+    }
+
+    await mutateDatabase((database) => {
+      const targetIndex = database.users.findIndex((entry) => entry.id === targetUserId);
+
+      if (targetIndex < 0) {
+        throw new HttpError(404, "User not found.");
+      }
+
+      database.sessions = database.sessions.filter((entry) => entry.userId !== targetUserId);
+
+      database.campaigns = database.campaigns.flatMap((campaign) => {
+        campaign.members = campaign.members.filter((member) => member.userId !== targetUserId);
+        campaign.invites = campaign.invites.filter((invite) => invite.createdBy !== targetUserId);
+
+        const removedActorIds = new Set(
+          campaign.actors
+            .filter((actor) => actor.ownerId === targetUserId)
+            .map((actor) => actor.id)
+        );
+
+        campaign.actors = campaign.actors.filter((actor) => actor.ownerId !== targetUserId);
+        campaign.mapAssignments = campaign.mapAssignments.filter((assignment) => !removedActorIds.has(assignment.actorId));
+        campaign.tokens = campaign.tokens.filter((token) => !removedActorIds.has(token.actorId));
+        campaign.chat = campaign.chat.filter((message) => message.userId !== targetUserId);
+        delete campaign.exploration[targetUserId];
+
+        if (campaign.members.length === 0) {
+          return [];
+        }
+
+        if (!campaign.members.some((member) => member.role === "dm")) {
+          campaign.members[0] = {
+            ...campaign.members[0],
+            role: "dm"
+          };
+        }
+
+        if (campaign.createdBy === targetUserId) {
+          campaign.createdBy = campaign.members.find((member) => member.role === "dm")?.userId ?? campaign.members[0].userId;
+        }
+
+        return [campaign];
+      });
+
+      database.users.splice(targetIndex, 1);
+    });
+
+    response.status(204).send();
+  },
+
   async createCompendiumEntry(request: Request, response: Response) {
     requireAdmin(request);
     const kind = parseWithSchema(compendiumKindSchema, request.params.kind, "Invalid compendium type.");
@@ -123,9 +184,7 @@ export const adminController = {
     requireAdmin(request);
     const kind = parseWithSchema(compendiumKindSchema, request.params.kind, "Invalid compendium type.");
     const body = parseCompendiumImportBody(kind, request.body);
-    const entries = (Array.isArray(body.entries) ? body.entries : [body.entries]).map((entry) =>
-      sanitizeCompendiumEntry(kind, entry)
-    );
+    const entries = normalizeCompendiumImportEntries(kind, body.entries).map((entry) => sanitizeCompendiumEntry(kind, entry));
 
     const result = await mutateDatabase((database) => {
       const collection = database.compendium[kind] as typeof database.compendium[typeof kind];
@@ -141,4 +200,35 @@ export const adminController = {
 
     response.status(201).json(result);
   },
+
+  async deleteCompendiumEntry(request: Request, response: Response) {
+    requireAdmin(request);
+    const kind = parseWithSchema(compendiumKindSchema, request.params.kind, "Invalid compendium type.");
+    const itemId = requireRouteParam(request.params.itemId, "itemId");
+
+    await mutateDatabase((database) => {
+      const collection = database.compendium[kind] as typeof database.compendium[typeof kind];
+      const index = collection.findIndex((entry) => entry.id === itemId);
+
+      if (index < 0) {
+        throw new HttpError(404, "Compendium entry not found.");
+      }
+
+      collection.splice(index, 1);
+    });
+
+    response.status(204).send();
+  },
+
+  async clearCompendiumEntries(request: Request, response: Response) {
+    requireAdmin(request);
+    const kind = parseWithSchema(compendiumKindSchema, request.params.kind, "Invalid compendium type.");
+
+    await mutateDatabase((database) => {
+      const collection = database.compendium[kind] as typeof database.compendium[typeof kind];
+      collection.splice(0, collection.length);
+    });
+
+    response.status(204).send();
+  }
 };

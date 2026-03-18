@@ -143,6 +143,11 @@ export interface MonsterActionEntry {
   damageType: string;
 }
 
+export interface MonsterSpellcastingEntry {
+  label: string;
+  spells: string[];
+}
+
 export interface MonsterTemplate {
   id: string;
   name: string;
@@ -150,6 +155,7 @@ export interface MonsterTemplate {
   challengeRating: string;
   armorClass: number;
   hitPoints: number;
+  initiative: number;
   speed: number;
   speedModes: MonsterSpeedModes;
   abilities: AbilityScores;
@@ -172,6 +178,7 @@ export interface MonsterTemplate {
   lairActions: MonsterActionEntry[];
   regionalEffects: MonsterActionEntry[];
   spells: string[];
+  spellcasting: MonsterSpellcastingEntry[];
   habitat: string;
   treasure: string;
   imageUrl: string;
@@ -188,9 +195,9 @@ export type SpellSchool =
   | "Illusion"
   | "Necromancy"
   | "Transmutation";
-export type SpellCastingTimeUnit = "action" | "bonus action" | "minute" | "hour";
-export type SpellRangeType = "feet" | "self" | "self emanation" | "touch";
-export type SpellDurationUnit = "instant" | "minute" | "hour";
+export type SpellCastingTimeUnit = "action" | "bonus action" | "reaction" | "minute" | "hour";
+export type SpellRangeType = "feet" | "self" | "self emanation" | "touch" | "sight" | "unlimited" | "special";
+export type SpellDurationUnit = "instant" | "minute" | "hour" | "day" | "permanent" | "special";
 
 export interface SpellComponents {
   verbal: boolean;

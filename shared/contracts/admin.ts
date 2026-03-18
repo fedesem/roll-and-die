@@ -2,10 +2,6 @@ import { z } from "zod";
 
 import {
   adminOverviewSchema,
-  classEntrySchema,
-  featEntrySchema,
-  monsterTemplateSchema,
-  spellEntrySchema,
   userProfileSchema
 } from "./domain.js";
 
@@ -19,14 +15,16 @@ export const adminUserMutationResponseSchema = z.object({
   demotedBy: z.string().trim().min(1).optional()
 });
 
-export const createSpellBodySchema = spellEntrySchema;
-export const createMonsterBodySchema = monsterTemplateSchema;
-export const createFeatBodySchema = featEntrySchema;
-export const createClassBodySchema = classEntrySchema;
+export const createSpellBodySchema = z.unknown();
+export const createMonsterBodySchema = z.unknown();
+export const createFeatBodySchema = z.unknown();
+export const createClassBodySchema = z.unknown();
 
 export const createdCompendiumEntryResponseSchema = z.object({
   id: z.string().trim().min(1)
 });
+
+export const emptyAdminResponseSchema = z.null();
 
 export const importCompendiumResultResponseSchema = z.object({
   imported: z.number().int().nonnegative(),
@@ -34,14 +32,14 @@ export const importCompendiumResultResponseSchema = z.object({
 });
 
 export const importSpellsBodySchema = z.object({
-  entries: z.union([spellEntrySchema, z.array(spellEntrySchema)])
+  entries: z.union([z.unknown(), z.array(z.unknown())])
 });
 export const importMonstersBodySchema = z.object({
-  entries: z.union([monsterTemplateSchema, z.array(monsterTemplateSchema)])
+  entries: z.union([z.unknown(), z.array(z.unknown())])
 });
 export const importFeatsBodySchema = z.object({
-  entries: z.union([featEntrySchema, z.array(featEntrySchema)])
+  entries: z.union([z.unknown(), z.array(z.unknown())])
 });
 export const importClassesBodySchema = z.object({
-  entries: z.union([classEntrySchema, z.array(classEntrySchema)])
+  entries: z.union([z.unknown(), z.array(z.unknown())])
 });

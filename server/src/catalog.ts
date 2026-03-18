@@ -20,9 +20,37 @@ function action(
   };
 }
 
-function starterMonster(monster: Omit<MonsterTemplate, "passivePerception" | "speedModes" | "skills" | "senses" | "languages" | "xp" | "proficiencyBonus" | "gear" | "resistances" | "vulnerabilities" | "immunities" | "bonusActions" | "reactions" | "legendaryActions" | "legendaryActionsUse" | "lairActions" | "regionalEffects" | "habitat" | "treasure" | "imageUrl">): MonsterTemplate {
+function starterMonster(
+  monster: Omit<
+    MonsterTemplate,
+    | "passivePerception"
+    | "speedModes"
+    | "skills"
+    | "senses"
+    | "languages"
+    | "xp"
+    | "proficiencyBonus"
+    | "gear"
+    | "resistances"
+    | "vulnerabilities"
+    | "immunities"
+    | "bonusActions"
+    | "reactions"
+    | "legendaryActions"
+    | "legendaryActionsUse"
+    | "lairActions"
+    | "regionalEffects"
+    | "habitat"
+    | "treasure"
+    | "imageUrl"
+    | "initiative"
+    | "spellcasting"
+  >
+): MonsterTemplate {
+  const initiative = Math.floor((monster.abilities.dex - 10) / 2);
   return {
     ...monster,
+    initiative,
     speedModes: {
       walk: monster.speed,
       fly: 0,
@@ -48,7 +76,8 @@ function starterMonster(monster: Omit<MonsterTemplate, "passivePerception" | "sp
     regionalEffects: [],
     habitat: "",
     treasure: "",
-    imageUrl: ""
+    imageUrl: "",
+    spellcasting: []
   };
 }
 

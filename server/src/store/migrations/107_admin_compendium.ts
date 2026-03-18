@@ -44,6 +44,7 @@ export const adminCompendiumMigration: Migration = {
         challenge_rating TEXT NOT NULL,
         armor_class INTEGER NOT NULL,
         hit_points INTEGER NOT NULL,
+        initiative INTEGER NOT NULL DEFAULT 0,
         speed_walk INTEGER NOT NULL,
         speed_fly INTEGER NOT NULL DEFAULT 0,
         speed_burrow INTEGER NOT NULL DEFAULT 0,
@@ -74,6 +75,7 @@ export const adminCompendiumMigration: Migration = {
         lair_actions_json TEXT NOT NULL,
         regional_effects_json TEXT NOT NULL,
         spells_json TEXT NOT NULL,
+        spellcasting_json TEXT NOT NULL DEFAULT '[]',
         habitat TEXT NOT NULL,
         treasure TEXT NOT NULL,
         image_url TEXT NOT NULL,
@@ -114,14 +116,15 @@ export const adminCompendiumMigration: Migration = {
       const insertMonster = database.prepare(`
         INSERT INTO compendium_monsters (
           id, sort_order, name, source, challenge_rating, armor_class, hit_points,
+          initiative,
           speed_walk, speed_fly, speed_burrow, speed_swim, speed_climb,
           ability_str, ability_dex, ability_con, ability_int, ability_wis, ability_cha,
           skills_json, senses_json, passive_perception, languages_json, xp, proficiency_bonus,
           gear_json, resistances_json, vulnerabilities_json, immunities_json,
           traits_json, actions_json, bonus_actions_json, reactions_json, legendary_actions_json,
-          legendary_actions_use, lair_actions_json, regional_effects_json, spells_json,
+          legendary_actions_use, lair_actions_json, regional_effects_json, spells_json, spellcasting_json,
           habitat, treasure, image_url, color
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       monsterCatalog.forEach((monster, index) => {
@@ -133,6 +136,7 @@ export const adminCompendiumMigration: Migration = {
           monster.challengeRating,
           monster.armorClass,
           monster.hitPoints,
+          monster.initiative,
           monster.speedModes.walk,
           monster.speedModes.fly,
           monster.speedModes.burrow,
@@ -163,6 +167,7 @@ export const adminCompendiumMigration: Migration = {
           JSON.stringify(monster.lairActions),
           JSON.stringify(monster.regionalEffects),
           JSON.stringify(monster.spells),
+          JSON.stringify(monster.spellcasting),
           monster.habitat,
           monster.treasure,
           monster.imageUrl,

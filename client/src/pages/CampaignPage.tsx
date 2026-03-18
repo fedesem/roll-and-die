@@ -523,7 +523,7 @@ export function CampaignPage({
                             >
                               <span>{monster.name}</span>
                               <small>
-                                CR {monster.challengeRating} • AC {monster.armorClass} • HP {monster.hitPoints}
+                                CR {monster.challengeRating}{monster.xp ? ` (${monster.xp.toLocaleString()} XP)` : ""} • AC {monster.armorClass} • HP {monster.hitPoints}
                               </small>
                             </button>
                           ))}
@@ -543,10 +543,11 @@ export function CampaignPage({
                               </button>
                             </div>
                             <div className="monster-preview-summary">
-                              <span className="badge">CR {selectedMonsterTemplate.challengeRating}</span>
+                              <span className="badge">CR {selectedMonsterTemplate.challengeRating}{selectedMonsterTemplate.xp ? ` (${selectedMonsterTemplate.xp.toLocaleString()} XP)` : ""}</span>
                               <span className="badge subtle">{selectedMonsterTemplate.source}</span>
                               <span className="badge subtle">AC {selectedMonsterTemplate.armorClass}</span>
                               <span className="badge subtle">HP {selectedMonsterTemplate.hitPoints}</span>
+                              <span className="badge subtle">Init {selectedMonsterTemplate.initiative >= 0 ? `+${selectedMonsterTemplate.initiative}` : selectedMonsterTemplate.initiative}</span>
                               <span className="badge subtle">Speed {selectedMonsterTemplate.speed}</span>
                             </div>
                             <div className="ability-card-grid">

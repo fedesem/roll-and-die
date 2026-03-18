@@ -8,6 +8,7 @@ import {
   createMonsterBodySchema,
   createSpellBodySchema,
   createdCompendiumEntryResponseSchema,
+  emptyAdminResponseSchema,
   importClassesBodySchema,
   importCompendiumResultResponseSchema,
   importFeatsBodySchema,
@@ -56,6 +57,14 @@ export function demoteAdminUser(token: string, userId: string) {
   });
 }
 
+export function deleteAdminUser(token: string, userId: string) {
+  return apiRequest(`/admin/users/${userId}`, {
+    method: "DELETE",
+    token,
+    responseSchema: emptyAdminResponseSchema
+  });
+}
+
 export function createCompendiumItem(token: string, kind: CompendiumTab, entry: unknown) {
   compendiumKindSchema.parse(kind);
   return apiRequest<{ id: string }>(`/admin/compendium/${kind}`, {
@@ -75,5 +84,23 @@ export function importCompendiumItems(token: string, kind: CompendiumTab, entrie
     body: { entries },
     bodySchema: importBodySchemaByKind[kind],
     responseSchema: importCompendiumResultResponseSchema
+  });
+}
+
+export function deleteCompendiumItem(token: string, kind: CompendiumTab, itemId: string) {
+  compendiumKindSchema.parse(kind);
+  return apiRequest(`/admin/compendium/${kind}/${itemId}`, {
+    method: "DELETE",
+    token,
+    responseSchema: emptyAdminResponseSchema
+  });
+}
+
+export function clearCompendiumItems(token: string, kind: CompendiumTab) {
+  compendiumKindSchema.parse(kind);
+  return apiRequest(`/admin/compendium/${kind}`, {
+    method: "DELETE",
+    token,
+    responseSchema: emptyAdminResponseSchema
   });
 }

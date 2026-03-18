@@ -8,6 +8,7 @@ import type {
   MonsterActionEntry,
   MonsterSense,
   MonsterSkillBonus,
+  MonsterSpellcastingEntry,
   SpellEntry,
   SpellLevel
 } from "../../../../shared/types.js";
@@ -103,6 +104,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     challengeRating: string;
     armorClass: number;
     hitPoints: number;
+    initiative: number;
     speedWalk: number;
     speedFly: number;
     speedBurrow: number;
@@ -133,6 +135,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     lairActionsJson: string;
     regionalEffectsJson: string;
     spellsJson: string;
+    spellcastingJson: string;
     habitat: string;
     treasure: string;
     imageUrl: string;
@@ -147,6 +150,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
         challenge_rating as challengeRating,
         armor_class as armorClass,
         hit_points as hitPoints,
+        initiative,
         speed_walk as speedWalk,
         speed_fly as speedFly,
         speed_burrow as speedBurrow,
@@ -177,6 +181,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
         lair_actions_json as lairActionsJson,
         regional_effects_json as regionalEffectsJson,
         spells_json as spellsJson,
+        spellcasting_json as spellcastingJson,
         habitat,
         treasure,
         image_url as imageUrl,
@@ -191,6 +196,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     challengeRating: row.challengeRating,
     armorClass: row.armorClass,
     hitPoints: row.hitPoints,
+    initiative: row.initiative,
     speed: row.speedWalk,
     speedModes: {
       walk: row.speedWalk,
@@ -226,6 +232,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     lairActions: parseJsonArray<MonsterActionEntry>(row.lairActionsJson),
     regionalEffects: parseJsonArray<MonsterActionEntry>(row.regionalEffectsJson),
     spells: parseJsonArray<string>(row.spellsJson),
+    spellcasting: parseJsonArray<MonsterSpellcastingEntry>(row.spellcastingJson),
     habitat: row.habitat,
     treasure: row.treasure,
     imageUrl: row.imageUrl,
@@ -307,14 +314,15 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
   const insertMonster = database.prepare(`
     INSERT INTO compendium_monsters (
       id, sort_order, name, source, challenge_rating, armor_class, hit_points,
+      initiative,
       speed_walk, speed_fly, speed_burrow, speed_swim, speed_climb,
       ability_str, ability_dex, ability_con, ability_int, ability_wis, ability_cha,
       skills_json, senses_json, passive_perception, languages_json, xp, proficiency_bonus,
       gear_json, resistances_json, vulnerabilities_json, immunities_json,
       traits_json, actions_json, bonus_actions_json, reactions_json, legendary_actions_json,
-      legendary_actions_use, lair_actions_json, regional_effects_json, spells_json,
+      legendary_actions_use, lair_actions_json, regional_effects_json, spells_json, spellcasting_json,
       habitat, treasure, image_url, color
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertFeat = database.prepare(`
     INSERT INTO compendium_feats (
@@ -365,6 +373,7 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
       monster.challengeRating,
       monster.armorClass,
       monster.hitPoints,
+      monster.initiative,
       monster.speedModes.walk,
       monster.speedModes.fly,
       monster.speedModes.burrow,
@@ -395,6 +404,7 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
       JSON.stringify(monster.lairActions),
       JSON.stringify(monster.regionalEffects),
       JSON.stringify(monster.spells),
+      JSON.stringify(monster.spellcasting),
       monster.habitat,
       monster.treasure,
       monster.imageUrl,

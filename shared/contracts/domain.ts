@@ -44,6 +44,7 @@ import type {
   MonsterAttackType,
   MonsterSense,
   MonsterSkillBonus,
+  MonsterSpellcastingEntry,
   MonsterSpeedModes,
   MonsterTemplate,
   Point,
@@ -230,6 +231,11 @@ export const monsterActionEntrySchema: z.ZodType<MonsterActionEntry> = z.object(
   damageType: trimmedString
 });
 
+export const monsterSpellcastingEntrySchema: z.ZodType<MonsterSpellcastingEntry> = z.object({
+  label: trimmedString,
+  spells: z.array(trimmedString)
+});
+
 export const monsterTemplateSchema: z.ZodType<MonsterTemplate> = z.object({
   id: trimmedString,
   name: trimmedString,
@@ -237,6 +243,7 @@ export const monsterTemplateSchema: z.ZodType<MonsterTemplate> = z.object({
   challengeRating: trimmedString,
   armorClass: finiteNumber,
   hitPoints: finiteNumber,
+  initiative: finiteNumber,
   speed: finiteNumber,
   speedModes: monsterSpeedModesSchema,
   abilities: abilityScoresSchema,
@@ -259,6 +266,7 @@ export const monsterTemplateSchema: z.ZodType<MonsterTemplate> = z.object({
   lairActions: z.array(monsterActionEntrySchema),
   regionalEffects: z.array(monsterActionEntrySchema),
   spells: z.array(trimmedString),
+  spellcasting: z.array(monsterSpellcastingEntrySchema),
   habitat: trimmedString,
   treasure: trimmedString,
   imageUrl: trimmedString,
@@ -292,6 +300,7 @@ export const spellSchoolSchema: z.ZodType<SpellSchool> = z.enum([
 export const spellCastingTimeUnitSchema: z.ZodType<SpellCastingTimeUnit> = z.enum([
   "action",
   "bonus action",
+  "reaction",
   "minute",
   "hour"
 ]);
@@ -300,13 +309,19 @@ export const spellRangeTypeSchema: z.ZodType<SpellRangeType> = z.enum([
   "feet",
   "self",
   "self emanation",
-  "touch"
+  "touch",
+  "sight",
+  "unlimited",
+  "special"
 ]);
 
 export const spellDurationUnitSchema: z.ZodType<SpellDurationUnit> = z.enum([
   "instant",
   "minute",
-  "hour"
+  "hour",
+  "day",
+  "permanent",
+  "special"
 ]);
 
 export const spellComponentsSchema: z.ZodType<SpellComponents> = z.object({

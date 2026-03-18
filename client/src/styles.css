@@ -1064,6 +1064,92 @@ p {
   line-height: 1.58;
 }
 
+.rules-tag {
+  position: relative;
+  display: inline;
+}
+
+.rules-tag-link {
+  color: #87aee6;
+  cursor: help;
+  text-decoration: underline;
+  text-decoration-color: rgba(135, 174, 230, 0.45);
+  text-underline-offset: 0.14em;
+}
+
+.rules-tag-tooltip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 0.45rem);
+  z-index: 6;
+  display: none;
+  min-width: 20rem;
+  max-width: min(32rem, 76vw);
+  color: #eee4ce;
+}
+
+.rules-tooltip-card > strong,
+.rules-tooltip-card > small,
+.rules-tooltip-card > span,
+.rules-tooltip-card > div {
+  display: block;
+}
+
+.rules-tooltip-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid rgba(245, 198, 92, 0.22);
+  background:
+    linear-gradient(180deg, rgba(20, 23, 29, 0.98), rgba(10, 13, 17, 0.98)),
+    radial-gradient(circle at top left, rgba(245, 198, 92, 0.08), transparent 28%);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.4);
+}
+
+.rules-tag-tooltip small {
+  color: #d7caa4;
+}
+
+.rules-tooltip-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.rules-tooltip-meta span {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0;
+  padding: 0.16rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 198, 92, 0.16);
+  background: rgba(245, 198, 92, 0.08);
+  color: #ead8ae;
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.rules-tooltip-body {
+  margin-top: 0;
+  color: #ddd0b9;
+  line-height: 1.45;
+  font-size: 0.9rem;
+  overflow: hidden;
+  max-height: calc(1.45em * 13.5);
+}
+
+.rules-tooltip-body-secondary {
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(245, 198, 92, 0.1);
+  max-height: calc(1.45em * 10.5);
+}
+
+.rules-tag-link:hover .rules-tag-tooltip,
+.rules-tag-link:focus-visible .rules-tag-tooltip {
+  display: block;
+}
+
 .admin-preview-footnote {
   color: #d7cfbf;
 }
@@ -1238,6 +1324,30 @@ p {
   min-height: 20rem;
   color: #d8cfbd;
   background: rgba(8, 10, 13, 0.82);
+}
+
+.admin-import-upload {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  border: 1px solid rgba(245, 198, 92, 0.12);
+  background: rgba(8, 10, 13, 0.64);
+}
+
+.admin-import-upload input[type="file"] {
+  width: 100%;
+}
+
+.admin-import-file-meta {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.admin-import-file-meta strong,
+.admin-import-file-meta small {
+  overflow-wrap: anywhere;
 }
 
 .campaign-card,

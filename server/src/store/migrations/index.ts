@@ -5,6 +5,8 @@ import { drawingMetadataMigration } from "./105_drawing_metadata.js";
 import { drawingOpacityMigration } from "./106_drawing_opacity.js";
 import { adminCompendiumMigration } from "./107_admin_compendium.js";
 import { actorTokenImagesMigration } from "./108_actor_token_images.js";
+import { monsterInitiativeMigration } from "./109_monster_initiative.js";
+import { monsterSpellcastingMigration } from "./110_monster_spellcasting.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -13,5 +15,7 @@ export const migrations = [
   drawingMetadataMigration,
   drawingOpacityMigration,
   adminCompendiumMigration,
-  actorTokenImagesMigration
+  actorTokenImagesMigration,
+  monsterInitiativeMigration,
+  monsterSpellcastingMigration
 ];

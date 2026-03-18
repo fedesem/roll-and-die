@@ -301,7 +301,7 @@ export function createMonsterActor(
   userId: string,
   template: MonsterTemplate
 ): ActorSheet {
-  const dexModifier = abilityModifier(template.abilities.dex);
+  const dexModifier = Math.floor((template.abilities.dex - 10) / 2);
   const proficiencyBonus = template.proficiencyBonus;
 
   return {
@@ -321,7 +321,7 @@ export function createMonsterActor(
     experience: 0,
     spellcastingAbility: "cha",
     armorClass: template.armorClass,
-    initiative: dexModifier,
+    initiative: template.initiative,
     speed: template.speed,
     proficiencyBonus,
     inspiration: false,
@@ -332,7 +332,7 @@ export function createMonsterActor(
     skills: defaultSkills(),
     spellSlots: defaultSpellSlots(),
     features: template.traits,
-    spells: template.spells,
+    spells: template.spells.length > 0 ? template.spells : template.spellcasting.flatMap((entry) => entry.spells.map(stripTaggedSpellName)),
     talents: [],
     feats: [],
     attacks: template.actions.map((action) => ({
@@ -957,10 +957,6 @@ export function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {
     .slice(0, 300);
 }
 
-function abilityModifier(score: number) {
-  return Math.floor((score - 10) / 2);
-}
-
 export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown> | ActorSheet) {
   actor.name = getOptionalString(patch.name, actor.name);
   actor.imageUrl = getOptionalString(patch.imageUrl, actor.imageUrl);
@@ -999,6 +995,11 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   actor.currency = sanitizeCurrency(patch.currency, actor.currency);
   actor.notes = getOptionalString(patch.notes, actor.notes);
   actor.color = getOptionalString(patch.color, actor.color);
+}
+
+function stripTaggedSpellName(value: string) {
+  const match = value.match(/\{@spell ([^}|]+)(?:\|[^}]+)?}/i);
+  return match ? match[1].trim() : value;
 }
 
 export function syncActorTokens(campaign: Campaign, actor: ActorSheet) {
