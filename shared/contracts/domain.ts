@@ -161,6 +161,7 @@ export const actorSheetSchema: z.ZodType<ActorSheet> = z.object({
   sheetAccess: z.enum(["full", "restricted"]).optional(),
   name: trimmedString,
   kind: actorKindSchema,
+  imageUrl: trimmedString,
   className: trimmedString,
   species: trimmedString,
   background: trimmedString,
@@ -474,6 +475,7 @@ export const boardTokenSchema: z.ZodType<BoardToken> = z.object({
   size: finiteNumber,
   color: trimmedString,
   label: trimmedString,
+  imageUrl: trimmedString,
   visible: z.boolean()
 });
 

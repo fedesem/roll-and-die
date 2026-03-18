@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 
 import type {
   AbilityKey,
@@ -12,6 +12,7 @@ import type {
   SkillEntry,
   SpellSlotTrack
 } from "@shared/types";
+import { readFileAsDataUrl } from "../lib/media";
 
 const abilityOrder: { key: AbilityKey; label: string }[] = [
   { key: "str", label: "STR" },
@@ -32,9 +33,11 @@ interface CharacterSheetProps {
 
 export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: CharacterSheetProps) {
   const [draft, setDraft] = useState<ActorSheet | null>(actor ? cloneActor(actor) : null);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   useEffect(() => {
     setDraft(actor ? cloneActor(actor) : null);
+    setImageError(null);
   }, [actor]);
 
   const canView = useMemo(() => {
@@ -122,6 +125,7 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
                 <input type="color" value={draft.color} disabled={!canEdit} onChange={(event) => updateField("color", event.target.value)} />
               </label>
             </div>
+            {renderPortraitEditor(draft, canEdit)}
           </article>
 
           <article className="sheet-panel">
@@ -153,6 +157,67 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
 
   function updateField<K extends keyof ActorSheet>(key: K, value: ActorSheet[K]) {
     updateDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const imageUrl = await readFileAsDataUrl(file);
+      setImageError(null);
+      updateField("imageUrl", imageUrl);
+    } catch (error) {
+      console.error(error);
+      setImageError("Unable to read the selected image.");
+    }
+  }
+
+  function clearImage() {
+    setImageError(null);
+    updateField("imageUrl", "");
+  }
+
+  function renderPortraitEditor(currentDraft: ActorSheet, editable: boolean) {
+    return (
+      <div className="sheet-portrait-editor">
+        <div className="sheet-portrait-preview">
+          {currentDraft.imageUrl ? (
+            <img src={currentDraft.imageUrl} alt={currentDraft.name} />
+          ) : (
+            <span>{actorInitials(currentDraft.name)}</span>
+          )}
+        </div>
+        <div className="sheet-portrait-controls">
+          <label>
+            Token image URL
+            <input
+              value={currentDraft.imageUrl}
+              disabled={!editable}
+              placeholder="Paste image URL or upload a file"
+              onChange={(event) => {
+                setImageError(null);
+                updateField("imageUrl", event.target.value);
+              }}
+            />
+          </label>
+          <div className="sheet-portrait-actions">
+            <label className={`button-like ${editable ? "" : "is-disabled"}`}>
+              <span>Upload image</span>
+              <input type="file" accept="image/*" disabled={!editable} onChange={(event) => void handleImageUpload(event)} />
+            </label>
+            <button type="button" disabled={!editable || !currentDraft.imageUrl} onClick={clearImage}>
+              Remove
+            </button>
+          </div>
+          {imageError ? <p className="sheet-inline-error">{imageError}</p> : null}
+        </div>
+      </div>
+    );
   }
 
   function updateAbility(key: AbilityKey, value: number) {
@@ -364,6 +429,7 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
                 <input type="color" value={draft.color} disabled={!canEdit} onChange={(event) => updateField("color", event.target.value)} />
               </label>
             </div>
+            {renderPortraitEditor(draft, canEdit)}
             <div className="combat-grid">
               <div className="stat-card">
                 <span>Armor Class</span>
@@ -714,6 +780,7 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
               <input type="color" value={draft.color} disabled={!canEdit} onChange={(event) => updateField("color", event.target.value)} />
             </label>
           </div>
+          {renderPortraitEditor(draft, canEdit)}
         </article>
 
         <article className="sheet-panel">
@@ -1259,6 +1326,15 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
 
 function cloneActor(actor: ActorSheet) {
   return JSON.parse(JSON.stringify(actor)) as ActorSheet;
+}
+
+function actorInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
 }
 
 function toLines(value: string) {

@@ -146,6 +146,7 @@ export function buildCurrentMapRoster({
           assignment,
           color: token?.color ?? actor.color,
           label: token?.label ?? actor.name,
+          imageUrl: token?.imageUrl ?? actor.imageUrl,
           token
         }
       ];
@@ -159,6 +160,7 @@ export function buildCurrentMapRoster({
           assignment,
           color: token?.color ?? actor.color,
           label: token?.label ?? actor.name,
+          imageUrl: token?.imageUrl ?? actor.imageUrl,
           token
         }
       ];
@@ -175,6 +177,7 @@ export function buildCurrentMapRoster({
         assignment,
         color: visibleToken.color,
         label: visibleToken.label,
+        imageUrl: visibleToken.imageUrl,
         token: visibleToken
       }
     ];

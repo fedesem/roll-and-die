@@ -79,6 +79,7 @@ export interface ActorSheet {
   sheetAccess?: "full" | "restricted";
   name: string;
   kind: ActorKind;
+  imageUrl: string;
   className: string;
   species: string;
   background: string;
@@ -348,6 +349,7 @@ export interface BoardToken {
   size: number;
   color: string;
   label: string;
+  imageUrl: string;
   visible: boolean;
 }
 

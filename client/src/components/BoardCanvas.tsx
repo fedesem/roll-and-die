@@ -1922,7 +1922,11 @@ export function BoardCanvas({
                     event.stopPropagation();
                   }}
                 >
-                  <span>{initials(token.label)}</span>
+                  {token.imageUrl ? (
+                    <img className="board-token-image" src={token.imageUrl} alt={token.label} draggable={false} />
+                  ) : (
+                    <span>{initials(token.label)}</span>
+                  )}
                 </button>
               );
             })}

@@ -25,6 +25,7 @@ import {
   randomInviteCode,
   requireCampaignMember,
   requireDungeonMaster,
+  syncActorTokens,
   toCampaignSummary,
   updateExplorationForCampaign
 } from "../services/campaignDomain.js";
@@ -203,6 +204,7 @@ export const campaignController = {
       }
 
       applyActorPatch(actor, patch);
+      syncActorTokens(campaign, actor);
       updateExplorationForCampaign(campaign);
       return actor;
     });

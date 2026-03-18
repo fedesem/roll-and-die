@@ -12,6 +12,7 @@ import { DoorOpen, MousePointer2, Move, RotateCcw, Square, Trash2, Waves, ZoomIn
 
 import type { CampaignMap, MapWall, MapWallKind, Point } from "@shared/types";
 import { snapPointToGridIntersection } from "@shared/vision";
+import { readFileAsDataUrl } from "../lib/media";
 
 interface MapConfiguratorProps {
   map: CampaignMap;
@@ -889,27 +890,6 @@ function resolvePreviewScale(map: CampaignMap, viewportSize: ViewportSize) {
     0.18,
     2.6
   );
-}
-
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.addEventListener("load", () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-        return;
-      }
-
-      reject(new Error("Invalid file payload."));
-    });
-
-    reader.addEventListener("error", () => {
-      reject(reader.error ?? new Error("Unable to read file."));
-    });
-
-    reader.readAsDataURL(file);
-  });
 }
 
 function readImageDimensions(source: string) {

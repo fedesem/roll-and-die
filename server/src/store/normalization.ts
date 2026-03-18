@@ -76,6 +76,7 @@ function normalizeCampaign(campaign: Campaign): Campaign {
     actors: Array.isArray(campaign.actors)
       ? campaign.actors.map((actor) => ({
           ...actor,
+          imageUrl: actor.imageUrl ?? "",
           visionRange: actor.visionRange ?? 6
         }))
       : [],
@@ -85,7 +86,15 @@ function normalizeCampaign(campaign: Campaign): Campaign {
         normalizedAssignments.map((assignment) => [`${assignment.mapId}:${assignment.actorId}`, assignment])
       ).values()
     ),
-    tokens: Array.isArray(campaign.tokens) ? campaign.tokens : [],
+    tokens: Array.isArray(campaign.tokens)
+      ? campaign.tokens.map((token) => ({
+          ...token,
+          imageUrl:
+            typeof token.imageUrl === "string"
+              ? token.imageUrl
+              : campaign.actors.find((actor) => actor.id === token.actorId)?.imageUrl ?? ""
+        }))
+      : [],
     chat: Array.isArray(campaign.chat) ? campaign.chat : [],
     invites: Array.isArray(campaign.invites) ? campaign.invites : [],
     members: Array.isArray(campaign.members) ? campaign.members : []

@@ -57,6 +57,7 @@ export const currentSchemaMigration: Migration = {
         template_id TEXT,
         name TEXT NOT NULL,
         kind TEXT NOT NULL CHECK (kind IN ('character', 'npc', 'monster', 'static')),
+        image_url TEXT NOT NULL DEFAULT '',
         class_name TEXT NOT NULL,
         species TEXT NOT NULL,
         background TEXT NOT NULL,
@@ -232,6 +233,7 @@ export const currentSchemaMigration: Migration = {
         size REAL NOT NULL,
         color TEXT NOT NULL,
         label TEXT NOT NULL,
+        image_url TEXT NOT NULL DEFAULT '',
         visible INTEGER NOT NULL
       );
 

@@ -117,6 +117,7 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     templateId: string | null;
     name: string;
     kind: ActorKind;
+    imageUrl: string;
     className: string;
     species: string;
     background: string;
@@ -158,6 +159,7 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
         template_id as templateId,
         name,
         kind,
+        image_url as imageUrl,
         class_name as className,
         species,
         background,
@@ -200,6 +202,7 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
       templateId: row.templateId ?? undefined,
       name: row.name,
       kind: row.kind,
+      imageUrl: row.imageUrl,
       className: row.className,
       species: row.species,
       background: row.background,
@@ -521,10 +524,10 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     } satisfies MapActorAssignment);
   }
 
-  for (const row of readAll<{ id: string; campaignId: string; actorId: string; actorKind: ActorKind; mapId: string; x: number; y: number; size: number; color: string; label: string; visible: number }>(
+  for (const row of readAll<{ id: string; campaignId: string; actorId: string; actorKind: ActorKind; mapId: string; x: number; y: number; size: number; color: string; label: string; imageUrl: string; visible: number }>(
     database,
     `
-      SELECT id, campaign_id as campaignId, actor_id as actorId, actor_kind as actorKind, map_id as mapId, x, y, size, color, label, visible
+      SELECT id, campaign_id as campaignId, actor_id as actorId, actor_kind as actorKind, map_id as mapId, x, y, size, color, label, image_url as imageUrl, visible
       FROM tokens
       ORDER BY campaign_id, sort_order, id
     `
@@ -539,6 +542,7 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
       size: row.size,
       color: row.color,
       label: row.label,
+      imageUrl: row.imageUrl,
       visible: toBoolean(row.visible)
     });
   }
@@ -649,11 +653,11 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
   `);
   const insertActor = database.prepare(`
     INSERT INTO actors (
-      id, campaign_id, sort_order, owner_id, template_id, name, kind, class_name, species, background, alignment, level,
+      id, campaign_id, sort_order, owner_id, template_id, name, kind, image_url, class_name, species, background, alignment, level,
       challenge_rating, experience, spellcasting_ability, armor_class, initiative, speed, proficiency_bonus, inspiration,
       vision_range, hit_points_current, hit_points_max, hit_points_temp, hit_dice, ability_str, ability_dex, ability_con,
       ability_int, ability_wis, ability_cha, currency_pp, currency_gp, currency_ep, currency_sp, currency_cp, notes, color
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertActorSkill = database.prepare(`
     INSERT INTO actor_skills (actor_id, id, sort_order, name, ability, proficient, expertise)
@@ -706,8 +710,8 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
     VALUES (?, ?, ?)
   `);
   const insertToken = database.prepare(`
-    INSERT INTO tokens (id, campaign_id, sort_order, actor_id, actor_kind, map_id, x, y, size, color, label, visible)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tokens (id, campaign_id, sort_order, actor_id, actor_kind, map_id, x, y, size, color, label, image_url, visible)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertChatMessage = database.prepare(`
     INSERT INTO chat_messages (id, campaign_id, sort_order, user_id, user_name, text, created_at, kind)
@@ -755,6 +759,7 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
         actor.templateId ?? null,
         actor.name,
         actor.kind,
+        actor.imageUrl,
         actor.className,
         actor.species,
         actor.background,
@@ -868,7 +873,7 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
     });
 
     campaign.tokens.forEach((token, tokenOrder) => {
-      insertToken.run(token.id, campaign.id, tokenOrder, token.actorId, token.actorKind, token.mapId, token.x, token.y, token.size, token.color, token.label, toIntegerBoolean(token.visible));
+      insertToken.run(token.id, campaign.id, tokenOrder, token.actorId, token.actorKind, token.mapId, token.x, token.y, token.size, token.color, token.label, token.imageUrl, toIntegerBoolean(token.visible));
     });
 
     campaign.chat.forEach((message, messageOrder) => {

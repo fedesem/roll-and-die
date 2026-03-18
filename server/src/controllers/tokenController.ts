@@ -73,6 +73,7 @@ export const tokenController = {
         size: 1,
         color: actor.color,
         label: actor.name,
+        imageUrl: actor.imageUrl,
         visible: true
       };
 

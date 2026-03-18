@@ -33,6 +33,7 @@ export interface CurrentMapRosterEntry {
   assignment: MapActorAssignment;
   color: string;
   label: string;
+  imageUrl: string;
   token: BoardToken | null;
 }
 

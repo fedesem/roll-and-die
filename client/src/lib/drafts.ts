@@ -41,6 +41,7 @@ export function createClientActorDraft(kind: ActorKind, currentUserId?: string):
     ownerId: kind === "character" ? currentUserId ?? "draft-owner" : undefined,
     name: kind === "static" ? "New Static Actor" : "New Actor",
     kind,
+    imageUrl: "",
     className:
       kind === "npc"
         ? "Supporting Role"

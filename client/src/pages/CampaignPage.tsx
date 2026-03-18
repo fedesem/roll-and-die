@@ -252,7 +252,7 @@ export function CampaignPage({
                 <span className="badge subtle">{filteredCurrentMapRoster.length}</span>
               </div>
               <div className="list-stack compact-list">
-                {filteredCurrentMapRoster.map(({ actor, assignment, color, label }) => {
+                {filteredCurrentMapRoster.map(({ actor, assignment, color, label, imageUrl }) => {
                   const canSelect = Boolean(actor);
                   const canDrag = Boolean(actor && (role === "dm" || (actor.kind === "character" && actor.ownerId === currentUserId)));
 
@@ -282,12 +282,16 @@ export function CampaignPage({
                           }}
                         >
                           <span className="overlay-token-dot" style={{ background: color }}>
-                            {label
-                              .split(/\s+/)
-                              .filter(Boolean)
-                              .slice(0, 2)
-                              .map((part) => part[0]?.toUpperCase() ?? "")
-                              .join("")}
+                            {imageUrl ? (
+                              <img src={imageUrl} alt={label} />
+                            ) : (
+                              label
+                                .split(/\s+/)
+                                .filter(Boolean)
+                                .slice(0, 2)
+                                .map((part) => part[0]?.toUpperCase() ?? "")
+                                .join("")
+                            )}
                           </span>
                         </button>
                         <button

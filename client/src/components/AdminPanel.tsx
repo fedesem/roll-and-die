@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { ArrowDownToLine, FilePlus2, List, RefreshCw } from "lucide-react";
 
 import type { SpellEntry } from "@shared/types";
@@ -26,6 +26,7 @@ import {
   type SpellFormState
 } from "../lib/adminDrafts";
 import { toErrorMessage } from "../lib/errors";
+import { readFileAsDataUrl } from "../lib/media";
 import {
   AdminField,
   buildPreview,
@@ -214,6 +215,22 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
   function handleMonsterSubmit(event: FormEvent) {
     event.preventDefault();
     void createEntry("monsters", monsterFormToEntry(monsterForm), () => setMonsterForm(createMonsterForm()));
+  }
+
+  async function handleMonsterImageUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const imageUrl = await readFileAsDataUrl(file);
+      setMonsterForm((current) => ({ ...current, imageUrl }));
+    } catch (error) {
+      onStatus("error", toErrorMessage(error));
+    }
   }
 
   function handleFeatSubmit(event: FormEvent) {
@@ -555,7 +572,17 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                   <Field label="Regional effects JSON" wide><textarea value={monsterForm.regionalEffectsJson} onChange={(event) => setMonsterForm({ ...monsterForm, regionalEffectsJson: event.target.value })} /></Field>
                   <Field label="Habitat"><input value={monsterForm.habitat} onChange={(event) => setMonsterForm({ ...monsterForm, habitat: event.target.value })} /></Field>
                   <Field label="Treasure"><input value={monsterForm.treasure} onChange={(event) => setMonsterForm({ ...monsterForm, treasure: event.target.value })} /></Field>
-                  <Field label="Image URL"><input value={monsterForm.imageUrl} onChange={(event) => setMonsterForm({ ...monsterForm, imageUrl: event.target.value })} /></Field>
+                  <Field label="Image URL">
+                    <input value={monsterForm.imageUrl} onChange={(event) => setMonsterForm({ ...monsterForm, imageUrl: event.target.value })} />
+                  </Field>
+                  <Field label="Upload image">
+                    <div className="admin-image-controls">
+                      <input type="file" accept="image/*" onChange={(event) => void handleMonsterImageUpload(event)} />
+                      <button type="button" onClick={() => setMonsterForm({ ...monsterForm, imageUrl: "" })} disabled={!monsterForm.imageUrl}>
+                        Clear image
+                      </button>
+                    </div>
+                  </Field>
                   <Field label="Color" wide>
                     <div className="color-field">
                       <input type="color" value={monsterForm.color} onChange={(event) => setMonsterForm({ ...monsterForm, color: event.target.value })} />

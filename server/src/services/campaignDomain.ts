@@ -220,6 +220,7 @@ export function createDefaultActor(
     ownerId: kind === "character" ? userId : role === "dm" ? userId : undefined,
     name,
     kind,
+    imageUrl: "",
     className:
       kind === "npc"
         ? "Supporting Role"
@@ -310,6 +311,7 @@ export function createMonsterActor(
     templateId: template.id,
     name: template.name,
     kind: "monster",
+    imageUrl: template.imageUrl,
     className: "Monster",
     species: template.source,
     background: template.habitat,
@@ -961,6 +963,7 @@ function abilityModifier(score: number) {
 
 export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown> | ActorSheet) {
   actor.name = getOptionalString(patch.name, actor.name);
+  actor.imageUrl = getOptionalString(patch.imageUrl, actor.imageUrl);
   actor.className = getOptionalString(patch.className, actor.className);
   actor.species = getOptionalString(patch.species, actor.species);
   actor.background = getOptionalString(patch.background, actor.background);
@@ -996,4 +999,17 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   actor.currency = sanitizeCurrency(patch.currency, actor.currency);
   actor.notes = getOptionalString(patch.notes, actor.notes);
   actor.color = getOptionalString(patch.color, actor.color);
+}
+
+export function syncActorTokens(campaign: Campaign, actor: ActorSheet) {
+  for (const token of campaign.tokens) {
+    if (token.actorId !== actor.id) {
+      continue;
+    }
+
+    token.actorKind = actor.kind;
+    token.color = actor.color;
+    token.label = actor.name;
+    token.imageUrl = actor.imageUrl;
+  }
 }
