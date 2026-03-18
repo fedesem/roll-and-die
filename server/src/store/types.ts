@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite";
 
 import type {
   Campaign,
+  CompendiumData,
   UserProfile
 } from "../../../shared/types.js";
 
@@ -21,6 +22,7 @@ export interface Database {
   users: StoredUser[];
   sessions: SessionRecord[];
   campaigns: Campaign[];
+  compendium: CompendiumData;
 }
 
 export interface PersistenceAdapter {
@@ -41,5 +43,11 @@ export const legacyJsonPath = resolve(process.cwd(), "data", "db.json");
 export const defaultDatabase: Database = {
   users: [],
   sessions: [],
-  campaigns: []
+  campaigns: [],
+  compendium: {
+    spells: [],
+    monsters: [],
+    feats: [],
+    classes: []
+  }
 };

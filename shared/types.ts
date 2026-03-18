@@ -111,6 +111,37 @@ export interface ActorSheet {
   color: string;
 }
 
+export interface MonsterSpeedModes {
+  walk: number;
+  fly: number;
+  burrow: number;
+  swim: number;
+  climb: number;
+}
+
+export interface MonsterSkillBonus {
+  name: string;
+  bonus: number;
+}
+
+export interface MonsterSense {
+  name: string;
+  range: number;
+  notes: string;
+}
+
+export type MonsterAttackType = "melee" | "ranged" | "melee or ranged" | "other";
+
+export interface MonsterActionEntry {
+  name: string;
+  description: string;
+  damage: string;
+  attackType: MonsterAttackType;
+  attackBonus: number;
+  reachOrRange: string;
+  damageType: string;
+}
+
 export interface MonsterTemplate {
   id: string;
   name: string;
@@ -119,11 +150,113 @@ export interface MonsterTemplate {
   armorClass: number;
   hitPoints: number;
   speed: number;
+  speedModes: MonsterSpeedModes;
   abilities: AbilityScores;
+  skills: MonsterSkillBonus[];
+  senses: MonsterSense[];
+  passivePerception: number;
+  languages: string[];
+  xp: number;
+  proficiencyBonus: number;
+  gear: string[];
+  resistances: string[];
+  vulnerabilities: string[];
+  immunities: string[];
   traits: string[];
-  actions: string[];
+  actions: MonsterActionEntry[];
+  bonusActions: MonsterActionEntry[];
+  reactions: MonsterActionEntry[];
+  legendaryActions: MonsterActionEntry[];
+  legendaryActionsUse: number;
+  lairActions: MonsterActionEntry[];
+  regionalEffects: MonsterActionEntry[];
   spells: string[];
+  habitat: string;
+  treasure: string;
+  imageUrl: string;
   color: string;
+}
+
+export type SpellLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | "cantrip";
+export type SpellSchool =
+  | "Abjuration"
+  | "Conjuration"
+  | "Divination"
+  | "Enchantment"
+  | "Evocation"
+  | "Illusion"
+  | "Necromancy"
+  | "Transmutation";
+export type SpellCastingTimeUnit = "action" | "bonus action" | "minute" | "hour";
+export type SpellRangeType = "feet" | "self" | "self emanation" | "touch";
+export type SpellDurationUnit = "instant" | "minute" | "hour";
+
+export interface SpellComponents {
+  verbal: boolean;
+  somatic: boolean;
+  material: boolean;
+  materialText: string;
+  materialValue: number;
+  materialConsumed: boolean;
+}
+
+export interface SpellEntry {
+  id: string;
+  name: string;
+  source: string;
+  level: SpellLevel;
+  school: SpellSchool;
+  castingTimeUnit: SpellCastingTimeUnit;
+  castingTimeValue: number;
+  rangeType: SpellRangeType;
+  rangeValue: number;
+  description: string;
+  components: SpellComponents;
+  durationUnit: SpellDurationUnit;
+  durationValue: number;
+  concentration: boolean;
+  damageNotation: string;
+  damageAbility: AbilityKey | null;
+  fullDescription: string;
+  classes: string[];
+}
+
+export interface FeatEntry {
+  id: string;
+  name: string;
+  source: string;
+  category: string;
+  abilityScoreIncrease: string;
+  prerequisites: string;
+  description: string;
+}
+
+export interface ClassFeatureEntry {
+  level: number;
+  name: string;
+  description: string;
+}
+
+export interface ClassTableEntry {
+  name: string;
+  columns: string[];
+  rows: string[][];
+}
+
+export interface ClassEntry {
+  id: string;
+  name: string;
+  source: string;
+  description: string;
+  features: ClassFeatureEntry[];
+  tables: ClassTableEntry[];
+}
+
+export interface CompendiumData {
+  spells: SpellEntry[];
+  monsters: MonsterTemplate[];
+  feats: FeatEntry[];
+  classes: ClassEntry[];
 }
 
 export interface CampaignMember {
@@ -264,6 +397,7 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  isAdmin: boolean;
 }
 
 export interface AuthPayload {
@@ -287,6 +421,11 @@ export interface CampaignSnapshot {
   role: MemberRole;
   catalog: MonsterTemplate[];
   playerVision: Record<string, CellKey[]>;
+}
+
+export interface AdminOverview {
+  users: UserProfile[];
+  compendium: CompendiumData;
 }
 
 export interface TokenMovementPreview {

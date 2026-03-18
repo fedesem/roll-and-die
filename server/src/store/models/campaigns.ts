@@ -619,7 +619,17 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     cells.push(`${row.columnIndex}:${row.rowIndex}`);
   }
 
-  return normalizeDatabase({ users: [], sessions: [], campaigns }).campaigns;
+  return normalizeDatabase({
+    users: [],
+    sessions: [],
+    campaigns,
+    compendium: {
+      spells: [],
+      monsters: [],
+      feats: [],
+      classes: []
+    }
+  }).campaigns;
 }
 
 export function writeCampaigns(database: DatabaseSync, state: Database) {

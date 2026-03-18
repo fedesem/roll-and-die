@@ -1,5 +1,5 @@
 import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Castle, Eye, FilePlus2, Map as MapIcon, Minus, Pencil, Plus, ScrollText, Trash2, Users } from "lucide-react";
+import { Castle, Eye, FilePlus2, Map as MapIcon, Minus, Pencil, Plus, ScrollText, Shield, Trash2, Users } from "lucide-react";
 
 import type {
   ActorKind,
@@ -21,6 +21,7 @@ import type {
 } from "@shared/types";
 
 import { apiRequest } from "./api";
+import { AdminPanel } from "./components/AdminPanel";
 import { BoardCanvas } from "./components/BoardCanvas";
 import { CharacterSheet } from "./components/CharacterSheet";
 import { ChatPanel } from "./components/ChatPanel";
@@ -142,7 +143,32 @@ export default function App() {
   }, [session?.token]);
 
   useEffect(() => {
-    if (!session || !selectedCampaignId) {
+    if (!session?.token) {
+      return;
+    }
+
+    void apiRequest<AuthPayload["user"]>("/auth/me", { token: session.token })
+      .then((user) => {
+        setSession((current) =>
+          current && current.token === session.token
+            ? {
+                ...current,
+                user
+              }
+            : current
+        );
+      })
+      .catch(() => undefined);
+  }, [session?.token]);
+
+  useEffect(() => {
+    if (route.name === "admin" && session && !session.user.isAdmin) {
+      navigate({ name: "home" }, { replace: true });
+    }
+  }, [navigate, route.name, session]);
+
+  useEffect(() => {
+    if (!session || !selectedCampaignId || route.name !== "campaign") {
       if (roomSocketRef.current) {
         roomSocketRef.current.close();
         roomSocketRef.current = null;
@@ -303,7 +329,7 @@ export default function App() {
 
       setRoomStatus("offline");
     };
-  }, [selectedCampaignId, session?.token]);
+  }, [route.name, selectedCampaignId, session?.token]);
 
   useEffect(() => {
     setMapPings([]);
@@ -1248,7 +1274,7 @@ export default function App() {
           <p className="eyebrow">Logged in as {session.user.name}</p>
           <h1>DnD 2024 Board</h1>
         </div>
-        {campaign && (
+        {route.name === "campaign" && campaign && (
           <div className="topbar-room-status">
             <span className="status-chip status-title">{campaign.name}</span>
             <span className="status-chip">{activeMap?.name ?? "No map"}</span>
@@ -1257,6 +1283,12 @@ export default function App() {
           </div>
         )}
         <div className="topbar-actions">
+          {session.user.isAdmin && (
+            <button type="button" className={route.name === "admin" ? "accent-button" : ""} onClick={() => navigate({ name: "admin" })}>
+              <Shield size={15} />
+              <span>Admin</span>
+            </button>
+          )}
           <button type="button" onClick={() => setSelectedCampaignId(null)}>
             Campaigns
           </button>
@@ -1266,7 +1298,15 @@ export default function App() {
         </div>
       </header>
 
-      {!selectedCampaignId ? (
+      {route.name === "admin" ? (
+        <AdminPanel
+          token={session.token}
+          currentUserId={session.user.id}
+          onStatus={(tone, text) => {
+            setBanner({ tone, text });
+          }}
+        />
+      ) : !selectedCampaignId ? (
         <main className="dashboard-grid">
           <section className="dark-card">
             <div className="panel-head">
@@ -1330,8 +1370,9 @@ export default function App() {
               )}
             </div>
           </section>
+
         </main>
-      ) : !snapshot ? (
+      ) : route.name !== "campaign" || !snapshot ? (
         <main className="dashboard-grid">
           <section className="dark-card span-full">
             <div className="panel-head">

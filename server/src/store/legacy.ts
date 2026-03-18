@@ -8,9 +8,23 @@ import { readCount, tableExists } from "./helpers.js";
 
 export function normalizeDatabase(database: Database): Database {
   return {
-    users: Array.isArray(database.users) ? database.users : [],
+    users: Array.isArray(database.users)
+      ? database.users.map((user) => ({
+          ...user,
+          isAdmin: Boolean(user.isAdmin)
+        }))
+      : [],
     sessions: Array.isArray(database.sessions) ? database.sessions : [],
-    campaigns: Array.isArray(database.campaigns) ? database.campaigns.map(normalizeCampaign) : []
+    campaigns: Array.isArray(database.campaigns) ? database.campaigns.map(normalizeCampaign) : [],
+    compendium:
+      typeof database.compendium === "object" && database.compendium !== null
+        ? {
+            spells: Array.isArray(database.compendium.spells) ? database.compendium.spells : [],
+            monsters: Array.isArray(database.compendium.monsters) ? database.compendium.monsters : [],
+            feats: Array.isArray(database.compendium.feats) ? database.compendium.feats : [],
+            classes: Array.isArray(database.compendium.classes) ? database.compendium.classes : []
+          }
+        : defaultDatabase.compendium
   };
 }
 

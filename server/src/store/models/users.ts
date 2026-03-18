@@ -8,12 +8,13 @@ export function readUsersAndSessions(database: DatabaseSync): Pick<Database, "us
     id: string;
     name: string;
     email: string;
+    isAdmin: number;
     passwordHash: string;
     salt: string;
   }>(
     database,
     `
-      SELECT id, name, email, password_hash as passwordHash, salt
+      SELECT id, name, email, is_admin as isAdmin, password_hash as passwordHash, salt
       FROM users
       ORDER BY id
     `
@@ -21,6 +22,7 @@ export function readUsersAndSessions(database: DatabaseSync): Pick<Database, "us
     id: row.id,
     name: row.name,
     email: row.email,
+    isAdmin: Boolean(row.isAdmin),
     passwordHash: row.passwordHash,
     salt: row.salt
   }));
@@ -43,8 +45,8 @@ export function readUsersAndSessions(database: DatabaseSync): Pick<Database, "us
 
 export function writeUsersAndSessions(database: DatabaseSync, state: Database) {
   const insertUser = database.prepare(`
-    INSERT INTO users (id, name, email, password_hash, salt)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO users (id, name, email, is_admin, password_hash, salt)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
   const insertSession = database.prepare(`
     INSERT INTO sessions (token, user_id, created_at)
@@ -52,7 +54,7 @@ export function writeUsersAndSessions(database: DatabaseSync, state: Database) {
   `);
 
   for (const user of state.users) {
-    insertUser.run(user.id, user.name, user.email, user.passwordHash, user.salt);
+    insertUser.run(user.id, user.name, user.email, user.isAdmin ? 1 : 0, user.passwordHash, user.salt);
   }
 
   for (const session of state.sessions) {

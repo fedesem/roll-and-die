@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import { migrations } from "./migrations/index.js";
 import { normalizeDatabase } from "./legacy.js";
 import { clearRelationalTables, readCampaigns, writeCampaigns } from "./models/campaigns.js";
+import { clearCompendiumTables, readCompendium, writeCompendium } from "./models/compendium.js";
 import { readUsersAndSessions, writeUsersAndSessions } from "./models/users.js";
 import { runInTransaction, readAll } from "./helpers.js";
 import { sqlitePath, type Database, type PersistenceAdapter } from "./types.js";
@@ -58,11 +59,13 @@ export class SqlitePersistenceAdapter implements PersistenceAdapter {
     const database = this.getDatabase();
     const { users, sessions } = readUsersAndSessions(database);
     const campaigns = readCampaigns(database);
+    const compendium = readCompendium(database);
 
     return normalizeDatabase({
       users,
       sessions,
-      campaigns
+      campaigns,
+      compendium
     });
   }
 
@@ -70,9 +73,11 @@ export class SqlitePersistenceAdapter implements PersistenceAdapter {
     await this.initialize();
     await runInTransaction(this.getDatabase(), () => {
       const normalized = normalizeDatabase(state);
+      clearCompendiumTables(this.getDatabase());
       clearRelationalTables(this.getDatabase());
       writeUsersAndSessions(this.getDatabase(), normalized);
       writeCampaigns(this.getDatabase(), normalized);
+      writeCompendium(this.getDatabase(), normalized.compendium);
     });
   }
 

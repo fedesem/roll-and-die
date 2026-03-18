@@ -34,7 +34,8 @@ export function toUserProfile(user: StoredUser): UserProfile {
   return {
     id: user.id,
     name: user.name,
-    email: user.email
+    email: user.email,
+    isAdmin: user.isAdmin
   };
 }
 
@@ -44,6 +45,16 @@ export function requireUser(request: Request) {
   }
 
   return request.user;
+}
+
+export function requireAdmin(request: Request) {
+  const user = requireUser(request);
+
+  if (!user.isAdmin) {
+    throw new HttpError(403, "Administrator access required.");
+  }
+
+  return user;
 }
 
 export function createAuthMiddleware() {

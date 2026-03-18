@@ -20,6 +20,7 @@ import type {
   CampaignMember,
   CampaignSnapshot,
   CampaignSummary,
+  CompendiumData,
   ClientRoomMessage,
   ChatMessage,
   CurrencyPouch,
@@ -31,6 +32,7 @@ import type {
   MeasureKind,
   MeasurePreview,
   MeasureSnapMode,
+  MonsterTemplate,
   DrawingStroke,
   FogRect,
   MemberRole,
@@ -51,8 +53,8 @@ import {
 import { HttpError } from "./http/errors.js";
 import { wrap } from "./http/wrap.js";
 import { createAuthRouter } from "./routes/authRoutes.js";
+import { createAdminRouter } from "./routes/adminRoutes.js";
 import { createAuthMiddleware, requireUser, toUserProfile } from "./services/authService.js";
-import { monsterCatalog } from "./catalog.js";
 import { rollDice } from "./dice.js";
 import { mutateDatabase, readDatabase, type Database } from "./store.js";
 
@@ -112,6 +114,7 @@ app.get("/api/health", (_request, response) => {
   response.json({ ok: true });
 });
 app.use("/api/auth", createAuthRouter());
+app.use("/api/admin", createAdminRouter());
 
 app.get(
   "/api/campaigns",
@@ -218,9 +221,10 @@ app.get(
   wrap(async (request, response) => {
     const user = requireUser(request);
     const campaignId = routeParam(request.params.campaignId, "campaignId");
-    const campaign = await readCampaignForMember(campaignId, user.id);
+    const database = await readDatabase();
+    const campaign = requireCampaignMember(database, campaignId, user.id).campaign;
 
-    response.json(buildCampaignSnapshot(campaign, user));
+    response.json(buildCampaignSnapshot(campaign, user, database.compendium.monsters));
   })
 );
 
@@ -351,7 +355,7 @@ app.post(
       const { campaign } = requireCampaignMember(database, campaignId, user.id);
       requireDungeonMaster(campaign, user.id);
 
-      const template = monsterCatalog.find((entry) => entry.id === templateId);
+      const template = database.compendium.monsters.find((entry) => entry.id === templateId);
 
       if (!template) {
         throw new HttpError(404, "Monster template not found.");
@@ -836,7 +840,7 @@ async function readCampaignForMember(campaignId: string, userId: string) {
   return requireCampaignMember(database, campaignId, userId).campaign;
 }
 
-function buildCampaignSnapshot(campaign: Campaign, user: UserProfile): CampaignSnapshot {
+function buildCampaignSnapshot(campaign: Campaign, user: UserProfile, catalog: CompendiumData["monsters"]): CampaignSnapshot {
   const member = campaign.members.find((entry) => entry.userId === user.id);
 
   if (!member) {
@@ -852,7 +856,7 @@ function buildCampaignSnapshot(campaign: Campaign, user: UserProfile): CampaignS
     },
     currentUser: user,
     role: member.role,
-    catalog: monsterCatalog,
+    catalog,
     playerVision:
       member.role === "dm" ? {} : normalizeExplorationMemory(campaign, user.id)
   };
@@ -940,7 +944,7 @@ async function broadcastCampaignToRoom(campaignId: string) {
       continue;
     }
 
-    const member = campaign.members.find((entry) => entry.userId === connection.user?.id);
+      const member = campaign.members.find((entry) => entry.userId === connection.user?.id);
 
     if (!member) {
       continue;
@@ -948,7 +952,7 @@ async function broadcastCampaignToRoom(campaignId: string) {
 
     sendSocketMessage(connection, {
       type: "room:snapshot",
-      snapshot: buildCampaignSnapshot(campaign, connection.user)
+      snapshot: buildCampaignSnapshot(campaign, connection.user, database.compendium.monsters)
     });
   }
 }
@@ -993,7 +997,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
       });
       sendSocketMessage(connection, {
         type: "room:snapshot",
-        snapshot: buildCampaignSnapshot(campaign, user)
+        snapshot: buildCampaignSnapshot(campaign, user, database.compendium.monsters)
       });
       return;
     }
@@ -1717,9 +1721,9 @@ function createDefaultActor(
   };
 }
 
-function createMonsterActor(campaignId: string, userId: string, template: (typeof monsterCatalog)[number]): ActorSheet {
+function createMonsterActor(campaignId: string, userId: string, template: MonsterTemplate): ActorSheet {
   const dexModifier = abilityModifier(template.abilities.dex);
-  const proficiencyBonus = template.challengeRating === "10" ? 4 : 2;
+  const proficiencyBonus = template.proficiencyBonus;
 
   return {
     id: createId("act"),
@@ -1730,7 +1734,7 @@ function createMonsterActor(campaignId: string, userId: string, template: (typeo
     kind: "monster",
     className: "Monster",
     species: template.source,
-    background: "",
+    background: template.habitat,
     alignment: "Unaligned",
     level: 1,
     challengeRating: template.challengeRating,
@@ -1753,11 +1757,11 @@ function createMonsterActor(campaignId: string, userId: string, template: (typeo
     feats: [],
     attacks: template.actions.map((action) => ({
       id: createId("atk"),
-      name: action.split(" ").slice(0, 2).join(" "),
-      attackBonus: proficiencyBonus + dexModifier,
-      damage: "1d6",
-      damageType: "Mixed",
-      notes: action
+      name: action.name,
+      attackBonus: action.attackBonus || proficiencyBonus + dexModifier,
+      damage: action.damage || "1d6",
+      damageType: action.damageType || "Mixed",
+      notes: action.description
     })),
     armorItems: [
       {
@@ -1770,7 +1774,13 @@ function createMonsterActor(campaignId: string, userId: string, template: (typeo
     resources: [],
     inventory: [],
     currency: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
-    notes: template.actions.join("\n"),
+    notes: [
+      template.traits.length > 0 ? `Traits:\n${template.traits.join("\n")}` : "",
+      template.bonusActions.length > 0 ? `Bonus Actions:\n${template.bonusActions.map((entry) => `${entry.name}: ${entry.description}`).join("\n")}` : "",
+      template.reactions.length > 0 ? `Reactions:\n${template.reactions.map((entry) => `${entry.name}: ${entry.description}`).join("\n")}` : ""
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
     color: template.color
   };
 }

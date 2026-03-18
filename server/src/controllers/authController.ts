@@ -39,6 +39,7 @@ export const authController = {
         id: createId("usr"),
         name,
         email,
+        isAdmin: database.users.length === 0,
         ...createPassword(password)
       };
       const token = createToken();

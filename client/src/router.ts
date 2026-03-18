@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 
-export type AppRoute = { name: "home" } | { name: "campaign"; campaignId: string };
+export type AppRoute = { name: "home" } | { name: "admin" } | { name: "campaign"; campaignId: string };
 
 function parseRoute(pathname: string): AppRoute {
+  if (pathname === "/admin") {
+    return { name: "admin" };
+  }
+
   const match = pathname.match(/^\/campaign\/([^/]+)$/);
 
   if (match?.[1]) {
@@ -13,7 +17,15 @@ function parseRoute(pathname: string): AppRoute {
 }
 
 function routeToPath(route: AppRoute) {
-  return route.name === "campaign" ? `/campaign/${encodeURIComponent(route.campaignId)}` : "/";
+  if (route.name === "campaign") {
+    return `/campaign/${encodeURIComponent(route.campaignId)}`;
+  }
+
+  if (route.name === "admin") {
+    return "/admin";
+  }
+
+  return "/";
 }
 
 export function useAppRouter() {
