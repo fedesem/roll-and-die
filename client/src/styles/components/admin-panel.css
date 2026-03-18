@@ -33,7 +33,7 @@
 
 .admin-pane {
   border: 1px solid rgba(211, 162, 50, 0.14);
-  border-radius: 18px;
+  border-radius: 0;
   background:
     linear-gradient(180deg, rgba(16, 18, 23, 0.95), rgba(11, 13, 17, 0.95)),
     radial-gradient(circle at top left, rgba(245, 198, 92, 0.04), transparent 28%);
@@ -78,7 +78,7 @@
 .admin-list-row {
   width: 100%;
   text-align: left;
-  border-radius: 15px;
+  border-radius: 0;
   padding: 0.82rem 0.92rem;
   display: flex;
   align-items: center;
@@ -154,7 +154,7 @@
   align-items: center;
   margin: 0;
   padding: 0.8rem 0.9rem;
-  border-radius: 14px;
+  border-radius: 0;
   border: 1px solid rgba(245, 198, 92, 0.12);
   background: rgba(8, 10, 13, 0.64);
 }
@@ -201,7 +201,7 @@
   display: grid;
   gap: 0.75rem;
   padding: 0.85rem 0.95rem;
-  border-radius: 14px;
+  border-radius: 0;
   border: 1px solid rgba(245, 198, 92, 0.12);
   background: rgba(8, 10, 13, 0.64);
 }

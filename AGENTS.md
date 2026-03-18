@@ -121,9 +121,29 @@ When a contract already exists in `@shared/types`, reuse it directly or derive f
 
 ## CSS and Styling
 
-1. Avoid growing one global stylesheet without structure.
-2. Prefer splitting styles by feature or concern when a stylesheet becomes hard to navigate.
-3. Keep class names tied to a view or feature, not vague generic names.
+1. Prefer Tailwind-first styling for client UI work.
+Use utility classes directly in React components for page shells, cards, forms, buttons, layout, spacing, typography, and state styling unless there is a strong reason not to.
+
+2. Use CSS modules or component-scoped CSS only when Tailwind is a poor fit.
+Good reasons:
+- complex interaction styling for board/map SVG layers
+- large pseudo-element or keyframe-driven visuals
+- third-party content rendering that needs scoped descendant selectors
+
+3. Avoid reintroducing a monolithic global stylesheet.
+If CSS is needed, split it by feature/component under `client/src/styles/components/*` or use `*.module.css` next to the component.
+
+4. Keep shared global CSS minimal.
+Global CSS should be limited to:
+- Tailwind entry/imports
+- base/reset rules
+- truly shared design tokens or cross-app utility selectors
+
+5. Do not add new presentational client components that depend on broad legacy-style class systems.
+If a component is being touched for UI work, prefer migrating it toward Tailwind instead of adding more rules to a shared global file.
+
+6. Keep class names tied to a feature or component when CSS is unavoidable.
+Avoid vague names that make ownership unclear.
 
 ## Refactor Triggers
 
@@ -146,6 +166,7 @@ Refactor before adding more code when any of these are true:
 - Shared zod transport schemas for request/response/socket validation
 - Structured request logging on the server
 - React Query only for non-realtime REST screens
+- Tailwind-first client styling with component-scoped CSS only where needed
 
 ## Avoid
 
@@ -156,6 +177,7 @@ Refactor before adding more code when any of these are true:
 - Duplicating shared domain types
 - Duplicating API or websocket DTOs locally
 - Mixing database schema concerns into controllers
+- Adding new UI styling to a catch-all legacy stylesheet when Tailwind or a local module would work
 
 ## Verification
 

@@ -1,6 +1,6 @@
 .admin-preview-card {
   border: 1px solid rgba(245, 198, 92, 0.14);
-  border-radius: 18px;
+  border-radius: 0;
   padding: 1rem 1.1rem;
   background:
     linear-gradient(180deg, rgba(34, 36, 42, 0.97), rgba(16, 18, 22, 0.97)),
@@ -98,7 +98,7 @@
   display: grid;
   gap: 0.45rem;
   padding: 0.8rem 0.9rem;
-  border-radius: 14px;
+  border-radius: 0;
   border: 1px solid rgba(245, 198, 92, 0.22);
   background:
     linear-gradient(180deg, rgba(20, 23, 29, 0.98), rgba(10, 13, 17, 0.98)),
@@ -121,7 +121,7 @@
   align-items: center;
   margin-top: 0;
   padding: 0.16rem 0.45rem;
-  border-radius: 999px;
+  border-radius: 0;
   border: 1px solid rgba(245, 198, 92, 0.16);
   background: rgba(245, 198, 92, 0.08);
   color: #ead8ae;
@@ -171,7 +171,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.72rem 0.8rem;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid rgba(245, 198, 92, 0.12);
   background: rgba(10, 13, 17, 0.62);
 }

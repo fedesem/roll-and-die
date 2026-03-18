@@ -51,7 +51,7 @@ button {
   border: 1px solid var(--line);
   background: linear-gradient(180deg, rgba(211, 162, 50, 0.14), rgba(211, 162, 50, 0.05));
   color: var(--text);
-  border-radius: 12px;
+  border-radius: 0;
   padding: 0.7rem 0.95rem;
   cursor: pointer;
   box-shadow: inset 0 1px 0 rgba(255, 241, 207, 0.04);
@@ -83,7 +83,7 @@ textarea {
   background: rgba(16, 19, 23, 0.92);
   color: var(--text);
   border: 1px solid rgba(211, 162, 50, 0.22);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 0.66rem 0.74rem;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
@@ -165,7 +165,7 @@ p {
 .chat-panel,
 .sheet-shell {
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 0;
   background:
     linear-gradient(180deg, rgba(32, 36, 42, 0.97), rgba(14, 16, 20, 0.985)),
     radial-gradient(circle at top left, rgba(245, 198, 92, 0.05), transparent 24%);
@@ -241,7 +241,7 @@ p {
 
 .hero-card {
   border: 1px solid rgba(211, 162, 50, 0.18);
-  border-radius: 16px;
+  border-radius: 0;
   padding: 1rem;
   background: linear-gradient(180deg, rgba(211, 162, 50, 0.08), rgba(255, 255, 255, 0.02));
   box-shadow: var(--shadow-md);
@@ -308,7 +308,7 @@ p {
   gap: 0.35rem;
   min-height: 36px;
   padding: 0.45rem 0.8rem;
-  border-radius: 999px;
+  border-radius: 0;
   border: 1px solid rgba(245, 198, 92, 0.18);
   background: rgba(13, 16, 20, 0.58);
   color: var(--text);
@@ -346,7 +346,7 @@ p {
   min-height: 0;
   padding: 0.7rem 0.85rem;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 0;
   background:
     linear-gradient(180deg, rgba(32, 36, 42, 0.96), rgba(14, 16, 20, 0.985)),
     radial-gradient(circle at top left, rgba(245, 198, 92, 0.06), transparent 28%);
@@ -381,7 +381,7 @@ p {
   min-width: 2.35rem;
   height: 2.35rem;
   padding: 0;
-  border-radius: 999px;
+  border-radius: 0;
 }
 
 .modal-close-button {
@@ -411,7 +411,7 @@ p {
 .monster-card {
   width: 100%;
   text-align: left;
-  border-radius: 16px;
+  border-radius: 0;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
     linear-gradient(180deg, rgba(31, 35, 42, 0.92), rgba(18, 20, 25, 0.88));
@@ -424,7 +424,7 @@ p {
 
 .badge {
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 0;
   padding: 0.18rem 0.55rem;
   font-size: 0.72rem;
   text-transform: uppercase;
@@ -444,7 +444,7 @@ p {
 
 .actor-list-row-static {
   cursor: default;
-  border-radius: 12px;
+  border-radius: 0;
   padding: 0.72rem 0.82rem;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.012)),
@@ -472,7 +472,7 @@ p {
   width: 2.1rem;
   min-width: 2.1rem;
   height: 2.1rem;
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 .list-row.is-selected,

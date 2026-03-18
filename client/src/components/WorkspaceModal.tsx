@@ -20,7 +20,7 @@ export function WorkspaceModal({ title, onClose, size = "default", children }: W
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md" onClick={onClose}>
       <section
-        className={`flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-[1.6rem] border border-amber-200/12 bg-[linear-gradient(180deg,rgba(18,20,28,0.98),rgba(10,12,16,0.98))] shadow-[0_28px_90px_rgba(0,0,0,0.4)] ${sizeClass}`}
+        className={`flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-none border border-amber-200/12 bg-[linear-gradient(180deg,rgba(18,20,28,0.98),rgba(10,12,16,0.98))] shadow-[0_28px_90px_rgba(0,0,0,0.4)] ${sizeClass}`}
         onClick={(event) => {
           event.stopPropagation();
         }}
@@ -29,7 +29,7 @@ export function WorkspaceModal({ title, onClose, size = "default", children }: W
           <h2 className="font-serif text-2xl tracking-wide text-amber-50">{title}</h2>
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] p-0 text-lg font-semibold leading-none text-slate-200 transition hover:border-amber-200/18 hover:text-amber-50"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-none border border-white/10 bg-white/[0.04] p-0 text-lg font-semibold leading-none text-slate-200 transition hover:border-amber-200/18 hover:text-amber-50"
             onClick={onClose}
             aria-label="Close popup"
           >
