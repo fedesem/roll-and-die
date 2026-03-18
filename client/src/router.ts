@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type AppRoute = { name: "home" } | { name: "admin" } | { name: "campaign"; campaignId: string };
 
@@ -42,7 +42,7 @@ export function useAppRouter() {
     };
   }, []);
 
-  function navigate(nextRoute: AppRoute, options?: { replace?: boolean }) {
+  const navigate = useCallback((nextRoute: AppRoute, options?: { replace?: boolean }) => {
     const nextPath = routeToPath(nextRoute);
 
     if (window.location.pathname !== nextPath) {
@@ -51,7 +51,7 @@ export function useAppRouter() {
     }
 
     setRoute(nextRoute);
-  }
+  }, []);
 
   return { route, navigate };
 }

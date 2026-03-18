@@ -1,28 +1,26 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import type {
   ActorKind,
   ActorSheet,
   AuthPayload,
   CampaignMap,
-  CampaignSnapshot,
   CampaignSummary,
-  ClientRoomMessage,
-  DrawingStroke,
-  MapPing,
-  MapViewportRecall,
-  MeasurePreview,
-  MemberRole,
-  MonsterTemplate,
-  Point,
-  ServerRoomMessage,
-  TokenMovementPreview
+  MemberRole
 } from "@shared/types";
 
-import { apiRequest } from "./api";
 import { AdminPanel } from "./components/AdminPanel";
 import { AppTopbar } from "./components/AppTopbar";
-import { createClientActorDraft, createClientMapDraft, cloneMap, formatMonsterModifier } from "./lib/drafts";
+import { fetchCurrentUser, login, register } from "./features/auth/authService";
+import { useCampaignManagementActions } from "./features/campaign/useCampaignManagementActions";
+import { useCampaignDerivedState } from "./features/campaign/useCampaignDerivedState";
+import { useDeleteTokenHotkey } from "./features/campaign/useDeleteTokenHotkey";
+import { useRoomActions } from "./features/campaign/useRoomActions";
+import { useRoomRealtimeState } from "./features/campaign/useRoomRealtimeState";
+import { useCampaignUiEffects } from "./features/campaign/useCampaignUiEffects";
+import type { ActorTypeFilter, BannerState } from "./features/campaign/types";
+import { usePersistentState } from "./hooks/usePersistentState";
+import { createClientActorDraft, createClientMapDraft, cloneMap } from "./lib/drafts";
 import { toErrorMessage } from "./lib/errors";
 import { readJson, writeJson } from "./lib/storage";
 import { AuthPage, type AuthMode } from "./pages/AuthPage";
@@ -31,40 +29,19 @@ import { CampaignPage } from "./pages/CampaignPage";
 import { CampaignsPage } from "./pages/CampaignsPage";
 import { useAppRouter } from "./router";
 import { useRoomConnection } from "./services/roomConnection";
-import { computeVisibleCellsForUser, tokenCellKey } from "@shared/vision";
 
 const sessionStorageKey = "dnd-board-session";
 const selectedCampaignStorageKey = "dnd-board-selected-campaign";
-
-type ActorTypeFilter = "all" | ActorKind;
-
-interface BannerState {
-  tone: "info" | "error";
-  text: string;
-}
-
-interface SharedMovementPreviewState {
-  actorId: string;
-  mapId: string;
-  preview: TokenMovementPreview;
-}
-
-interface SharedMeasurePreviewState {
-  userId: string;
-  mapId: string;
-  preview: MeasurePreview;
-}
 
 export default function App() {
   const { route, navigate } = useAppRouter();
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [authForm, setAuthForm] = useState({ name: "", email: "", password: "" });
-  const [session, setSession] = useState<AuthPayload | null>(() => readJson<AuthPayload>(sessionStorageKey));
+  const [session, setSession] = usePersistentState<AuthPayload | null>(sessionStorageKey, null);
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [selectedCampaignId, setSelectedCampaignIdState] = useState<string | null>(() =>
     route.name === "campaign" ? route.campaignId : readJson<string>(selectedCampaignStorageKey)
   );
-  const [snapshot, setSnapshot] = useState<CampaignSnapshot | null>(null);
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
   const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
   const [selectedBoardItemCount, setSelectedBoardItemCount] = useState(0);
@@ -87,13 +64,6 @@ export default function App() {
   const [dmFogEnabled, setDmFogEnabled] = useState(false);
   const [dmFogUserId, setDmFogUserId] = useState<string | null>(null);
   const [activePopup, setActivePopup] = useState<"sheet" | "actors" | "maps" | "room" | null>(null);
-  const [roomStatus, setRoomStatus] = useState<"offline" | "connecting" | "online">("offline");
-  const [mapPings, setMapPings] = useState<MapPing[]>([]);
-  const [viewportRecall, setViewportRecall] = useState<MapViewportRecall | null>(null);
-  const [sharedMovementPreviews, setSharedMovementPreviews] = useState<Record<string, SharedMovementPreviewState>>({});
-  const [sharedMeasurePreviews, setSharedMeasurePreviews] = useState<Record<string, SharedMeasurePreviewState>>({});
-
-  const deferredMonsterQuery = useDeferredValue(monsterQuery);
 
   useEffect(() => {
     if (!banner) {
@@ -108,10 +78,6 @@ export default function App() {
       window.clearTimeout(timeoutId);
     };
   }, [banner]);
-
-  useEffect(() => {
-    writeJson(sessionStorageKey, session);
-  }, [session]);
 
   useEffect(() => {
     writeJson(selectedCampaignStorageKey, selectedCampaignId);
@@ -132,115 +98,43 @@ export default function App() {
   useEffect(() => {
     if (!session) {
       setCampaigns([]);
-      setSnapshot(null);
       return;
     }
+  }, [session]);
 
-    void refreshCampaigns();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.token]);
-
-  useEffect(() => {
-    if (!session?.token) {
-      return;
-    }
-
-    void apiRequest<AuthPayload["user"]>("/auth/me", { token: session.token })
-      .then((user) => {
-        setSession((current) =>
-          current && current.token === session.token
-            ? {
-                ...current,
-                user
-              }
-            : current
-        );
-      })
-      .catch(() => undefined);
-  }, [session?.token]);
-
-  useEffect(() => {
-    if (route.name === "admin" && session && !session.user.isAdmin) {
-      navigate({ name: "home" }, { replace: true });
-    }
-  }, [navigate, route.name, session]);
-
-  const handleRoomDisconnect = useCallback(() => {
-    setSnapshot(null);
-    setMapPings([]);
-    setViewportRecall(null);
-    setSharedMovementPreviews({});
-    setSharedMeasurePreviews({});
+  const setBannerStatus = useCallback((tone: BannerState["tone"], text: string) => {
+    setBanner({ tone, text });
   }, []);
 
-  const handleRoomStatusChange = useCallback((status: "offline" | "connecting" | "online") => {
-    setRoomStatus(status);
-  }, []);
+  const handleRealtimeError = useCallback(
+    (message: string) => {
+      setBannerStatus("error", message);
+    },
+    [setBannerStatus]
+  );
 
-  const handleRoomSnapshot = useCallback((nextSnapshot: CampaignSnapshot) => {
-    setSnapshot(nextSnapshot);
-  }, []);
-
-  const handleMovementPreview = useCallback((actorId: string, mapId: string, preview: TokenMovementPreview | null) => {
-    setSharedMovementPreviews((current) => {
-      if (!preview) {
-        if (!current[actorId]) {
-          return current;
-        }
-
-        const next = { ...current };
-        delete next[actorId];
-        return next;
-      }
-
-      return {
-        ...current,
-        [actorId]: {
-          actorId,
-          mapId,
-          preview
-        }
-      };
-    });
-  }, []);
-
-  const handleMeasurePreview = useCallback((userId: string, mapId: string, preview: MeasurePreview | null) => {
-    setSharedMeasurePreviews((current) => {
-      if (!preview) {
-        if (!current[userId]) {
-          return current;
-        }
-
-        const next = { ...current };
-        delete next[userId];
-        return next;
-      }
-
-      return {
-        ...current,
-        [userId]: {
-          userId,
-          mapId,
-          preview
-        }
-      };
-    });
-  }, []);
-
-  const enqueuePing = useCallback((ping: MapPing) => {
-    setMapPings((current) => (current.some((entry) => entry.id === ping.id) ? current : [...current, ping]));
-    window.setTimeout(() => {
-      setMapPings((current) => current.filter((entry) => entry.id !== ping.id));
-    }, 2200);
-  }, []);
-
-  const handleRoomRecall = useCallback((recall: MapViewportRecall) => {
-    setViewportRecall(recall);
-  }, []);
-
-  const handleRoomError = useCallback((message: string) => {
-    setBanner({ tone: "error", text: message });
-  }, []);
+  const {
+    snapshot,
+    setSnapshot,
+    roomStatus,
+    mapPings,
+    viewportRecall,
+    movementPreviews,
+    measurePreviews,
+    enqueuePing,
+    removePing,
+    handleRoomDisconnect,
+    handleRoomStatusChange,
+    handleRoomSnapshot,
+    handleMovementPreview,
+    handleMeasurePreview,
+    handleRoomRecall,
+    handleRoomError
+  } = useRoomRealtimeState({
+    isCampaignRoute: route.name === "campaign",
+    selectedCampaignId,
+    onError: handleRealtimeError
+  });
 
   const { sendRoomMessage } = useRoomConnection({
     enabled: Boolean(session && selectedCampaignId && route.name === "campaign"),
@@ -256,346 +150,152 @@ export default function App() {
     onError: handleRoomError
   });
 
-  useEffect(() => {
-    if (route.name !== "campaign") {
-      setSnapshot(null);
-    }
-  }, [route.name]);
-
-  useEffect(() => {
-    setMapPings([]);
-    setViewportRecall(null);
-    setSharedMovementPreviews({});
-    setSharedMeasurePreviews({});
-  }, [selectedCampaignId]);
-
-  function setSelectedCampaignId(nextCampaignId: string | null, options?: { replace?: boolean }) {
-    setSelectedCampaignIdState(nextCampaignId);
-    navigate(nextCampaignId ? { name: "campaign", campaignId: nextCampaignId } : { name: "home" }, options);
-  }
-
-  const campaign = snapshot?.campaign;
-  const role = snapshot?.role ?? "player";
-  const activeMap = useMemo(
-    () => campaign?.maps.find((entry) => entry.id === campaign.activeMapId) ?? campaign?.maps[0],
-    [campaign?.activeMapId, campaign?.maps]
+  const setSelectedCampaignId = useCallback(
+    (nextCampaignId: string | null, options?: { replace?: boolean }) => {
+      setSelectedCampaignIdState(nextCampaignId);
+      navigate(nextCampaignId ? { name: "campaign", campaignId: nextCampaignId } : { name: "home" }, options);
+    },
+    [navigate]
   );
-  const selectedMap = useMemo(
-    () => campaign?.maps.find((entry) => entry.id === selectedMapId) ?? activeMap,
-    [activeMap, campaign?.maps, selectedMapId]
-  );
-  const selectedActor = useMemo(
-    () => campaign?.actors.find((entry) => entry.id === selectedActorId) ?? null,
-    [campaign?.actors, selectedActorId]
-  );
-  const activeMapTokens = useMemo(
-    () => campaign?.tokens.filter((token) => token.mapId === activeMap?.id && token.visible) ?? [],
-    [activeMap?.id, campaign?.tokens]
-  );
-  const fogPreviewUserId = role === "dm" && dmFogEnabled ? dmFogUserId ?? undefined : undefined;
-  const boardSeenCells = activeMap
-    ? role === "dm"
-      ? fogPreviewUserId
-        ? campaign?.exploration[fogPreviewUserId]?.[activeMap.id] ?? []
-        : []
-      : snapshot?.playerVision[activeMap.id] ?? []
-    : [];
-  const boardVisibleCells = useMemo(() => {
-    if (!activeMap || !campaign || !session) {
-      return new Set<string>();
-    }
 
-    return computeVisibleCellsForUser({
-      map: activeMap,
-      actors: campaign.actors,
-      tokens: activeMapTokens,
-      userId: fogPreviewUserId ?? session.user.id,
-      role: role === "dm" && !fogPreviewUserId ? "dm" : "player"
-    });
-  }, [activeMap, activeMapTokens, campaign, fogPreviewUserId, role, session]);
-  const boardSeenCellSet = useMemo(() => new Set(boardSeenCells), [boardSeenCells]);
-  const visibleMapTokens = useMemo(() => {
-    if (!activeMap) {
-      return [];
-    }
+  const {
+    campaign,
+    role,
+    activeMap,
+    selectedMap,
+    selectedActor,
+    fogPreviewUserId,
+    boardSeenCells,
+    filteredCurrentMapRoster,
+    availableActors,
+    playerMembers,
+    filteredCatalog,
+    selectedMonsterTemplate
+  } = useCampaignDerivedState({
+    snapshot,
+    selectedMapId,
+    selectedActorId,
+    selectedMonsterId,
+    dmFogEnabled,
+    dmFogUserId,
+    currentUserId: session?.user.id,
+    actorSearch,
+    mapActorSearch,
+    actorTypeFilter,
+    mapActorTypeFilter,
+    monsterQuery
+  });
 
-    if (role === "dm") {
-      return activeMapTokens;
-    }
-
-    return activeMapTokens.filter((token) => {
-      const cell = tokenCellKey(activeMap, token);
-      return boardVisibleCells.has(cell) || boardSeenCellSet.has(cell);
-    });
-  }, [activeMap, activeMapTokens, boardSeenCellSet, boardVisibleCells, role]);
-  const activeMapAssignments = useMemo(
-    () => campaign?.mapAssignments.filter((assignment) => assignment.mapId === activeMap?.id) ?? [],
-    [activeMap?.id, campaign?.mapAssignments]
-  );
-  const activeMapTokenByActorId = useMemo(
-    () => new Map(activeMapTokens.map((token) => [token.actorId, token])),
-    [activeMapTokens]
-  );
-  const visibleMapTokenByActorId = useMemo(
-    () => new Map(visibleMapTokens.map((token) => [token.actorId, token])),
-    [visibleMapTokens]
-  );
-  const currentMapRoster = useMemo(
-    () =>
-      activeMapAssignments.flatMap((assignment) => {
-        const actor = campaign?.actors.find((entry) => entry.id === assignment.actorId) ?? null;
-        const token = activeMapTokenByActorId.get(assignment.actorId) ?? null;
-        const visibleToken = visibleMapTokenByActorId.get(assignment.actorId) ?? null;
-
-        if (role === "dm") {
-          if (!actor) {
-            return [];
-          }
-
-          return [
-            {
-              actor,
-              actorKind: actor.kind,
-              assignment,
-              color: token?.color ?? actor.color,
-              label: token?.label ?? actor.name,
-              token
-            }
-          ];
-        }
-
-        if (actor && actor.kind === "character" && actor.ownerId === session?.user.id) {
-          return [
-            {
-              actor,
-              actorKind: actor.kind,
-              assignment,
-              color: token?.color ?? actor.color,
-              label: token?.label ?? actor.name,
-              token
-            }
-          ];
-        }
-
-        if (!visibleToken) {
-          return [];
-        }
-
-        return [
-          {
-            actor: null,
-            actorKind: visibleToken.actorKind,
-            assignment,
-            color: visibleToken.color,
-            label: visibleToken.label,
-            token: visibleToken
-          }
-        ];
-      }),
-    [activeMapAssignments, activeMapTokenByActorId, campaign?.actors, role, session?.user.id, visibleMapTokenByActorId]
-  );
-  const normalizedActorSearch = actorSearch.trim().toLowerCase();
-  const normalizedMapActorSearch = mapActorSearch.trim().toLowerCase();
-  const availableActors = useMemo(() => {
-    if (role !== "dm" || !campaign) {
-      return [];
-    }
-
-    return campaign.actors
-      .filter((actor) =>
-        (actorTypeFilter === "all" || actor.kind === actorTypeFilter) &&
-        (normalizedActorSearch
-          ? [actor.name, actor.kind, actor.species, actor.className].some((value) =>
-              value.toLowerCase().includes(normalizedActorSearch)
-            )
-          : true)
-      )
-      .map((actor) => ({
-      actor,
-      activeMaps: campaign.maps.filter((map) =>
-        campaign.mapAssignments.some((assignment) => assignment.actorId === actor.id && assignment.mapId === map.id)
-      ),
-      onCurrentMap: campaign.mapAssignments.some(
-        (assignment) => assignment.actorId === actor.id && assignment.mapId === activeMap?.id
-      )
-    }));
-  }, [activeMap?.id, actorTypeFilter, campaign, normalizedActorSearch, role]);
-  const filteredCurrentMapRoster = useMemo(
-    () =>
-      currentMapRoster.filter(({ actor, actorKind, label }) =>
-        (mapActorTypeFilter === "all" || actorKind === mapActorTypeFilter) &&
-        (normalizedMapActorSearch
-          ? [label, actorKind, actor?.name ?? "", actor?.species ?? ""].some((value) =>
-              value.toLowerCase().includes(normalizedMapActorSearch)
-            )
-          : true)
-      ),
-    [currentMapRoster, mapActorTypeFilter, normalizedMapActorSearch]
-  );
-  const playerMembers = useMemo(
-    () => campaign?.members.filter((member) => member.role === "player") ?? [],
-    [campaign?.members]
-  );
-  const filteredCatalog = useMemo(() => {
-    if (!snapshot) {
-      return [];
-    }
-
-    const query = deferredMonsterQuery.trim().toLowerCase();
-
-    if (!query) {
-      return snapshot.catalog;
-    }
-
-    return snapshot.catalog.filter((monster) =>
-      [monster.name, monster.source, monster.challengeRating].some((field) =>
-        field.toLowerCase().includes(query)
-      )
-    );
-  }, [deferredMonsterQuery, snapshot]);
-  const selectedMonsterTemplate = useMemo(
-    () => filteredCatalog.find((monster) => monster.id === selectedMonsterId) ?? filteredCatalog[0] ?? null,
-    [filteredCatalog, selectedMonsterId]
-  );
+  const {
+    refreshCampaigns,
+    createCampaign,
+    acceptInvite,
+    createActor,
+    createInvite,
+    createMonsterActor,
+    assignActorToCurrentMap,
+    removeActorFromCurrentMap,
+    removeToken,
+    deleteActor,
+    createMap,
+    saveMap,
+    saveActor
+  } = useCampaignManagementActions({
+    token: session?.token,
+    currentUserId: session?.user.id,
+    selectedCampaignId,
+    selectedActorId,
+    activeMap,
+    createCampaignName,
+    joinCode,
+    inviteDraft,
+    actorCreatorKind,
+    setCampaigns,
+    setSelectedCampaignId,
+    setSnapshot,
+    setSelectedActorId,
+    setActorDraft,
+    setActorCreatorOpen,
+    setCreateCampaignName,
+    setJoinCode,
+    setNewMapDraft,
+    setSelectedMapId,
+    setMapDraft,
+    setMapEditorMode,
+    onStatus: setBannerStatus
+  });
 
   useEffect(() => {
-    if (!campaign) {
-      setSelectedMapId(null);
-      setSelectedActorId(null);
-      setSelectedMonsterId(null);
-      setActorSearch("");
-      setMapActorSearch("");
-      setActorTypeFilter("all");
-      setMapActorTypeFilter("all");
-      setActorCreatorOpen(false);
-      setActorCreatorKind("character");
-      setActorDraft(createClientActorDraft("character", session?.user.id));
-      setMapDraft(null);
-      setNewMapDraft(createClientMapDraft("New Map"));
-      setMapEditorMode(null);
-      setDmFogEnabled(false);
-      setDmFogUserId(null);
-      setActivePopup(null);
+    if (!session?.token) {
       return;
     }
 
-    if (!selectedMapId || !campaign.maps.some((entry) => entry.id === selectedMapId)) {
-      setSelectedMapId(campaign.activeMapId || campaign.maps[0]?.id || null);
-    }
-
-    if (selectedActorId && !campaign.actors.some((entry) => entry.id === selectedActorId)) {
-      setSelectedActorId(null);
-    }
-  }, [campaign, selectedActorId, selectedMapId]);
+    void refreshCampaigns();
+  }, [refreshCampaigns, session?.token]);
 
   useEffect(() => {
-    if (role !== "dm") {
-      setDmFogEnabled(false);
-      setDmFogUserId(null);
+    if (!session?.token) {
       return;
     }
 
-    if (playerMembers.length === 0) {
-      setDmFogEnabled(false);
-      setDmFogUserId(null);
-      return;
-    }
-
-    if (!dmFogUserId || !playerMembers.some((member) => member.userId === dmFogUserId)) {
-      setDmFogUserId(playerMembers[0]?.userId ?? null);
-    }
-  }, [dmFogUserId, playerMembers, role]);
-
-  useEffect(() => {
-    setMapDraft(selectedMap ? cloneMap(selectedMap) : null);
-  }, [selectedMap?.id]);
-
-  useEffect(() => {
-    if (!selectedMonsterTemplate) {
-      setSelectedMonsterId(filteredCatalog[0]?.id ?? null);
-      return;
-    }
-
-    if (!filteredCatalog.some((monster) => monster.id === selectedMonsterTemplate.id)) {
-      setSelectedMonsterId(filteredCatalog[0]?.id ?? null);
-    }
-  }, [filteredCatalog, selectedMonsterTemplate]);
+    void fetchCurrentUser(session.token)
+      .then((user) => {
+        setSession((current) =>
+          current && current.token === session.token
+            ? {
+                ...current,
+                user
+              }
+            : current
+        );
+      })
+      .catch(() => undefined);
+  }, [session?.token, setSession]);
 
   useEffect(() => {
-    setActorDraft(createClientActorDraft(actorCreatorKind, session?.user.id));
-  }, [actorCreatorKind, session?.user.id]);
-
-  useEffect(() => {
-    if (activePopup === "maps") {
-      setMapEditorMode(null);
+    if (route.name === "admin" && session && !session.user.isAdmin) {
+      navigate({ name: "home" }, { replace: true });
     }
-  }, [activePopup]);
+  }, [navigate, route.name, session]);
 
-  useEffect(() => {
-    if (role !== "dm" || !activeMap || !selectedActor) {
-      return;
-    }
-
-    const token = campaign?.tokens.find((entry) => entry.actorId === selectedActor.id && entry.mapId === activeMap.id);
-
-    if (!token) {
-      return;
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Delete" && event.key !== "Backspace") {
-        return;
-      }
-
-      const target = event.target as HTMLElement | null;
-      const tagName = target?.tagName;
-
-      if (event.defaultPrevented || selectedBoardItemCount > 0) {
-        return;
-      }
-
-      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || target?.isContentEditable) {
-        return;
-      }
-
-      event.preventDefault();
-      void removeToken(token.id, token.label, true);
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [activeMap, campaign?.tokens, role, selectedActor, selectedBoardItemCount]);
+  useCampaignUiEffects({
+    campaign,
+    selectedActorId,
+    selectedMapId,
+    role,
+    playerMembers,
+    dmFogUserId,
+    selectedMap,
+    selectedMonsterTemplate,
+    filteredCatalog,
+    actorCreatorKind,
+    currentUserId: session?.user.id,
+    activePopup,
+    setSelectedMapId,
+    setSelectedActorId,
+    setSelectedMonsterId,
+    setActorSearch,
+    setMapActorSearch,
+    setActorTypeFilter,
+    setMapActorTypeFilter,
+    setActorCreatorOpen,
+    setActorCreatorKind,
+    setActorDraft,
+    setMapDraft,
+    setNewMapDraft,
+    setMapEditorMode,
+    setDmFogEnabled,
+    setDmFogUserId,
+    setActivePopup
+  });
 
   const editingMap = mapEditorMode === "create" ? newMapDraft : mapEditorMode === "edit" ? mapDraft : null;
-
-  async function refreshCampaigns() {
-    if (!session) {
-      return;
-    }
-
-    try {
-      const nextCampaigns = await apiRequest<CampaignSummary[]>("/campaigns", { token: session.token });
-      setCampaigns(nextCampaigns);
-
-      if (selectedCampaignId && !nextCampaigns.some((entry) => entry.id === selectedCampaignId)) {
-        setSelectedCampaignId(null);
-        setSnapshot(null);
-      }
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
 
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     try {
-      const payload = await apiRequest<AuthPayload>(authMode === "login" ? "/auth/login" : "/auth/register", {
-        method: "POST",
-        body: authForm
-      });
+      const payload = await (authMode === "login" ? login(authForm) : register(authForm));
 
       setSession(payload);
       setBanner({ tone: "info", text: authMode === "login" ? "Signed in." : "Account created." });
@@ -613,499 +313,43 @@ export default function App() {
     setBanner(null);
   }
 
-  async function createCampaign() {
-    if (!session || !createCampaignName.trim()) {
-      return;
+  useDeleteTokenHotkey({
+    role,
+    activeMap,
+    selectedActor,
+    tokens: campaign?.tokens ?? [],
+    selectedBoardItemCount,
+    onDeleteToken: (tokenId, label, skipPrompt) => {
+      void removeToken(tokenId, label, skipPrompt);
     }
-
-    try {
-      const created = await apiRequest<CampaignSummary>("/campaigns", {
-        method: "POST",
-        token: session.token,
-        body: { name: createCampaignName.trim() }
-      });
-
-      setCreateCampaignName("");
-      await refreshCampaigns();
-      setSelectedCampaignId(created.id);
-      setBanner({ tone: "info", text: "Campaign created." });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function acceptInvite() {
-    if (!session || !joinCode.trim()) {
-      return;
-    }
-
-    try {
-      const joined = await apiRequest<CampaignSummary>("/invites/accept", {
-        method: "POST",
-        token: session.token,
-        body: { code: joinCode.trim() }
-      });
-
-      setJoinCode("");
-      await refreshCampaigns();
-      setSelectedCampaignId(joined.id);
-      setBanner({ tone: "info", text: "Campaign joined." });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function createActor(nextDraft: ActorSheet) {
-    if (!session || !selectedCampaignId || !nextDraft.name.trim()) {
-      return;
-    }
-
-    try {
-      const created = await apiRequest<ActorSheet>(`/campaigns/${selectedCampaignId}/actors`, {
-        method: "POST",
-        token: session.token,
-        body: {
-          name: nextDraft.name.trim(),
-          kind: nextDraft.kind
-        }
-      });
-
-      const draftToSave: ActorSheet = {
-        ...nextDraft,
-        id: created.id,
-        campaignId: created.campaignId,
-        ownerId: created.ownerId,
-        name: nextDraft.name.trim()
-      };
-
-      await apiRequest<ActorSheet>(`/campaigns/${selectedCampaignId}/actors/${created.id}`, {
-        method: "PUT",
-        token: session.token,
-        body: draftToSave
-      });
-
-      setSelectedActorId(created.id);
-      setActorDraft(createClientActorDraft(actorCreatorKind, session?.user.id));
-      setActorCreatorOpen(false);
-      setBanner({ tone: "info", text: `${draftToSave.name} added to the roster.` });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function createInvite() {
-    if (!session || !selectedCampaignId) {
-      return;
-    }
-
-    try {
-      await apiRequest(`/campaigns/${selectedCampaignId}/invites`, {
-        method: "POST",
-        token: session.token,
-        body: inviteDraft
-      });
-
-      setBanner({ tone: "info", text: "Invite created." });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function createMonsterActor(template: MonsterTemplate) {
-    if (!session || !selectedCampaignId) {
-      return;
-    }
-
-    try {
-      const created = await apiRequest<ActorSheet>(`/campaigns/${selectedCampaignId}/monsters`, {
-        method: "POST",
-        token: session.token,
-        body: { templateId: template.id }
-      });
-
-      setSelectedActorId(created.id);
-      setActorCreatorOpen(false);
-      setBanner({ tone: "info", text: `${created.name} added to the roster.` });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function assignActorToCurrentMap(actorId: string) {
-    if (!session || !selectedCampaignId || !activeMap) {
-      return;
-    }
-
-    try {
-      await apiRequest(`/campaigns/${selectedCampaignId}/maps/${activeMap.id}/actors`, {
-        method: "POST",
-        token: session.token,
-        body: { actorId }
-      });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function removeActorFromCurrentMap(actorId: string) {
-    if (!session || !selectedCampaignId || !activeMap) {
-      return;
-    }
-
-    try {
-      await apiRequest(`/campaigns/${selectedCampaignId}/maps/${activeMap.id}/actors/${actorId}`, {
-        method: "DELETE",
-        token: session.token
-      });
-
-      if (selectedActorId === actorId) {
-        setSelectedActorId(null);
-      }
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function removeToken(tokenId: string, label: string, skipPrompt = false) {
-    if (!session || !selectedCampaignId) {
-      return;
-    }
-
-    if (!skipPrompt && !window.confirm(`Remove ${label} from the map?`)) {
-      return;
-    }
-
-    try {
-      await apiRequest(`/campaigns/${selectedCampaignId}/tokens/${tokenId}`, {
-        method: "DELETE",
-        token: session.token
-      });
-      setBanner({ tone: "info", text: `${label} removed from the map.` });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function deleteActor(actor: ActorSheet) {
-    if (!session || !selectedCampaignId) {
-      return;
-    }
-
-    if (!window.confirm(`Delete actor ${actor.name}? This also removes its tokens.`)) {
-      return;
-    }
-
-    try {
-      await apiRequest(`/campaigns/${selectedCampaignId}/actors/${actor.id}`, {
-        method: "DELETE",
-        token: session.token
-      });
-
-      if (selectedActorId === actor.id) {
-        setSelectedActorId(null);
-      }
-
-      setBanner({ tone: "info", text: `${actor.name} deleted.` });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function createMap(nextMap: CampaignMap) {
-    if (!session || !selectedCampaignId || !nextMap.name.trim()) {
-      return;
-    }
-
-    try {
-      const created = await apiRequest<CampaignMap>(`/campaigns/${selectedCampaignId}/maps`, {
-        method: "POST",
-        token: session.token,
-        body: {
-          ...nextMap,
-          name: nextMap.name.trim()
-        }
-      });
-
-      setNewMapDraft(createClientMapDraft("New Map"));
-      setSelectedMapId(created.id);
-      setMapDraft(cloneMap(created));
-      setMapEditorMode("edit");
-      setBanner({ tone: "info", text: "Map created." });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function saveMap(nextMap: CampaignMap) {
-    if (!session || !selectedCampaignId) {
-      return;
-    }
-
-    try {
-      await apiRequest<CampaignMap>(`/campaigns/${selectedCampaignId}/maps/${nextMap.id}`, {
-        method: "PUT",
-        token: session.token,
-        body: nextMap
-      });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function saveActor(nextActor: ActorSheet) {
-    if (!session || !selectedCampaignId) {
-      return;
-    }
-
-    try {
-      await apiRequest<ActorSheet>(`/campaigns/${selectedCampaignId}/actors/${nextActor.id}`, {
-        method: "PUT",
-        token: session.token,
-        body: nextActor
-      });
-
-      setBanner({ tone: "info", text: "Sheet saved." });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function sendChat(text: string) {
-    if (!selectedCampaignId) {
-      return;
-    }
-
-    try {
-      await sendRoomMessage({
-        type: "chat:send",
-        text
-      });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function rollFromSheet(notation: string, label: string) {
-    if (!selectedCampaignId) {
-      return;
-    }
-
-    try {
-      await sendRoomMessage({
-        type: "roll:send",
-        notation,
-        label
-      });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function moveActor(actorId: string, x: number, y: number) {
-    if (!selectedCampaignId) {
-      return;
-    }
-
-    try {
-      await sendRoomMessage({
-        type: "token:move",
-        actorId,
-        x,
-        y
-      });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function broadcastMovePreview(actorId: string, target: Point | null) {
-    if (!selectedCampaignId) {
-      return;
-    }
-
-    try {
-      await sendRoomMessage({
-        type: "token:preview",
-        actorId,
-        target
-      });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function broadcastMeasurePreview(preview: MeasurePreview | null) {
-    if (!selectedCampaignId) {
-      return;
-    }
-
-    try {
-      await sendRoomMessage({
-        type: "measure:preview",
-        preview
-      });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function createDrawing(mapId: string, stroke: DrawingStroke) {
-    if (!selectedCampaignId) {
-      return;
-    }
-
-    try {
-      await sendRoomMessage({
-        type: "drawing:create",
-        mapId,
-        stroke
-      });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function updateDrawings(mapId: string, drawings: Array<{ id: string; points: Point[]; rotation: number }>) {
-    if (!selectedCampaignId || drawings.length === 0) {
-      return;
-    }
-
-    try {
-      await sendRoomMessage({
-        type: "drawing:update",
-        mapId,
-        drawings
-      });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function deleteDrawings(mapId: string, drawingIds: string[]) {
-    if (!selectedCampaignId || drawingIds.length === 0) {
-      return;
-    }
-
-    try {
-      await sendRoomMessage({
-        type: "drawing:delete",
-        mapId,
-        drawingIds
-      });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function clearDrawings(mapId: string) {
-    if (!selectedCampaignId) {
-      return;
-    }
-
-    try {
-      await sendRoomMessage({
-        type: "drawing:clear",
-        mapId
-      });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function pingMap(point: Point) {
-    if (!selectedCampaignId || !activeMap || !session) {
-      return;
-    }
-
-    const ping: MapPing = {
-      id: `png_${crypto.randomUUID().slice(0, 8)}`,
-      mapId: activeMap.id,
-      point,
-      userId: session.user.id,
-      userName: session.user.name,
-      createdAt: new Date().toISOString()
-    };
-
-    enqueuePing(ping);
-
-    try {
-      await sendRoomMessage({
-        type: "map:ping",
-        pingId: ping.id,
-        mapId: activeMap.id,
-        point
-      });
-    } catch (error) {
-      setMapPings((current) => current.filter((entry) => entry.id !== ping.id));
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function pingAndRecallMap(point: Point, center: Point, zoom: number) {
-    if (!selectedCampaignId || !activeMap || !session) {
-      return;
-    }
-
-    const ping: MapPing = {
-      id: `png_${crypto.randomUUID().slice(0, 8)}`,
-      mapId: activeMap.id,
-      point,
-      userId: session.user.id,
-      userName: session.user.name,
-      createdAt: new Date().toISOString()
-    };
-
-    enqueuePing(ping);
-
-    try {
-      await sendRoomMessage({
-        type: "map:ping-recall",
-        pingId: ping.id,
-        mapId: activeMap.id,
-        point,
-        center,
-        zoom
-      });
-    } catch (error) {
-      setMapPings((current) => current.filter((entry) => entry.id !== ping.id));
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function toggleDoor(doorId: string) {
-    if (!selectedCampaignId) {
-      return;
-    }
-
-    try {
-      await sendRoomMessage({
-        type: "door:toggle",
-        doorId
-      });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
-
-  async function resetFog() {
-    if (!selectedCampaignId || !activeMap) {
-      return;
-    }
-
-    if (!window.confirm(`Reset remembered fog for all players on ${activeMap.name}?`)) {
-      return;
-    }
-
-    try {
-      await sendRoomMessage({
-        type: "fog:reset",
-        mapId: activeMap.id
-      });
-      setBanner({ tone: "info", text: "Fog memory reset for the active map." });
-    } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    }
-  }
+  });
+
+  const {
+    sendChat,
+    rollFromSheet,
+    moveActor,
+    broadcastMovePreview,
+    broadcastMeasurePreview,
+    createDrawing,
+    updateDrawings,
+    deleteDrawings,
+    clearDrawings,
+    pingMap,
+    pingAndRecallMap,
+    toggleDoor,
+    resetFog,
+    setEditingMapActive,
+    showMap
+  } = useRoomActions({
+    session,
+    selectedCampaignId,
+    activeMap,
+    editingMap,
+    sendRoomMessage,
+    enqueuePing,
+    removePing,
+    onStatus: setBannerStatus
+  });
 
   function handleAuthFormChange(field: "name" | "email" | "password", value: string) {
     setAuthForm((current) => ({
@@ -1156,22 +400,6 @@ export default function App() {
     }
   }
 
-  function setEditingMapActive() {
-    if (!editingMap) {
-      return;
-    }
-
-    void sendRoomMessage({ type: "map:set-active", mapId: editingMap.id }).catch((error: unknown) => {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    });
-  }
-
-  function showMap(mapId: string) {
-    void sendRoomMessage({ type: "map:set-active", mapId }).catch((error: unknown) => {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
-    });
-  }
-
   if (!session) {
     return (
       <AuthPage
@@ -1204,9 +432,7 @@ export default function App() {
         <AdminPanel
           token={session.token}
           currentUserId={session.user.id}
-          onStatus={(tone, text) => {
-            setBanner({ tone, text });
-          }}
+          onStatus={setBannerStatus}
         />
       ) : !selectedCampaignId ? (
         <CampaignsPage
@@ -1238,8 +464,8 @@ export default function App() {
           playerMembers={playerMembers}
           dmFogEnabled={dmFogEnabled}
           dmFogUserId={dmFogUserId}
-          movementPreviews={Object.values(sharedMovementPreviews)}
-          measurePreviews={Object.values(sharedMeasurePreviews)}
+          movementPreviews={movementPreviews}
+          measurePreviews={measurePreviews}
           mapPings={mapPings}
           viewRecall={viewportRecall}
           filteredCurrentMapRoster={filteredCurrentMapRoster}

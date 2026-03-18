@@ -7,7 +7,6 @@ import type {
   CampaignMap,
   CampaignMember,
   CampaignSnapshot,
-  ClientRoomMessage,
   DrawingStroke,
   MapPing,
   MapViewportRecall,
@@ -23,40 +22,10 @@ import { CharacterSheet } from "../components/CharacterSheet";
 import { ChatPanel } from "../components/ChatPanel";
 import { MapConfigurator } from "../components/MapConfigurator";
 import { WorkspaceModal } from "../components/WorkspaceModal";
+import type { ActorTypeFilter, AvailableActorEntry, CurrentMapRosterEntry } from "../features/campaign/types";
 import { formatMonsterModifier } from "../lib/drafts";
 
 type ActivePopup = "sheet" | "actors" | "maps" | "room" | null;
-type ActorTypeFilter = "all" | ActorKind;
-
-interface SharedMovementPreviewEntry {
-  actorId: string;
-  mapId: string;
-  preview: TokenMovementPreview;
-}
-
-interface SharedMeasurePreviewEntry {
-  userId: string;
-  mapId: string;
-  preview: MeasurePreview;
-}
-
-interface AvailableActorEntry {
-  actor: ActorSheet;
-  activeMaps: CampaignMap[];
-  onCurrentMap: boolean;
-}
-
-interface CurrentMapRosterEntry {
-  actor: ActorSheet | null;
-  actorKind: ActorKind;
-  assignment: {
-    actorId: string;
-    mapId: string;
-  };
-  color: string;
-  label: string;
-  token: BoardToken | null;
-}
 
 interface CampaignPageProps {
   campaign: CampaignSnapshot["campaign"];
@@ -74,8 +43,8 @@ interface CampaignPageProps {
   playerMembers: CampaignMember[];
   dmFogEnabled: boolean;
   dmFogUserId: string | null;
-  movementPreviews: SharedMovementPreviewEntry[];
-  measurePreviews: SharedMeasurePreviewEntry[];
+  movementPreviews: Array<{ actorId: string; mapId: string; preview: TokenMovementPreview }>;
+  measurePreviews: Array<{ userId: string; mapId: string; preview: MeasurePreview }>;
   mapPings: MapPing[];
   viewRecall: MapViewportRecall | null;
   filteredCurrentMapRoster: CurrentMapRosterEntry[];

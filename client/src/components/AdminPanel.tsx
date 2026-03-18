@@ -1,9 +1,15 @@
-import { useEffect, useMemo, useState, type ComponentType, type FormEvent, type ReactNode } from "react";
-import { ArrowDownToLine, FilePlus2, GraduationCap, List, RefreshCw, ShieldPlus, Skull, Sparkles, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { ArrowDownToLine, FilePlus2, List, RefreshCw } from "lucide-react";
 
 import type { AdminOverview, SpellEntry } from "@shared/types";
-import { apiRequest } from "../api";
 import { ClassPreviewCard, FeatPreviewCard, MonsterPreviewCard, PreviewError, PreviewPlaceholder, SpellPreviewCard, UserPreviewCard } from "./admin/AdminPreview";
+import {
+  createCompendiumItem,
+  demoteAdminUser,
+  fetchAdminOverview,
+  importCompendiumItems,
+  promoteAdminUser
+} from "../features/admin/adminService";
 import {
   classFormToEntry,
   createClassForm,
@@ -20,9 +26,20 @@ import {
   type SpellFormState
 } from "../lib/adminDrafts";
 import { toErrorMessage } from "../lib/errors";
+import {
+  AdminField,
+  buildPreview,
+  countForTab,
+  filterEntries,
+  getImportExample,
+  labelForTab,
+  resolveSelected,
+  singularLabel,
+  tabIcons,
+  type AdminTab,
+  type CompendiumTab
+} from "./admin/adminPanelUtils";
 
-type AdminTab = "users" | "spells" | "monsters" | "feats" | "classes";
-type CompendiumTab = Exclude<AdminTab, "users">;
 type AdminMode = "list" | "add" | "import";
 
 interface AdminPanelProps {
@@ -30,19 +47,6 @@ interface AdminPanelProps {
   currentUserId: string;
   onStatus: (tone: "info" | "error", text: string) => void;
 }
-
-interface PreviewState<T> {
-  entry: T | null;
-  error: string | null;
-}
-
-const tabIcons = {
-  users: Users,
-  spells: Sparkles,
-  monsters: Skull,
-  feats: ShieldPlus,
-  classes: GraduationCap
-} satisfies Record<AdminTab, ComponentType<{ size?: number }>>;
 
 export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) {
   const [tab, setTab] = useState<AdminTab>("users");
@@ -75,10 +79,22 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
   const [classForm, setClassForm] = useState<ClassFormState>(createClassForm());
   const activeCompendiumTab: CompendiumTab | null = tab === "users" ? null : tab;
 
+  const refreshOverview = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const next = await fetchAdminOverview(token);
+      setOverview(next);
+    } catch (error) {
+      onStatus("error", toErrorMessage(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [onStatus, token]);
+
   useEffect(() => {
     void refreshOverview();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [refreshOverview]);
 
   useEffect(() => {
     if (tab === "users" && mode !== "list") {
@@ -156,25 +172,9 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     [activeCompendiumTab]
   );
 
-  async function refreshOverview() {
-    setLoading(true);
-
-    try {
-      const next = await apiRequest<AdminOverview>("/admin/overview", { token });
-      setOverview(next);
-    } catch (error) {
-      onStatus("error", toErrorMessage(error));
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function promoteUser(userId: string) {
     try {
-      await apiRequest(`/admin/users/${userId}/promote`, {
-        method: "POST",
-        token
-      });
+      await promoteAdminUser(token, userId);
       onStatus("info", "User promoted to administrator.");
       await refreshOverview();
     } catch (error) {
@@ -184,10 +184,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
 
   async function demoteUser(userId: string) {
     try {
-      await apiRequest(`/admin/users/${userId}/demote`, {
-        method: "POST",
-        token
-      });
+      await demoteAdminUser(token, userId);
       onStatus("info", "User demoted.");
       await refreshOverview();
     } catch (error) {
@@ -197,11 +194,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
 
   async function createEntry(kind: CompendiumTab, entry: unknown, reset: () => void) {
     try {
-      const created = await apiRequest<{ id: string }>(`/admin/compendium/${kind}`, {
-        method: "POST",
-        token,
-        body: entry
-      });
+      const created = await createCompendiumItem(token, kind, entry);
 
       reset();
       setSelectedIds((current) => ({ ...current, [kind]: created.id }));
@@ -216,11 +209,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
   async function importEntries(kind: CompendiumTab) {
     try {
       const payload = JSON.parse(jsonImport[kind]) as unknown;
-      await apiRequest(`/admin/compendium/${kind}/import`, {
-        method: "POST",
-        token,
-        body: { entries: payload }
-      });
+      await importCompendiumItems(token, kind, payload);
 
       setJsonImport((current) => ({ ...current, [kind]: "" }));
       setMode("list");
@@ -462,9 +451,9 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
 
               {tab === "spells" && (
                 <form className="admin-form-grid" onSubmit={handleSpellSubmit}>
-                  <Field label="Name"><input value={spellForm.name} onChange={(event) => setSpellForm({ ...spellForm, name: event.target.value })} /></Field>
-                  <Field label="Source"><input value={spellForm.source} onChange={(event) => setSpellForm({ ...spellForm, source: event.target.value })} /></Field>
-                  <Field label="Level">
+                  <AdminField label="Name"><input value={spellForm.name} onChange={(event) => setSpellForm({ ...spellForm, name: event.target.value })} /></AdminField>
+                  <AdminField label="Source"><input value={spellForm.source} onChange={(event) => setSpellForm({ ...spellForm, source: event.target.value })} /></AdminField>
+                  <AdminField label="Level">
                     <select value={spellForm.level} onChange={(event) => setSpellForm({ ...spellForm, level: event.target.value })}>
                       <option value="cantrip">Cantrip</option>
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
@@ -473,8 +462,8 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         </option>
                       ))}
                     </select>
-                  </Field>
-                  <Field label="School">
+                  </AdminField>
+                  <AdminField label="School">
                     <select value={spellForm.school} onChange={(event) => setSpellForm({ ...spellForm, school: event.target.value as SpellEntry["school"] })}>
                       {["Abjuration", "Conjuration", "Divination", "Enchantment", "Evocation", "Illusion", "Necromancy", "Transmutation"].map((school) => (
                         <option key={school} value={school}>
@@ -482,8 +471,8 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         </option>
                       ))}
                     </select>
-                  </Field>
-                  <Field label="Casting time unit">
+                  </AdminField>
+                  <AdminField label="Casting time unit">
                     <select value={spellForm.castingTimeUnit} onChange={(event) => setSpellForm({ ...spellForm, castingTimeUnit: event.target.value as SpellEntry["castingTimeUnit"] })}>
                       {["action", "bonus action", "minute", "hour"].map((unit) => (
                         <option key={unit} value={unit}>
@@ -491,9 +480,9 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         </option>
                       ))}
                     </select>
-                  </Field>
-                  <Field label="Casting time value"><input value={spellForm.castingTimeValue} onChange={(event) => setSpellForm({ ...spellForm, castingTimeValue: event.target.value })} /></Field>
-                  <Field label="Range type">
+                  </AdminField>
+                  <AdminField label="Casting time value"><input value={spellForm.castingTimeValue} onChange={(event) => setSpellForm({ ...spellForm, castingTimeValue: event.target.value })} /></AdminField>
+                  <AdminField label="Range type">
                     <select value={spellForm.rangeType} onChange={(event) => setSpellForm({ ...spellForm, rangeType: event.target.value as SpellEntry["rangeType"] })}>
                       {["feet", "self", "self emanation", "touch"].map((unit) => (
                         <option key={unit} value={unit}>
@@ -501,9 +490,9 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         </option>
                       ))}
                     </select>
-                  </Field>
-                  <Field label="Range value"><input value={spellForm.rangeValue} onChange={(event) => setSpellForm({ ...spellForm, rangeValue: event.target.value })} /></Field>
-                  <Field label="Duration unit">
+                  </AdminField>
+                  <AdminField label="Range value"><input value={spellForm.rangeValue} onChange={(event) => setSpellForm({ ...spellForm, rangeValue: event.target.value })} /></AdminField>
+                  <AdminField label="Duration unit">
                     <select value={spellForm.durationUnit} onChange={(event) => setSpellForm({ ...spellForm, durationUnit: event.target.value as SpellEntry["durationUnit"] })}>
                       {["instant", "minute", "hour"].map((unit) => (
                         <option key={unit} value={unit}>
@@ -511,10 +500,10 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         </option>
                       ))}
                     </select>
-                  </Field>
-                  <Field label="Duration value"><input value={spellForm.durationValue} onChange={(event) => setSpellForm({ ...spellForm, durationValue: event.target.value })} /></Field>
-                  <Field label="Damage notation"><input value={spellForm.damageNotation} onChange={(event) => setSpellForm({ ...spellForm, damageNotation: event.target.value })} /></Field>
-                  <Field label="Damage ability">
+                  </AdminField>
+                  <AdminField label="Duration value"><input value={spellForm.durationValue} onChange={(event) => setSpellForm({ ...spellForm, durationValue: event.target.value })} /></AdminField>
+                  <AdminField label="Damage notation"><input value={spellForm.damageNotation} onChange={(event) => setSpellForm({ ...spellForm, damageNotation: event.target.value })} /></AdminField>
+                  <AdminField label="Damage ability">
                     <select value={spellForm.damageAbility} onChange={(event) => setSpellForm({ ...spellForm, damageAbility: event.target.value as SpellFormState["damageAbility"] })}>
                       <option value="">None</option>
                       {["str", "dex", "con", "int", "wis", "cha"].map((ability) => (
@@ -523,10 +512,10 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         </option>
                       ))}
                     </select>
-                  </Field>
-                  <Field label="Classes" wide><input value={spellForm.classesText} onChange={(event) => setSpellForm({ ...spellForm, classesText: event.target.value })} placeholder="Wizard, Sorcerer" /></Field>
-                  <Field label="Short description" wide><textarea value={spellForm.description} onChange={(event) => setSpellForm({ ...spellForm, description: event.target.value })} /></Field>
-                  <Field label="Full description" wide><textarea value={spellForm.fullDescription} onChange={(event) => setSpellForm({ ...spellForm, fullDescription: event.target.value })} /></Field>
+                  </AdminField>
+                  <AdminField label="Classes" wide><input value={spellForm.classesText} onChange={(event) => setSpellForm({ ...spellForm, classesText: event.target.value })} placeholder="Wizard, Sorcerer" /></AdminField>
+                  <AdminField label="Short description" wide><textarea value={spellForm.description} onChange={(event) => setSpellForm({ ...spellForm, description: event.target.value })} /></AdminField>
+                  <AdminField label="Full description" wide><textarea value={spellForm.fullDescription} onChange={(event) => setSpellForm({ ...spellForm, fullDescription: event.target.value })} /></AdminField>
                   <fieldset className="admin-checks">
                     <legend>Components and flags</legend>
                     <label><input type="checkbox" checked={spellForm.verbal} onChange={(event) => setSpellForm({ ...spellForm, verbal: event.target.checked })} /> Verbal</label>
@@ -535,15 +524,15 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                     <label><input type="checkbox" checked={spellForm.materialConsumed} onChange={(event) => setSpellForm({ ...spellForm, materialConsumed: event.target.checked })} /> Material consumed</label>
                     <label><input type="checkbox" checked={spellForm.concentration} onChange={(event) => setSpellForm({ ...spellForm, concentration: event.target.checked })} /> Concentration</label>
                   </fieldset>
-                  <Field label="Material text"><input value={spellForm.materialText} onChange={(event) => setSpellForm({ ...spellForm, materialText: event.target.value })} /></Field>
-                  <Field label="Material value"><input value={spellForm.materialValue} onChange={(event) => setSpellForm({ ...spellForm, materialValue: event.target.value })} /></Field>
+                  <AdminField label="Material text"><input value={spellForm.materialText} onChange={(event) => setSpellForm({ ...spellForm, materialText: event.target.value })} /></AdminField>
+                  <AdminField label="Material value"><input value={spellForm.materialValue} onChange={(event) => setSpellForm({ ...spellForm, materialValue: event.target.value })} /></AdminField>
                   <button className="accent-button" type="submit">Add spell</button>
                 </form>
               )}
 
               {tab === "monsters" && (
                 <form className="admin-form-grid admin-form-grid-wide" onSubmit={handleMonsterSubmit}>
-                  <Field label="Name"><input value={monsterForm.name} onChange={(event) => setMonsterForm({ ...monsterForm, name: event.target.value })} /></Field>
+                  <AdminField label="Name"><input value={monsterForm.name} onChange={(event) => setMonsterForm({ ...monsterForm, name: event.target.value })} /></AdminField>
                   <Field label="Source"><input value={monsterForm.source} onChange={(event) => setMonsterForm({ ...monsterForm, source: event.target.value })} /></Field>
                   <Field label="Challenge rating"><input value={monsterForm.challengeRating} onChange={(event) => setMonsterForm({ ...monsterForm, challengeRating: event.target.value })} /></Field>
                   <Field label="Armor class"><input value={monsterForm.armorClass} onChange={(event) => setMonsterForm({ ...monsterForm, armorClass: event.target.value })} /></Field>
@@ -593,7 +582,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
 
               {tab === "feats" && (
                 <form className="admin-form-grid" onSubmit={handleFeatSubmit}>
-                  <Field label="Name"><input value={featForm.name} onChange={(event) => setFeatForm({ ...featForm, name: event.target.value })} /></Field>
+                  <AdminField label="Name"><input value={featForm.name} onChange={(event) => setFeatForm({ ...featForm, name: event.target.value })} /></AdminField>
                   <Field label="Source"><input value={featForm.source} onChange={(event) => setFeatForm({ ...featForm, source: event.target.value })} /></Field>
                   <Field label="Category"><input value={featForm.category} onChange={(event) => setFeatForm({ ...featForm, category: event.target.value })} /></Field>
                   <Field label="Ability score increase"><input value={featForm.abilityScoreIncrease} onChange={(event) => setFeatForm({ ...featForm, abilityScoreIncrease: event.target.value })} /></Field>
@@ -605,7 +594,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
 
               {tab === "classes" && (
                 <form className="admin-form-grid" onSubmit={handleClassSubmit}>
-                  <Field label="Name"><input value={classForm.name} onChange={(event) => setClassForm({ ...classForm, name: event.target.value })} /></Field>
+                  <AdminField label="Name"><input value={classForm.name} onChange={(event) => setClassForm({ ...classForm, name: event.target.value })} /></AdminField>
                   <Field label="Source"><input value={classForm.source} onChange={(event) => setClassForm({ ...classForm, source: event.target.value })} /></Field>
                   <Field label="Description" wide><textarea value={classForm.description} onChange={(event) => setClassForm({ ...classForm, description: event.target.value })} /></Field>
                   <Field label="Features JSON" wide><textarea value={classForm.featuresJson} onChange={(event) => setClassForm({ ...classForm, featuresJson: event.target.value })} /></Field>
@@ -690,212 +679,4 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
   );
 }
 
-function Field({
-  label,
-  wide,
-  children
-}: {
-  label: string;
-  wide?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <label className={`admin-field${wide ? " admin-field-wide" : ""}`}>
-      <span>{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function filterEntries<T>(entries: T[], query: string, project: (entry: T) => string[]) {
-  const normalized = query.trim().toLowerCase();
-
-  if (!normalized) {
-    return entries;
-  }
-
-  return entries.filter((entry) => project(entry).some((value) => value.toLowerCase().includes(normalized)));
-}
-
-function resolveSelected<T extends { id: string }>(entries: T[], selectedId: string | null) {
-  return entries.find((entry) => entry.id === selectedId) ?? entries[0] ?? null;
-}
-
-function buildPreview<T>(builder: () => T): PreviewState<T> {
-  try {
-    return {
-      entry: builder(),
-      error: null
-    };
-  } catch (error) {
-    return {
-      entry: null,
-      error: toErrorMessage(error)
-    };
-  }
-}
-
-function labelForTab(tab: AdminTab) {
-  switch (tab) {
-    case "users":
-      return "Users";
-    case "spells":
-      return "Spells";
-    case "monsters":
-      return "Monsters";
-    case "feats":
-      return "Feats";
-    case "classes":
-      return "Classes";
-  }
-}
-
-function singularLabel(tab: AdminTab) {
-  if (tab === "users") {
-    return "User";
-  }
-
-  switch (tab) {
-    case "spells":
-      return "Spell";
-    case "monsters":
-      return "Monster";
-    case "feats":
-      return "Feat";
-    case "classes":
-      return "Class";
-  }
-}
-
-function countForTab(tab: AdminTab, counts: Record<AdminTab, number>) {
-  return counts[tab];
-}
-
-function getImportExample(tab: CompendiumTab) {
-  switch (tab) {
-    case "spells":
-      return JSON.stringify(
-        [
-          {
-            name: "Acid Splash",
-            source: "PHB'24",
-            level: "cantrip",
-            school: "Evocation",
-            castingTimeUnit: "action",
-            castingTimeValue: 1,
-            rangeType: "feet",
-            rangeValue: 60,
-            description: "You create an acidic bubble at a point within range.",
-            components: {
-              verbal: true,
-              somatic: true,
-              material: false,
-              materialText: "",
-              materialValue: 0,
-              materialConsumed: false
-            },
-            durationUnit: "instant",
-            durationValue: 0,
-            concentration: false,
-            damageNotation: "1d6",
-            damageAbility: null,
-            fullDescription: "A target in a 5-foot-radius Sphere must make a Dexterity saving throw or take Acid damage.",
-            classes: ["Artificer", "Sorcerer", "Wizard"]
-          }
-        ],
-        null,
-        2
-      );
-    case "monsters":
-      return JSON.stringify(
-        [
-          {
-            name: "Adult Red Dragon",
-            source: "MM'25",
-            challengeRating: "17",
-            armorClass: 19,
-            hitPoints: 256,
-            speed: 40,
-            speedModes: { walk: 40, fly: 80, burrow: 0, swim: 0, climb: 40 },
-            abilities: { str: 27, dex: 10, con: 25, int: 16, wis: 13, cha: 21 },
-            skills: [{ name: "Perception", bonus: 13 }, { name: "Stealth", bonus: 6 }],
-            senses: [{ name: "Blindsight", range: 60, notes: "" }, { name: "Darkvision", range: 120, notes: "" }],
-            passivePerception: 23,
-            languages: ["Common", "Draconic"],
-            xp: 18000,
-            proficiencyBonus: 6,
-            gear: [],
-            resistances: [],
-            vulnerabilities: [],
-            immunities: ["Fire"],
-            traits: ["Legendary Resistance (3/Day). If the dragon fails a saving throw, it can choose to succeed instead."],
-            actions: [
-              {
-                name: "Rend",
-                description: "Melee Attack Roll: +14, reach 10 ft. Hit: 13 (1d10 + 8) Slashing damage plus 5 (2d4) Fire damage.",
-                damage: "1d10+8 + 2d4",
-                attackType: "melee",
-                attackBonus: 14,
-                reachOrRange: "reach 10 ft.",
-                damageType: "slashing + fire"
-              }
-            ],
-            bonusActions: [],
-            reactions: [],
-            legendaryActions: [],
-            legendaryActionsUse: 3,
-            lairActions: [],
-            regionalEffects: [],
-            spells: ["Command", "Detect Magic", "Scorching Ray"],
-            habitat: "Volcanic mountains",
-            treasure: "Hoard",
-            imageUrl: "",
-            color: "#9a5546"
-          }
-        ],
-        null,
-        2
-      );
-    case "feats":
-      return JSON.stringify(
-        [
-          {
-            name: "Spell Sniper",
-            source: "PHB'24",
-            category: "General Feat",
-            abilityScoreIncrease: "Increase your Intelligence, Wisdom, or Charisma by 1, to a maximum of 20.",
-            prerequisites: "Level 4+; Spellcasting or Pact Magic Feature",
-            description: "Your attack rolls for spells ignore Half Cover and Three-Quarters Cover, and your spell range increases by 60 feet when appropriate."
-          }
-        ],
-        null,
-        2
-      );
-    case "classes":
-      return JSON.stringify(
-        [
-          {
-            name: "Barbarian",
-            source: "PHB'24",
-            description: "A fierce warrior of primal power and relentless endurance.",
-            features: [
-              { level: 1, name: "Rage", description: "Enter a rage as a Bonus Action." },
-              { level: 1, name: "Unarmored Defense", description: "Your AC equals 10 + Dex + Con when unarmored." }
-            ],
-            tables: [
-              {
-                name: "Barbarian Progression",
-                columns: ["Level", "Proficiency Bonus", "Features", "Rages"],
-                rows: [
-                  ["1st", "+2", "Rage, Unarmored Defense", "2"],
-                  ["2nd", "+2", "Danger Sense, Reckless Attack", "2"]
-                ]
-              }
-            ]
-          }
-        ],
-        null,
-        2
-      );
-  }
-}
+const Field = AdminField;
