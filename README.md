@@ -20,9 +20,9 @@ PWA-ready Dungeon and Dragons 5e 2024 campaign board built as a Vite monorepo wi
 
 ## Workspace
 
-- [client](/home/fsemprini/projects/DnD/client): React + Vite frontend
-- [server](/home/fsemprini/projects/DnD/server): Express API and persistence
-- [shared](/home/fsemprini/projects/DnD/shared): shared TypeScript models
+- [client](client): React + Vite frontend
+- [server](server): Express API and persistence
+- [shared](shared): shared TypeScript models
 
 ## Run
 
