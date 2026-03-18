@@ -3,18 +3,56 @@ import type { DatabaseSync } from "node:sqlite";
 import type {
   AbilityKey,
   ClassEntry,
+  ClassFeatureEntry,
   CompendiumData,
   FeatEntry,
   MonsterActionEntry,
   MonsterSense,
   MonsterSkillBonus,
   MonsterSpellcastingEntry,
+  SpellClassReference,
   SpellEntry,
   SpellLevel
 } from "../../../../shared/types.js";
 import { readAll, toIntegerBoolean } from "../helpers.js";
 
 export function readCompendium(database: DatabaseSync): CompendiumData {
+  const spellClassReferencesBySpellId = new Map<string, SpellClassReference[]>();
+
+  readAll<{
+    spellId: string;
+    name: string;
+    source: string;
+    kind: SpellClassReference["kind"];
+    className: string;
+    classSource: string;
+  }>(
+    database,
+    `
+      SELECT
+        spell_id as spellId,
+        name,
+        source,
+        kind,
+        class_name as className,
+        class_source as classSource
+      FROM compendium_spell_classes
+      ORDER BY spell_id, sort_order
+    `
+  ).forEach((row) => {
+    const current = spellClassReferencesBySpellId.get(row.spellId) ?? [];
+
+    current.push({
+      name: row.name,
+      source: row.source,
+      kind: row.kind,
+      className: row.className,
+      classSource: row.classSource
+    });
+
+    spellClassReferencesBySpellId.set(row.spellId, current);
+  });
+
   const spells = readAll<{
     id: string;
     name: string;
@@ -37,6 +75,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     concentration: number;
     damageNotation: string;
     damageAbility: AbilityKey | null;
+    higherLevelDescription: string;
     fullDescription: string;
     classesJson: string;
   }>(
@@ -64,38 +103,49 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
         concentration,
         damage_notation as damageNotation,
         damage_ability as damageAbility,
+        higher_level_description as higherLevelDescription,
         full_description as fullDescription,
         classes_json as classesJson
       FROM compendium_spells
       ORDER BY sort_order, name, id
     `
-  ).map((row) => ({
-    id: row.id,
-    name: row.name,
-    source: row.source,
-    level: row.level === "cantrip" ? "cantrip" : Number(row.level) as SpellLevel,
-    school: row.school,
-    castingTimeUnit: row.castingTimeUnit,
-    castingTimeValue: row.castingTimeValue,
-    rangeType: row.rangeType,
-    rangeValue: row.rangeValue,
-    description: row.description,
-    components: {
-      verbal: Boolean(row.componentsVerbal),
-      somatic: Boolean(row.componentsSomatic),
-      material: Boolean(row.componentsMaterial),
-      materialText: row.componentsMaterialText,
-      materialValue: row.componentsMaterialValue,
-      materialConsumed: Boolean(row.componentsMaterialConsumed)
-    },
-    durationUnit: row.durationUnit,
-    durationValue: row.durationValue,
-    concentration: Boolean(row.concentration),
-    damageNotation: row.damageNotation,
-    damageAbility: row.damageAbility,
-    fullDescription: row.fullDescription,
-    classes: parseJsonArray<string>(row.classesJson)
-  }));
+  ).map((row) => {
+    const classReferences = spellClassReferencesBySpellId.get(row.id) ?? [];
+    const classes =
+      classReferences.length > 0
+        ? uniqueStrings(classReferences.map(formatSpellClassReferenceDisplay))
+        : parseJsonArray<string>(row.classesJson);
+
+    return {
+      id: row.id,
+      name: row.name,
+      source: row.source,
+      level: row.level === "cantrip" ? "cantrip" : Number(row.level) as SpellLevel,
+      school: row.school,
+      castingTimeUnit: row.castingTimeUnit,
+      castingTimeValue: row.castingTimeValue,
+      rangeType: row.rangeType,
+      rangeValue: row.rangeValue,
+      description: row.description,
+      components: {
+        verbal: Boolean(row.componentsVerbal),
+        somatic: Boolean(row.componentsSomatic),
+        material: Boolean(row.componentsMaterial),
+        materialText: row.componentsMaterialText,
+        materialValue: row.componentsMaterialValue,
+        materialConsumed: Boolean(row.componentsMaterialConsumed)
+      },
+      durationUnit: row.durationUnit,
+      durationValue: row.durationValue,
+      concentration: Boolean(row.concentration),
+      damageNotation: row.damageNotation,
+      damageAbility: row.damageAbility,
+      higherLevelDescription: row.higherLevelDescription,
+      fullDescription: row.fullDescription,
+      classes,
+      classReferences
+    } satisfies SpellEntry;
+  });
 
   const monsters = readAll<{
     id: string;
@@ -263,11 +313,138 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     `
   ) as FeatEntry[];
 
+  const classFeaturesByClassId = new Map<string, ClassFeatureEntry[]>();
+
+  readAll<{
+    classId: string;
+    level: number;
+    name: string;
+    description: string;
+    source: string;
+    reference: string;
+  }>(
+    database,
+    `
+      SELECT
+        class_id as classId,
+        level,
+        name,
+        description,
+        source,
+        reference
+      FROM compendium_class_features
+      ORDER BY class_id, sort_order
+    `
+  ).forEach((row) => {
+    const current = classFeaturesByClassId.get(row.classId) ?? [];
+
+    current.push({
+      level: row.level,
+      name: row.name,
+      description: row.description,
+      source: row.source,
+      reference: row.reference
+    });
+
+    classFeaturesByClassId.set(row.classId, current);
+  });
+
+  const classTableColumnsByKey = new Map<string, string[]>();
+
+  readAll<{
+    classId: string;
+    tableIndex: number;
+    label: string;
+  }>(
+    database,
+    `
+      SELECT
+        class_id as classId,
+        table_index as tableIndex,
+        label
+      FROM compendium_class_table_columns
+      ORDER BY class_id, table_index, column_index
+    `
+  ).forEach((row) => {
+    const key = createClassTableKey(row.classId, row.tableIndex);
+    const current = classTableColumnsByKey.get(key) ?? [];
+    current.push(row.label);
+    classTableColumnsByKey.set(key, current);
+  });
+
+  const classTableCellsByKey = new Map<string, Map<number, string[]>>();
+
+  readAll<{
+    classId: string;
+    tableIndex: number;
+    rowIndex: number;
+    value: string;
+  }>(
+    database,
+    `
+      SELECT
+        class_id as classId,
+        table_index as tableIndex,
+        row_index as rowIndex,
+        value
+      FROM compendium_class_table_cells
+      ORDER BY class_id, table_index, row_index, cell_index
+    `
+  ).forEach((row) => {
+    const key = createClassTableKey(row.classId, row.tableIndex);
+    const rows = classTableCellsByKey.get(key) ?? new Map<number, string[]>();
+    const current = rows.get(row.rowIndex) ?? [];
+    current.push(row.value);
+    rows.set(row.rowIndex, current);
+    classTableCellsByKey.set(key, rows);
+  });
+
+  const classTablesByClassId = new Map<string, ClassEntry["tables"]>();
+
+  readAll<{
+    classId: string;
+    tableIndex: number;
+    name: string;
+  }>(
+    database,
+    `
+      SELECT
+        class_id as classId,
+        table_index as tableIndex,
+        name
+      FROM compendium_class_tables
+      ORDER BY class_id, table_index
+    `
+  ).forEach((row) => {
+    const key = createClassTableKey(row.classId, row.tableIndex);
+    const rows = classTableCellsByKey.get(key);
+    const tableRows = rows
+      ? Array.from(rows.entries())
+          .sort(([left], [right]) => left - right)
+          .map(([, cells]) => cells)
+      : [];
+    const current = classTablesByClassId.get(row.classId) ?? [];
+
+    current.push({
+      name: row.name,
+      columns: classTableColumnsByKey.get(key) ?? [],
+      rows: tableRows
+    });
+
+    classTablesByClassId.set(row.classId, current);
+  });
+
   const classes = readAll<{
     id: string;
     name: string;
     source: string;
     description: string;
+    hitDieFaces: number;
+    primaryAbilitiesJson: string;
+    savingThrowProficienciesJson: string;
+    startingArmorJson: string;
+    startingWeaponsJson: string;
+    startingToolsJson: string;
     featuresJson: string;
     tablesJson: string;
   }>(
@@ -278,6 +455,12 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
         name,
         source,
         description,
+        hit_die_faces as hitDieFaces,
+        primary_abilities_json as primaryAbilitiesJson,
+        saving_throw_proficiencies_json as savingThrowProficienciesJson,
+        starting_armor_json as startingArmorJson,
+        starting_weapons_json as startingWeaponsJson,
+        starting_tools_json as startingToolsJson,
         features_json as featuresJson,
         tables_json as tablesJson
       FROM compendium_classes
@@ -288,8 +471,16 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     name: row.name,
     source: row.source,
     description: row.description,
-    features: parseJsonArray<ClassEntry["features"][number]>(row.featuresJson),
-    tables: parseJsonArray<ClassEntry["tables"][number]>(row.tablesJson)
+    hitDieFaces: row.hitDieFaces,
+    primaryAbilities: parseJsonArray<string>(row.primaryAbilitiesJson),
+    savingThrowProficiencies: parseJsonArray<string>(row.savingThrowProficienciesJson),
+    startingProficiencies: {
+      armor: parseJsonArray<string>(row.startingArmorJson),
+      weapons: parseJsonArray<string>(row.startingWeaponsJson),
+      tools: parseJsonArray<string>(row.startingToolsJson)
+    },
+    features: classFeaturesByClassId.get(row.id) ?? parseJsonArray<ClassFeatureEntry>(row.featuresJson),
+    tables: classTablesByClassId.get(row.id) ?? parseJsonArray<ClassEntry["tables"][number]>(row.tablesJson)
   }));
 
   return {
@@ -308,8 +499,13 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
       description, components_verbal, components_somatic, components_material,
       components_material_text, components_material_value, components_material_consumed,
       duration_unit, duration_value, concentration, damage_notation, damage_ability,
-      full_description, classes_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      higher_level_description, full_description, classes_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertSpellClass = database.prepare(`
+    INSERT INTO compendium_spell_classes (
+      spell_id, sort_order, name, source, kind, class_name, class_source
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   const insertMonster = database.prepare(`
     INSERT INTO compendium_monsters (
@@ -331,8 +527,31 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
   `);
   const insertClass = database.prepare(`
     INSERT INTO compendium_classes (
-      id, sort_order, name, source, description, features_json, tables_json
+      id, sort_order, name, source, description,
+      hit_die_faces, primary_abilities_json, saving_throw_proficiencies_json,
+      starting_armor_json, starting_weapons_json, starting_tools_json,
+      features_json, tables_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertClassFeature = database.prepare(`
+    INSERT INTO compendium_class_features (
+      class_id, sort_order, level, name, description, source, reference
     ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertClassTable = database.prepare(`
+    INSERT INTO compendium_class_tables (
+      class_id, table_index, name
+    ) VALUES (?, ?, ?)
+  `);
+  const insertClassTableColumn = database.prepare(`
+    INSERT INTO compendium_class_table_columns (
+      class_id, table_index, column_index, label
+    ) VALUES (?, ?, ?, ?)
+  `);
+  const insertClassTableCell = database.prepare(`
+    INSERT INTO compendium_class_table_cells (
+      class_id, table_index, row_index, cell_index, value
+    ) VALUES (?, ?, ?, ?, ?)
   `);
 
   compendium.spells.forEach((spell, index) => {
@@ -359,9 +578,22 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
       toIntegerBoolean(spell.concentration),
       spell.damageNotation,
       spell.damageAbility,
+      spell.higherLevelDescription,
       spell.fullDescription,
       JSON.stringify(spell.classes)
     );
+
+    ensureSpellClassReferences(spell).forEach((reference, referenceIndex) => {
+      insertSpellClass.run(
+        spell.id,
+        referenceIndex,
+        reference.name,
+        reference.source,
+        reference.kind,
+        reference.className,
+        reference.classSource
+      );
+    });
   });
 
   compendium.monsters.forEach((monster, index) => {
@@ -432,19 +664,86 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
       entry.name,
       entry.source,
       entry.description,
+      entry.hitDieFaces,
+      JSON.stringify(entry.primaryAbilities),
+      JSON.stringify(entry.savingThrowProficiencies),
+      JSON.stringify(entry.startingProficiencies.armor),
+      JSON.stringify(entry.startingProficiencies.weapons),
+      JSON.stringify(entry.startingProficiencies.tools),
       JSON.stringify(entry.features),
       JSON.stringify(entry.tables)
     );
+
+    entry.features.forEach((feature, featureIndex) => {
+      insertClassFeature.run(
+        entry.id,
+        featureIndex,
+        feature.level,
+        feature.name,
+        feature.description,
+        feature.source,
+        feature.reference
+      );
+    });
+
+    entry.tables.forEach((table, tableIndex) => {
+      insertClassTable.run(entry.id, tableIndex, table.name);
+
+      table.columns.forEach((column, columnIndex) => {
+        insertClassTableColumn.run(entry.id, tableIndex, columnIndex, column);
+      });
+
+      table.rows.forEach((row, rowIndex) => {
+        row.forEach((cell, cellIndex) => {
+          insertClassTableCell.run(entry.id, tableIndex, rowIndex, cellIndex, cell);
+        });
+      });
+    });
   });
 }
 
 export function clearCompendiumTables(database: DatabaseSync) {
   database.exec(`
+    DELETE FROM compendium_class_table_cells;
+    DELETE FROM compendium_class_table_columns;
+    DELETE FROM compendium_class_tables;
+    DELETE FROM compendium_class_features;
+    DELETE FROM compendium_spell_classes;
     DELETE FROM compendium_classes;
     DELETE FROM compendium_feats;
     DELETE FROM compendium_monsters;
     DELETE FROM compendium_spells;
   `);
+}
+
+function ensureSpellClassReferences(spell: SpellEntry): SpellClassReference[] {
+  if (spell.classReferences.length > 0) {
+    return spell.classReferences;
+  }
+
+  return spell.classes.map((className) => ({
+    name: className,
+    source: "",
+    kind: "class" as const,
+    className,
+    classSource: ""
+  }));
+}
+
+function formatSpellClassReferenceDisplay(reference: SpellClassReference) {
+  if (reference.kind === "subclass" || reference.kind === "subclassVariant") {
+    return reference.className ? `${reference.name} (${reference.className})` : reference.name;
+  }
+
+  return reference.name;
+}
+
+function createClassTableKey(classId: string, tableIndex: number) {
+  return `${classId}:${tableIndex}`;
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
 }
 
 function parseJsonArray<T>(raw: string) {

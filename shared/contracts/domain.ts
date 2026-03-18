@@ -20,6 +20,7 @@ import type {
   ChatMessageKind,
   ClassEntry,
   ClassFeatureEntry,
+  ClassStartingProficiencies,
   ClassTableEntry,
   CompendiumData,
   CurrencyPouch,
@@ -51,6 +52,8 @@ import type {
   ResourceEntry,
   SkillEntry,
   SpellCastingTimeUnit,
+  SpellClassReference,
+  SpellClassReferenceKind,
   SpellComponents,
   SpellDurationUnit,
   SpellEntry,
@@ -324,6 +327,13 @@ export const spellDurationUnitSchema: z.ZodType<SpellDurationUnit> = z.enum([
   "special"
 ]);
 
+export const spellClassReferenceKindSchema: z.ZodType<SpellClassReferenceKind> = z.enum([
+  "class",
+  "classVariant",
+  "subclass",
+  "subclassVariant"
+]);
+
 export const spellComponentsSchema: z.ZodType<SpellComponents> = z.object({
   verbal: z.boolean(),
   somatic: z.boolean(),
@@ -331,6 +341,14 @@ export const spellComponentsSchema: z.ZodType<SpellComponents> = z.object({
   materialText: trimmedString,
   materialValue: finiteNumber,
   materialConsumed: z.boolean()
+});
+
+export const spellClassReferenceSchema: z.ZodType<SpellClassReference> = z.object({
+  name: trimmedString,
+  source: trimmedString,
+  kind: spellClassReferenceKindSchema,
+  className: trimmedString,
+  classSource: trimmedString
 });
 
 export const spellEntrySchema: z.ZodType<SpellEntry> = z.object({
@@ -350,8 +368,10 @@ export const spellEntrySchema: z.ZodType<SpellEntry> = z.object({
   concentration: z.boolean(),
   damageNotation: trimmedString,
   damageAbility: abilityKeySchema.nullable(),
+  higherLevelDescription: trimmedString,
   fullDescription: trimmedString,
-  classes: z.array(trimmedString)
+  classes: z.array(trimmedString),
+  classReferences: z.array(spellClassReferenceSchema)
 });
 
 export const featEntrySchema: z.ZodType<FeatEntry> = z.object({
@@ -367,7 +387,9 @@ export const featEntrySchema: z.ZodType<FeatEntry> = z.object({
 export const classFeatureEntrySchema: z.ZodType<ClassFeatureEntry> = z.object({
   level: finiteNumber,
   name: trimmedString,
-  description: trimmedString
+  description: trimmedString,
+  source: trimmedString,
+  reference: trimmedString
 });
 
 export const classTableEntrySchema: z.ZodType<ClassTableEntry> = z.object({
@@ -376,11 +398,21 @@ export const classTableEntrySchema: z.ZodType<ClassTableEntry> = z.object({
   rows: z.array(z.array(trimmedString))
 });
 
+export const classStartingProficienciesSchema: z.ZodType<ClassStartingProficiencies> = z.object({
+  armor: z.array(trimmedString),
+  weapons: z.array(trimmedString),
+  tools: z.array(trimmedString)
+});
+
 export const classEntrySchema: z.ZodType<ClassEntry> = z.object({
   id: trimmedString,
   name: trimmedString,
   source: trimmedString,
   description: trimmedString,
+  hitDieFaces: finiteNumber,
+  primaryAbilities: z.array(trimmedString),
+  savingThrowProficiencies: z.array(trimmedString),
+  startingProficiencies: classStartingProficienciesSchema,
   features: z.array(classFeatureEntrySchema),
   tables: z.array(classTableEntrySchema)
 });

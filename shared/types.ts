@@ -198,6 +198,7 @@ export type SpellSchool =
 export type SpellCastingTimeUnit = "action" | "bonus action" | "reaction" | "minute" | "hour";
 export type SpellRangeType = "feet" | "self" | "self emanation" | "touch" | "sight" | "unlimited" | "special";
 export type SpellDurationUnit = "instant" | "minute" | "hour" | "day" | "permanent" | "special";
+export type SpellClassReferenceKind = "class" | "classVariant" | "subclass" | "subclassVariant";
 
 export interface SpellComponents {
   verbal: boolean;
@@ -206,6 +207,14 @@ export interface SpellComponents {
   materialText: string;
   materialValue: number;
   materialConsumed: boolean;
+}
+
+export interface SpellClassReference {
+  name: string;
+  source: string;
+  kind: SpellClassReferenceKind;
+  className: string;
+  classSource: string;
 }
 
 export interface SpellEntry {
@@ -225,8 +234,10 @@ export interface SpellEntry {
   concentration: boolean;
   damageNotation: string;
   damageAbility: AbilityKey | null;
+  higherLevelDescription: string;
   fullDescription: string;
   classes: string[];
+  classReferences: SpellClassReference[];
 }
 
 export interface FeatEntry {
@@ -243,6 +254,8 @@ export interface ClassFeatureEntry {
   level: number;
   name: string;
   description: string;
+  source: string;
+  reference: string;
 }
 
 export interface ClassTableEntry {
@@ -251,11 +264,21 @@ export interface ClassTableEntry {
   rows: string[][];
 }
 
+export interface ClassStartingProficiencies {
+  armor: string[];
+  weapons: string[];
+  tools: string[];
+}
+
 export interface ClassEntry {
   id: string;
   name: string;
   source: string;
   description: string;
+  hitDieFaces: number;
+  primaryAbilities: string[];
+  savingThrowProficiencies: string[];
+  startingProficiencies: ClassStartingProficiencies;
   features: ClassFeatureEntry[];
   tables: ClassTableEntry[];
 }

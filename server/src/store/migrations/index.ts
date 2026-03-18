@@ -7,6 +7,7 @@ import { adminCompendiumMigration } from "./107_admin_compendium.js";
 import { actorTokenImagesMigration } from "./108_actor_token_images.js";
 import { monsterInitiativeMigration } from "./109_monster_initiative.js";
 import { monsterSpellcastingMigration } from "./110_monster_spellcasting.js";
+import { compendiumReferenceTablesMigration } from "./111_compendium_reference_tables.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -17,5 +18,6 @@ export const migrations = [
   adminCompendiumMigration,
   actorTokenImagesMigration,
   monsterInitiativeMigration,
-  monsterSpellcastingMigration
+  monsterSpellcastingMigration,
+  compendiumReferenceTablesMigration
 ];

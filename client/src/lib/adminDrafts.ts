@@ -215,8 +215,16 @@ export function spellFormToEntry(form: SpellFormState): Omit<SpellEntry, "id"> {
     concentration: form.concentration,
     damageNotation: form.damageNotation.trim(),
     damageAbility: form.damageAbility || null,
-    fullDescription: form.fullDescription.trim(),
-    classes: splitList(form.classesText)
+    higherLevelDescription: "",
+    fullDescription: form.fullDescription.trim() || form.description.trim(),
+    classes: splitList(form.classesText),
+    classReferences: splitList(form.classesText).map((name) => ({
+      name,
+      source: "",
+      kind: "class" as const,
+      className: name,
+      classSource: ""
+    }))
   };
 }
 
@@ -287,7 +295,21 @@ export function classFormToEntry(form: ClassFormState): Omit<ClassEntry, "id"> {
     name: form.name.trim(),
     source: form.source.trim(),
     description: form.description.trim(),
-    features: parseJsonArray<ClassEntry["features"][number]>(form.featuresJson),
+    hitDieFaces: 0,
+    primaryAbilities: [],
+    savingThrowProficiencies: [],
+    startingProficiencies: {
+      armor: [],
+      weapons: [],
+      tools: []
+    },
+    features: parseJsonArray<ClassEntry["features"][number]>(form.featuresJson).map((feature) => ({
+      level: feature.level,
+      name: feature.name,
+      description: feature.description,
+      source: feature.source ?? "",
+      reference: feature.reference ?? ""
+    })),
     tables: parseJsonArray<ClassEntry["tables"][number]>(form.tablesJson)
   };
 }

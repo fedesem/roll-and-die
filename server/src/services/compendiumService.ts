@@ -1,6 +1,7 @@
 import type {
   AbilityKey,
   ClassEntry,
+  ClassFeatureEntry,
   CompendiumData,
   FeatEntry,
   MonsterActionEntry,
@@ -9,6 +10,7 @@ import type {
   MonsterSkillBonus,
   MonsterSpellcastingEntry,
   MonsterTemplate,
+  SpellClassReference,
   SpellCastingTimeUnit,
   SpellDurationUnit,
   SpellEntry,
@@ -83,6 +85,16 @@ function sanitizeSpellEntry(input: unknown): SpellEntry {
   }
 
   const components = asObject(object.components ?? {}, "Spell components");
+  const classReferences = readObjectArray(object.classReferences).map(sanitizeSpellClassReference);
+  const classes = uniqueStrings([
+    ...readStringArray(object.classes),
+    ...classReferences.map(formatSpellClassReferenceDisplay)
+  ]);
+  const description = requireString(object.description, "Spell description");
+  const higherLevelDescription = readString(object.higherLevelDescription);
+  const fullDescription =
+    readString(object.fullDescription) || [description, higherLevelDescription].filter(Boolean).join("\n\n") || description;
+
   return {
     id: readString(object.id) || createId("spl"),
     name: requireString(object.name, "Spell name"),
@@ -107,8 +119,10 @@ function sanitizeSpellEntry(input: unknown): SpellEntry {
     concentration: readBoolean(object.concentration),
     damageNotation: readString(object.damageNotation),
     damageAbility: parseAbilityOrNull(object.damageAbility),
-    fullDescription: requireString(object.fullDescription, "Spell full description"),
-    classes: readStringArray(object.classes)
+    higherLevelDescription,
+    fullDescription,
+    classes,
+    classReferences: classReferences.length > 0 ? classReferences : classes.map(createBaseSpellClassReference)
   };
 }
 
@@ -284,15 +298,30 @@ function sanitizeClassEntry(input: unknown): ClassEntry {
     return sanitizeExternalClassEntry(object);
   }
 
+  const hitDieFaces = clampNumber(object.hitDieFaces, 0, 20, 0);
+  const primaryAbilities = readStringArray(object.primaryAbilities);
+  const savingThrowProficiencies = readStringArray(object.savingThrowProficiencies);
+  const startingProficienciesObject = asOptionalObject(object.startingProficiencies);
+
   return {
     id: readString(object.id) || createId("cls"),
     name: requireString(object.name, "Class name"),
     source: requireString(object.source, "Class source"),
     description: requireString(object.description, "Class description"),
+    hitDieFaces,
+    primaryAbilities,
+    savingThrowProficiencies,
+    startingProficiencies: {
+      armor: readStringArray(startingProficienciesObject?.armor),
+      weapons: readStringArray(startingProficienciesObject?.weapons),
+      tools: readStringArray(startingProficienciesObject?.tools)
+    },
     features: readObjectArray(object.features).map((entry) => ({
       level: clampNumber(entry.level, 1, 20, 1),
       name: requireString(entry.name, "Class feature name"),
-      description: requireString(entry.description, "Class feature description")
+      description: requireString(entry.description, "Class feature description"),
+      source: readString(entry.source),
+      reference: readString(entry.reference)
     })),
     tables: readObjectArray(object.tables).map((entry) => ({
       name: requireString(entry.name, "Class table name"),
@@ -312,6 +341,7 @@ function sanitizeExternalSpellEntry(object: Record<string, unknown>): SpellEntry
   const higherLevel = joinEntries(object.entriesHigherLevel);
   const description = joinEntries(object.entries);
   const fullDescription = [description, higherLevel].filter(Boolean).join("\n\n");
+  const classReferences = parseExternalSpellClassReferences(object.classes);
   const material = components.m;
   const materialObject = typeof material === "object" && material !== null ? material as Record<string, unknown> : null;
 
@@ -339,8 +369,10 @@ function sanitizeExternalSpellEntry(object: Record<string, unknown>): SpellEntry
     concentration: readBoolean(durationEntry.concentration) || readBoolean(object.concentration),
     damageNotation: readExternalSpellDamageNotation(object),
     damageAbility: parseAbilityOrNull(object.damageAbility),
+    higherLevelDescription: higherLevel,
     fullDescription: fullDescription || description || requireString(object.name, "Spell full description"),
-    classes: parseExternalSpellClasses(object.classes)
+    classes: uniqueStrings(classReferences.map(formatSpellClassReferenceDisplay)),
+    classReferences
   };
 }
 
@@ -368,14 +400,83 @@ function sanitizeExternalClassEntry(object: Record<string, unknown>): ClassEntry
       .map(([key, value]) => [key, value as Record<string, unknown>] as const)
   );
 
+  const primaryAbilities = readPrimaryAbilities(object.primaryAbility);
+  const savingThrowProficiencies = readStringArray(object.proficiency).map(toTitleCase);
+  const starting = asOptionalObject(object.startingProficiencies);
+
   return {
     id: readString(object.id) || createId("cls"),
     name: requireString(object.name, "Class name"),
     source: formatSourceWithPage(object, "Class"),
-    description: buildExternalClassDescription(object),
-    features: parseExternalClassFeatures(object.classFeatures, lookup),
+    description: joinEntries(object.entries) || readString(object.description),
+    hitDieFaces: clampNumber(asOptionalObject(object.hd)?.faces, 0, 20, 0),
+    primaryAbilities,
+    savingThrowProficiencies,
+    startingProficiencies: {
+      armor: readStringArray(starting?.armor),
+      weapons: readStringArray(starting?.weapons),
+      tools: readStringArray(starting?.tools)
+    },
+    features: parseExternalClassFeatures(object.classFeatures, lookup, requireString(object.name, "Class name"), readString(object.source)),
     tables: parseExternalClassTables(object.classTableGroups)
   };
+}
+
+function sanitizeSpellClassReference(input: Record<string, unknown>): SpellClassReference {
+  const kind = readString(input.kind) as SpellClassReference["kind"];
+  const normalizedKind: SpellClassReference["kind"] =
+    kind === "classVariant" || kind === "subclass" || kind === "subclassVariant" ? kind : "class";
+  const name = requireString(input.name, "Spell class reference name");
+  const source = readString(input.source);
+  const className = readString(input.className) || name;
+  const classSource = readString(input.classSource) || source;
+
+  return {
+    name,
+    source,
+    kind: normalizedKind,
+    className,
+    classSource
+  };
+}
+
+function buildSubclassSpellClassReference(
+  entry: Record<string, unknown>,
+  kind: "subclass" | "subclassVariant"
+): SpellClassReference | null {
+  const subclass = asOptionalObject(entry.subclass);
+  const classObject = asOptionalObject(entry.class);
+  const name = readString(subclass?.name);
+
+  if (!name) {
+    return null;
+  }
+
+  return sanitizeSpellClassReference({
+    name,
+    source: readString(subclass?.source),
+    kind,
+    className: readString(classObject?.name),
+    classSource: readString(classObject?.source)
+  });
+}
+
+function createBaseSpellClassReference(name: string): SpellClassReference {
+  return {
+    name,
+    source: "",
+    kind: "class",
+    className: name,
+    classSource: ""
+  };
+}
+
+function formatSpellClassReferenceDisplay(reference: SpellClassReference) {
+  if (reference.kind === "subclass" || reference.kind === "subclassVariant") {
+    return reference.className ? `${reference.name} (${reference.className})` : reference.name;
+  }
+
+  return reference.name;
 }
 
 function sanitizeMonsterAction(input: Record<string, unknown>): MonsterActionEntry {
@@ -487,7 +588,7 @@ function parseSpellSchool(value: unknown): SpellSchool {
 }
 
 function parseCastingTimeUnit(value: unknown): SpellCastingTimeUnit {
-  if (value === "action" || value === "bonus action" || value === "minute" || value === "hour") {
+  if (value === "action" || value === "bonus action" || value === "reaction" || value === "minute" || value === "hour") {
     return value;
   }
 
@@ -495,7 +596,7 @@ function parseCastingTimeUnit(value: unknown): SpellCastingTimeUnit {
 }
 
 function parseRangeType(value: unknown): SpellRangeType {
-  if (value === "feet" || value === "self" || value === "self emanation" || value === "touch") {
+  if (value === "feet" || value === "self" || value === "self emanation" || value === "touch" || value === "sight" || value === "unlimited" || value === "special") {
     return value;
   }
 
@@ -503,7 +604,7 @@ function parseRangeType(value: unknown): SpellRangeType {
 }
 
 function parseDurationUnit(value: unknown): SpellDurationUnit {
-  if (value === "instant" || value === "minute" || value === "hour") {
+  if (value === "instant" || value === "minute" || value === "hour" || value === "day" || value === "permanent" || value === "special") {
     return value;
   }
 
@@ -657,12 +758,44 @@ function parseExternalDurationValue(durationEntry: Record<string, unknown>) {
   return clampNumber(duration?.amount, 0, 100000, 0);
 }
 
-function parseExternalSpellClasses(value: unknown) {
+function parseExternalSpellClassReferences(value: unknown): SpellClassReference[] {
+  if (Array.isArray(value)) {
+    return uniqueBy(
+      readStringArray(value).map(createBaseSpellClassReference),
+      (entry) => [entry.kind, entry.name.toLowerCase(), entry.className.toLowerCase()].join("|")
+    );
+  }
+
   const object = asOptionalObject(value);
-  return [
-    ...readObjectArray(object?.fromClassList).map((entry) => readString(entry.name)),
-    ...readObjectArray(object?.fromClassListVariant).map((entry) => readString(entry.name))
-  ].filter(Boolean);
+
+  if (!object) {
+    return [];
+  }
+
+  const references = [
+    ...readObjectArray(object.fromClassList).map((entry) => sanitizeSpellClassReference({
+      name: readString(entry.name),
+      source: readString(entry.source),
+      kind: "class",
+      className: readString(entry.name),
+      classSource: readString(entry.source)
+    })),
+    ...readObjectArray(object.fromClassListVariant).map((entry) => sanitizeSpellClassReference({
+      name: readString(entry.name),
+      source: readString(entry.source),
+      kind: "classVariant",
+      className: readString(entry.name),
+      classSource: readString(entry.source)
+    })),
+    ...readObjectArray(object.fromSubclass).map((entry) => buildSubclassSpellClassReference(entry, "subclass")),
+    ...readObjectArray(object.fromSubclassVariant).map((entry) => buildSubclassSpellClassReference(entry, "subclassVariant"))
+  ]
+    .filter((entry): entry is SpellClassReference => Boolean(entry))
+    .filter((entry) => entry.name);
+
+  return uniqueBy(references, (entry) =>
+    [entry.kind, entry.name.toLowerCase(), entry.source.toLowerCase(), entry.className.toLowerCase(), entry.classSource.toLowerCase()].join("|")
+  );
 }
 
 function readExternalSpellDamageNotation(object: Record<string, unknown>) {
@@ -800,45 +933,215 @@ function buildExternalClassDescription(object: Record<string, unknown>) {
   return parts.join("\n");
 }
 
-function parseExternalClassFeatures(value: unknown, lookup: Map<string, Record<string, unknown>>) {
+function parseExternalClassFeatures(
+  value: unknown,
+  lookup: Map<string, Record<string, unknown>>,
+  className: string,
+  classSource: string
+): ClassFeatureEntry[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
-  return value.flatMap((entriesForLevel, levelIndex) => {
-    if (!Array.isArray(entriesForLevel)) {
-      return [];
+  const flattened: Array<{ entry: unknown; fallbackLevel: number | null }> = [];
+
+  value.forEach((entryOrEntries, levelIndex) => {
+    if (Array.isArray(entryOrEntries)) {
+      entryOrEntries.forEach((entry) => {
+        flattened.push({
+          entry,
+          fallbackLevel: levelIndex + 1
+        });
+      });
+      return;
     }
 
-    return entriesForLevel
-      .map((entry) => {
-        const ref = typeof entry === "string"
-          ? entry
-          : typeof entry === "object" && entry !== null
-            ? readString((entry as Record<string, unknown>).classFeature)
-            : "";
-
-        const feature = lookup.get(ref.toLowerCase()) ?? null;
-        const fallbackName = ref ? extractPipeDisplayName(ref) : "";
-
-        return {
-          level: levelIndex + 1,
-          name: feature ? requireString(feature.name, "Class feature name") : fallbackName,
-          description: feature ? joinEntries(feature.entries) : ""
-        };
-      })
-      .filter((entry) => entry.name);
+    flattened.push({
+      entry: entryOrEntries,
+      fallbackLevel: null
+    });
   });
+
+  return flattened
+    .map(({ entry, fallbackLevel }) => resolveExternalClassFeatureEntry(entry, lookup, className, classSource, fallbackLevel))
+    .filter((entry): entry is ClassFeatureEntry => entry !== null);
 }
 
 function parseExternalClassTables(value: unknown) {
   return readObjectArray(value).map((entry) => ({
     name: readString(entry.title) || readString(entry.name) || "Class Table",
-    columns: readStringArray(entry.colLabels),
+    columns: readArray(entry.colLabels).map((label) => renderTableCell(label)).filter(Boolean),
     rows: Array.isArray(entry.rows)
-      ? entry.rows.map((row) => (Array.isArray(row) ? row.map((cell) => renderRulesText(String(cell ?? ""))) : []))
+      ? entry.rows.map((row) => (Array.isArray(row) ? row.map((cell) => renderTableCell(cell)) : []))
       : []
   }));
+}
+
+function resolveExternalClassFeatureEntry(
+  value: unknown,
+  lookup: Map<string, Record<string, unknown>>,
+  className: string,
+  classSource: string,
+  fallbackLevel: number | null
+): ClassFeatureEntry | null {
+  if (typeof value === "string") {
+    return buildExternalClassFeatureFromReference(value, lookup, className, classSource, fallbackLevel);
+  }
+
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+
+  const object = value as Record<string, unknown>;
+  const reference =
+    readString(object.classFeature) ||
+    readString(object.subclassFeature) ||
+    readString(object.feature) ||
+    readString(object.ref);
+
+  if (reference) {
+    return buildExternalClassFeatureFromReference(reference, lookup, className, classSource, fallbackLevel);
+  }
+
+  const inlineName = readString(object.name) || `Level ${fallbackLevel ?? 1} Feature`;
+  const inlineDescription = renderEntryNode(object.entry) || joinEntries(object.entries) || joinEntries(object.headerEntries);
+  const inlineLevel = readExternalClassFeatureLevel(object.level) ?? fallbackLevel ?? 1;
+
+  if (!inlineName && !inlineDescription) {
+    return null;
+  }
+
+  return {
+    level: inlineLevel,
+    name: inlineName,
+    description: inlineDescription,
+    source: readString(object.source) || classSource,
+    reference: readString(object.reference)
+  };
+}
+
+function buildExternalClassFeatureFromReference(
+  reference: string,
+  lookup: Map<string, Record<string, unknown>>,
+  className: string,
+  classSource: string,
+  fallbackLevel: number | null
+): ClassFeatureEntry | null {
+  const parsedReference = parseExternalClassFeatureReference(reference, className);
+  const feature = findExternalClassFeatureData(parsedReference, lookup);
+  const level = feature ? readExternalClassFeatureLevel(feature.level) : null;
+  const description = feature ? getExternalClassFeatureDescription(feature) : "";
+  const resolvedName = feature ? requireString(feature.name, "Class feature name") : parsedReference.name;
+
+  if (!resolvedName) {
+    return null;
+  }
+
+  return {
+    level: level ?? parsedReference.level ?? fallbackLevel ?? 1,
+    name: resolvedName,
+    description,
+    source: feature ? readString(feature.source) || classSource : parsedReference.source || classSource,
+    reference
+  };
+}
+
+function parseExternalClassFeatureReference(reference: string, fallbackClassName: string) {
+  const trimmed = reference.trim();
+  const parts = trimmed.split("|").map((part) => part.trim());
+
+  return {
+    name: parts[0] || extractPipeDisplayName(trimmed),
+    className: parts[1] || fallbackClassName,
+    classSource: parts[2] || "",
+    level: readExternalClassFeatureLevel(parts[3]),
+    source: parts[4] || ""
+  };
+}
+
+function findExternalClassFeatureData(
+  reference: ReturnType<typeof parseExternalClassFeatureReference>,
+  lookup: Map<string, Record<string, unknown>>
+) {
+  const key = [reference.name, reference.className, reference.source, reference.level ?? ""]
+    .filter(Boolean)
+    .join("|")
+    .toLowerCase();
+
+  const directMatch = lookup.get(key);
+  if (directMatch) {
+    return directMatch;
+  }
+
+  const normalizedName = reference.name.toLowerCase();
+  const normalizedClassName = reference.className.toLowerCase();
+  const normalizedSource = reference.source.toLowerCase();
+  const normalizedClassSource = reference.classSource.toLowerCase();
+
+  return Array.from(lookup.values()).find((entry) => {
+    const entryName = readString(entry.name).toLowerCase();
+    const entryClassName = readString(entry.className).toLowerCase();
+    const entrySource = readString(entry.source).toLowerCase();
+    const entryClassSource = readString(entry.classSource).toLowerCase();
+    const entryLevel = readExternalClassFeatureLevel(entry.level);
+
+    if (entryName !== normalizedName) {
+      return false;
+    }
+
+    if (normalizedClassName && entryClassName && entryClassName !== normalizedClassName) {
+      return false;
+    }
+
+    if (reference.level !== null && entryLevel !== null && entryLevel !== reference.level) {
+      return false;
+    }
+
+    if (normalizedSource && entrySource && entrySource !== normalizedSource) {
+      return false;
+    }
+
+    if (normalizedClassSource && entryClassSource && entryClassSource !== normalizedClassSource) {
+      return false;
+    }
+
+    return true;
+  }) ?? null;
+}
+
+function readExternalClassFeatureLevel(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return clampNumber(value, 1, 20, 1);
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed)) {
+      return clampNumber(parsed, 1, 20, 1);
+    }
+  }
+
+  return null;
+}
+
+function getExternalClassFeatureDescription(feature: Record<string, unknown>) {
+  return renderEntryNode(feature.entry) || joinEntries(feature.entries) || joinEntries(feature.headerEntries);
+}
+
+function renderTableCell(value: unknown) {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (typeof value !== "object" || value === null) {
+    return "";
+  }
+
+  return renderEntryNode(value);
 }
 
 function readPrimaryAbilities(value: unknown) {
@@ -1364,4 +1667,26 @@ function renderEntryNode(value: unknown): string {
 
 function readArray(value: unknown) {
   return Array.isArray(value) ? value : [];
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function uniqueBy<T>(values: T[], getKey: (value: T) => string) {
+  const seen = new Set<string>();
+  const next: T[] = [];
+
+  values.forEach((value) => {
+    const key = getKey(value);
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    next.push(value);
+  });
+
+  return next;
 }

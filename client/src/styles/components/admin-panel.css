@@ -1,10 +1,13 @@
 .admin-page-toolbar {
   display: grid;
   gap: 0.9rem;
+  align-content: start;
 }
 
 .admin-tabbar {
-  align-items: stretch;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
 }
 
 .admin-tabbar button,
@@ -15,6 +18,11 @@
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
+}
+
+.admin-tabbar button {
+  flex: 0 0 auto;
+  min-width: 10.5rem;
 }
 
 .admin-mode-bar {

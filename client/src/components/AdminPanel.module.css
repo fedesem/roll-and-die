@@ -5,10 +5,12 @@
 
 .shell {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 1rem;
   min-height: calc(100dvh - 7.25rem);
   padding: 0;
   overflow: hidden;
+  align-content: start;
   border: 1px solid rgba(245, 198, 92, 0.14);
   border-radius: 0;
   background:
@@ -36,10 +38,11 @@
 
 .staticShell {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 1rem;
   min-height: 0;
   padding: 0 1.25rem 1.25rem;
+  align-content: start;
 }
 
 .upperGrid {

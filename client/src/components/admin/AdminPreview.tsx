@@ -108,10 +108,18 @@ export function SpellPreviewCard({
             {spell.damageAbility ? ` + ${spell.damageAbility.toUpperCase()}` : ""}
           </p>
         )}
-        {spell.fullDescription && <p className="admin-preview-body"><RulesText text={spell.fullDescription} spellEntries={[spell]} featEntries={featEntries} classEntries={classEntries} /></p>}
-        {spell.classes.length > 0 && (
+        {spell.higherLevelDescription && (
+          <p className="admin-preview-body">
+            <strong>Higher Levels.</strong>{" "}
+            <RulesText text={spell.higherLevelDescription} spellEntries={[spell]} featEntries={featEntries} classEntries={classEntries} />
+          </p>
+        )}
+        {spell.fullDescription && spell.fullDescription !== spell.description && (
+          <p className="admin-preview-body"><RulesText text={spell.fullDescription} spellEntries={[spell]} featEntries={featEntries} classEntries={classEntries} /></p>
+        )}
+        {(spell.classReferences.length > 0 || spell.classes.length > 0) && (
           <p className="admin-preview-footnote">
-            <strong>Classes:</strong> {spell.classes.join(", ")}
+            <strong>Classes:</strong> {formatSpellClassList(spell)}
           </p>
         )}
       </div>
@@ -265,14 +273,24 @@ export function ClassPreviewCard({
   spellEntries?: SpellEntry[];
   featEntries?: FeatEntry[];
 }) {
+  const normalizedDescription = normalizeClassPreviewDescription(entry);
+
   return (
     <PreviewFrame eyebrow="Class" title={entry.name} source={entry.source}>
       <div className="admin-preview-stack">
-        <p className="admin-preview-body"><RulesText text={entry.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} /></p>
+        <div className="admin-preview-rules">
+          {entry.hitDieFaces > 0 && <div><strong>Hit Die:</strong> d{entry.hitDieFaces}</div>}
+          {entry.primaryAbilities.length > 0 && <div><strong>Primary Ability:</strong> {entry.primaryAbilities.join(" or ")}</div>}
+          {entry.savingThrowProficiencies.length > 0 && <div><strong>Saving Throws:</strong> {entry.savingThrowProficiencies.join(", ")}</div>}
+          {hasStartingProficiencies(entry) && <div><strong>Starting Proficiencies:</strong> {formatStartingProficiencies(entry)}</div>}
+        </div>
+        {normalizedDescription ? (
+          <p className="admin-preview-body"><RulesText text={normalizedDescription} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} /></p>
+        ) : null}
         {entry.features.length > 0 && (
           <Section title="Features">
             {entry.features.map((feature) => (
-              <p key={`${feature.level}-${feature.name}`} className="admin-preview-body">
+              <p key={feature.reference || `${feature.level}-${feature.name}`} className="admin-preview-body">
                 <strong>Level {feature.level}: {feature.name}.</strong> <RulesText text={feature.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
               </p>
             ))}
@@ -280,13 +298,15 @@ export function ClassPreviewCard({
         )}
         {entry.tables.map((table) => (
           <section key={table.name} className="admin-preview-section">
-            <h4>{table.name}</h4>
+            <h4><RulesText text={table.name} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} /></h4>
             <div className="admin-class-table-wrap">
               <table className="admin-class-table">
                 <thead>
                   <tr>
                     {table.columns.map((column) => (
-                      <th key={column}>{column}</th>
+                      <th key={column}>
+                        <RulesText text={column} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -294,7 +314,9 @@ export function ClassPreviewCard({
                   {table.rows.map((row, rowIndex) => (
                     <tr key={`${table.name}-${rowIndex}`}>
                       {row.map((cell, cellIndex) => (
-                        <td key={`${table.name}-${rowIndex}-${cellIndex}`}>{cell}</td>
+                        <td key={`${table.name}-${rowIndex}-${cellIndex}`}>
+                          <RulesText text={cell} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
+                        </td>
                       ))}
                     </tr>
                   ))}
@@ -366,6 +388,58 @@ function ActionSection({
 
 function RulesText({ text, spellEntries = [], featEntries = [], classEntries = [] }: { text: string } & RulesLookupData) {
   return <RulesTextInner text={text} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} disableHover={false} />;
+}
+
+function formatSpellClassList(spell: SpellEntry | Omit<SpellEntry, "id">) {
+  if (spell.classReferences.length > 0) {
+    return Array.from(
+      new Set(
+        spell.classReferences.map((reference) =>
+          reference.kind === "subclass" || reference.kind === "subclassVariant"
+            ? `${reference.name} (${reference.className})`
+            : reference.name
+        )
+      )
+    ).join(", ");
+  }
+
+  return spell.classes.join(", ");
+}
+
+function hasStartingProficiencies(entry: ClassEntry | Omit<ClassEntry, "id">) {
+  return (
+    entry.startingProficiencies.armor.length > 0 ||
+    entry.startingProficiencies.weapons.length > 0 ||
+    entry.startingProficiencies.tools.length > 0
+  );
+}
+
+function formatStartingProficiencies(entry: ClassEntry | Omit<ClassEntry, "id">) {
+  const parts = [
+    entry.startingProficiencies.armor.length > 0 ? `Armor: ${entry.startingProficiencies.armor.join(", ")}` : "",
+    entry.startingProficiencies.weapons.length > 0 ? `Weapons: ${entry.startingProficiencies.weapons.join(", ")}` : "",
+    entry.startingProficiencies.tools.length > 0 ? `Tools: ${entry.startingProficiencies.tools.join(", ")}` : ""
+  ].filter(Boolean);
+
+  return parts.join(" • ");
+}
+
+function normalizeClassPreviewDescription(entry: ClassEntry | Omit<ClassEntry, "id">) {
+  const duplicatePrefixes = [
+    "Primary Ability:",
+    "Hit Die:",
+    "Saving Throw Proficiencies:",
+    "Armor Training:",
+    "Starting Proficiencies:",
+    "Weapon Proficiencies:",
+    "Tool Proficiencies:"
+  ];
+
+  return entry.description
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !duplicatePrefixes.some((prefix) => line.startsWith(prefix)))
+    .join("\n");
 }
 
 function RulesTextInner({
