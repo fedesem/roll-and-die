@@ -1,5 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Castle, Eye, FilePlus2, Map as MapIcon, Minus, Pencil, Plus, ScrollText, Shield, Trash2, Users } from "lucide-react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState, type FormEvent } from "react";
 
 import type {
   ActorKind,
@@ -22,21 +21,21 @@ import type {
 
 import { apiRequest } from "./api";
 import { AdminPanel } from "./components/AdminPanel";
-import { BoardCanvas } from "./components/BoardCanvas";
-import { CharacterSheet } from "./components/CharacterSheet";
-import { ChatPanel } from "./components/ChatPanel";
-import { MapConfigurator } from "./components/MapConfigurator";
-import { WorkspaceModal } from "./components/WorkspaceModal";
+import { AppTopbar } from "./components/AppTopbar";
 import { createClientActorDraft, createClientMapDraft, cloneMap, formatMonsterModifier } from "./lib/drafts";
 import { toErrorMessage } from "./lib/errors";
 import { readJson, writeJson } from "./lib/storage";
+import { AuthPage, type AuthMode } from "./pages/AuthPage";
+import { CampaignLoadingPage } from "./pages/CampaignLoadingPage";
+import { CampaignPage } from "./pages/CampaignPage";
+import { CampaignsPage } from "./pages/CampaignsPage";
 import { useAppRouter } from "./router";
+import { useRoomConnection } from "./services/roomConnection";
 import { computeVisibleCellsForUser, tokenCellKey } from "@shared/vision";
 
 const sessionStorageKey = "dnd-board-session";
 const selectedCampaignStorageKey = "dnd-board-selected-campaign";
 
-type AuthMode = "login" | "register";
 type ActorTypeFilter = "all" | ActorKind;
 
 interface BannerState {
@@ -93,7 +92,6 @@ export default function App() {
   const [viewportRecall, setViewportRecall] = useState<MapViewportRecall | null>(null);
   const [sharedMovementPreviews, setSharedMovementPreviews] = useState<Record<string, SharedMovementPreviewState>>({});
   const [sharedMeasurePreviews, setSharedMeasurePreviews] = useState<Record<string, SharedMeasurePreviewState>>({});
-  const roomSocketRef = useRef<WebSocket | null>(null);
 
   const deferredMonsterQuery = useDeferredValue(monsterQuery);
 
@@ -167,169 +165,102 @@ export default function App() {
     }
   }, [navigate, route.name, session]);
 
-  useEffect(() => {
-    if (!session || !selectedCampaignId || route.name !== "campaign") {
-      if (roomSocketRef.current) {
-        roomSocketRef.current.close();
-        roomSocketRef.current = null;
-      }
-
-      setRoomStatus("offline");
-      setSnapshot(null);
-      setMapPings([]);
-      setViewportRecall(null);
-      setSharedMovementPreviews({});
-      setSharedMeasurePreviews({});
-      return;
-    }
-
+  const handleRoomDisconnect = useCallback(() => {
     setSnapshot(null);
-    setRoomStatus("connecting");
-    let disposed = false;
-    let socket: WebSocket | null = null;
+    setMapPings([]);
+    setViewportRecall(null);
+    setSharedMovementPreviews({});
+    setSharedMeasurePreviews({});
+  }, []);
 
-    const handleOpen = () => {
-      if (!socket) {
-        return;
-      }
+  const handleRoomStatusChange = useCallback((status: "offline" | "connecting" | "online") => {
+    setRoomStatus(status);
+  }, []);
 
-      socket.send(
-        JSON.stringify({
-          type: "room:join",
-          token: session.token,
-          campaignId: selectedCampaignId
-        } satisfies ClientRoomMessage)
-      );
-    };
+  const handleRoomSnapshot = useCallback((nextSnapshot: CampaignSnapshot) => {
+    setSnapshot(nextSnapshot);
+  }, []);
 
-    const handleMessage = (event: MessageEvent<string>) => {
-      try {
-        const message = JSON.parse(event.data) as ServerRoomMessage;
-
-        if (message.type === "room:snapshot") {
-          setRoomStatus("online");
-          startTransition(() => {
-            setSnapshot(message.snapshot);
-          });
-          return;
+  const handleMovementPreview = useCallback((actorId: string, mapId: string, preview: TokenMovementPreview | null) => {
+    setSharedMovementPreviews((current) => {
+      if (!preview) {
+        if (!current[actorId]) {
+          return current;
         }
 
-        if (message.type === "room:token-preview") {
-          setSharedMovementPreviews((current) => {
-            if (!message.preview) {
-              if (!current[message.actorId]) {
-                return current;
-              }
-
-              const next = { ...current };
-              delete next[message.actorId];
-              return next;
-            }
-
-            return {
-              ...current,
-              [message.actorId]: {
-                actorId: message.actorId,
-                mapId: message.mapId,
-                preview: message.preview
-              }
-            };
-          });
-          return;
-        }
-
-        if (message.type === "room:measure-preview") {
-          setSharedMeasurePreviews((current) => {
-            if (!message.preview) {
-              if (!current[message.userId]) {
-                return current;
-              }
-
-              const next = { ...current };
-              delete next[message.userId];
-              return next;
-            }
-
-            return {
-              ...current,
-              [message.userId]: {
-                userId: message.userId,
-                mapId: message.mapId,
-                preview: message.preview
-              }
-            };
-          });
-          return;
-        }
-
-        if (message.type === "room:ping") {
-          enqueuePing(message.ping);
-          return;
-        }
-
-        if (message.type === "room:view-recall") {
-          setViewportRecall(message.recall);
-          return;
-        }
-
-        if (message.type === "room:joined") {
-          setRoomStatus("online");
-          return;
-        }
-
-        if (message.type === "room:error") {
-          setBanner({ tone: "error", text: message.message });
-        }
-      } catch {
-        setBanner({ tone: "error", text: "Received an invalid realtime payload." });
-      }
-    };
-
-    const handleClose = () => {
-      if (!disposed) {
-        setRoomStatus("offline");
-      }
-    };
-
-    const handleError = () => {
-      if (!disposed) {
-        setBanner({ tone: "error", text: "Room connection interrupted." });
-      }
-    };
-
-    const connectTimeoutId = window.setTimeout(() => {
-      if (disposed) {
-        return;
+        const next = { ...current };
+        delete next[actorId];
+        return next;
       }
 
-      socket = new WebSocket(buildRoomSocketUrl());
-      roomSocketRef.current = socket;
-      socket.addEventListener("open", handleOpen);
-      socket.addEventListener("message", handleMessage);
-      socket.addEventListener("close", handleClose);
-      socket.addEventListener("error", handleError);
-    }, 0);
+      return {
+        ...current,
+        [actorId]: {
+          actorId,
+          mapId,
+          preview
+        }
+      };
+    });
+  }, []);
 
-    return () => {
-      disposed = true;
-      window.clearTimeout(connectTimeoutId);
+  const handleMeasurePreview = useCallback((userId: string, mapId: string, preview: MeasurePreview | null) => {
+    setSharedMeasurePreviews((current) => {
+      if (!preview) {
+        if (!current[userId]) {
+          return current;
+        }
 
-      socket?.removeEventListener("open", handleOpen);
-      socket?.removeEventListener("message", handleMessage);
-      socket?.removeEventListener("close", handleClose);
-      socket?.removeEventListener("error", handleError);
-
-      if (roomSocketRef.current === socket) {
-        roomSocketRef.current = null;
+        const next = { ...current };
+        delete next[userId];
+        return next;
       }
 
-      if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
-        socket.close();
-      }
+      return {
+        ...current,
+        [userId]: {
+          userId,
+          mapId,
+          preview
+        }
+      };
+    });
+  }, []);
 
-      setRoomStatus("offline");
-    };
-  }, [route.name, selectedCampaignId, session?.token]);
+  const enqueuePing = useCallback((ping: MapPing) => {
+    setMapPings((current) => (current.some((entry) => entry.id === ping.id) ? current : [...current, ping]));
+    window.setTimeout(() => {
+      setMapPings((current) => current.filter((entry) => entry.id !== ping.id));
+    }, 2200);
+  }, []);
+
+  const handleRoomRecall = useCallback((recall: MapViewportRecall) => {
+    setViewportRecall(recall);
+  }, []);
+
+  const handleRoomError = useCallback((message: string) => {
+    setBanner({ tone: "error", text: message });
+  }, []);
+
+  const { sendRoomMessage } = useRoomConnection({
+    enabled: Boolean(session && selectedCampaignId && route.name === "campaign"),
+    campaignId: selectedCampaignId,
+    token: session?.token,
+    onDisconnect: handleRoomDisconnect,
+    onStatusChange: handleRoomStatusChange,
+    onSnapshot: handleRoomSnapshot,
+    onMovementPreview: handleMovementPreview,
+    onMeasurePreview: handleMeasurePreview,
+    onPing: enqueuePing,
+    onViewRecall: handleRoomRecall,
+    onError: handleRoomError
+  });
+
+  useEffect(() => {
+    if (route.name !== "campaign") {
+      setSnapshot(null);
+    }
+  }, [route.name]);
 
   useEffect(() => {
     setMapPings([]);
@@ -655,23 +586,6 @@ export default function App() {
     } catch (error) {
       setBanner({ tone: "error", text: toErrorMessage(error) });
     }
-  }
-
-  async function sendRoomMessage(message: ClientRoomMessage) {
-    const socket = roomSocketRef.current;
-
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      throw new Error("Room connection is not ready yet.");
-    }
-
-    socket.send(JSON.stringify(message));
-  }
-
-  function enqueuePing(ping: MapPing) {
-    setMapPings((current) => (current.some((entry) => entry.id === ping.id) ? current : [...current, ping]));
-    window.setTimeout(() => {
-      setMapPings((current) => current.filter((entry) => entry.id !== ping.id));
-    }, 2200);
   }
 
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1193,110 +1107,98 @@ export default function App() {
     }
   }
 
+  function handleAuthFormChange(field: "name" | "email" | "password", value: string) {
+    setAuthForm((current) => ({
+      ...current,
+      [field]: value
+    }));
+  }
+
+  function openMapEditorForCreate() {
+    setNewMapDraft(createClientMapDraft("New Map"));
+    setMapEditorMode("create");
+  }
+
+  function openMapEditorForEdit(map: CampaignMap) {
+    setSelectedMapId(map.id);
+    setMapDraft(cloneMap(map));
+    setMapEditorMode("edit");
+  }
+
+  function changeEditingMap(nextMap: CampaignMap) {
+    if (mapEditorMode === "create") {
+      setNewMapDraft(nextMap);
+      return;
+    }
+
+    setMapDraft(nextMap);
+  }
+
+  function reloadEditingMap() {
+    if (mapEditorMode === "create") {
+      setNewMapDraft(createClientMapDraft("New Map"));
+      return;
+    }
+
+    if (selectedMap) {
+      setMapDraft(cloneMap(selectedMap));
+    }
+  }
+
+  function saveEditingMap() {
+    if (mapEditorMode === "create") {
+      void createMap(newMapDraft);
+      return;
+    }
+
+    if (mapDraft) {
+      void saveMap(mapDraft);
+    }
+  }
+
+  function setEditingMapActive() {
+    if (!editingMap) {
+      return;
+    }
+
+    void sendRoomMessage({ type: "map:set-active", mapId: editingMap.id }).catch((error: unknown) => {
+      setBanner({ tone: "error", text: toErrorMessage(error) });
+    });
+  }
+
+  function showMap(mapId: string) {
+    void sendRoomMessage({ type: "map:set-active", mapId }).catch((error: unknown) => {
+      setBanner({ tone: "error", text: toErrorMessage(error) });
+    });
+  }
+
   if (!session) {
     return (
-      <div className="app-shell auth-shell">
-        <section className="hero-panel">
-          <p className="eyebrow">Dungeon & Dragons 5e 2024</p>
-          <h1>Campaign rooms, tactical maps, sheet rolls, line of sight, and monsters in one PWA.</h1>
-          <p className="lede">
-            Create a room, invite DMs or players, build characters and NPCs, pull monsters from a bestiary, and run the entire scene on a shared board.
-          </p>
-          <div className="hero-grid">
-            <article className="hero-card">
-              <h2>Interactive sheet</h2>
-              <p>Dark, panel-based character sheet inspired by the layout you provided, with roll buttons across abilities and skills.</p>
-            </article>
-            <article className="hero-card">
-              <h2>Encounter board</h2>
-              <p>Multiple maps, adjustable grids, line of sight, token movement, drawing, and walls on a shared board.</p>
-            </article>
-            <article className="hero-card">
-              <h2>Room workflow</h2>
-              <p>One chat per campaign, invite codes with roles, and persistent campaign state on the backend.</p>
-            </article>
-          </div>
-        </section>
-
-        <section className="auth-panel">
-          <div className="segmented">
-            <button className={authMode === "login" ? "is-active" : ""} type="button" onClick={() => setAuthMode("login")}>
-              Login
-            </button>
-            <button className={authMode === "register" ? "is-active" : ""} type="button" onClick={() => setAuthMode("register")}>
-              Register
-            </button>
-          </div>
-
-          <form className="stack-form" onSubmit={handleAuthSubmit}>
-            {authMode === "register" && (
-              <label>
-                Name
-                <input
-                  value={authForm.name}
-                  onChange={(event) => setAuthForm({ ...authForm, name: event.target.value })}
-                  required
-                />
-              </label>
-            )}
-            <label>
-              Email
-              <input
-                type="email"
-                value={authForm.email}
-                onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })}
-                required
-              />
-            </label>
-            <label>
-              Password
-              <input
-                type="password"
-                value={authForm.password}
-                onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })}
-                required
-              />
-            </label>
-            <button className="accent-button" type="submit">
-              {authMode === "login" ? "Enter the table" : "Create account"}
-            </button>
-          </form>
-
-        </section>
-      </div>
+      <AuthPage
+        authMode={authMode}
+        authForm={authForm}
+        onAuthModeChange={setAuthMode}
+        onAuthFormChange={handleAuthFormChange}
+        onSubmit={handleAuthSubmit}
+      />
     );
   }
 
   return (
     <div className={`app-shell workspace-shell${selectedCampaignId && snapshot ? " is-room-active" : ""}`}>
-      <header className="topbar">
-        <div className="topbar-brand">
-          <p className="eyebrow">Logged in as {session.user.name}</p>
-          <h1>DnD 2024 Board</h1>
-        </div>
-        {route.name === "campaign" && campaign && (
-          <div className="topbar-room-status">
-            <span className="status-chip status-title">{campaign.name}</span>
-            <span className="status-chip">{activeMap?.name ?? "No map"}</span>
-            <span className="status-chip">{role.toUpperCase()}</span>
-            <span className={`status-chip status-${roomStatus}`}>{roomStatus}</span>
-          </div>
-        )}
-        <div className="topbar-actions">
-          {session.user.isAdmin && (
-            <button type="button" className={route.name === "admin" ? "accent-button" : ""} onClick={() => navigate({ name: "admin" })}>
-              <Shield size={15} />
-              <span>Admin</span>
-            </button>
-          )}
-          <button type="button" onClick={() => setSelectedCampaignId(null)}>
-            Campaigns
-          </button>
-          <button type="button" onClick={handleLogout}>
-            Logout
-          </button>
-        </div>
-      </header>
+      <AppTopbar
+        userName={session.user.name}
+        isAdmin={session.user.isAdmin}
+        isAdminRoute={route.name === "admin"}
+        campaignName={campaign?.name}
+        activeMapName={activeMap?.name}
+        role={route.name === "campaign" ? role : undefined}
+        roomStatus={roomStatus}
+        showRoomStatus={route.name === "campaign" && Boolean(campaign)}
+        onOpenAdmin={() => navigate({ name: "admin" })}
+        onOpenCampaigns={() => setSelectedCampaignId(null)}
+        onLogout={handleLogout}
+      />
 
       {route.name === "admin" ? (
         <AdminPanel
@@ -1307,769 +1209,96 @@ export default function App() {
           }}
         />
       ) : !selectedCampaignId ? (
-        <main className="dashboard-grid">
-          <section className="dark-card">
-            <div className="panel-head">
-              <div>
-                <p className="panel-label">Create</p>
-                <h2>New campaign room</h2>
-              </div>
-            </div>
-            <div className="inline-form">
-              <input
-                placeholder="Campaign name"
-                value={createCampaignName}
-                onChange={(event) => setCreateCampaignName(event.target.value)}
-              />
-              <button className="accent-button" type="button" onClick={() => void createCampaign()}>
-                Create
-              </button>
-            </div>
-          </section>
-
-          <section className="dark-card">
-            <div className="panel-head">
-              <div>
-                <p className="panel-label">Join</p>
-                <h2>Accept invite code</h2>
-              </div>
-            </div>
-            <div className="inline-form">
-              <input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="ABC123" />
-              <button className="accent-button" type="button" onClick={() => void acceptInvite()}>
-                Join
-              </button>
-            </div>
-          </section>
-
-          <section className="dark-card span-full">
-            <div className="panel-head">
-              <div>
-                <p className="panel-label">Access</p>
-                <h2>Your campaigns</h2>
-              </div>
-            </div>
-            <p className="panel-caption">
-              Only campaigns you created or joined through an invite are listed here.
-            </p>
-            <div className="campaign-grid">
-              {campaigns.map((entry) => (
-                <button key={entry.id} className="campaign-card" type="button" onClick={() => setSelectedCampaignId(entry.id)}>
-                  <div className="campaign-card-head">
-                    <strong>{entry.name}</strong>
-                    <span className="badge">{entry.role}</span>
-                  </div>
-                  <p>
-                    {entry.memberCount} members • {entry.actorCount} actors • {entry.mapCount} maps
-                  </p>
-                  <small>{new Date(entry.createdAt).toLocaleString()}</small>
-                </button>
-              ))}
-              {campaigns.length === 0 && (
-                <p className="empty-state">No accessible campaigns yet. Create one or join via invite code.</p>
-              )}
-            </div>
-          </section>
-
-        </main>
+        <CampaignsPage
+          campaigns={campaigns}
+          createCampaignName={createCampaignName}
+          joinCode={joinCode}
+          onCreateCampaignNameChange={setCreateCampaignName}
+          onJoinCodeChange={setJoinCode}
+          onCreateCampaign={() => void createCampaign()}
+          onAcceptInvite={() => void acceptInvite()}
+          onOpenCampaign={(campaignId) => setSelectedCampaignId(campaignId)}
+        />
       ) : route.name !== "campaign" || !snapshot ? (
-        <main className="dashboard-grid">
-          <section className="dark-card span-full">
-            <div className="panel-head">
-              <div>
-                <p className="panel-label">Room</p>
-                <h2>Connecting to campaign</h2>
-              </div>
-              <span className="badge subtle">{roomStatus}</span>
-            </div>
-            <p className="panel-caption">Loading the active map, room chat, and current visibility state.</p>
-          </section>
-        </main>
+        <CampaignLoadingPage roomStatus={roomStatus} />
       ) : (
-        <>
-          <main className="table-layout">
-            <section className="table-map-shell">
-              <BoardCanvas
-                map={activeMap}
-                tokens={campaign.tokens}
-                actors={campaign.actors}
-                selectedActor={selectedActor}
-                role={role}
-                currentUserId={session.user.id}
-                playerSeenCells={boardSeenCells}
-                fogPreviewUserId={fogPreviewUserId}
-                fogPlayers={playerMembers.map((member) => ({ userId: member.userId, name: member.name }))}
-                dmFogEnabled={dmFogEnabled}
-                dmFogUserId={dmFogUserId}
-                onSetDmFogEnabled={setDmFogEnabled}
-                onSetDmFogUserId={setDmFogUserId}
-                onResetFog={resetFog}
-                onSelectActor={setSelectedActorId}
-                onSelectedMapItemCountChange={setSelectedBoardItemCount}
-                movementPreviews={Object.values(sharedMovementPreviews)}
-                measurePreviews={Object.values(sharedMeasurePreviews)}
-                pings={mapPings}
-                viewRecall={viewportRecall}
-                onMoveActor={moveActor}
-                onBroadcastMovePreview={broadcastMovePreview}
-                onBroadcastMeasurePreview={broadcastMeasurePreview}
-                onToggleDoor={toggleDoor}
-                onCreateDrawing={createDrawing}
-                onUpdateDrawings={updateDrawings}
-                onDeleteDrawings={deleteDrawings}
-                onClearDrawings={clearDrawings}
-                onPing={pingMap}
-                onPingAndRecall={pingAndRecallMap}
-              />
-
-              <aside className="table-overlay table-menu">
-                <section className="overlay-card overlay-nav">
-                  <p className="panel-label">Menu</p>
-                  <div className="overlay-nav-buttons">
-                    <button type="button" onClick={() => setActivePopup("actors")}>
-                      <Users size={15} />
-                      <span>Actors</span>
-                    </button>
-                    <button type="button" onClick={() => setActivePopup("maps")}>
-                      <MapIcon size={15} />
-                      <span>Maps</span>
-                    </button>
-                    <button type="button" disabled={!selectedActor} onClick={() => setActivePopup("sheet")}>
-                      <ScrollText size={15} />
-                      <span>Sheet</span>
-                    </button>
-                    <button type="button" onClick={() => setActivePopup("room")}>
-                      <Castle size={15} />
-                      <span>Room</span>
-                    </button>
-                  </div>
-                </section>
-
-                <section className="overlay-card overlay-active-actors">
-                  <div className="panel-head">
-                    <div>
-                      <p className="panel-label">Map</p>
-                      <h3>Actors</h3>
-                    </div>
-                    <span className="badge subtle">{filteredCurrentMapRoster.length}</span>
-                  </div>
-                  <div className="list-stack compact-list">
-                    {filteredCurrentMapRoster.map(({ actor, assignment, color, label }) => {
-                      const canSelect = Boolean(actor);
-                      const canDrag = Boolean(
-                        actor && (role === "dm" || (actor.kind === "character" && actor.ownerId === session.user.id))
-                      );
-
-                      return (
-                        <div key={`${assignment.mapId}:${assignment.actorId}`} className="overlay-token-row">
-                          <div className={`overlay-token-chip ${actor && selectedActor?.id === actor.id ? "is-selected" : ""}`}>
-                            <button
-                              type="button"
-                              className="overlay-token-drag"
-                              disabled={!canDrag}
-                              draggable={canDrag}
-                              title={canDrag ? `Drag ${label} onto the board` : label}
-                              onClick={() => {
-                                if (actor) {
-                                  setSelectedActorId(actor.id);
-                                }
-                              }}
-                              onDragStart={(event) => {
-                                if (!actor) {
-                                  event.preventDefault();
-                                  return;
-                                }
-
-                                event.dataTransfer.setData("application/x-dnd-actor-id", actor.id);
-                                event.dataTransfer.effectAllowed = "move";
-                                setSelectedActorId(actor.id);
-                              }}
-                            >
-                              <span className="overlay-token-dot" style={{ background: color }}>
-                                {label
-                                  .split(/\s+/)
-                                  .filter(Boolean)
-                                  .slice(0, 2)
-                                  .map((part) => part[0]?.toUpperCase() ?? "")
-                                  .join("")}
-                              </span>
-                            </button>
-                            <button
-                              type="button"
-                              className="overlay-token-name-button"
-                              disabled={!canSelect}
-                              title={label}
-                              onClick={() => {
-                                if (actor) {
-                                  setSelectedActorId(actor.id);
-                                }
-                              }}
-                            >
-                              <span className="overlay-token-name">{label}</span>
-                            </button>
-                          </div>
-                          {actor && (
-                            <button
-                              className="icon-action-button overlay-token-sheet-button"
-                              type="button"
-                              title="Open sheet"
-                              disabled={
-                                !(
-                                  role === "dm" ||
-                                  actor.sheetAccess === "full" ||
-                                  (actor.kind === "character" && actor.ownerId === session.user.id)
-                                )
-                              }
-                              onClick={() => {
-                                setSelectedActorId(actor.id);
-                                setActivePopup("sheet");
-                              }}
-                            >
-                              <ScrollText size={13} />
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {filteredCurrentMapRoster.length === 0 && (
-                      <p className="empty-state">No actors are assigned to this map.</p>
-                    )}
-                  </div>
-                </section>
-              </aside>
-
-              <aside className="table-overlay table-chat">
-                <ChatPanel messages={campaign.chat} onSend={sendChat} />
-              </aside>
-            </section>
-          </main>
-
-          {activePopup === "sheet" && (
-            <WorkspaceModal title={selectedActor ? `${selectedActor.name} Sheet` : "Interactive Sheet"} size="wide" onClose={() => setActivePopup(null)}>
-              <CharacterSheet
-                actor={selectedActor}
-                role={role}
-                currentUserId={session.user.id}
-                onSave={saveActor}
-                onRoll={rollFromSheet}
-              />
-            </WorkspaceModal>
-          )}
-
-          {activePopup === "actors" && (
-            <WorkspaceModal title="Actors" size="wide" onClose={() => setActivePopup(null)}>
-              <div className="popup-grid actor-manager-grid">
-                {role === "dm" && (
-                  <section className="dark-card popup-card actor-list-card">
-                    <div className="panel-head">
-                      <div>
-                        <p className="panel-label">Roster</p>
-                        <h2>Available actors</h2>
-                      </div>
-                      <span className="badge subtle">{availableActors.length}</span>
-                    </div>
-                    <div className="actor-filter-row">
-                      <input
-                        placeholder="Search available actors"
-                        value={actorSearch}
-                        onChange={(event) => setActorSearch(event.target.value)}
-                      />
-                      <select value={actorTypeFilter} onChange={(event) => setActorTypeFilter(event.target.value as ActorTypeFilter)}>
-                        <option value="all">All types</option>
-                        <option value="character">Characters</option>
-                        <option value="npc">NPCs</option>
-                        <option value="monster">Monsters</option>
-                        <option value="static">Static</option>
-                      </select>
-                    </div>
-                    <div className="actor-list-scroll">
-                      <div className="list-stack">
-                        {availableActors.map(({ actor, activeMaps, onCurrentMap }) => (
-                          <div key={actor.id} className="popup-row actor-popup-row">
-                            <div className={`list-row actor-list-row-static ${selectedActor?.id === actor.id ? "is-selected" : ""}`}>
-                              <div className="actor-row-main">
-                                <span className="actor-row-name">{actor.name}</span>
-                                <div className="actor-row-meta">
-                                  <span className="badge subtle">{actor.kind}</span>
-                                  {onCurrentMap && <span className="badge subtle">Assigned</span>}
-                                  {activeMaps.map((map) => (
-                                    <span key={map.id} className="badge map-badge">
-                                      {map.name}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="actor-list-actions">
-                              <button
-                                className="icon-action-button"
-                                type="button"
-                                title="Open sheet"
-                                onClick={() => {
-                                  setSelectedActorId(actor.id);
-                                  setActivePopup("sheet");
-                                }}
-                              >
-                                <ScrollText size={15} />
-                              </button>
-                              {role === "dm" && !onCurrentMap && (
-                                <button
-                                  className="icon-action-button"
-                                  type="button"
-                                  title="Add actor to map"
-                                  onClick={() => void assignActorToCurrentMap(actor.id)}
-                                >
-                                  <Plus size={15} />
-                                </button>
-                              )}
-                              {role === "dm" && onCurrentMap && (
-                                <button
-                                  className="icon-action-button"
-                                  type="button"
-                                  title="Remove actor from map"
-                                  onClick={() => void removeActorFromCurrentMap(actor.id)}
-                                >
-                                  <Minus size={15} />
-                                </button>
-                              )}
-                              {role === "dm" && actor.ownerId === session.user.id && (
-                                <button
-                                  type="button"
-                                  className="icon-action-button danger-button"
-                                  title="Delete actor"
-                                  onClick={() => void deleteActor(actor)}
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                        {availableActors.length === 0 && <p className="empty-state">No actors match that search.</p>}
-                      </div>
-                    </div>
-                  </section>
-                )}
-
-                <section className="dark-card popup-card actor-list-card">
-                  <div className="panel-head">
-                    <div>
-                      <p className="panel-label">Map</p>
-                      <h2>Actors on map</h2>
-                    </div>
-                    <span className="badge subtle">{filteredCurrentMapRoster.length}</span>
-                  </div>
-                  <div className="actor-filter-row">
-                    <input
-                      placeholder="Search current map actors"
-                      value={mapActorSearch}
-                      onChange={(event) => setMapActorSearch(event.target.value)}
-                    />
-                    <select value={mapActorTypeFilter} onChange={(event) => setMapActorTypeFilter(event.target.value as ActorTypeFilter)}>
-                      <option value="all">All types</option>
-                      <option value="character">Characters</option>
-                      <option value="npc">NPCs</option>
-                      <option value="monster">Monsters</option>
-                      <option value="static">Static</option>
-                    </select>
-                  </div>
-                    <div className="actor-list-scroll">
-                      <div className="list-stack">
-                      {filteredCurrentMapRoster.map(({ actor, token, actorKind, assignment, label }) => {
-                        const canRemoveFromMap = role === "dm" && Boolean(actor);
-
-                        return (
-                          <div key={`${assignment.mapId}:${assignment.actorId}`} className="popup-row actor-popup-row">
-                            <div className={`list-row actor-list-row-static ${actor && selectedActor?.id === actor.id ? "is-selected" : ""}`}>
-                              <div className="actor-row-main">
-                                <span className="actor-row-name">{label}</span>
-                                <div className="actor-row-meta">
-                                  <span className="badge subtle">{actorKind}</span>
-                                  {token && <span className="badge subtle">On board</span>}
-                                  {actor ? (
-                                    <span className="badge subtle">
-                                      {role === "dm" ? "Sheet" : actor.ownerId === session.user.id ? "Yours" : "Seen"}
-                                    </span>
-                                  ) : (
-                                    <span className="badge subtle">Seen</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="actor-list-actions">
-                              {actor && (
-                                <button
-                                  className="icon-action-button"
-                                  type="button"
-                                  title="Open sheet"
-                                  disabled={
-                                    !(
-                                      role === "dm" ||
-                                      actor.sheetAccess === "full" ||
-                                      (actor.kind === "character" && actor.ownerId === session.user.id)
-                                    )
-                                  }
-                                  onClick={() => {
-                                    setSelectedActorId(actor.id);
-                                    setActivePopup("sheet");
-                                  }}
-                                >
-                                  <ScrollText size={15} />
-                                </button>
-                              )}
-                              {canRemoveFromMap && actor && (
-                                <button
-                                  className="icon-action-button"
-                                  type="button"
-                                  title="Remove actor from map"
-                                  onClick={() => void removeActorFromCurrentMap(actor.id)}
-                                >
-                                  <Minus size={15} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {filteredCurrentMapRoster.length === 0 && <p className="empty-state">No actors are assigned to this map.</p>}
-                    </div>
-                  </div>
-                </section>
-
-                <section className="dark-card popup-card actor-create-card">
-                    <div className="panel-head">
-                      <div>
-                        <p className="panel-label">Create</p>
-                        <h2>New actor</h2>
-                      </div>
-                      <button
-                        className={actorCreatorOpen ? "accent-button" : ""}
-                        type="button"
-                        onClick={() => setActorCreatorOpen((value) => !value)}
-                      >
-                        {actorCreatorOpen ? "Close" : "Create actor"}
-                      </button>
-                    </div>
-                    {actorCreatorOpen && (
-                      <div className="stack-form">
-                        <div className="inline-form compact">
-                          <select
-                            value={actorCreatorKind}
-                            onChange={(event) => setActorCreatorKind(event.target.value as ActorKind)}
-                          >
-                            <option value="character">Character</option>
-                            {role === "dm" && <option value="npc">NPC</option>}
-                            {role === "dm" && <option value="monster">Monster</option>}
-                            {role === "dm" && <option value="static">Static</option>}
-                          </select>
-                        </div>
-
-                        {actorCreatorKind === "monster" ? (
-                          <div className="popup-grid monster-browser">
-                            <section className="sheet-panel">
-                              <input
-                                placeholder="Search monsters"
-                                value={monsterQuery}
-                                onChange={(event) => setMonsterQuery(event.target.value)}
-                              />
-                              <div className="monster-list">
-                                {filteredCatalog.map((monster) => (
-                                  <button
-                                    key={monster.id}
-                                    className={`monster-card ${selectedMonsterTemplate?.id === monster.id ? "is-selected" : ""}`}
-                                    type="button"
-                                    onClick={() => setSelectedMonsterId(monster.id)}
-                                  >
-                                    <span>{monster.name}</span>
-                                    <small>
-                                      CR {monster.challengeRating} • AC {monster.armorClass} • HP {monster.hitPoints}
-                                    </small>
-                                  </button>
-                                ))}
-                                {filteredCatalog.length === 0 && <p className="empty-state">No monsters match that search.</p>}
-                              </div>
-                            </section>
-                            <section className="sheet-panel monster-preview-card">
-                              {selectedMonsterTemplate ? (
-                                <>
-                                  <div className="panel-head">
-                                    <div>
-                                      <p className="panel-label">Preview</p>
-                                      <h2>{selectedMonsterTemplate.name}</h2>
-                                    </div>
-                                    <button
-                                      className="accent-button"
-                                      type="button"
-                                      onClick={() => void createMonsterActor(selectedMonsterTemplate)}
-                                    >
-                                      Add to roster
-                                    </button>
-                                  </div>
-                                  <div className="monster-preview-summary">
-                                    <span className="badge">CR {selectedMonsterTemplate.challengeRating}</span>
-                                    <span className="badge subtle">{selectedMonsterTemplate.source}</span>
-                                    <span className="badge subtle">AC {selectedMonsterTemplate.armorClass}</span>
-                                    <span className="badge subtle">HP {selectedMonsterTemplate.hitPoints}</span>
-                                    <span className="badge subtle">Speed {selectedMonsterTemplate.speed}</span>
-                                  </div>
-                                  <div className="ability-card-grid">
-                                    {Object.entries(selectedMonsterTemplate.abilities).map(([key, value]) => (
-                                      <div key={key} className="ability-card">
-                                        <header>
-                                          <h4>{key.toUpperCase()}</h4>
-                                          <span>{formatMonsterModifier(value)}</span>
-                                        </header>
-                                        <strong>{value}</strong>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </>
-                              ) : (
-                                <p className="empty-state">Select a monster to preview its stat block.</p>
-                              )}
-                            </section>
-                          </div>
-                        ) : (
-                          actorDraft && (
-                            <CharacterSheet
-                              actor={actorDraft}
-                              role={role}
-                              currentUserId={session.user.id}
-                              onSave={createActor}
-                              onRoll={rollFromSheet}
-                            />
-                          )
-                        )}
-                      </div>
-                    )}
-                  </section>
-              </div>
-            </WorkspaceModal>
-          )}
-
-          {activePopup === "maps" && (
-            <WorkspaceModal
-              title="Maps"
-              size={editingMap ? "full" : "compact"}
-              onClose={() => {
-                if (editingMap) {
-                  setMapEditorMode(null);
-                  return;
-                }
-
-                setActivePopup(null);
-              }}
-            >
-              <div className="maps-popup">
-                {!editingMap ? (
-                  <section className="dark-card popup-card maps-list-card maps-list-card-compact">
-                    <div className="panel-head">
-                      <div>
-                        <p className="panel-label">Maps</p>
-                        <h2>Board selection</h2>
-                      </div>
-                    </div>
-                    <div className="maps-list-scroll">
-                      <div className="list-stack">
-                        {campaign.maps.map((map) => (
-                          <div key={map.id} className="popup-row">
-                            <div className="list-row map-list-row">
-                              <div className="actor-row-main">
-                                <span className="actor-row-name">{map.name}</span>
-                                <div className="actor-row-meta">
-                                  <span className="badge subtle">{map.id === activeMap?.id ? "Active" : "Standby"}</span>
-                                  <span className="badge subtle">
-                                    {map.width}×{map.height}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            {role === "dm" && map.id !== activeMap?.id && (
-                              <button
-                                className="icon-action-button"
-                                type="button"
-                                title="Show map"
-                                onClick={() => {
-                                  void sendRoomMessage({ type: "map:set-active", mapId: map.id }).catch((error: unknown) => {
-                                    setBanner({ tone: "error", text: toErrorMessage(error) });
-                                  });
-                                }}
-                              >
-                                <Eye size={15} />
-                              </button>
-                            )}
-                            {role === "dm" && (
-                              <button
-                                className="icon-action-button"
-                                type="button"
-                                title="Edit map"
-                                onClick={() => {
-                                  setSelectedMapId(map.id);
-                                  setMapDraft(cloneMap(map));
-                                  setMapEditorMode("edit");
-                                }}
-                              >
-                                <Pencil size={15} />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    {role === "dm" && (
-                      <button
-                        className={mapEditorMode === "create" ? "accent-button" : ""}
-                        type="button"
-                        onClick={() => {
-                          setNewMapDraft(createClientMapDraft("New Map"));
-                          setMapEditorMode("create");
-                        }}
-                      >
-                        <FilePlus2 size={15} />
-                        <span>New Map</span>
-                      </button>
-                    )}
-                  </section>
-                ) : (
-                  <section className="dark-card popup-card maps-editor-card">
-                    <div className="panel-head">
-                      <div>
-                        <p className="panel-label">Editor</p>
-                        <h2>{mapEditorMode === "create" ? "New Map" : selectedMap?.name ?? "Map details"}</h2>
-                      </div>
-                    </div>
-                    {role === "dm" && (
-                      <div className="inline-form compact map-editor-savebar">
-                        {mapEditorMode === "edit" && mapDraft && (
-                          <button
-                            className="accent-button"
-                            type="button"
-                            disabled={mapDraft.id === activeMap?.id}
-                            onClick={() => {
-                              void sendRoomMessage({ type: "map:set-active", mapId: mapDraft.id }).catch((error: unknown) => {
-                                setBanner({ tone: "error", text: toErrorMessage(error) });
-                              });
-                            }}
-                          >
-                            {mapDraft.id === activeMap?.id ? "Current Board" : "Set Active Board"}
-                          </button>
-                        )}
-                        {mapEditorMode === "create" ? (
-                          <>
-                            <button type="button" onClick={() => setNewMapDraft(createClientMapDraft("New Map"))}>
-                              Reload
-                            </button>
-                            <button className="accent-button" type="button" onClick={() => void createMap(newMapDraft)}>
-                              Save
-                            </button>
-                          </>
-                        ) : (
-                          mapDraft && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (selectedMap) {
-                                    setMapDraft(cloneMap(selectedMap));
-                                  }
-                                }}
-                              >
-                                Reload
-                              </button>
-                              <button className="accent-button" type="button" onClick={() => void saveMap(mapDraft)}>
-                                Save
-                              </button>
-                            </>
-                          )
-                        )}
-                      </div>
-                    )}
-                    <MapConfigurator
-                      map={editingMap}
-                      disabled={role !== "dm"}
-                      onChange={mapEditorMode === "create" ? setNewMapDraft : (nextMap) => setMapDraft(nextMap)}
-                      onUploadError={(message) => setBanner({ tone: "error", text: message })}
-                    />
-                  </section>
-                )}
-              </div>
-            </WorkspaceModal>
-          )}
-
-          {activePopup === "room" && (
-            <WorkspaceModal title="Room" onClose={() => setActivePopup(null)}>
-              <div className="popup-grid two-columns">
-                <section className="dark-card popup-card">
-                  <div className="panel-head">
-                    <div>
-                      <p className="panel-label">Members</p>
-                      <h2>{campaign.name}</h2>
-                    </div>
-                    <span className="badge">{role}</span>
-                  </div>
-                  <div className="member-list">
-                    {campaign.members.map((member) => (
-                      <div key={member.userId} className="member-row">
-                        <span>{member.name}</span>
-                        <span className="badge subtle">{member.role}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                {role === "dm" ? (
-                  <section className="dark-card popup-card">
-                    <div className="panel-head">
-                      <div>
-                        <p className="panel-label">Invites</p>
-                        <h2>Role-based access</h2>
-                      </div>
-                    </div>
-                    <div className="stack-form compact">
-                      <input
-                        value={inviteDraft.label}
-                        onChange={(event) => setInviteDraft({ ...inviteDraft, label: event.target.value })}
-                      />
-                      <div className="inline-form compact">
-                        <select
-                          value={inviteDraft.role}
-                          onChange={(event) => setInviteDraft({ ...inviteDraft, role: event.target.value as MemberRole })}
-                        >
-                          <option value="player">Player</option>
-                          <option value="dm">Dungeon Master</option>
-                        </select>
-                        <button type="button" onClick={() => void createInvite()}>
-                          Create
-                        </button>
-                      </div>
-                    </div>
-                    <div className="invite-list">
-                      {campaign.invites.map((invite) => (
-                        <div key={invite.id} className="invite-card">
-                          <strong>{invite.code}</strong>
-                          <span>{invite.label}</span>
-                          <small>{invite.role}</small>
-                        </div>
-                      ))}
-                      {campaign.invites.length === 0 && <p className="empty-state">No active invites.</p>}
-                    </div>
-                  </section>
-                ) : (
-                  <section className="dark-card popup-card">
-                    <div className="panel-head">
-                      <div>
-                        <p className="panel-label">Room Notes</p>
-                        <h2>Shared table</h2>
-                      </div>
-                    </div>
-                    <p className="panel-caption">Players can use the chat on the right and click abilities from the sheet popup to roll dice.</p>
-                  </section>
-                )}
-              </div>
-            </WorkspaceModal>
-          )}
-
-        </>
+        <CampaignPage
+          campaign={campaign}
+          role={role}
+          currentUserId={session.user.id}
+          roomStatus={roomStatus}
+          activeMap={activeMap}
+          selectedMap={selectedMap ?? undefined}
+          selectedActor={selectedActor}
+          activePopup={activePopup}
+          editingMap={editingMap}
+          mapEditorMode={mapEditorMode}
+          boardSeenCells={boardSeenCells}
+          fogPreviewUserId={fogPreviewUserId}
+          playerMembers={playerMembers}
+          dmFogEnabled={dmFogEnabled}
+          dmFogUserId={dmFogUserId}
+          movementPreviews={Object.values(sharedMovementPreviews)}
+          measurePreviews={Object.values(sharedMeasurePreviews)}
+          mapPings={mapPings}
+          viewRecall={viewportRecall}
+          filteredCurrentMapRoster={filteredCurrentMapRoster}
+          availableActors={availableActors}
+          actorSearch={actorSearch}
+          mapActorSearch={mapActorSearch}
+          actorTypeFilter={actorTypeFilter}
+          mapActorTypeFilter={mapActorTypeFilter}
+          actorCreatorKind={actorCreatorKind}
+          actorCreatorOpen={actorCreatorOpen}
+          actorDraft={actorDraft}
+          monsterQuery={monsterQuery}
+          filteredCatalog={filteredCatalog}
+          selectedMonsterTemplate={selectedMonsterTemplate}
+          inviteDraft={inviteDraft}
+          onSetActivePopup={setActivePopup}
+          onSelectActor={setSelectedActorId}
+          onSetDmFogEnabled={setDmFogEnabled}
+          onSetDmFogUserId={setDmFogUserId}
+          onResetFog={() => void resetFog()}
+          onSelectedMapItemCountChange={setSelectedBoardItemCount}
+          onMoveActor={(actorId, x, y) => void moveActor(actorId, x, y)}
+          onBroadcastMovePreview={(actorId, target) => void broadcastMovePreview(actorId, target)}
+          onBroadcastMeasurePreview={(preview) => void broadcastMeasurePreview(preview)}
+          onToggleDoor={(doorId) => void toggleDoor(doorId)}
+          onCreateDrawing={(mapId, stroke) => void createDrawing(mapId, stroke)}
+          onUpdateDrawings={(mapId, drawings) => void updateDrawings(mapId, drawings)}
+          onDeleteDrawings={(mapId, drawingIds) => void deleteDrawings(mapId, drawingIds)}
+          onClearDrawings={(mapId) => void clearDrawings(mapId)}
+          onPing={(point) => void pingMap(point)}
+          onPingAndRecall={(point, center, zoom) => void pingAndRecallMap(point, center, zoom)}
+          onSendChat={(text) => void sendChat(text)}
+          onSaveActor={(actor) => void saveActor(actor)}
+          onRoll={(notation, label) => void rollFromSheet(notation, label)}
+          onActorSearchChange={setActorSearch}
+          onMapActorSearchChange={setMapActorSearch}
+          onActorTypeFilterChange={setActorTypeFilter}
+          onMapActorTypeFilterChange={setMapActorTypeFilter}
+          onActorCreatorOpenChange={setActorCreatorOpen}
+          onActorCreatorKindChange={setActorCreatorKind}
+          onCreateActor={(draft) => void createActor(draft)}
+          onMonsterQueryChange={setMonsterQuery}
+          onSelectMonster={setSelectedMonsterId}
+          onCreateMonsterActor={(monster) => void createMonsterActor(monster)}
+          onAssignActorToCurrentMap={(actorId) => void assignActorToCurrentMap(actorId)}
+          onRemoveActorFromCurrentMap={(actorId) => void removeActorFromCurrentMap(actorId)}
+          onDeleteActor={(actor) => void deleteActor(actor)}
+          onShowMap={showMap}
+          onStartCreateMap={openMapEditorForCreate}
+          onStartEditMap={openMapEditorForEdit}
+          onChangeEditingMap={changeEditingMap}
+          onSaveEditingMap={saveEditingMap}
+          onReloadEditingMap={reloadEditingMap}
+          onSetEditingMapActive={setEditingMapActive}
+          onBackToMapsList={() => setMapEditorMode(null)}
+          onMapUploadError={(message) => setBanner({ tone: "error", text: message })}
+          onInviteDraftChange={setInviteDraft}
+          onCreateInvite={() => void createInvite()}
+        />
       )}
 
       {banner && (
@@ -2084,15 +1313,4 @@ export default function App() {
       )}
     </div>
   );
-}
-
-function buildRoomSocketUrl() {
-  const configured = import.meta.env.VITE_WS_URL;
-
-  if (typeof configured === "string" && configured.length > 0) {
-    return configured;
-  }
-
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.host}/ws`;
 }
