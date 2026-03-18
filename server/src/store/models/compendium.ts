@@ -8,7 +8,6 @@ import type {
   MonsterActionEntry,
   MonsterSense,
   MonsterSkillBonus,
-  MonsterTemplate,
   SpellEntry,
   SpellLevel
 } from "../../../../shared/types.js";

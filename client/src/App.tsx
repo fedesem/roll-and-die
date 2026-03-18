@@ -205,7 +205,7 @@ export default function App() {
     currentUserId: session?.user.id,
     selectedCampaignId,
     selectedActorId,
-    activeMap,
+    activeMap: activeMap ?? null,
     createCampaignName,
     joinCode,
     inviteDraft,
@@ -343,7 +343,7 @@ export default function App() {
   } = useRoomActions({
     session,
     selectedCampaignId,
-    activeMap,
+    activeMap: activeMap ?? null,
     editingMap,
     sendRoomMessage,
     enqueuePing,
@@ -449,7 +449,7 @@ export default function App() {
         <CampaignLoadingPage roomStatus={roomStatus} />
       ) : (
         <CampaignPage
-          campaign={campaign}
+          campaign={snapshot.campaign}
           role={role}
           currentUserId={session.user.id}
           roomStatus={roomStatus}
@@ -485,28 +485,28 @@ export default function App() {
           onSelectActor={setSelectedActorId}
           onSetDmFogEnabled={setDmFogEnabled}
           onSetDmFogUserId={setDmFogUserId}
-          onResetFog={() => void resetFog()}
+          onResetFog={resetFog}
           onSelectedMapItemCountChange={setSelectedBoardItemCount}
-          onMoveActor={(actorId, x, y) => void moveActor(actorId, x, y)}
-          onBroadcastMovePreview={(actorId, target) => void broadcastMovePreview(actorId, target)}
-          onBroadcastMeasurePreview={(preview) => void broadcastMeasurePreview(preview)}
-          onToggleDoor={(doorId) => void toggleDoor(doorId)}
-          onCreateDrawing={(mapId, stroke) => void createDrawing(mapId, stroke)}
-          onUpdateDrawings={(mapId, drawings) => void updateDrawings(mapId, drawings)}
-          onDeleteDrawings={(mapId, drawingIds) => void deleteDrawings(mapId, drawingIds)}
-          onClearDrawings={(mapId) => void clearDrawings(mapId)}
-          onPing={(point) => void pingMap(point)}
-          onPingAndRecall={(point, center, zoom) => void pingAndRecallMap(point, center, zoom)}
-          onSendChat={(text) => void sendChat(text)}
-          onSaveActor={(actor) => void saveActor(actor)}
-          onRoll={(notation, label) => void rollFromSheet(notation, label)}
+          onMoveActor={moveActor}
+          onBroadcastMovePreview={broadcastMovePreview}
+          onBroadcastMeasurePreview={broadcastMeasurePreview}
+          onToggleDoor={toggleDoor}
+          onCreateDrawing={createDrawing}
+          onUpdateDrawings={updateDrawings}
+          onDeleteDrawings={deleteDrawings}
+          onClearDrawings={clearDrawings}
+          onPing={pingMap}
+          onPingAndRecall={pingAndRecallMap}
+          onSendChat={sendChat}
+          onSaveActor={saveActor}
+          onRoll={rollFromSheet}
           onActorSearchChange={setActorSearch}
           onMapActorSearchChange={setMapActorSearch}
           onActorTypeFilterChange={setActorTypeFilter}
           onMapActorTypeFilterChange={setMapActorTypeFilter}
           onActorCreatorOpenChange={setActorCreatorOpen}
           onActorCreatorKindChange={setActorCreatorKind}
-          onCreateActor={(draft) => void createActor(draft)}
+          onCreateActor={createActor}
           onMonsterQueryChange={setMonsterQuery}
           onSelectMonster={setSelectedMonsterId}
           onCreateMonsterActor={(monster) => void createMonsterActor(monster)}

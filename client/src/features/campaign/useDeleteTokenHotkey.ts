@@ -30,6 +30,8 @@ export function useDeleteTokenHotkey({
       return;
     }
 
+    const selectedToken = token;
+
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Delete" && event.key !== "Backspace") {
         return;
@@ -47,7 +49,7 @@ export function useDeleteTokenHotkey({
       }
 
       event.preventDefault();
-      onDeleteToken(token.id, token.label, true);
+      onDeleteToken(selectedToken.id, selectedToken.label, true);
     }
 
     window.addEventListener("keydown", handleKeyDown);

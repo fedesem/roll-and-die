@@ -59,7 +59,7 @@ interface BoardCanvasProps {
   map?: CampaignMap;
   tokens: BoardToken[];
   actors: ActorSheet[];
-  selectedActor?: ActorSheet;
+  selectedActor?: ActorSheet | null;
   role: MemberRole;
   currentUserId: string;
   playerSeenCells: string[];
@@ -762,9 +762,15 @@ export function BoardCanvas({
   }, [currentVisibleCells, discoveryViewerKey, displayDrawings, map, usesRestrictedVision]);
 
   useEffect(() => {
-    if (!draggingToken || !map) {
+    const activeMap = map;
+    const activeDraggingToken = draggingToken;
+
+    if (!activeDraggingToken || !activeMap) {
       return;
     }
+
+    const currentMap = activeMap;
+    const currentDraggingToken = activeDraggingToken;
 
     function handleWindowPointerMove(event: PointerEvent) {
       const point = toWorldPoint(event.clientX, event.clientY);
@@ -773,7 +779,7 @@ export function BoardCanvas({
         return;
       }
 
-      const trace = traceMovementPath(map, draggingToken.start, point, {
+      const trace = traceMovementPath(currentMap, currentDraggingToken.start, point, {
         ignoreWalls: isDungeonMaster
       });
       setMovePreview(trace);
@@ -781,12 +787,12 @@ export function BoardCanvas({
       if (trace.steps === 0) {
         if (lastPreviewTargetKeyRef.current !== null) {
           lastPreviewTargetKeyRef.current = null;
-          void broadcastMovePreviewRef.current(draggingToken.actorId, null);
+          void broadcastMovePreviewRef.current(currentDraggingToken.actorId, null);
         }
         return;
       }
 
-      const snappedTarget = snapPointToGrid(map, point);
+      const snappedTarget = snapPointToGrid(currentMap, point);
       const previewKey = `${snappedTarget.x}:${snappedTarget.y}`;
 
       if (lastPreviewTargetKeyRef.current === previewKey) {
@@ -794,14 +800,14 @@ export function BoardCanvas({
       }
 
       lastPreviewTargetKeyRef.current = previewKey;
-      void broadcastMovePreviewRef.current(draggingToken.actorId, snappedTarget);
+      void broadcastMovePreviewRef.current(currentDraggingToken.actorId, snappedTarget);
     }
 
     function handleWindowPointerUp(event: PointerEvent) {
       const point = toWorldPoint(event.clientX, event.clientY);
       const trace =
         point
-          ? traceMovementPath(map, draggingToken.start, point, {
+          ? traceMovementPath(currentMap, currentDraggingToken.start, point, {
               ignoreWalls: isDungeonMaster
             })
           : null;
@@ -813,14 +819,14 @@ export function BoardCanvas({
 
       if (lastPreviewTargetKeyRef.current !== null) {
         lastPreviewTargetKeyRef.current = null;
-        void broadcastMovePreviewRef.current(draggingToken.actorId, null);
+        void broadcastMovePreviewRef.current(currentDraggingToken.actorId, null);
       }
 
       if (!trace || trace.steps === 0) {
         return;
       }
 
-      void moveActorRef.current(draggingToken.actorId, trace.end.x, trace.end.y);
+      void moveActorRef.current(currentDraggingToken.actorId, trace.end.x, trace.end.y);
     }
 
     window.addEventListener("pointermove", handleWindowPointerMove);
@@ -832,7 +838,7 @@ export function BoardCanvas({
 
       if (lastPreviewTargetKeyRef.current !== null) {
         lastPreviewTargetKeyRef.current = null;
-        void broadcastMovePreviewRef.current(draggingToken.actorId, null);
+        void broadcastMovePreviewRef.current(currentDraggingToken.actorId, null);
       }
     };
   }, [draggingToken, isDungeonMaster, map]);
@@ -887,9 +893,15 @@ export function BoardCanvas({
   );
 
   useEffect(() => {
-    if (!movingDrawings || !map) {
+    const activeMap = map;
+    const activeMove = movingDrawings;
+
+    if (!activeMove || !activeMap) {
       return;
     }
+
+    const currentMap = activeMap;
+    const currentMove = activeMove;
 
     function handleWindowPointerMove(event: PointerEvent) {
       const point = toWorldPoint(event.clientX, event.clientY);
@@ -898,15 +910,15 @@ export function BoardCanvas({
         return;
       }
 
-      const deltaX = point.x - movingDrawings.origin.x;
-      const deltaY = point.y - movingDrawings.origin.y;
+      const deltaX = point.x - currentMove.origin.x;
+      const deltaY = point.y - currentMove.origin.y;
       const moved = Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5;
 
       setMovingDrawings((current) => (current ? { ...current, moved: current.moved || moved } : current));
       setDrawingOverrides(
         Object.fromEntries(
-          movingDrawings.drawingIds.map((drawingId) => {
-            const snapshot = movingDrawings.snapshots[drawingId];
+          currentMove.drawingIds.map((drawingId) => {
+            const snapshot = currentMove.snapshots[drawingId];
             return [
               drawingId,
               {
@@ -921,7 +933,7 @@ export function BoardCanvas({
 
     function handleWindowPointerUp() {
       const overrides = Object.entries(drawingOverridesRef.current)
-        .filter(([drawingId]) => movingDrawings.drawingIds.includes(drawingId))
+        .filter(([drawingId]) => currentMove.drawingIds.includes(drawingId))
         .map(([id, value]) => ({
           id,
           points: value.points,
@@ -929,7 +941,7 @@ export function BoardCanvas({
         }));
 
       const moved = overrides.some((override) => {
-        const snapshot = movingDrawings.snapshots[override.id];
+        const snapshot = currentMove.snapshots[override.id];
         return (
           snapshot &&
           (snapshot.rotation !== override.rotation ||
@@ -942,10 +954,10 @@ export function BoardCanvas({
       });
 
       if (moved && overrides.length > 0) {
-        void updateDrawingsRef.current(map.id, overrides);
+        void updateDrawingsRef.current(currentMap.id, overrides);
       } else {
         setDrawingOverrides((current) =>
-          Object.fromEntries(Object.entries(current).filter(([drawingId]) => !movingDrawings.drawingIds.includes(drawingId)))
+          Object.fromEntries(Object.entries(current).filter(([drawingId]) => !currentMove.drawingIds.includes(drawingId)))
         );
       }
       setMovingDrawings(null);
@@ -961,9 +973,15 @@ export function BoardCanvas({
   }, [map, movingDrawings]);
 
   useEffect(() => {
-    if (!rotatingDrawing || !map) {
+    const activeMap = map;
+    const activeRotation = rotatingDrawing;
+
+    if (!activeRotation || !activeMap) {
       return;
     }
+
+    const currentMap = activeMap;
+    const currentRotation = activeRotation;
 
     function handleWindowPointerMove(event: PointerEvent) {
       const point = toWorldPoint(event.clientX, event.clientY);
@@ -972,27 +990,27 @@ export function BoardCanvas({
         return;
       }
 
-      const angle = Math.atan2(point.y - rotatingDrawing.center.y, point.x - rotatingDrawing.center.x);
-      const nextRotation = rotatingDrawing.baseRotation + toDegrees(angle - rotatingDrawing.startAngle);
-      const moved = Math.abs(nextRotation - rotatingDrawing.baseRotation) > 0.5;
+      const angle = Math.atan2(point.y - currentRotation.center.y, point.x - currentRotation.center.x);
+      const nextRotation = currentRotation.baseRotation + toDegrees(angle - currentRotation.startAngle);
+      const moved = Math.abs(nextRotation - currentRotation.baseRotation) > 0.5;
 
       setRotatingDrawing((current) => (current ? { ...current, moved: current.moved || moved } : current));
       setDrawingOverrides((current) => ({
         ...current,
-        [rotatingDrawing.drawingId]: {
-          points: rotatingDrawing.points,
+        [currentRotation.drawingId]: {
+          points: currentRotation.points,
           rotation: normalizeDegrees(nextRotation)
         }
       }));
     }
 
     function handleWindowPointerUp() {
-      const override = drawingOverridesRef.current[rotatingDrawing.drawingId];
+      const override = drawingOverridesRef.current[currentRotation.drawingId];
 
-      if (override && Math.abs(override.rotation - rotatingDrawing.baseRotation) > 0.5) {
-        void updateDrawingsRef.current(map.id, [
+      if (override && Math.abs(override.rotation - currentRotation.baseRotation) > 0.5) {
+        void updateDrawingsRef.current(currentMap.id, [
           {
-            id: rotatingDrawing.drawingId,
+            id: currentRotation.drawingId,
             points: override.points,
             rotation: override.rotation
           }
@@ -1000,7 +1018,7 @@ export function BoardCanvas({
       } else {
         setDrawingOverrides((current) => {
           const next = { ...current };
-          delete next[rotatingDrawing.drawingId];
+          delete next[currentRotation.drawingId];
           return next;
         });
       }
@@ -1017,16 +1035,20 @@ export function BoardCanvas({
   }, [map, rotatingDrawing]);
 
   useEffect(() => {
-    if (!panning) {
+    const activePan = panning;
+
+    if (!activePan) {
       return;
     }
 
+    const currentPan = activePan;
+
     function handleWindowPointerMove(event: PointerEvent) {
-      const deltaX = event.clientX - panning.clientX;
-      const deltaY = event.clientY - panning.clientY;
+      const deltaX = event.clientX - currentPan.clientX;
+      const deltaY = event.clientY - currentPan.clientY;
       const movedEnough = Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3;
 
-      if (panning.button === 2) {
+      if (currentPan.button === 2) {
         if (!movedEnough) {
           return;
         }
@@ -1035,23 +1057,23 @@ export function BoardCanvas({
       }
 
       setViewPan({
-        x: panning.originX + deltaX,
-        y: panning.originY + deltaY
+        x: currentPan.originX + deltaX,
+        y: currentPan.originY + deltaY
       });
     }
 
     function handleWindowPointerUp() {
       if (
-        panning.button === 2 &&
+        currentPan.button === 2 &&
         !suppressContextMenuRef.current &&
-        typeof panning.menuX === "number" &&
-        typeof panning.menuY === "number" &&
-        panning.menuPoint
+        typeof currentPan.menuX === "number" &&
+        typeof currentPan.menuY === "number" &&
+        currentPan.menuPoint
       ) {
         setContextMenu({
-          x: panning.menuX,
-          y: panning.menuY,
-          point: panning.menuPoint
+          x: currentPan.menuX,
+          y: currentPan.menuY,
+          point: currentPan.menuPoint
         });
       }
 
@@ -1086,9 +1108,13 @@ export function BoardCanvas({
   }, [onSelectedMapItemCountChange, selectedMapItems.length]);
 
   useEffect(() => {
-    if (selectedMapItems.length === 0 || !map) {
+    const activeMap = map;
+
+    if (selectedMapItems.length === 0 || !activeMap) {
       return;
     }
+
+    const currentMap = activeMap;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Delete" && event.key !== "Backspace") {
@@ -1105,7 +1131,7 @@ export function BoardCanvas({
       event.preventDefault();
       const drawingIds = selectedMapItems.map((entry) => entry.slice("drawing:".length));
 
-      void onDeleteDrawings(map.id, drawingIds);
+      void onDeleteDrawings(currentMap.id, drawingIds);
       setSelectedMapItems([]);
     }
 
@@ -2041,7 +2067,7 @@ export function BoardCanvas({
                 />
               </g>
             ))}
-            {draftDrawing && drawingHasRenderableSpan({ ...draftDrawing, id: "draft" }) && (
+            {draftDrawing && drawingHasRenderableSpan(draftDrawing) && (
               <g>
                 {shouldFillDrawing(draftDrawing) && (
                   <path

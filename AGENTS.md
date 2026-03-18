@@ -30,6 +30,9 @@ Use `components/`, `pages/`, and `services/` for shared cross-feature pieces, no
 5. Separate transport state from domain state.
 Realtime room state such as snapshots, pings, recalls, and shared previews should live in dedicated hooks. Transport concerns should not be mixed with rendering code.
 
+6. Keep TypeScript contracts strict and consistent.
+Do not mix nullable conventions casually, do not redefine child handler signatures in parent pages, and do not rely on `vite build` alone to validate client types.
+
 ## Client Structure
 
 ### Pages
@@ -61,6 +64,35 @@ Realtime room state such as snapshots, pings, recalls, and shared previews shoul
 ### Routing
 - Route definitions and route helpers stay in `client/src/router.ts`.
 - New top-level screens should be routed explicitly instead of hidden behind conditional JSX trees.
+
+## TypeScript Rules
+
+1. Use one nullable convention per boundary.
+For client state, prefer `null` for "known empty" values.
+For optional component props, prefer `undefined`.
+Convert explicitly at the boundary instead of letting `null | undefined` spread across multiple files.
+
+2. Reuse handler types instead of rewriting them.
+If a page passes handlers to a child component, do not manually retype the same callbacks with slightly different return types.
+Export and reuse shared prop or handler types when a contract is shared across multiple files.
+
+3. Pass async handlers directly.
+Do not wrap async functions with `() => void someAsyncFn(...)` when passing props unless the child explicitly expects a sync callback.
+Wrapper functions tend to erase `Promise<void>` contracts and create type drift.
+
+4. Prefer functional state updates for nested object edits.
+When editing `ActorSheet`, map state, drawing state, or similar nested structures, use setter callbacks.
+This avoids stale closures and reduces strict-null issues.
+
+5. Narrow values once inside effects.
+If an effect depends on values like `map`, `dragging`, `panning`, or `selectedActor`, guard them first and assign narrowed locals like `const currentMap = map`.
+Use those narrowed locals inside event handlers registered by the effect.
+
+6. Keep "hidden actor" and "missing entity" cases explicit in types.
+If selectors can legitimately return entries without a full actor, encode that in the return type instead of forcing unsafe casts or over-narrow types.
+
+7. Prefer shared model types over local shape copies.
+When a contract already exists in `@shared/types`, reuse it directly or derive from it locally instead of re-declaring a similar object shape.
 
 ## Server Structure
 
@@ -112,6 +144,11 @@ Refactor before adding more code when any of these are true:
 ## Verification
 
 After structural changes:
+- run `npm run lint` after client/server code changes
+- run `tsc --noEmit -p client/tsconfig.json` for client refactors
+- use `npm run format:check` before wide formatting or style-only changes
+- prefer `npm run check` for a full repo validation pass
 - run the relevant workspace build
+- do not treat `vite build` as a substitute for TypeScript checking
 - update imports so the boundary is obvious
 - keep the final file layout coherent enough that the next feature has an obvious home

@@ -23,7 +23,7 @@ const abilityOrder: { key: AbilityKey; label: string }[] = [
 ];
 
 interface CharacterSheetProps {
-  actor?: ActorSheet;
+  actor?: ActorSheet | null;
   role: MemberRole;
   currentUserId: string;
   onSave: (actor: ActorSheet) => Promise<void>;
@@ -147,89 +147,93 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
   const spellSaveDc = 8 + draft.proficiencyBonus + spellModifier;
   const spellAttack = draft.proficiencyBonus + spellModifier;
 
+  function updateDraft(recipe: (current: ActorSheet) => ActorSheet) {
+    setDraft((current) => (current ? recipe(current) : current));
+  }
+
   function updateField<K extends keyof ActorSheet>(key: K, value: ActorSheet[K]) {
-    setDraft({ ...draft, [key]: value });
+    updateDraft((current) => ({ ...current, [key]: value }));
   }
 
   function updateAbility(key: AbilityKey, value: number) {
-    setDraft({
-      ...draft,
+    updateDraft((current) => ({
+      ...current,
       abilities: {
-        ...draft.abilities,
+        ...current.abilities,
         [key]: value
       }
-    });
+    }));
   }
 
   function updateSkill(index: number, patch: Partial<SkillEntry>) {
-    setDraft({
-      ...draft,
-      skills: draft.skills.map((entry, currentIndex) =>
+    updateDraft((current) => ({
+      ...current,
+      skills: current.skills.map((entry, currentIndex) =>
         currentIndex === index ? { ...entry, ...patch } : entry
       )
-    });
+    }));
   }
 
   function updateSpellSlot(index: number, patch: Partial<SpellSlotTrack>) {
-    setDraft({
-      ...draft,
-      spellSlots: draft.spellSlots.map((entry, currentIndex) =>
+    updateDraft((current) => ({
+      ...current,
+      spellSlots: current.spellSlots.map((entry, currentIndex) =>
         currentIndex === index ? { ...entry, ...patch } : entry
       )
-    });
+    }));
   }
 
   function updateAttack(index: number, patch: Partial<AttackEntry>) {
-    setDraft({
-      ...draft,
-      attacks: draft.attacks.map((entry, currentIndex) =>
+    updateDraft((current) => ({
+      ...current,
+      attacks: current.attacks.map((entry, currentIndex) =>
         currentIndex === index ? { ...entry, ...patch } : entry
       )
-    });
+    }));
   }
 
   function updateArmor(index: number, patch: Partial<ArmorEntry>) {
-    setDraft({
-      ...draft,
-      armorItems: draft.armorItems.map((entry, currentIndex) =>
+    updateDraft((current) => ({
+      ...current,
+      armorItems: current.armorItems.map((entry, currentIndex) =>
         currentIndex === index ? { ...entry, ...patch } : entry
       )
-    });
+    }));
   }
 
   function updateResource(index: number, patch: Partial<ResourceEntry>) {
-    setDraft({
-      ...draft,
-      resources: draft.resources.map((entry, currentIndex) =>
+    updateDraft((current) => ({
+      ...current,
+      resources: current.resources.map((entry, currentIndex) =>
         currentIndex === index ? { ...entry, ...patch } : entry
       )
-    });
+    }));
   }
 
   function updateInventory(index: number, patch: Partial<InventoryEntry>) {
-    setDraft({
-      ...draft,
-      inventory: draft.inventory.map((entry, currentIndex) =>
+    updateDraft((current) => ({
+      ...current,
+      inventory: current.inventory.map((entry, currentIndex) =>
         currentIndex === index ? { ...entry, ...patch } : entry
       )
-    });
+    }));
   }
 
   function updateCurrency(key: keyof CurrencyPouch, value: number) {
-    setDraft({
-      ...draft,
+    updateDraft((current) => ({
+      ...current,
       currency: {
-        ...draft.currency,
+        ...current.currency,
         [key]: value
       }
-    });
+    }));
   }
 
   function addAttack() {
-    setDraft({
-      ...draft,
+    updateDraft((current) => ({
+      ...current,
       attacks: [
-        ...draft.attacks,
+        ...current.attacks,
         {
           id: crypto.randomUUID(),
           name: "New Attack",
@@ -239,14 +243,14 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
           notes: ""
         }
       ]
-    });
+    }));
   }
 
   function addArmor() {
-    setDraft({
-      ...draft,
+    updateDraft((current) => ({
+      ...current,
       armorItems: [
-        ...draft.armorItems,
+        ...current.armorItems,
         {
           id: crypto.randomUUID(),
           name: "Armor Piece",
@@ -254,14 +258,14 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
           notes: ""
         }
       ]
-    });
+    }));
   }
 
   function addResource() {
-    setDraft({
-      ...draft,
+    updateDraft((current) => ({
+      ...current,
       resources: [
-        ...draft.resources,
+        ...current.resources,
         {
           id: crypto.randomUUID(),
           name: "Resource",
@@ -270,28 +274,28 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
           resetOn: "Long Rest"
         }
       ]
-    });
+    }));
   }
 
   function addInventoryItem() {
-    setDraft({
-      ...draft,
+    updateDraft((current) => ({
+      ...current,
       inventory: [
-        ...draft.inventory,
+        ...current.inventory,
         {
           id: crypto.randomUUID(),
           name: "Item",
           quantity: 1
         }
       ]
-    });
+    }));
   }
 
   function removeAt<K extends "attacks" | "armorItems" | "resources" | "inventory">(key: K, index: number) {
-    setDraft({
-      ...draft,
-      [key]: draft[key].filter((_, currentIndex) => currentIndex !== index)
-    });
+    updateDraft((current) => ({
+      ...current,
+      [key]: current[key].filter((_, currentIndex) => currentIndex !== index)
+    }));
   }
 
   if (draft.kind === "monster") {
@@ -715,7 +719,7 @@ export function CharacterSheet({ actor, role, currentUserId, onSave, onRoll }: C
         <article className="sheet-panel">
           <div className="sheet-panel-head">
             <h3>Combat</h3>
-            <span className="small-kicker">{draft.kind === "monster" ? `CR ${draft.challengeRating || "1"}` : draft.hitDice}</span>
+            <span className="small-kicker">{draft.hitDice}</span>
           </div>
           <div className="combat-grid">
             <div className="stat-card">

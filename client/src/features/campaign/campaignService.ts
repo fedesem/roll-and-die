@@ -3,8 +3,7 @@ import type {
   ActorSheet,
   CampaignMap,
   CampaignSummary,
-  MemberRole,
-  MonsterTemplate
+  MemberRole
 } from "@shared/types";
 
 import { apiRequest } from "../../api";

@@ -142,15 +142,19 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
   }, []);
 
   useEffect(() => {
-    if (!dragging || disabled || editorMode !== "align") {
+    const activeDrag = dragging;
+
+    if (!activeDrag || disabled || editorMode !== "align") {
       return;
     }
+
+    const currentDrag = activeDrag;
 
     function handleWindowPointerMove(event: PointerEvent) {
       onChange({
         ...map,
-        backgroundOffsetX: dragging.offsetX + (event.clientX - dragging.clientX) / renderScale,
-        backgroundOffsetY: dragging.offsetY + (event.clientY - dragging.clientY) / renderScale
+        backgroundOffsetX: currentDrag.offsetX + (event.clientX - currentDrag.clientX) / renderScale,
+        backgroundOffsetY: currentDrag.offsetY + (event.clientY - currentDrag.clientY) / renderScale
       });
     }
 
@@ -168,14 +172,18 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
   }, [disabled, dragging, editorMode, map, onChange, renderScale]);
 
   useEffect(() => {
-    if (!panning) {
+    const activePan = panning;
+
+    if (!activePan) {
       return;
     }
 
+    const currentPan = activePan;
+
     function handleWindowPointerMove(event: PointerEvent) {
       setViewPan({
-        x: panning.originX + (event.clientX - panning.clientX),
-        y: panning.originY + (event.clientY - panning.clientY)
+        x: currentPan.originX + (event.clientX - currentPan.clientX),
+        y: currentPan.originY + (event.clientY - currentPan.clientY)
       });
     }
 
@@ -513,16 +521,6 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
     setPreviewZoom((current) => clamp(current * (direction > 0 ? 1.15 : 0.87), minPreviewZoom, maxPreviewZoom));
   }
 
-  function adjustAlignScaleStep(direction: 1 | -1) {
-    setAlignScaleStep((current) =>
-      clamp(
-        Number((current + direction * (current < 1 ? 0.1 : current < 3 ? 0.25 : 0.5)).toFixed(2)),
-        minAlignScaleStep,
-        maxAlignScaleStep
-      )
-    );
-  }
-
   function removeObstacles(obstacleIds: string[]) {
     if (obstacleIds.length === 0) {
       return;
@@ -531,19 +529,6 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
     const selected = new Set(obstacleIds);
     updateWalls(map.walls.filter((wall) => !selected.has(wall.id)));
     setSelectedObstacleIds((current) => current.filter((id) => !selected.has(id)));
-  }
-
-  function toggleDoorState(obstacleId: string) {
-    updateWalls(
-      map.walls.map((wall) =>
-        wall.id === obstacleId && wall.kind === "door"
-          ? {
-              ...wall,
-              isOpen: !wall.isOpen
-            }
-          : wall
-      )
-    );
   }
 
   function clearObstacles() {
@@ -959,10 +944,6 @@ function obstacleLabel(kind: EditorMode) {
     default:
       return "Alignment";
   }
-}
-
-function formatPoint(point: Point) {
-  return `${Math.round(point.x)}, ${Math.round(point.y)}`;
 }
 
 function samePoint(a: Point, b: Point) {

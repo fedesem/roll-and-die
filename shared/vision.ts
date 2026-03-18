@@ -366,7 +366,3 @@ function lineCells(startColumn: number, startRow: number, endColumn: number, end
 
   return cells;
 }
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}

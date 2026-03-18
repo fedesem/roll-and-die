@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
-import type { ActorKind, ActorSheet, AuthPayload, CampaignMap, CampaignSnapshot, CampaignSummary, MemberRole, MonsterTemplate } from "@shared/types";
+import type { ActorKind, ActorSheet, CampaignMap, CampaignSnapshot, CampaignSummary, MemberRole, MonsterTemplate } from "@shared/types";
 
 import {
   acceptCampaignInvite,

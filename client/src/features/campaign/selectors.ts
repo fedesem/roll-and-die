@@ -129,7 +129,7 @@ export function buildCurrentMapRoster({
   const tokenByActorId = new Map(allTokens.map((token) => [token.actorId, token]));
   const visibleTokenByActorId = new Map(visibleTokens.map((token) => [token.actorId, token]));
 
-  return assignments.flatMap((assignment) => {
+  return assignments.flatMap<CurrentMapRosterEntry>((assignment) => {
     const actor = actorById.get(assignment.actorId) ?? null;
     const token = tokenByActorId.get(assignment.actorId) ?? null;
     const visibleToken = visibleTokenByActorId.get(assignment.actorId) ?? null;

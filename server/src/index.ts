@@ -34,7 +34,6 @@ import type {
   MeasureSnapMode,
   MonsterTemplate,
   DrawingStroke,
-  FogRect,
   MemberRole,
   Point,
   ResourceEntry,
@@ -833,11 +832,6 @@ function createId(prefix: string) {
 
 function now() {
   return new Date().toISOString();
-}
-
-async function readCampaignForMember(campaignId: string, userId: string) {
-  const database = await readDatabase();
-  return requireCampaignMember(database, campaignId, userId).campaign;
 }
 
 function buildCampaignSnapshot(campaign: Campaign, user: UserProfile, catalog: CompendiumData["monsters"]): CampaignSnapshot {
@@ -2297,37 +2291,6 @@ function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {
       return sanitized;
     })
     .filter((entry): entry is DrawingStroke => entry !== null)
-    .slice(0, 300);
-}
-
-function sanitizeFog(value: unknown, fallback: FogRect[]) {
-  if (!Array.isArray(value)) {
-    return fallback;
-  }
-
-  return value
-    .map((entry) => {
-      if (
-        !entry ||
-        typeof entry !== "object" ||
-        typeof (entry as Partial<FogRect>).x !== "number" ||
-        typeof (entry as Partial<FogRect>).y !== "number" ||
-        typeof (entry as Partial<FogRect>).width !== "number" ||
-        typeof (entry as Partial<FogRect>).height !== "number"
-      ) {
-        return null;
-      }
-
-      const fog = entry as FogRect;
-      return {
-        id: typeof fog.id === "string" ? fog.id : createId("fog"),
-        x: fog.x,
-        y: fog.y,
-        width: Math.max(4, fog.width),
-        height: Math.max(4, fog.height)
-      };
-    })
-    .filter((entry): entry is FogRect => Boolean(entry))
     .slice(0, 300);
 }
 

@@ -3,7 +3,6 @@ import { Castle, Eye, FilePlus2, Map as MapIcon, Minus, Pencil, Plus, ScrollText
 import type {
   ActorKind,
   ActorSheet,
-  BoardToken,
   CampaignMap,
   CampaignMember,
   CampaignSnapshot,
@@ -67,28 +66,28 @@ interface CampaignPageProps {
   onSelectActor: (actorId: string | null) => void;
   onSetDmFogEnabled: (enabled: boolean) => void;
   onSetDmFogUserId: (userId: string | null) => void;
-  onResetFog: () => void;
+  onResetFog: () => Promise<void>;
   onSelectedMapItemCountChange: (count: number) => void;
-  onMoveActor: (actorId: string, x: number, y: number) => void;
-  onBroadcastMovePreview: (actorId: string, target: Point | null) => void;
-  onBroadcastMeasurePreview: (preview: MeasurePreview | null) => void;
-  onToggleDoor: (doorId: string) => void;
-  onCreateDrawing: (mapId: string, stroke: DrawingStroke) => void;
-  onUpdateDrawings: (mapId: string, drawings: Array<{ id: string; points: Point[]; rotation: number }>) => void;
-  onDeleteDrawings: (mapId: string, drawingIds: string[]) => void;
-  onClearDrawings: (mapId: string) => void;
-  onPing: (point: Point) => void;
-  onPingAndRecall: (point: Point, center: Point, zoom: number) => void;
-  onSendChat: (text: string) => void;
-  onSaveActor: (actor: ActorSheet) => void;
-  onRoll: (notation: string, label: string) => void;
+  onMoveActor: (actorId: string, x: number, y: number) => Promise<void>;
+  onBroadcastMovePreview: (actorId: string, target: Point | null) => Promise<void>;
+  onBroadcastMeasurePreview: (preview: MeasurePreview | null) => Promise<void>;
+  onToggleDoor: (doorId: string) => Promise<void>;
+  onCreateDrawing: (mapId: string, stroke: DrawingStroke) => Promise<void>;
+  onUpdateDrawings: (mapId: string, drawings: Array<{ id: string; points: Point[]; rotation: number }>) => Promise<void>;
+  onDeleteDrawings: (mapId: string, drawingIds: string[]) => Promise<void>;
+  onClearDrawings: (mapId: string) => Promise<void>;
+  onPing: (point: Point) => Promise<void>;
+  onPingAndRecall: (point: Point, center: Point, zoom: number) => Promise<void>;
+  onSendChat: (text: string) => Promise<void>;
+  onSaveActor: (actor: ActorSheet) => Promise<void>;
+  onRoll: (notation: string, label: string) => Promise<void>;
   onActorSearchChange: (value: string) => void;
   onMapActorSearchChange: (value: string) => void;
   onActorTypeFilterChange: (value: ActorTypeFilter) => void;
   onMapActorTypeFilterChange: (value: ActorTypeFilter) => void;
   onActorCreatorOpenChange: (open: boolean) => void;
   onActorCreatorKindChange: (kind: ActorKind) => void;
-  onCreateActor: (draft: ActorSheet) => void;
+  onCreateActor: (draft: ActorSheet) => Promise<void>;
   onMonsterQueryChange: (value: string) => void;
   onSelectMonster: (monsterId: string) => void;
   onCreateMonsterActor: (monster: MonsterTemplate) => void;
@@ -192,7 +191,7 @@ export function CampaignPage({
             map={activeMap}
             tokens={campaign.tokens}
             actors={campaign.actors}
-            selectedActor={selectedActor}
+            selectedActor={selectedActor ?? undefined}
             role={role}
             currentUserId={currentUserId}
             playerSeenCells={boardSeenCells}
@@ -335,7 +334,7 @@ export function CampaignPage({
 
       {activePopup === "sheet" && (
         <WorkspaceModal title={selectedActor ? `${selectedActor.name} Sheet` : "Interactive Sheet"} size="wide" onClose={() => onSetActivePopup(null)}>
-          <CharacterSheet actor={selectedActor} role={role} currentUserId={currentUserId} onSave={onSaveActor} onRoll={onRoll} />
+          <CharacterSheet actor={selectedActor ?? undefined} role={role} currentUserId={currentUserId} onSave={onSaveActor} onRoll={onRoll} />
         </WorkspaceModal>
       )}
 

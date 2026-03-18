@@ -1,6 +1,6 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ReactNode } from "react";
 
-import { GraduationCap, ShieldPlus, Skull, Sparkles, Users } from "lucide-react";
+import { GraduationCap, ShieldPlus, Skull, Sparkles, Users, type LucideIcon } from "lucide-react";
 
 import { toErrorMessage } from "../../lib/errors";
 
@@ -18,7 +18,7 @@ export const tabIcons = {
   monsters: Skull,
   feats: ShieldPlus,
   classes: GraduationCap
-} satisfies Record<AdminTab, ComponentType<{ size?: number }>>;
+} satisfies Record<AdminTab, LucideIcon>;
 
 export function AdminField({
   label,
