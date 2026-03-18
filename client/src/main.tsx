@@ -5,7 +5,7 @@ import { registerSW } from "virtual:pwa-register";
 
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import "./styles.css";
+import "./index.css";
 
 registerSW({ immediate: true });
 

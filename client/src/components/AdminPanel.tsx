@@ -3,6 +3,7 @@ import { ArrowDownToLine, FilePlus2, List, RefreshCw } from "lucide-react";
 
 import type { SpellEntry } from "@shared/types";
 import { ClassPreviewCard, FeatPreviewCard, MonsterPreviewCard, PreviewError, PreviewPlaceholder, SpellPreviewCard, UserPreviewCard } from "./admin/AdminPreview";
+import styles from "./AdminPanel.module.css";
 import { useAdminOverviewQuery } from "../features/admin/useAdminOverviewQuery";
 import {
   clearCompendiumItems,
@@ -45,6 +46,7 @@ import {
 } from "./admin/adminPanelUtils";
 
 type AdminMode = "list" | "add" | "import";
+const cx = (...values: Array<string | false | null | undefined>) => values.filter(Boolean).join(" ");
 
 interface AdminPanelProps {
   token: string;
@@ -313,55 +315,53 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
   }
 
   return (
-    <main className="admin-page">
-      <section className="dark-card admin-page-shell">
-        <div className="panel-head admin-page-head">
+    <main className={styles.page}>
+      <section className={styles.shell}>
+        <div className={styles.head}>
           <div>
             <p className="panel-label">System</p>
             <h2>Administrator area</h2>
           </div>
           <button type="button" onClick={() => void refreshOverview()} disabled={loading}>
             <RefreshCw size={15} />
-            <span>Refresh</span>
+            <span>{loading ? "Refreshing" : "Refresh"}</span>
           </button>
         </div>
 
-        <div className="admin-page-toolbar">
-          <div className="segmented admin-tabbar">
-            {(Object.keys(tabIcons) as AdminTab[]).map((value) => {
-              const Icon = tabIcons[value];
-              return (
-                <button key={value} type="button" className={tab === value ? "is-active" : ""} onClick={() => setTab(value)}>
-                  <Icon size={15} />
-                  <span>{labelForTab(value)}</span>
-                  <span className="badge subtle">{counts[value]}</span>
-                </button>
-              );
-            })}
-          </div>
+        <div className={styles.staticShell}>
+          <div className="admin-page-toolbar">
+            <div className="segmented admin-tabbar">
+              {(Object.keys(tabIcons) as AdminTab[]).map((value) => {
+                const Icon = tabIcons[value];
+                return (
+                  <button key={value} type="button" className={tab === value ? "is-active" : ""} onClick={() => setTab(value)}>
+                    <Icon size={15} />
+                    <span>{labelForTab(value)}</span>
+                    <span className="badge subtle">{counts[value]}</span>
+                  </button>
+                );
+              })}
+            </div>
 
-          <div className="admin-mode-bar">
-            <button type="button" className={mode === "list" ? "accent-button" : ""} onClick={() => setMode("list")}>
-              <List size={15} />
-              <span>List</span>
-            </button>
-            {tab !== "users" && (
-              <>
-                <button type="button" className={mode === "add" ? "accent-button" : ""} onClick={() => setMode("add")}>
+            {tab !== "users" ? (
+              <div className={styles.modeTabs}>
+                <button type="button" className={cx(styles.modeTab, mode === "list" && styles.modeTabActive)} onClick={() => setMode("list")}>
+                  <List size={15} />
+                  <span>List</span>
+                </button>
+                <button type="button" className={cx(styles.modeTab, mode === "add" && styles.modeTabActive)} onClick={() => setMode("add")}>
                   <FilePlus2 size={15} />
                   <span>Add</span>
                 </button>
-                <button type="button" className={mode === "import" ? "accent-button" : ""} onClick={() => setMode("import")}>
+                <button type="button" className={cx(styles.modeTab, mode === "import" && styles.modeTabActive)} onClick={() => setMode("import")}>
                   <ArrowDownToLine size={15} />
                   <span>Import</span>
                 </button>
-              </>
-            )}
+              </div>
+            ) : null}
           </div>
-        </div>
 
-        {tab === "users" || mode === "list" ? (
-          <div className="admin-content-grid">
+          <div className={styles.upperGrid}>
             <section className="admin-pane admin-list-pane">
               <div className="panel-head">
                 <div>
@@ -549,274 +549,283 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
               {tab === "classes" && (selectedClass ? <ClassPreviewCard entry={selectedClass} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} /> : <PreviewPlaceholder title="Classes" message="Select a class to preview it here." />)}
             </section>
           </div>
-        ) : mode === "add" ? (
-          <div className="admin-content-grid">
-            <section className="admin-pane admin-form-pane">
-              <div className="panel-head">
+          {tab !== "users" ? (
+            <section className={cx(styles.lowerShell, "admin-pane")}>
+              <div className={styles.lowerHead}>
                 <div>
-                  <p className="panel-label">Create</p>
-                  <h3>Add {singularLabel(tab)}</h3>
+                  <p className="panel-label">{mode === "add" ? "Create" : mode === "import" ? "Import" : "Browse"}</p>
+                  <h3>
+                    {mode === "add"
+                      ? `Add ${singularLabel(tab)}`
+                      : mode === "import"
+                        ? `Import ${labelForTab(tab)}`
+                        : `${labelForTab(tab)} tools`}
+                  </h3>
                 </div>
-              </div>
-
-              {tab === "spells" && (
-                <form className="admin-form-grid" onSubmit={handleSpellSubmit}>
-                  <AdminField label="Name"><input value={spellForm.name} onChange={(event) => setSpellForm({ ...spellForm, name: event.target.value })} /></AdminField>
-                  <AdminField label="Source"><input value={spellForm.source} onChange={(event) => setSpellForm({ ...spellForm, source: event.target.value })} /></AdminField>
-                  <AdminField label="Level">
-                    <select value={spellForm.level} onChange={(event) => setSpellForm({ ...spellForm, level: event.target.value })}>
-                      <option value="cantrip">Cantrip</option>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
-                        <option key={level} value={level}>
-                          Level {level}
-                        </option>
-                      ))}
-                    </select>
-                  </AdminField>
-                  <AdminField label="School">
-                    <select value={spellForm.school} onChange={(event) => setSpellForm({ ...spellForm, school: event.target.value as SpellEntry["school"] })}>
-                      {["Abjuration", "Conjuration", "Divination", "Enchantment", "Evocation", "Illusion", "Necromancy", "Transmutation"].map((school) => (
-                        <option key={school} value={school}>
-                          {school}
-                        </option>
-                      ))}
-                    </select>
-                  </AdminField>
-                  <AdminField label="Casting time unit">
-                    <select value={spellForm.castingTimeUnit} onChange={(event) => setSpellForm({ ...spellForm, castingTimeUnit: event.target.value as SpellEntry["castingTimeUnit"] })}>
-                      {["action", "bonus action", "minute", "hour"].map((unit) => (
-                        <option key={unit} value={unit}>
-                          {unit}
-                        </option>
-                      ))}
-                    </select>
-                  </AdminField>
-                  <AdminField label="Casting time value"><input value={spellForm.castingTimeValue} onChange={(event) => setSpellForm({ ...spellForm, castingTimeValue: event.target.value })} /></AdminField>
-                  <AdminField label="Range type">
-                    <select value={spellForm.rangeType} onChange={(event) => setSpellForm({ ...spellForm, rangeType: event.target.value as SpellEntry["rangeType"] })}>
-                      {["feet", "self", "self emanation", "touch"].map((unit) => (
-                        <option key={unit} value={unit}>
-                          {unit}
-                        </option>
-                      ))}
-                    </select>
-                  </AdminField>
-                  <AdminField label="Range value"><input value={spellForm.rangeValue} onChange={(event) => setSpellForm({ ...spellForm, rangeValue: event.target.value })} /></AdminField>
-                  <AdminField label="Duration unit">
-                    <select value={spellForm.durationUnit} onChange={(event) => setSpellForm({ ...spellForm, durationUnit: event.target.value as SpellEntry["durationUnit"] })}>
-                      {["instant", "minute", "hour"].map((unit) => (
-                        <option key={unit} value={unit}>
-                          {unit}
-                        </option>
-                      ))}
-                    </select>
-                  </AdminField>
-                  <AdminField label="Duration value"><input value={spellForm.durationValue} onChange={(event) => setSpellForm({ ...spellForm, durationValue: event.target.value })} /></AdminField>
-                  <AdminField label="Damage notation"><input value={spellForm.damageNotation} onChange={(event) => setSpellForm({ ...spellForm, damageNotation: event.target.value })} /></AdminField>
-                  <AdminField label="Damage ability">
-                    <select value={spellForm.damageAbility} onChange={(event) => setSpellForm({ ...spellForm, damageAbility: event.target.value as SpellFormState["damageAbility"] })}>
-                      <option value="">None</option>
-                      {["str", "dex", "con", "int", "wis", "cha"].map((ability) => (
-                        <option key={ability} value={ability}>
-                          {ability.toUpperCase()}
-                        </option>
-                      ))}
-                    </select>
-                  </AdminField>
-                  <AdminField label="Classes" wide><input value={spellForm.classesText} onChange={(event) => setSpellForm({ ...spellForm, classesText: event.target.value })} placeholder="Wizard, Sorcerer" /></AdminField>
-                  <AdminField label="Short description" wide><textarea value={spellForm.description} onChange={(event) => setSpellForm({ ...spellForm, description: event.target.value })} /></AdminField>
-                  <AdminField label="Full description" wide><textarea value={spellForm.fullDescription} onChange={(event) => setSpellForm({ ...spellForm, fullDescription: event.target.value })} /></AdminField>
-                  <fieldset className="admin-checks">
-                    <legend>Components and flags</legend>
-                    <label><input type="checkbox" checked={spellForm.verbal} onChange={(event) => setSpellForm({ ...spellForm, verbal: event.target.checked })} /> Verbal</label>
-                    <label><input type="checkbox" checked={spellForm.somatic} onChange={(event) => setSpellForm({ ...spellForm, somatic: event.target.checked })} /> Somatic</label>
-                    <label><input type="checkbox" checked={spellForm.material} onChange={(event) => setSpellForm({ ...spellForm, material: event.target.checked })} /> Material</label>
-                    <label><input type="checkbox" checked={spellForm.materialConsumed} onChange={(event) => setSpellForm({ ...spellForm, materialConsumed: event.target.checked })} /> Material consumed</label>
-                    <label><input type="checkbox" checked={spellForm.concentration} onChange={(event) => setSpellForm({ ...spellForm, concentration: event.target.checked })} /> Concentration</label>
-                  </fieldset>
-                  <AdminField label="Material text"><input value={spellForm.materialText} onChange={(event) => setSpellForm({ ...spellForm, materialText: event.target.value })} /></AdminField>
-                  <AdminField label="Material value"><input value={spellForm.materialValue} onChange={(event) => setSpellForm({ ...spellForm, materialValue: event.target.value })} /></AdminField>
-                  <button className="accent-button" type="submit">Add spell</button>
-                </form>
-              )}
-
-              {tab === "monsters" && (
-                <form className="admin-form-grid admin-form-grid-wide" onSubmit={handleMonsterSubmit}>
-                  <AdminField label="Name"><input value={monsterForm.name} onChange={(event) => setMonsterForm({ ...monsterForm, name: event.target.value })} /></AdminField>
-                  <Field label="Source"><input value={monsterForm.source} onChange={(event) => setMonsterForm({ ...monsterForm, source: event.target.value })} /></Field>
-                  <Field label="Challenge rating"><input value={monsterForm.challengeRating} onChange={(event) => setMonsterForm({ ...monsterForm, challengeRating: event.target.value })} /></Field>
-                  <Field label="Armor class"><input value={monsterForm.armorClass} onChange={(event) => setMonsterForm({ ...monsterForm, armorClass: event.target.value })} /></Field>
-                  <Field label="Hit points"><input value={monsterForm.hitPoints} onChange={(event) => setMonsterForm({ ...monsterForm, hitPoints: event.target.value })} /></Field>
-                  <Field label="Initiative"><input value={monsterForm.initiative} onChange={(event) => setMonsterForm({ ...monsterForm, initiative: event.target.value })} /></Field>
-                  <Field label="Experience"><input value={monsterForm.xp} onChange={(event) => setMonsterForm({ ...monsterForm, xp: event.target.value })} /></Field>
-                  <Field label="Proficiency bonus"><input value={monsterForm.proficiencyBonus} onChange={(event) => setMonsterForm({ ...monsterForm, proficiencyBonus: event.target.value })} /></Field>
-                  <Field label="Passive perception"><input value={monsterForm.passivePerception} onChange={(event) => setMonsterForm({ ...monsterForm, passivePerception: event.target.value })} /></Field>
-                  <Field label="Walk speed"><input value={monsterForm.walk} onChange={(event) => setMonsterForm({ ...monsterForm, walk: event.target.value })} /></Field>
-                  <Field label="Fly speed"><input value={monsterForm.fly} onChange={(event) => setMonsterForm({ ...monsterForm, fly: event.target.value })} /></Field>
-                  <Field label="Burrow speed"><input value={monsterForm.burrow} onChange={(event) => setMonsterForm({ ...monsterForm, burrow: event.target.value })} /></Field>
-                  <Field label="Swim speed"><input value={monsterForm.swim} onChange={(event) => setMonsterForm({ ...monsterForm, swim: event.target.value })} /></Field>
-                  <Field label="Climb speed"><input value={monsterForm.climb} onChange={(event) => setMonsterForm({ ...monsterForm, climb: event.target.value })} /></Field>
-                  <Field label="Strength"><input value={monsterForm.str} onChange={(event) => setMonsterForm({ ...monsterForm, str: event.target.value })} /></Field>
-                  <Field label="Dexterity"><input value={monsterForm.dex} onChange={(event) => setMonsterForm({ ...monsterForm, dex: event.target.value })} /></Field>
-                  <Field label="Constitution"><input value={monsterForm.con} onChange={(event) => setMonsterForm({ ...monsterForm, con: event.target.value })} /></Field>
-                  <Field label="Intelligence"><input value={monsterForm.int} onChange={(event) => setMonsterForm({ ...monsterForm, int: event.target.value })} /></Field>
-                  <Field label="Wisdom"><input value={monsterForm.wis} onChange={(event) => setMonsterForm({ ...monsterForm, wis: event.target.value })} /></Field>
-                  <Field label="Charisma"><input value={monsterForm.cha} onChange={(event) => setMonsterForm({ ...monsterForm, cha: event.target.value })} /></Field>
-                  <Field label="Skills" wide><input value={monsterForm.skillsText} onChange={(event) => setMonsterForm({ ...monsterForm, skillsText: event.target.value })} placeholder="Perception:13, Stealth:6" /></Field>
-                  <Field label="Senses" wide><input value={monsterForm.sensesText} onChange={(event) => setMonsterForm({ ...monsterForm, sensesText: event.target.value })} placeholder="Darkvision:120, Blindsight:60" /></Field>
-                  <Field label="Languages" wide><input value={monsterForm.languagesText} onChange={(event) => setMonsterForm({ ...monsterForm, languagesText: event.target.value })} placeholder="Common, Draconic" /></Field>
-                  <Field label="Gear" wide><input value={monsterForm.gearText} onChange={(event) => setMonsterForm({ ...monsterForm, gearText: event.target.value })} /></Field>
-                  <Field label="Resistances" wide><input value={monsterForm.resistancesText} onChange={(event) => setMonsterForm({ ...monsterForm, resistancesText: event.target.value })} /></Field>
-                  <Field label="Vulnerabilities" wide><input value={monsterForm.vulnerabilitiesText} onChange={(event) => setMonsterForm({ ...monsterForm, vulnerabilitiesText: event.target.value })} /></Field>
-                  <Field label="Immunities" wide><input value={monsterForm.immunitiesText} onChange={(event) => setMonsterForm({ ...monsterForm, immunitiesText: event.target.value })} /></Field>
-                  <Field label="Traits" wide><textarea value={monsterForm.traitsText} onChange={(event) => setMonsterForm({ ...monsterForm, traitsText: event.target.value })} placeholder="One trait per line" /></Field>
-                  <Field label="Spells" wide><input value={monsterForm.spellsText} onChange={(event) => setMonsterForm({ ...monsterForm, spellsText: event.target.value })} /></Field>
-                  <Field label="Actions JSON" wide><textarea value={monsterForm.actionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, actionsJson: event.target.value })} placeholder={JSON.stringify([monsterActionTemplate], null, 2)} /></Field>
-                  <Field label="Bonus actions JSON" wide><textarea value={monsterForm.bonusActionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, bonusActionsJson: event.target.value })} /></Field>
-                  <Field label="Reactions JSON" wide><textarea value={monsterForm.reactionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, reactionsJson: event.target.value })} /></Field>
-                  <Field label="Legendary actions JSON" wide><textarea value={monsterForm.legendaryActionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, legendaryActionsJson: event.target.value })} /></Field>
-                  <Field label="Legendary action uses"><input value={monsterForm.legendaryActionsUse} onChange={(event) => setMonsterForm({ ...monsterForm, legendaryActionsUse: event.target.value })} /></Field>
-                  <Field label="Lair actions JSON" wide><textarea value={monsterForm.lairActionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, lairActionsJson: event.target.value })} /></Field>
-                  <Field label="Regional effects JSON" wide><textarea value={monsterForm.regionalEffectsJson} onChange={(event) => setMonsterForm({ ...monsterForm, regionalEffectsJson: event.target.value })} /></Field>
-                  <Field label="Habitat"><input value={monsterForm.habitat} onChange={(event) => setMonsterForm({ ...monsterForm, habitat: event.target.value })} /></Field>
-                  <Field label="Treasure"><input value={monsterForm.treasure} onChange={(event) => setMonsterForm({ ...monsterForm, treasure: event.target.value })} /></Field>
-                  <Field label="Image URL">
-                    <input value={monsterForm.imageUrl} onChange={(event) => setMonsterForm({ ...monsterForm, imageUrl: event.target.value })} />
-                  </Field>
-                  <Field label="Upload image">
-                    <div className="admin-image-controls">
-                      <input type="file" accept="image/*" onChange={(event) => void handleMonsterImageUpload(event)} />
-                      <button type="button" onClick={() => setMonsterForm({ ...monsterForm, imageUrl: "" })} disabled={!monsterForm.imageUrl}>
-                        Clear image
-                      </button>
-                    </div>
-                  </Field>
-                  <Field label="Color" wide>
-                    <div className="color-field">
-                      <input type="color" value={monsterForm.color} onChange={(event) => setMonsterForm({ ...monsterForm, color: event.target.value })} />
-                      <span>{monsterForm.color}</span>
-                    </div>
-                  </Field>
-                  <button className="accent-button" type="submit">Add monster</button>
-                </form>
-              )}
-
-              {tab === "feats" && (
-                <form className="admin-form-grid" onSubmit={handleFeatSubmit}>
-                  <AdminField label="Name"><input value={featForm.name} onChange={(event) => setFeatForm({ ...featForm, name: event.target.value })} /></AdminField>
-                  <Field label="Source"><input value={featForm.source} onChange={(event) => setFeatForm({ ...featForm, source: event.target.value })} /></Field>
-                  <Field label="Category"><input value={featForm.category} onChange={(event) => setFeatForm({ ...featForm, category: event.target.value })} /></Field>
-                  <Field label="Ability score increase"><input value={featForm.abilityScoreIncrease} onChange={(event) => setFeatForm({ ...featForm, abilityScoreIncrease: event.target.value })} /></Field>
-                  <Field label="Prerequisites" wide><input value={featForm.prerequisites} onChange={(event) => setFeatForm({ ...featForm, prerequisites: event.target.value })} /></Field>
-                  <Field label="Description" wide><textarea value={featForm.description} onChange={(event) => setFeatForm({ ...featForm, description: event.target.value })} /></Field>
-                  <button className="accent-button" type="submit">Add feat</button>
-                </form>
-              )}
-
-              {tab === "classes" && (
-                <form className="admin-form-grid" onSubmit={handleClassSubmit}>
-                  <AdminField label="Name"><input value={classForm.name} onChange={(event) => setClassForm({ ...classForm, name: event.target.value })} /></AdminField>
-                  <Field label="Source"><input value={classForm.source} onChange={(event) => setClassForm({ ...classForm, source: event.target.value })} /></Field>
-                  <Field label="Description" wide><textarea value={classForm.description} onChange={(event) => setClassForm({ ...classForm, description: event.target.value })} /></Field>
-                  <Field label="Features JSON" wide><textarea value={classForm.featuresJson} onChange={(event) => setClassForm({ ...classForm, featuresJson: event.target.value })} /></Field>
-                  <Field label="Tables JSON" wide><textarea value={classForm.tablesJson} onChange={(event) => setClassForm({ ...classForm, tablesJson: event.target.value })} /></Field>
-                  <button className="accent-button" type="submit">Add class</button>
-                </form>
-              )}
-            </section>
-
-            <section className="admin-pane admin-preview-pane">
-              <div className="panel-head">
-                <div>
-                  <p className="panel-label">Draft</p>
-                  <h3>{singularLabel(tab)} preview</h3>
-                </div>
-              </div>
-              {tab === "spells" && (spellPreview.entry ? <SpellPreviewCard spell={spellPreview.entry} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewError title="Spell" message={spellPreview.error ?? "Fill in the form to preview the spell."} />)}
-              {tab === "monsters" && (monsterPreview.entry ? <MonsterPreviewCard monster={monsterPreview.entry} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewError title="Monster" message={monsterPreview.error ?? "Fill in the form to preview the monster."} />)}
-              {tab === "feats" && (featPreview.entry ? <FeatPreviewCard feat={featPreview.entry} spellEntries={overview?.compendium.spells ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewError title="Feat" message={featPreview.error ?? "Fill in the form to preview the feat."} />)}
-              {tab === "classes" && (classPreview.entry ? <ClassPreviewCard entry={classPreview.entry} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} /> : <PreviewError title="Class" message={classPreview.error ?? "Fill in the form to preview the class."} />)}
-            </section>
-          </div>
-        ) : (
-          <div className="admin-content-grid">
-            <section className="admin-pane admin-form-pane">
-              <div className="panel-head">
-                <div>
-                  <p className="panel-label">Import</p>
-                  <h3>{labelForTab(tab)} JSON</h3>
-                </div>
-                <button
-                  type="button"
-                  className="accent-button"
-                  onClick={() => {
-                    if (activeCompendiumTab) {
-                      void importEntries(activeCompendiumTab);
-                    }
-                  }}
-                  disabled={!activeCompendiumTab || !importFiles[activeCompendiumTab]?.content.trim()}
-                >
-                  Import
-                </button>
-              </div>
-              <label className="admin-search-field">
-                <span>JSON file</span>
-                <div className="admin-import-upload">
-                  <input
-                    type="file"
-                    accept="application/json,.json"
-                    onChange={(event) => {
-                      if (!activeCompendiumTab) {
-                        return;
-                      }
-
-                      void handleImportFileChange(activeCompendiumTab, event);
-                    }}
-                  />
-                  <div className="admin-import-file-meta">
-                    <strong>{activeCompendiumTab ? importFiles[activeCompendiumTab]?.name ?? "No file selected" : "No file selected"}</strong>
-                    <small>
-                      {activeCompendiumTab && importFiles[activeCompendiumTab]?.content
-                        ? `${importFiles[activeCompendiumTab]?.content.length.toLocaleString()} characters loaded`
-                        : `Upload one ${singularLabel(tab).toLowerCase()} object or an array of ${labelForTab(tab).toLowerCase()}.`}
-                    </small>
-                  </div>
+                {mode === "import" ? (
                   <button
                     type="button"
+                    className="accent-button"
                     onClick={() => {
-                      if (!activeCompendiumTab) {
-                        return;
+                      if (activeCompendiumTab) {
+                        void importEntries(activeCompendiumTab);
                       }
-
-                      setImportFiles((current) => ({ ...current, [activeCompendiumTab]: null }));
                     }}
-                    disabled={!activeCompendiumTab || !importFiles[activeCompendiumTab]}
+                    disabled={!activeCompendiumTab || !importFiles[activeCompendiumTab]?.content.trim()}
                   >
-                    Clear file
+                    Import
                   </button>
-                </div>
-              </label>
-              <label className="admin-search-field">
-                <span>Example JSON</span>
-                <textarea className="admin-json admin-json-example" value={importExample} readOnly />
-              </label>
-            </section>
-
-            <section className="admin-pane admin-preview-pane">
-              <div className="panel-head">
-                <div>
-                  <p className="panel-label">Import status</p>
-                  <h3>{singularLabel(tab)} import</h3>
-                </div>
+                ) : null}
               </div>
-              {importSummary?.valid ? (
-                <PreviewPlaceholder title="Ready" message={importSummary.message} />
+
+              {mode === "list" ? (
+                <PreviewPlaceholder title="Compendium tools" message="Use Add or Import to create new entries. The selected item preview stays visible above." />
+              ) : mode === "add" ? (
+                <div className={styles.workspaceGrid}>
+                  <section className="admin-form-pane">
+                    {tab === "spells" && (
+                      <form className="admin-form-grid" onSubmit={handleSpellSubmit}>
+                        <AdminField label="Name"><input value={spellForm.name} onChange={(event) => setSpellForm({ ...spellForm, name: event.target.value })} /></AdminField>
+                        <AdminField label="Source"><input value={spellForm.source} onChange={(event) => setSpellForm({ ...spellForm, source: event.target.value })} /></AdminField>
+                        <AdminField label="Level">
+                          <select value={spellForm.level} onChange={(event) => setSpellForm({ ...spellForm, level: event.target.value })}>
+                            <option value="cantrip">Cantrip</option>
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
+                              <option key={level} value={level}>
+                                Level {level}
+                              </option>
+                            ))}
+                          </select>
+                        </AdminField>
+                        <AdminField label="School">
+                          <select value={spellForm.school} onChange={(event) => setSpellForm({ ...spellForm, school: event.target.value as SpellEntry["school"] })}>
+                            {["Abjuration", "Conjuration", "Divination", "Enchantment", "Evocation", "Illusion", "Necromancy", "Transmutation"].map((school) => (
+                              <option key={school} value={school}>
+                                {school}
+                              </option>
+                            ))}
+                          </select>
+                        </AdminField>
+                        <AdminField label="Casting time unit">
+                          <select value={spellForm.castingTimeUnit} onChange={(event) => setSpellForm({ ...spellForm, castingTimeUnit: event.target.value as SpellEntry["castingTimeUnit"] })}>
+                            {["action", "bonus action", "minute", "hour"].map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
+                        </AdminField>
+                        <AdminField label="Casting time value"><input value={spellForm.castingTimeValue} onChange={(event) => setSpellForm({ ...spellForm, castingTimeValue: event.target.value })} /></AdminField>
+                        <AdminField label="Range type">
+                          <select value={spellForm.rangeType} onChange={(event) => setSpellForm({ ...spellForm, rangeType: event.target.value as SpellEntry["rangeType"] })}>
+                            {["feet", "self", "self emanation", "touch"].map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
+                        </AdminField>
+                        <AdminField label="Range value"><input value={spellForm.rangeValue} onChange={(event) => setSpellForm({ ...spellForm, rangeValue: event.target.value })} /></AdminField>
+                        <AdminField label="Duration unit">
+                          <select value={spellForm.durationUnit} onChange={(event) => setSpellForm({ ...spellForm, durationUnit: event.target.value as SpellEntry["durationUnit"] })}>
+                            {["instant", "minute", "hour"].map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ))}
+                          </select>
+                        </AdminField>
+                        <AdminField label="Duration value"><input value={spellForm.durationValue} onChange={(event) => setSpellForm({ ...spellForm, durationValue: event.target.value })} /></AdminField>
+                        <AdminField label="Damage notation"><input value={spellForm.damageNotation} onChange={(event) => setSpellForm({ ...spellForm, damageNotation: event.target.value })} /></AdminField>
+                        <AdminField label="Damage ability">
+                          <select value={spellForm.damageAbility} onChange={(event) => setSpellForm({ ...spellForm, damageAbility: event.target.value as SpellFormState["damageAbility"] })}>
+                            <option value="">None</option>
+                            {["str", "dex", "con", "int", "wis", "cha"].map((ability) => (
+                              <option key={ability} value={ability}>
+                                {ability.toUpperCase()}
+                              </option>
+                            ))}
+                          </select>
+                        </AdminField>
+                        <AdminField label="Classes" wide><input value={spellForm.classesText} onChange={(event) => setSpellForm({ ...spellForm, classesText: event.target.value })} placeholder="Wizard, Sorcerer" /></AdminField>
+                        <AdminField label="Short description" wide><textarea value={spellForm.description} onChange={(event) => setSpellForm({ ...spellForm, description: event.target.value })} /></AdminField>
+                        <AdminField label="Full description" wide><textarea value={spellForm.fullDescription} onChange={(event) => setSpellForm({ ...spellForm, fullDescription: event.target.value })} /></AdminField>
+                        <fieldset className="admin-checks">
+                          <legend>Components and flags</legend>
+                          <label><input type="checkbox" checked={spellForm.verbal} onChange={(event) => setSpellForm({ ...spellForm, verbal: event.target.checked })} /> Verbal</label>
+                          <label><input type="checkbox" checked={spellForm.somatic} onChange={(event) => setSpellForm({ ...spellForm, somatic: event.target.checked })} /> Somatic</label>
+                          <label><input type="checkbox" checked={spellForm.material} onChange={(event) => setSpellForm({ ...spellForm, material: event.target.checked })} /> Material</label>
+                          <label><input type="checkbox" checked={spellForm.materialConsumed} onChange={(event) => setSpellForm({ ...spellForm, materialConsumed: event.target.checked })} /> Material consumed</label>
+                          <label><input type="checkbox" checked={spellForm.concentration} onChange={(event) => setSpellForm({ ...spellForm, concentration: event.target.checked })} /> Concentration</label>
+                        </fieldset>
+                        <AdminField label="Material text"><input value={spellForm.materialText} onChange={(event) => setSpellForm({ ...spellForm, materialText: event.target.value })} /></AdminField>
+                        <AdminField label="Material value"><input value={spellForm.materialValue} onChange={(event) => setSpellForm({ ...spellForm, materialValue: event.target.value })} /></AdminField>
+                        <button className="accent-button" type="submit">Add spell</button>
+                      </form>
+                    )}
+
+                    {tab === "monsters" && (
+                      <form className="admin-form-grid admin-form-grid-wide" onSubmit={handleMonsterSubmit}>
+                        <AdminField label="Name"><input value={monsterForm.name} onChange={(event) => setMonsterForm({ ...monsterForm, name: event.target.value })} /></AdminField>
+                        <Field label="Source"><input value={monsterForm.source} onChange={(event) => setMonsterForm({ ...monsterForm, source: event.target.value })} /></Field>
+                        <Field label="Challenge rating"><input value={monsterForm.challengeRating} onChange={(event) => setMonsterForm({ ...monsterForm, challengeRating: event.target.value })} /></Field>
+                        <Field label="Armor class"><input value={monsterForm.armorClass} onChange={(event) => setMonsterForm({ ...monsterForm, armorClass: event.target.value })} /></Field>
+                        <Field label="Hit points"><input value={monsterForm.hitPoints} onChange={(event) => setMonsterForm({ ...monsterForm, hitPoints: event.target.value })} /></Field>
+                        <Field label="Initiative"><input value={monsterForm.initiative} onChange={(event) => setMonsterForm({ ...monsterForm, initiative: event.target.value })} /></Field>
+                        <Field label="Experience"><input value={monsterForm.xp} onChange={(event) => setMonsterForm({ ...monsterForm, xp: event.target.value })} /></Field>
+                        <Field label="Proficiency bonus"><input value={monsterForm.proficiencyBonus} onChange={(event) => setMonsterForm({ ...monsterForm, proficiencyBonus: event.target.value })} /></Field>
+                        <Field label="Passive perception"><input value={monsterForm.passivePerception} onChange={(event) => setMonsterForm({ ...monsterForm, passivePerception: event.target.value })} /></Field>
+                        <Field label="Walk speed"><input value={monsterForm.walk} onChange={(event) => setMonsterForm({ ...monsterForm, walk: event.target.value })} /></Field>
+                        <Field label="Fly speed"><input value={monsterForm.fly} onChange={(event) => setMonsterForm({ ...monsterForm, fly: event.target.value })} /></Field>
+                        <Field label="Burrow speed"><input value={monsterForm.burrow} onChange={(event) => setMonsterForm({ ...monsterForm, burrow: event.target.value })} /></Field>
+                        <Field label="Swim speed"><input value={monsterForm.swim} onChange={(event) => setMonsterForm({ ...monsterForm, swim: event.target.value })} /></Field>
+                        <Field label="Climb speed"><input value={monsterForm.climb} onChange={(event) => setMonsterForm({ ...monsterForm, climb: event.target.value })} /></Field>
+                        <Field label="Strength"><input value={monsterForm.str} onChange={(event) => setMonsterForm({ ...monsterForm, str: event.target.value })} /></Field>
+                        <Field label="Dexterity"><input value={monsterForm.dex} onChange={(event) => setMonsterForm({ ...monsterForm, dex: event.target.value })} /></Field>
+                        <Field label="Constitution"><input value={monsterForm.con} onChange={(event) => setMonsterForm({ ...monsterForm, con: event.target.value })} /></Field>
+                        <Field label="Intelligence"><input value={monsterForm.int} onChange={(event) => setMonsterForm({ ...monsterForm, int: event.target.value })} /></Field>
+                        <Field label="Wisdom"><input value={monsterForm.wis} onChange={(event) => setMonsterForm({ ...monsterForm, wis: event.target.value })} /></Field>
+                        <Field label="Charisma"><input value={monsterForm.cha} onChange={(event) => setMonsterForm({ ...monsterForm, cha: event.target.value })} /></Field>
+                        <Field label="Skills" wide><input value={monsterForm.skillsText} onChange={(event) => setMonsterForm({ ...monsterForm, skillsText: event.target.value })} placeholder="Perception:13, Stealth:6" /></Field>
+                        <Field label="Senses" wide><input value={monsterForm.sensesText} onChange={(event) => setMonsterForm({ ...monsterForm, sensesText: event.target.value })} placeholder="Darkvision:120, Blindsight:60" /></Field>
+                        <Field label="Languages" wide><input value={monsterForm.languagesText} onChange={(event) => setMonsterForm({ ...monsterForm, languagesText: event.target.value })} placeholder="Common, Draconic" /></Field>
+                        <Field label="Gear" wide><input value={monsterForm.gearText} onChange={(event) => setMonsterForm({ ...monsterForm, gearText: event.target.value })} /></Field>
+                        <Field label="Resistances" wide><input value={monsterForm.resistancesText} onChange={(event) => setMonsterForm({ ...monsterForm, resistancesText: event.target.value })} /></Field>
+                        <Field label="Vulnerabilities" wide><input value={monsterForm.vulnerabilitiesText} onChange={(event) => setMonsterForm({ ...monsterForm, vulnerabilitiesText: event.target.value })} /></Field>
+                        <Field label="Immunities" wide><input value={monsterForm.immunitiesText} onChange={(event) => setMonsterForm({ ...monsterForm, immunitiesText: event.target.value })} /></Field>
+                        <Field label="Traits" wide><textarea value={monsterForm.traitsText} onChange={(event) => setMonsterForm({ ...monsterForm, traitsText: event.target.value })} placeholder="One trait per line" /></Field>
+                        <Field label="Spells" wide><input value={monsterForm.spellsText} onChange={(event) => setMonsterForm({ ...monsterForm, spellsText: event.target.value })} /></Field>
+                        <Field label="Actions JSON" wide><textarea value={monsterForm.actionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, actionsJson: event.target.value })} placeholder={JSON.stringify([monsterActionTemplate], null, 2)} /></Field>
+                        <Field label="Bonus actions JSON" wide><textarea value={monsterForm.bonusActionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, bonusActionsJson: event.target.value })} /></Field>
+                        <Field label="Reactions JSON" wide><textarea value={monsterForm.reactionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, reactionsJson: event.target.value })} /></Field>
+                        <Field label="Legendary actions JSON" wide><textarea value={monsterForm.legendaryActionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, legendaryActionsJson: event.target.value })} /></Field>
+                        <Field label="Legendary action uses"><input value={monsterForm.legendaryActionsUse} onChange={(event) => setMonsterForm({ ...monsterForm, legendaryActionsUse: event.target.value })} /></Field>
+                        <Field label="Lair actions JSON" wide><textarea value={monsterForm.lairActionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, lairActionsJson: event.target.value })} /></Field>
+                        <Field label="Regional effects JSON" wide><textarea value={monsterForm.regionalEffectsJson} onChange={(event) => setMonsterForm({ ...monsterForm, regionalEffectsJson: event.target.value })} /></Field>
+                        <Field label="Habitat"><input value={monsterForm.habitat} onChange={(event) => setMonsterForm({ ...monsterForm, habitat: event.target.value })} /></Field>
+                        <Field label="Treasure"><input value={monsterForm.treasure} onChange={(event) => setMonsterForm({ ...monsterForm, treasure: event.target.value })} /></Field>
+                        <Field label="Image URL">
+                          <input value={monsterForm.imageUrl} onChange={(event) => setMonsterForm({ ...monsterForm, imageUrl: event.target.value })} />
+                        </Field>
+                        <Field label="Upload image">
+                          <div className="admin-image-controls">
+                            <input type="file" accept="image/*" onChange={(event) => void handleMonsterImageUpload(event)} />
+                            <button type="button" onClick={() => setMonsterForm({ ...monsterForm, imageUrl: "" })} disabled={!monsterForm.imageUrl}>
+                              Clear image
+                            </button>
+                          </div>
+                        </Field>
+                        <Field label="Color" wide>
+                          <div className="color-field">
+                            <input type="color" value={monsterForm.color} onChange={(event) => setMonsterForm({ ...monsterForm, color: event.target.value })} />
+                            <span>{monsterForm.color}</span>
+                          </div>
+                        </Field>
+                        <button className="accent-button" type="submit">Add monster</button>
+                      </form>
+                    )}
+
+                    {tab === "feats" && (
+                      <form className="admin-form-grid" onSubmit={handleFeatSubmit}>
+                        <AdminField label="Name"><input value={featForm.name} onChange={(event) => setFeatForm({ ...featForm, name: event.target.value })} /></AdminField>
+                        <Field label="Source"><input value={featForm.source} onChange={(event) => setFeatForm({ ...featForm, source: event.target.value })} /></Field>
+                        <Field label="Category"><input value={featForm.category} onChange={(event) => setFeatForm({ ...featForm, category: event.target.value })} /></Field>
+                        <Field label="Ability score increase"><input value={featForm.abilityScoreIncrease} onChange={(event) => setFeatForm({ ...featForm, abilityScoreIncrease: event.target.value })} /></Field>
+                        <Field label="Prerequisites" wide><input value={featForm.prerequisites} onChange={(event) => setFeatForm({ ...featForm, prerequisites: event.target.value })} /></Field>
+                        <Field label="Description" wide><textarea value={featForm.description} onChange={(event) => setFeatForm({ ...featForm, description: event.target.value })} /></Field>
+                        <button className="accent-button" type="submit">Add feat</button>
+                      </form>
+                    )}
+
+                    {tab === "classes" && (
+                      <form className="admin-form-grid" onSubmit={handleClassSubmit}>
+                        <AdminField label="Name"><input value={classForm.name} onChange={(event) => setClassForm({ ...classForm, name: event.target.value })} /></AdminField>
+                        <Field label="Source"><input value={classForm.source} onChange={(event) => setClassForm({ ...classForm, source: event.target.value })} /></Field>
+                        <Field label="Description" wide><textarea value={classForm.description} onChange={(event) => setClassForm({ ...classForm, description: event.target.value })} /></Field>
+                        <Field label="Features JSON" wide><textarea value={classForm.featuresJson} onChange={(event) => setClassForm({ ...classForm, featuresJson: event.target.value })} /></Field>
+                        <Field label="Tables JSON" wide><textarea value={classForm.tablesJson} onChange={(event) => setClassForm({ ...classForm, tablesJson: event.target.value })} /></Field>
+                        <button className="accent-button" type="submit">Add class</button>
+                      </form>
+                    )}
+                  </section>
+
+                  <section className="admin-preview-pane">
+                    <div className="panel-head">
+                      <div>
+                        <p className="panel-label">Draft</p>
+                        <h3>{singularLabel(tab)} preview</h3>
+                      </div>
+                    </div>
+                    {tab === "spells" && (spellPreview.entry ? <SpellPreviewCard spell={spellPreview.entry} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewError title="Spell" message={spellPreview.error ?? "Fill in the form to preview the spell."} />)}
+                    {tab === "monsters" && (monsterPreview.entry ? <MonsterPreviewCard monster={monsterPreview.entry} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewError title="Monster" message={monsterPreview.error ?? "Fill in the form to preview the monster."} />)}
+                    {tab === "feats" && (featPreview.entry ? <FeatPreviewCard feat={featPreview.entry} spellEntries={overview?.compendium.spells ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewError title="Feat" message={featPreview.error ?? "Fill in the form to preview the feat."} />)}
+                    {tab === "classes" && (classPreview.entry ? <ClassPreviewCard entry={classPreview.entry} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} /> : <PreviewError title="Class" message={classPreview.error ?? "Fill in the form to preview the class."} />)}
+                  </section>
+                </div>
               ) : (
-                <PreviewError title="Import" message={importSummary?.message ?? "Upload a JSON file to validate the import payload."} />
+                <div className={styles.workspaceGrid}>
+                  <section className="admin-form-pane">
+                    <label className="admin-search-field">
+                      <span>JSON file</span>
+                      <div className="admin-import-upload">
+                        <input
+                          type="file"
+                          accept="application/json,.json"
+                          onChange={(event) => {
+                            if (!activeCompendiumTab) {
+                              return;
+                            }
+
+                            void handleImportFileChange(activeCompendiumTab, event);
+                          }}
+                        />
+                        <div className="admin-import-file-meta">
+                          <strong>{activeCompendiumTab ? importFiles[activeCompendiumTab]?.name ?? "No file selected" : "No file selected"}</strong>
+                          <small>
+                            {activeCompendiumTab && importFiles[activeCompendiumTab]?.content
+                              ? `${importFiles[activeCompendiumTab]?.content.length.toLocaleString()} characters loaded`
+                              : `Upload one ${singularLabel(tab).toLowerCase()} object or an array of ${labelForTab(tab).toLowerCase()}.`}
+                          </small>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!activeCompendiumTab) {
+                              return;
+                            }
+
+                            setImportFiles((current) => ({ ...current, [activeCompendiumTab]: null }));
+                          }}
+                          disabled={!activeCompendiumTab || !importFiles[activeCompendiumTab]}
+                        >
+                          Clear file
+                        </button>
+                      </div>
+                    </label>
+                    <label className="admin-search-field">
+                      <span>Example JSON</span>
+                      <textarea className="admin-json admin-json-example" value={importExample} readOnly />
+                    </label>
+                  </section>
+
+                  <section className="admin-preview-pane">
+                    <div className="panel-head">
+                      <div>
+                        <p className="panel-label">Import status</p>
+                        <h3>{singularLabel(tab)} import</h3>
+                      </div>
+                    </div>
+                    {importSummary?.valid ? (
+                      <PreviewPlaceholder title="Ready" message={importSummary.message} />
+                    ) : (
+                      <PreviewError title="Import" message={importSummary?.message ?? "Upload a JSON file to validate the import payload."} />
+                    )}
+                  </section>
+                </div>
               )}
             </section>
-          </div>
-        )}
+          ) : null}
+        </div>
       </section>
     </main>
   );
