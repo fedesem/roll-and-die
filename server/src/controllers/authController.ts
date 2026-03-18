@@ -1,7 +1,9 @@
 import type { Request, Response } from "express";
 
+import { loginBodySchema, registerBodySchema } from "../../../shared/contracts/auth.js";
 import { mutateDatabase, type StoredUser } from "../store.js";
 import { HttpError } from "../http/errors.js";
+import { parseWithSchema } from "../http/validation.js";
 import {
   createId,
   createPassword,
@@ -12,19 +14,12 @@ import {
   toUserProfile
 } from "../services/authService.js";
 
-function getRequiredString(value: unknown, label: string) {
-  if (typeof value !== "string" || !value.trim()) {
-    throw new HttpError(400, `${label} is required.`);
-  }
-
-  return value.trim();
-}
-
 export const authController = {
   async register(request: Request, response: Response) {
-    const name = getRequiredString(request.body?.name, "Name");
-    const email = getRequiredString(request.body?.email, "Email").toLowerCase();
-    const password = getRequiredString(request.body?.password, "Password");
+    const body = parseWithSchema(registerBodySchema, request.body);
+    const name = body.name.trim();
+    const email = body.email.toLowerCase();
+    const password = body.password;
 
     if (password.length < 6) {
       throw new HttpError(400, "Password must be at least 6 characters.");
@@ -61,8 +56,9 @@ export const authController = {
   },
 
   async login(request: Request, response: Response) {
-    const email = getRequiredString(request.body?.email, "Email").toLowerCase();
-    const password = getRequiredString(request.body?.password, "Password");
+    const body = parseWithSchema(loginBodySchema, request.body);
+    const email = body.email.toLowerCase();
+    const password = body.password;
 
     const payload = await mutateDatabase((database) => {
       const user = database.users.find((entry) => entry.email === email);

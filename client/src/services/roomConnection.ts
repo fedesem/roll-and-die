@@ -1,5 +1,9 @@
 import { startTransition, useCallback, useEffect, useRef } from "react";
 
+import {
+  clientRoomMessageSchema,
+  serverRoomMessageSchema
+} from "@shared/contracts/realtime";
 import type {
   CampaignSnapshot,
   ClientRoomMessage,
@@ -62,18 +66,18 @@ export function useRoomConnection({
         return;
       }
 
-      socket.send(
-        JSON.stringify({
-          type: "room:join",
-          token,
-          campaignId
-        } satisfies ClientRoomMessage)
-      );
+      const joinMessage = clientRoomMessageSchema.parse({
+        type: "room:join",
+        token,
+        campaignId
+      } satisfies ClientRoomMessage);
+
+      socket.send(JSON.stringify(joinMessage));
     };
 
     const handleMessage = (event: MessageEvent<string>) => {
       try {
-        const message = JSON.parse(event.data) as ServerRoomMessage;
+        const message = serverRoomMessageSchema.parse(JSON.parse(event.data)) as ServerRoomMessage;
 
         if (message.type === "room:snapshot") {
           onStatusChange("online");
@@ -182,7 +186,8 @@ export function useRoomConnection({
         throw new Error("Room connection is not ready yet.");
       }
 
-      socket.send(JSON.stringify(message));
+      const parsedMessage = clientRoomMessageSchema.parse(message);
+      socket.send(JSON.stringify(parsedMessage));
     },
     []
   );

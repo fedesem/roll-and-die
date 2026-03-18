@@ -1,28 +1,46 @@
 import type { Request, Response } from "express";
 
+import {
+  compendiumKindSchema,
+  createClassBodySchema,
+  createFeatBodySchema,
+  createMonsterBodySchema,
+  createSpellBodySchema,
+  importClassesBodySchema,
+  importFeatsBodySchema,
+  importMonstersBodySchema,
+  importSpellsBodySchema
+} from "../../../shared/contracts/admin.js";
 import { HttpError } from "../http/errors.js";
+import { parseWithSchema, requireRouteParam } from "../http/validation.js";
 import { mutateDatabase, readDatabase } from "../store.js";
 import { requireAdmin, toUserProfile } from "../services/authService.js";
 import { sanitizeCompendiumEntry, type CompendiumKind } from "../services/compendiumService.js";
 
-function parseCompendiumKind(value: unknown): CompendiumKind {
-  if (value === "spells" || value === "monsters" || value === "feats" || value === "classes") {
-    return value;
+function parseCompendiumCreateBody(kind: CompendiumKind, value: unknown) {
+  switch (kind) {
+    case "spells":
+      return parseWithSchema(createSpellBodySchema, value);
+    case "monsters":
+      return parseWithSchema(createMonsterBodySchema, value);
+    case "feats":
+      return parseWithSchema(createFeatBodySchema, value);
+    case "classes":
+      return parseWithSchema(createClassBodySchema, value);
   }
-
-  throw new HttpError(400, "Compendium type must be spells, monsters, feats, or classes.");
 }
 
-function requireEntries(value: unknown) {
-  if (Array.isArray(value)) {
-    return value;
+function parseCompendiumImportBody(kind: CompendiumKind, value: unknown) {
+  switch (kind) {
+    case "spells":
+      return parseWithSchema(importSpellsBodySchema, value);
+    case "monsters":
+      return parseWithSchema(importMonstersBodySchema, value);
+    case "feats":
+      return parseWithSchema(importFeatsBodySchema, value);
+    case "classes":
+      return parseWithSchema(importClassesBodySchema, value);
   }
-
-  if (value === undefined) {
-    throw new HttpError(400, "Import payload is required.");
-  }
-
-  return [value];
 }
 
 export const adminController = {
@@ -38,11 +56,7 @@ export const adminController = {
 
   async promoteUser(request: Request, response: Response) {
     const admin = requireAdmin(request);
-    const targetUserId = typeof request.params.userId === "string" ? request.params.userId : "";
-
-    if (!targetUserId) {
-      throw new HttpError(400, "User id is required.");
-    }
+    const targetUserId = requireRouteParam(request.params.userId, "userId");
 
     const promoted = await mutateDatabase((database) => {
       const actor = database.users.find((entry) => entry.id === targetUserId);
@@ -63,11 +77,7 @@ export const adminController = {
 
   async demoteUser(request: Request, response: Response) {
     const admin = requireAdmin(request);
-    const targetUserId = typeof request.params.userId === "string" ? request.params.userId : "";
-
-    if (!targetUserId) {
-      throw new HttpError(400, "User id is required.");
-    }
+    const targetUserId = requireRouteParam(request.params.userId, "userId");
 
     if (targetUserId === admin.id) {
       throw new HttpError(400, "You cannot demote yourself.");
@@ -92,8 +102,8 @@ export const adminController = {
 
   async createCompendiumEntry(request: Request, response: Response) {
     requireAdmin(request);
-    const kind = parseCompendiumKind(request.params.kind);
-    const entry = sanitizeCompendiumEntry(kind, request.body);
+    const kind = parseWithSchema(compendiumKindSchema, request.params.kind, "Invalid compendium type.");
+    const entry = sanitizeCompendiumEntry(kind, parseCompendiumCreateBody(kind, request.body));
 
     const created = await mutateDatabase((database) => {
       const collection = database.compendium[kind] as typeof database.compendium[typeof kind];
@@ -111,8 +121,11 @@ export const adminController = {
 
   async importCompendiumEntries(request: Request, response: Response) {
     requireAdmin(request);
-    const kind = parseCompendiumKind(request.params.kind);
-    const entries = requireEntries(request.body?.entries ?? request.body).map((entry) => sanitizeCompendiumEntry(kind, entry));
+    const kind = parseWithSchema(compendiumKindSchema, request.params.kind, "Invalid compendium type.");
+    const body = parseCompendiumImportBody(kind, request.body);
+    const entries = (Array.isArray(body.entries) ? body.entries : [body.entries]).map((entry) =>
+      sanitizeCompendiumEntry(kind, entry)
+    );
 
     const result = await mutateDatabase((database) => {
       const collection = database.compendium[kind] as typeof database.compendium[typeof kind];

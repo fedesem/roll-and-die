@@ -1,19 +1,27 @@
+import type { ZodType } from "zod";
+
 const apiBase = import.meta.env.VITE_API_URL ?? "/api";
 
-interface RequestOptions {
+interface RequestOptions<TResponse> {
   method?: string;
   token?: string | null;
   body?: unknown;
+  bodySchema?: ZodType;
+  responseSchema?: ZodType<TResponse>;
 }
 
-export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function apiRequest<TResponse = unknown>(
+  path: string,
+  options: RequestOptions<TResponse> = {}
+): Promise<TResponse> {
+  const requestBody = options.bodySchema ? options.bodySchema.parse(options.body) : options.body;
   const response = await fetch(`${apiBase}${path}`, {
     method: options.method ?? "GET",
     headers: {
       "Content-Type": "application/json",
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {})
     },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    body: requestBody === undefined ? undefined : JSON.stringify(requestBody)
   });
 
   const raw = await response.text();
@@ -31,5 +39,5 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     throw new Error(message);
   }
 
-  return payload as T;
+  return options.responseSchema ? options.responseSchema.parse(payload) : (payload as TResponse);
 }

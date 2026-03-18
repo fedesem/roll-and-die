@@ -1,39 +1,79 @@
 import type { AdminOverview, CompendiumData } from "@shared/types";
+import {
+  adminOverviewResponseSchema,
+  adminUserMutationResponseSchema,
+  compendiumKindSchema,
+  createClassBodySchema,
+  createFeatBodySchema,
+  createMonsterBodySchema,
+  createSpellBodySchema,
+  createdCompendiumEntryResponseSchema,
+  importClassesBodySchema,
+  importCompendiumResultResponseSchema,
+  importFeatsBodySchema,
+  importMonstersBodySchema,
+  importSpellsBodySchema
+} from "@shared/contracts/admin";
 
 import { apiRequest } from "../../api";
 
 type CompendiumTab = keyof CompendiumData;
 
+const createBodySchemaByKind = {
+  spells: createSpellBodySchema,
+  monsters: createMonsterBodySchema,
+  feats: createFeatBodySchema,
+  classes: createClassBodySchema
+} as const;
+
+const importBodySchemaByKind = {
+  spells: importSpellsBodySchema,
+  monsters: importMonstersBodySchema,
+  feats: importFeatsBodySchema,
+  classes: importClassesBodySchema
+} as const;
+
 export function fetchAdminOverview(token: string) {
-  return apiRequest<AdminOverview>("/admin/overview", { token });
+  return apiRequest<AdminOverview>("/admin/overview", {
+    token,
+    responseSchema: adminOverviewResponseSchema
+  });
 }
 
 export function promoteAdminUser(token: string, userId: string) {
   return apiRequest(`/admin/users/${userId}/promote`, {
     method: "POST",
-    token
+    token,
+    responseSchema: adminUserMutationResponseSchema
   });
 }
 
 export function demoteAdminUser(token: string, userId: string) {
   return apiRequest(`/admin/users/${userId}/demote`, {
     method: "POST",
-    token
+    token,
+    responseSchema: adminUserMutationResponseSchema
   });
 }
 
 export function createCompendiumItem(token: string, kind: CompendiumTab, entry: unknown) {
+  compendiumKindSchema.parse(kind);
   return apiRequest<{ id: string }>(`/admin/compendium/${kind}`, {
     method: "POST",
     token,
-    body: entry
+    body: entry,
+    bodySchema: createBodySchemaByKind[kind],
+    responseSchema: createdCompendiumEntryResponseSchema
   });
 }
 
 export function importCompendiumItems(token: string, kind: CompendiumTab, entries: unknown) {
+  compendiumKindSchema.parse(kind);
   return apiRequest(`/admin/compendium/${kind}/import`, {
     method: "POST",
     token,
-    body: { entries }
+    body: { entries },
+    bodySchema: importBodySchemaByKind[kind],
+    responseSchema: importCompendiumResultResponseSchema
   });
 }

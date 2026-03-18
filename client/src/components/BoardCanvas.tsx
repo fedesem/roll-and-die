@@ -9,21 +9,6 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent
 } from "react";
-import {
-  Circle,
-  Eye,
-  EyeOff,
-  MousePointer2,
-  PencilLine,
-  RectangleHorizontal,
-  RotateCcw,
-  Ruler,
-  Square,
-  Star,
-  Trash2,
-  Triangle
-} from "lucide-react";
-
 import type {
   ActorSheet,
   BoardToken,
@@ -42,15 +27,46 @@ import type {
 import {
   cellKey,
   computeVisibleCellsForUser,
-  obstacleMidpoint,
-  pointToCell,
   snapPointToGrid,
-  snapPointToGridIntersection,
   tokenCellKey,
   traceMovementPath,
   type MovementTrace
 } from "@shared/vision";
-import { readJson, writeJson } from "../lib/storage";
+import { BoardToolbar } from "../features/board/BoardToolbar";
+import {
+  buildMeasurePreview,
+  clamp,
+  drawingHasRenderableSpan,
+  drawingMatchesOverride,
+  getDrawingCenter,
+  getDrawingFillPath,
+  getDrawingHitPath,
+  getDrawingRenderPoints,
+  getDrawingRotationHandlePoint,
+  getDrawingStrokePath,
+  getDrawingVisibilityPoints,
+  getMeasureGeometry,
+  getSharedMeasurePalette,
+  initials,
+  isDoorCurrentlyVisible,
+  isPointCurrentlyVisible,
+  type MeasurePalette,
+  normalizeSelectionRect,
+  normalizeDegrees,
+  pathBoundsIntersectsRect,
+  pointsToSvgPath,
+  readDiscoveredDrawingsMemory,
+  serializeMeasurePreview,
+  shouldFillDrawing,
+  toDegrees,
+  writeDiscoveredDrawingsMemory
+} from "../features/board/boardUtils";
+import {
+  maxViewZoom,
+  minViewZoom,
+  selectionDragThreshold
+} from "../features/board/constants";
+import { useBoardViewport } from "../features/board/useBoardViewport";
 
 type Tool = "select" | "draw" | "measure";
 type SelectedMapItem = `drawing:${string}`;
@@ -143,11 +159,6 @@ interface PanState {
   menuY?: number;
 }
 
-interface ViewportSize {
-  width: number;
-  height: number;
-}
-
 interface SelectionState {
   additive: boolean;
   startX: number;
@@ -162,11 +173,11 @@ interface ContextMenuState {
   point: Point;
 }
 
-const minViewZoom = 0.35;
-const maxViewZoom = 4;
-const discoveredDrawingsStorageKey = "dnd-board-discovered-drawings";
-const boardViewStorageKeyPrefix = "dnd-board-view";
-const selectionDragThreshold = 4;
+const localMeasurePalette = {
+  stroke: "rgba(242, 187, 63, 0.96)",
+  fill: "rgba(242, 187, 63, 0.16)",
+  endFill: "rgba(18, 21, 26, 0.92)"
+};
 
 export function BoardCanvas({
   map,
@@ -200,9 +211,6 @@ export function BoardCanvas({
   onPing,
   onPingAndRecall
 }: BoardCanvasProps) {
-  const boardRef = useRef<HTMLDivElement | null>(null);
-  const initializedMapIdRef = useRef<string | null>(null);
-  const skipNextPersistRef = useRef(false);
   const suppressSurfaceClickRef = useRef(false);
   const suppressContextMenuRef = useRef(false);
   const lastPreviewTargetKeyRef = useRef<string | null>(null);
@@ -233,17 +241,30 @@ export function BoardCanvas({
   const [drawingOverrides, setDrawingOverrides] = useState<Record<string, { points: Point[]; rotation: number }>>({});
   const [selectedMapItems, setSelectedMapItems] = useState<SelectedMapItem[]>([]);
   const [panning, setPanning] = useState<PanState | null>(null);
-  const [viewportSize, setViewportSize] = useState<ViewportSize>({ width: 0, height: 0 });
-  const [viewZoom, setViewZoom] = useState(1);
-  const [viewPan, setViewPan] = useState<Point>({ x: 0, y: 0 });
   const [selectionBox, setSelectionBox] = useState<SelectionState | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [discoveredDrawingsByViewer, setDiscoveredDrawingsByViewer] = useState<Record<string, Record<string, string[]>>>(() =>
     readDiscoveredDrawingsMemory()
   );
-
-  const baseScale = map?.grid.scale ?? 1;
-  const worldScale = baseScale * viewZoom;
+  const {
+    boardRef,
+    baseScale,
+    worldScale,
+    viewportSize,
+    viewZoom,
+    setViewZoom,
+    viewPan,
+    setViewPan,
+    gridStyle,
+    backgroundRect,
+    tokenLayerStyle,
+    viewCenter
+  } = useBoardViewport({
+    map,
+    currentUserId,
+    role,
+    viewRecall
+  });
   const isDungeonMaster = role === "dm";
   const playerUserIdSet = useMemo(() => new Set(fogPlayers.map((member) => member.userId)), [fogPlayers]);
   const fogPreviewActive = isDungeonMaster && typeof fogPreviewUserId === "string" && fogPreviewUserId.length > 0;
@@ -441,44 +462,6 @@ export function BoardCanvas({
     return cells;
   }, [currentVisibleCells, map, seenCells, usesRestrictedVision, viewPan.x, viewPan.y, viewportSize.height, viewportSize.width, worldScale]);
 
-  const gridStyle = useMemo(() => {
-    if (!map?.grid.show) {
-      return undefined;
-    }
-
-    const cell = map.grid.cellSize * worldScale;
-    const offsetX = viewPan.x + map.grid.offsetX * worldScale;
-    const offsetY = viewPan.y + map.grid.offsetY * worldScale;
-
-    return {
-      backgroundImage: `
-        linear-gradient(to right, ${map.grid.color} 1px, transparent 1px),
-        linear-gradient(to bottom, ${map.grid.color} 1px, transparent 1px)
-      `,
-      backgroundSize: `${cell}px ${cell}px`,
-      backgroundPosition: `${offsetX}px ${offsetY}px`
-    };
-  }, [map, viewPan.x, viewPan.y, worldScale]);
-
-  const backgroundRect = useMemo(() => {
-    if (!map?.backgroundUrl) {
-      return null;
-    }
-
-    return {
-      left: viewPan.x + map.backgroundOffsetX * worldScale,
-      top: viewPan.y + map.backgroundOffsetY * worldScale,
-      width: map.width * map.backgroundScale * worldScale,
-      height: map.height * map.backgroundScale * worldScale
-    };
-  }, [map, viewPan.x, viewPan.y, worldScale]);
-
-  const tokenLayerStyle = useMemo(
-    () => ({
-      transform: `translate(${viewPan.x}px, ${viewPan.y}px) scale(${worldScale})`
-    }),
-    [viewPan.x, viewPan.y, worldScale]
-  );
   const localMeasurePreview = useMemo(() => {
     if (!map || !measuring) {
       return null;
@@ -507,13 +490,6 @@ export function BoardCanvas({
   const moveArrowHeadSize = clamp(12 * worldScale, 8, 28);
   const moveLabelFontSize = clamp(14 * worldScale, 12, 28);
   const moveLabelOffset = clamp(12 * worldScale, 10, 24);
-  const viewCenter = useMemo(
-    () => ({
-      x: (viewportSize.width / 2 - viewPan.x) / worldScale,
-      y: (viewportSize.height / 2 - viewPan.y) / worldScale
-    }),
-    [viewportSize.height, viewportSize.width, viewPan.x, viewPan.y, worldScale]
-  );
   const normalizedSelectionBox = selectionBox ? normalizeSelectionRect(selectionBox) : null;
   const visibleMovementPreviews = useMemo(
     () =>
@@ -537,35 +513,7 @@ export function BoardCanvas({
       }),
     [currentUserId, map, measurePreviews]
   );
-  const visiblePings = useMemo(
-    () => pings.filter((entry) => entry.mapId === map?.id),
-    [map?.id, pings]
-  );
-
-  useEffect(() => {
-    if (!boardRef.current) {
-      return;
-    }
-
-    const node = boardRef.current;
-    const resizeObserver = new ResizeObserver((entries) => {
-      const entry = entries[0];
-
-      if (!entry) {
-        return;
-      }
-
-      setViewportSize({
-        width: entry.contentRect.width,
-        height: entry.contentRect.height
-      });
-    });
-
-    resizeObserver.observe(node);
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, []);
+  const visiblePings = useMemo(() => pings.filter((entry) => entry.mapId === map?.id), [map?.id, pings]);
 
   useEffect(() => {
     writeDiscoveredDrawingsMemory(discoveredDrawingsByViewer);
@@ -622,87 +570,14 @@ export function BoardCanvas({
   }, [map?.id]);
 
   useEffect(() => {
-    if (!map || viewportSize.width <= 0 || viewportSize.height <= 0) {
+    if (!map || !viewRecall || role === "dm") {
       return;
     }
 
-    if (initializedMapIdRef.current === map.id) {
-      return;
+    if (viewRecall.mapId === map.id) {
+      setContextMenu(null);
     }
-
-    const savedView = readBoardView(currentUserId, map.id);
-
-    if (savedView) {
-      const nextZoom = clamp(savedView.zoom, minViewZoom, maxViewZoom);
-      const nextWorldScale = baseScale * nextZoom;
-
-      setViewZoom(nextZoom);
-      setViewPan(
-        savedView.center
-          ? {
-              x: viewportSize.width / 2 - savedView.center.x * nextWorldScale,
-              y: viewportSize.height / 2 - savedView.center.y * nextWorldScale
-            }
-          : savedView.pan
-      );
-    } else {
-      const imageWidth = map.width * map.backgroundScale;
-      const imageHeight = map.height * map.backgroundScale;
-
-      setViewZoom(1);
-      setViewPan({
-        x: viewportSize.width / 2 - (map.backgroundOffsetX + imageWidth / 2) * baseScale,
-        y: viewportSize.height / 2 - (map.backgroundOffsetY + imageHeight / 2) * baseScale
-      });
-    }
-
-    skipNextPersistRef.current = true;
-    initializedMapIdRef.current = map.id;
-  }, [baseScale, currentUserId, map, viewportSize.height, viewportSize.width]);
-
-  useEffect(() => {
-    if (!map) {
-      return;
-    }
-
-    if (skipNextPersistRef.current) {
-      skipNextPersistRef.current = false;
-      return;
-    }
-
-    if (viewportSize.width <= 0 || viewportSize.height <= 0) {
-      return;
-    }
-
-    writeBoardView(currentUserId, map.id, {
-      zoom: viewZoom,
-      center: {
-        x: (viewportSize.width / 2 - viewPan.x) / worldScale,
-        y: (viewportSize.height / 2 - viewPan.y) / worldScale
-      },
-      pan: viewPan
-    });
-  }, [currentUserId, map, viewPan, viewZoom, viewportSize.height, viewportSize.width, worldScale]);
-
-  useEffect(() => {
-    if (!map || !viewRecall || role === "dm" || viewportSize.width <= 0 || viewportSize.height <= 0) {
-      return;
-    }
-
-    if (viewRecall.mapId !== map.id) {
-      return;
-    }
-
-    const nextZoom = clamp(viewRecall.zoom, minViewZoom, maxViewZoom);
-    const nextWorldScale = baseScale * nextZoom;
-
-    setViewZoom(nextZoom);
-    setViewPan({
-      x: viewportSize.width / 2 - viewRecall.center.x * nextWorldScale,
-      y: viewportSize.height / 2 - viewRecall.center.y * nextWorldScale
-    });
-    setContextMenu(null);
-  }, [baseScale, map, role, viewRecall, viewportSize.height, viewportSize.width]);
+  }, [map, role, viewRecall]);
 
   useEffect(() => {
     setSelectedMapItems([]);
@@ -1680,237 +1555,43 @@ export function BoardCanvas({
 
   return (
     <section className="board-panel">
-      <div className="board-toolbar">
-        <div className="segmented">
-          <button
-            className={tool === "select" ? "is-active" : ""}
-            type="button"
-            title="Select"
-            aria-label="Select"
-            onClick={() => setTool("select")}
-          >
-            <MousePointer2 size={15} />
-          </button>
-          <button
-            className={tool === "draw" ? "is-active" : ""}
-            type="button"
-            title="Draw"
-            aria-label="Draw"
-            onClick={() => setTool("draw")}
-          >
-            <PencilLine size={15} />
-          </button>
-          <button
-            className={tool === "measure" ? "is-active" : ""}
-            type="button"
-            title="Measure"
-            aria-label="Measure"
-            onClick={() => setTool("measure")}
-          >
-            <Ruler size={15} />
-          </button>
-        </div>
-        <div className="tool-meta">
-          <span className="board-zoom-chip">Zoom {Math.round(viewZoom * 100)}%</span>
-          {isDungeonMaster && fogPlayers.length > 0 && (
-            <>
-              <select value={dmFogUserId ?? ""} onChange={(event) => onSetDmFogUserId(event.target.value || null)}>
-                {fogPlayers.map((member) => (
-                  <option key={member.userId} value={member.userId}>
-                    {member.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className={`icon-action-button ${dmFogEnabled ? "is-active" : ""}`}
-                title={dmFogEnabled ? "Hide player fog" : "View player fog"}
-                disabled={!dmFogUserId}
-                onClick={() => onSetDmFogEnabled(!dmFogEnabled)}
-              >
-                {dmFogEnabled ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-              <button type="button" className="icon-action-button" title="Reset fog" onClick={() => void onResetFog()}>
-                <RotateCcw size={15} />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-      {tool === "measure" && (
-        <div className="board-measure-controls">
-          <div className="segmented board-measure-kind-picker">
-            <button
-              type="button"
-              className={measureKind === "line" ? "is-active" : ""}
-              title="Line"
-              aria-label="Line"
-              onClick={() => setMeasureKind("line")}
-            >
-              <Ruler size={14} />
-            </button>
-            <button
-              type="button"
-              className={measureKind === "cone" ? "is-active" : ""}
-              title="Cone"
-              aria-label="Cone"
-              onClick={() => setMeasureKind("cone")}
-            >
-              <Triangle size={14} />
-            </button>
-            <button
-              type="button"
-              className={measureKind === "beam" ? "is-active" : ""}
-              title="Beam"
-              aria-label="Beam"
-              onClick={() => setMeasureKind("beam")}
-            >
-              <RectangleHorizontal size={14} />
-            </button>
-            <button
-              type="button"
-              className={measureKind === "emanation" ? "is-active" : ""}
-              title="Emanation"
-              aria-label="Emanation"
-              onClick={() => setMeasureKind("emanation")}
-            >
-              <Circle size={14} />
-            </button>
-            <button
-              type="button"
-              className={measureKind === "square" ? "is-active" : ""}
-              title="Square"
-              aria-label="Square"
-              onClick={() => setMeasureKind("square")}
-            >
-              <Square size={14} />
-            </button>
-          </div>
-          <label>
-            Snap
-            <select value={measureSnapMode} onChange={(event) => setMeasureSnapMode(event.target.value as MeasureSnapMode)}>
-              <option value="center">Center</option>
-              <option value="corner">Corner</option>
-              <option value="none">Free</option>
-            </select>
-          </label>
-          {measureKind === "cone" && (
-            <label>
-              Angle
-              <select
-                value={coneAngle}
-                onChange={(event) => setConeAngle(Number(event.target.value) as 45 | 60 | 90)}
-              >
-                <option value="45">45°</option>
-                <option value="60">60°</option>
-                <option value="90">90°</option>
-              </select>
-            </label>
-          )}
-          {measureKind === "beam" && (
-            <label>
-              Width
-              <input
-                type="range"
-                min="1"
-                max="8"
-                value={beamWidthSquares}
-                onChange={(event) => setBeamWidthSquares(Number(event.target.value))}
-              />
-              <span>{beamWidthSquares} sq</span>
-            </label>
-          )}
-          <label className="board-inline-toggle">
-            <input
-              type="checkbox"
-              checked={measureBroadcast}
-              onChange={(event) => setMeasureBroadcast(event.target.checked)}
-            />
-            Broadcast
-          </label>
-        </div>
-      )}
-      {tool === "draw" && (
-        <div className="board-draw-controls">
-          <div className="segmented board-shape-picker">
-            <button
-              type="button"
-              className={drawKind === "freehand" ? "is-active" : ""}
-              title="Freehand"
-              onClick={() => setDrawKind("freehand")}
-            >
-              <PencilLine size={14} />
-            </button>
-            <button
-              type="button"
-              className={drawKind === "circle" ? "is-active" : ""}
-              title="Circle"
-              onClick={() => setDrawKind("circle")}
-            >
-              <Circle size={14} />
-            </button>
-            <button
-              type="button"
-              className={drawKind === "square" ? "is-active" : ""}
-              title="Square"
-              onClick={() => setDrawKind("square")}
-            >
-              <Square size={14} />
-            </button>
-            <button
-              type="button"
-              className={drawKind === "star" ? "is-active" : ""}
-              title="Star"
-              onClick={() => setDrawKind("star")}
-            >
-              <Star size={14} />
-            </button>
-          </div>
-          <label>
-            Stroke
-            <input type="color" value={strokeColor} onChange={(event) => setStrokeColor(event.target.value)} />
-          </label>
-          <label>
-            Stroke {Math.round(strokeOpacity * 100)}%
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={Math.round(strokeOpacity * 100)}
-              onChange={(event) => setStrokeOpacity(Number(event.target.value) / 100)}
-            />
-          </label>
-          <label>
-            Fill
-            <input type="color" value={fillColor} onChange={(event) => setFillColor(event.target.value)} />
-          </label>
-          <label>
-            Fill {Math.round(fillOpacity * 100)}%
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={Math.round(fillOpacity * 100)}
-              onChange={(event) => setFillOpacity(Number(event.target.value) / 100)}
-            />
-          </label>
-          <label>
-            Size
-            <input
-              type="range"
-              min="1"
-              max="16"
-              value={strokeSize}
-              onChange={(event) => setStrokeSize(Number(event.target.value))}
-            />
-          </label>
-          {isDungeonMaster && (
-            <button type="button" className="icon-action-button" title="Clear ink" onClick={() => void clearInk()}>
-              <Trash2 size={15} />
-            </button>
-          )}
-        </div>
-      )}
+      <BoardToolbar
+        tool={tool}
+        onToolChange={setTool}
+        viewZoom={viewZoom}
+        isDungeonMaster={isDungeonMaster}
+        fogPlayers={fogPlayers}
+        dmFogEnabled={dmFogEnabled}
+        dmFogUserId={dmFogUserId}
+        onSetDmFogEnabled={onSetDmFogEnabled}
+        onSetDmFogUserId={onSetDmFogUserId}
+        onResetFog={() => void onResetFog()}
+        measureKind={measureKind}
+        onMeasureKindChange={setMeasureKind}
+        measureSnapMode={measureSnapMode}
+        onMeasureSnapModeChange={setMeasureSnapMode}
+        coneAngle={coneAngle}
+        onConeAngleChange={setConeAngle}
+        beamWidthSquares={beamWidthSquares}
+        onBeamWidthSquaresChange={setBeamWidthSquares}
+        measureBroadcast={measureBroadcast}
+        onMeasureBroadcastChange={setMeasureBroadcast}
+        drawKind={drawKind}
+        onDrawKindChange={setDrawKind}
+        strokeColor={strokeColor}
+        onStrokeColorChange={setStrokeColor}
+        strokeOpacity={strokeOpacity}
+        onStrokeOpacityChange={setStrokeOpacity}
+        fillColor={fillColor}
+        onFillColorChange={setFillColor}
+        fillOpacity={fillOpacity}
+        onFillOpacityChange={setFillOpacity}
+        strokeSize={strokeSize}
+        onStrokeSizeChange={setStrokeSize}
+        onClearInk={() => {
+          void clearInk();
+        }}
+      />
 
       <div className="board-scroll">
         <div
@@ -2071,13 +1752,13 @@ export function BoardCanvas({
               <g>
                 {shouldFillDrawing(draftDrawing) && (
                   <path
-                    d={getDrawingFillPath({ ...draftDrawing, id: "draft" }, worldToScreen)}
+                    d={getDrawingFillPath(draftDrawing, worldToScreen)}
                     fill={draftDrawing.fillColor || "none"}
                     fillOpacity={draftDrawing.fillOpacity}
                   />
                 )}
                 <path
-                  d={getDrawingStrokePath({ ...draftDrawing, id: "draft" }, worldToScreen)}
+                  d={getDrawingStrokePath(draftDrawing, worldToScreen)}
                   fill="none"
                   stroke={draftDrawing.color}
                   strokeOpacity={draftDrawing.strokeOpacity}
@@ -2322,634 +2003,4 @@ export function BoardCanvas({
       </p>
     </section>
   );
-}
-
-interface MeasurePalette {
-  endFill: string;
-  fill: string;
-  stroke: string;
-}
-
-const localMeasurePalette: MeasurePalette = {
-  stroke: "rgba(242, 187, 63, 0.96)",
-  fill: "rgba(242, 187, 63, 0.16)",
-  endFill: "rgba(18, 21, 26, 0.92)"
-};
-
-function buildMeasurePreview(
-  map: CampaignMap,
-  rawStart: Point,
-  rawEnd: Point,
-  kind: MeasureKind,
-  snapMode: MeasureSnapMode,
-  coneAngle: 45 | 60 | 90,
-  beamWidthSquares: number
-): MeasurePreview {
-  return {
-    kind,
-    start: snapMeasurePoint(map, rawStart, snapMode),
-    end: snapMeasurePoint(map, rawEnd, snapMode),
-    snapMode,
-    coneAngle,
-    beamWidthSquares: Math.max(1, Math.round(beamWidthSquares))
-  };
-}
-
-function snapMeasurePoint(map: CampaignMap, point: Point, snapMode: MeasureSnapMode) {
-  if (snapMode === "center") {
-    return snapPointToGrid(map, point);
-  }
-
-  if (snapMode === "corner") {
-    return snapPointToGridIntersection(map, point);
-  }
-
-  return point;
-}
-
-function serializeMeasurePreview(preview: MeasurePreview) {
-  return [
-    preview.kind,
-    preview.snapMode,
-    preview.coneAngle,
-    preview.beamWidthSquares,
-    preview.start.x.toFixed(2),
-    preview.start.y.toFixed(2),
-    preview.end.x.toFixed(2),
-    preview.end.y.toFixed(2)
-  ].join(":");
-}
-
-function getSharedMeasurePalette(userId: string): MeasurePalette {
-  const hue = hashString(userId) % 360;
-  return {
-    stroke: `hsl(${hue} 88% 72% / 0.96)`,
-    fill: `hsl(${hue} 88% 72% / 0.14)`,
-    endFill: "rgba(18, 21, 26, 0.9)"
-  };
-}
-
-function hashString(value: string) {
-  let hash = 0;
-
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
-  }
-
-  return hash;
-}
-
-function getMeasureGeometry(map: CampaignMap, preview: MeasurePreview) {
-  const dx = preview.end.x - preview.start.x;
-  const dy = preview.end.y - preview.start.y;
-  const distance = Math.hypot(dx, dy);
-  const distanceSquares = getMeasureDistanceSquares(map, preview);
-
-  if (preview.kind === "line") {
-    return {
-      points: [preview.start, preview.end],
-      closed: false,
-      label: `${formatSquares(distanceSquares)} sq`,
-      labelPoint: midpoint(preview.start, preview.end)
-    };
-  }
-
-  if (preview.kind === "beam") {
-    return {
-      points: getBeamPolygon(preview.start, preview.end, preview.beamWidthSquares * map.grid.cellSize),
-      closed: true,
-      label: `${formatSquares(distanceSquares)} x ${preview.beamWidthSquares} sq`,
-      labelPoint: midpoint(preview.start, preview.end)
-    };
-  }
-
-  if (preview.kind === "cone") {
-    const angle = Math.atan2(dy, dx);
-    const labelDistance = distance * 0.66;
-    return {
-      points: getConePolygon(preview.start, preview.end, preview.coneAngle),
-      closed: true,
-      label: `${formatSquares(distanceSquares)} sq - ${preview.coneAngle} deg`,
-      labelPoint: {
-        x: preview.start.x + Math.cos(angle) * labelDistance,
-        y: preview.start.y + Math.sin(angle) * labelDistance
-      }
-    };
-  }
-
-  if (preview.kind === "square") {
-    const halfSide = Math.max(Math.abs(dx), Math.abs(dy));
-    return {
-      points: getCenteredSquarePolygon(preview.start, halfSide),
-      closed: true,
-      label: `${formatSquares((halfSide * 2) / map.grid.cellSize)} sq side`,
-      labelPoint: {
-        x: preview.start.x,
-        y: preview.start.y - halfSide * 0.72
-      }
-    };
-  }
-
-  const radius = distance;
-  return {
-    points: getCirclePolygon(preview.start, radius),
-    closed: true,
-    label: `${formatSquares(distanceSquares)} sq rad`,
-    labelPoint: {
-      x: preview.start.x + Math.cos(-Math.PI / 4) * radius * 0.72,
-      y: preview.start.y + Math.sin(-Math.PI / 4) * radius * 0.72
-    }
-  };
-}
-
-function midpoint(start: Point, end: Point) {
-  return {
-    x: (start.x + end.x) / 2,
-    y: (start.y + end.y) / 2
-  };
-}
-
-function getBeamPolygon(start: Point, end: Point, width: number) {
-  const deltaX = end.x - start.x;
-  const deltaY = end.y - start.y;
-  const length = Math.max(Math.hypot(deltaX, deltaY), 0.001);
-  const offsetX = (-deltaY / length) * (width / 2);
-  const offsetY = (deltaX / length) * (width / 2);
-
-  return [
-    { x: start.x + offsetX, y: start.y + offsetY },
-    { x: end.x + offsetX, y: end.y + offsetY },
-    { x: end.x - offsetX, y: end.y - offsetY },
-    { x: start.x - offsetX, y: start.y - offsetY }
-  ];
-}
-
-function getConePolygon(start: Point, end: Point, angleDegrees: 45 | 60 | 90) {
-  const deltaX = end.x - start.x;
-  const deltaY = end.y - start.y;
-  const length = Math.max(Math.hypot(deltaX, deltaY), 0.001);
-  const angle = Math.atan2(deltaY, deltaX);
-  const halfAngle = toRadians(angleDegrees / 2);
-
-  return [
-    start,
-    {
-      x: start.x + Math.cos(angle - halfAngle) * length,
-      y: start.y + Math.sin(angle - halfAngle) * length
-    },
-    {
-      x: start.x + Math.cos(angle + halfAngle) * length,
-      y: start.y + Math.sin(angle + halfAngle) * length
-    }
-  ];
-}
-
-function getCenteredSquarePolygon(center: Point, halfSide: number) {
-  return [
-    { x: center.x - halfSide, y: center.y - halfSide },
-    { x: center.x + halfSide, y: center.y - halfSide },
-    { x: center.x + halfSide, y: center.y + halfSide },
-    { x: center.x - halfSide, y: center.y + halfSide }
-  ];
-}
-
-function getCirclePolygon(center: Point, radius: number) {
-  const steps = 40;
-
-  return Array.from({ length: steps }, (_, index) => {
-    const angle = (Math.PI * 2 * index) / steps;
-    return {
-      x: center.x + Math.cos(angle) * radius,
-      y: center.y + Math.sin(angle) * radius
-    };
-  });
-}
-
-function formatSquares(value: number) {
-  if (Math.abs(value - Math.round(value)) < 0.05) {
-    return `${Math.round(value)}`;
-  }
-
-  return value.toFixed(1);
-}
-
-function getMeasureDistanceSquares(map: CampaignMap, preview: MeasurePreview) {
-  const dxSquares = Math.abs(preview.end.x - preview.start.x) / map.grid.cellSize;
-  const dySquares = Math.abs(preview.end.y - preview.start.y) / map.grid.cellSize;
-
-  if (preview.snapMode === "none") {
-    return Math.hypot(dxSquares, dySquares);
-  }
-
-  return Math.max(dxSquares, dySquares);
-}
-
-function drawingHasRenderableSpan(drawing: Pick<DrawingStroke, "kind" | "points">) {
-  if (drawing.points.length < 2) {
-    return false;
-  }
-
-  const bounds = getBounds(drawing.points);
-  return bounds.maxX - bounds.minX > 2 || bounds.maxY - bounds.minY > 2;
-}
-
-function shouldFillDrawing(
-  drawing:
-    | Pick<DrawingStroke, "kind" | "fillColor" | "fillOpacity">
-    | Pick<DrawingDraftState, "kind" | "fillColor" | "fillOpacity">
-) {
-  return Boolean(drawing.fillColor) && drawing.fillOpacity > 0.001;
-}
-
-function getDrawingStrokePath(
-  drawing: DrawingStroke | DrawingDraftState | (Pick<DrawingStroke, "id"> & DrawingDraftState),
-  worldToScreen: (point: Point) => Point
-) {
-  return pointsToSvgPath(
-    getDrawingRenderPoints(drawing as Pick<DrawingStroke, "kind" | "points" | "rotation">).map(worldToScreen),
-    drawing.kind !== "freehand"
-  );
-}
-
-function getDrawingFillPath(
-  drawing: DrawingStroke | DrawingDraftState | (Pick<DrawingStroke, "id"> & DrawingDraftState),
-  worldToScreen: (point: Point) => Point
-) {
-  return pointsToSvgPath(
-    getDrawingRenderPoints(drawing as Pick<DrawingStroke, "kind" | "points" | "rotation">).map(worldToScreen),
-    drawing.kind !== "freehand" || shouldFillDrawing(drawing)
-  );
-}
-
-function getDrawingHitPath(
-  drawing: DrawingStroke | DrawingDraftState | (Pick<DrawingStroke, "id"> & DrawingDraftState),
-  worldToScreen: (point: Point) => Point
-) {
-  return shouldFillDrawing(drawing) ? getDrawingFillPath(drawing, worldToScreen) : getDrawingStrokePath(drawing, worldToScreen);
-}
-
-function getDrawingRenderPoints(drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">) {
-  if (drawing.points.length < 2) {
-    return drawing.points;
-  }
-
-  const center = getDrawingCenter(drawing);
-
-  if (drawing.kind === "freehand") {
-    return drawing.points.map((point) => rotatePoint(point, center, drawing.rotation));
-  }
-
-  if (drawing.kind === "circle") {
-    const { minX, maxX, minY, maxY } = getBounds(drawing.points);
-    const radiusX = Math.max(1, (maxX - minX) / 2);
-    const radiusY = Math.max(1, (maxY - minY) / 2);
-    return Array.from({ length: 24 }, (_, index) => {
-      const angle = (Math.PI * 2 * index) / 24;
-      return rotatePoint(
-        {
-          x: center.x + Math.cos(angle) * radiusX,
-          y: center.y + Math.sin(angle) * radiusY
-        },
-        center,
-        drawing.rotation
-      );
-    });
-  }
-
-  if (drawing.kind === "square") {
-    return getSquarePoints(drawing.points, center).map((point) => rotatePoint(point, center, drawing.rotation));
-  }
-
-  return getStarPoints(drawing.points, center, drawing.rotation);
-}
-
-function getDrawingVisibilityPoints(drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">) {
-  const points = getDrawingRenderPoints(drawing);
-
-  if (points.length <= 12) {
-    return points;
-  }
-
-  const step = Math.max(1, Math.floor(points.length / 12));
-  return points.filter((_, index) => index % step === 0);
-}
-
-function getDrawingCenter(drawing: Pick<DrawingStroke, "points">) {
-  const { minX, maxX, minY, maxY } = getBounds(drawing.points);
-  return {
-    x: (minX + maxX) / 2,
-    y: (minY + maxY) / 2
-  };
-}
-
-function getDrawingRotationHandlePoint(drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">) {
-  const center = getDrawingCenter(drawing);
-  const renderPoints = getDrawingRenderPoints(drawing);
-  const outerRadius = renderPoints.reduce((max, point) => Math.max(max, Math.hypot(point.x - center.x, point.y - center.y)), 0);
-  const anchor = {
-    x: center.x,
-    y: center.y - (outerRadius + Math.max(18, outerRadius * 0.18))
-  };
-
-  return {
-    x: rotatePoint(anchor, center, drawing.rotation).x,
-    y: rotatePoint(anchor, center, drawing.rotation).y
-  };
-}
-
-function drawingMatchesOverride(
-  drawing: Pick<DrawingStroke, "points" | "rotation">,
-  override: { points: Point[]; rotation: number }
-) {
-  if (Math.abs(normalizeDegrees(drawing.rotation - override.rotation)) > 0.001) {
-    return false;
-  }
-
-  if (drawing.points.length !== override.points.length) {
-    return false;
-  }
-
-  return drawing.points.every((point, index) => {
-    const next = override.points[index];
-    return Boolean(next) && Math.abs(point.x - next.x) <= 0.001 && Math.abs(point.y - next.y) <= 0.001;
-  });
-}
-
-function getSquarePoints(points: Point[], center: Point) {
-  const start = points[0];
-  const end = points[points.length - 1];
-  const side = Math.max(Math.abs(end.x - start.x), Math.abs(end.y - start.y));
-  const width = side * Math.sign(end.x - start.x || 1);
-  const height = side * Math.sign(end.y - start.y || 1);
-  const squareEnd = {
-    x: start.x + width,
-    y: start.y + height
-  };
-  const minX = Math.min(start.x, squareEnd.x);
-  const maxX = Math.max(start.x, squareEnd.x);
-  const minY = Math.min(start.y, squareEnd.y);
-  const maxY = Math.max(start.y, squareEnd.y);
-
-  const base = [
-    { x: minX, y: minY },
-    { x: maxX, y: minY },
-    { x: maxX, y: maxY },
-    { x: minX, y: maxY }
-  ];
-
-  return base.map((point) => ({
-    x: point.x + (center.x - (minX + maxX) / 2),
-    y: point.y + (center.y - (minY + maxY) / 2)
-  }));
-}
-
-function getStarPoints(points: Point[], center: Point, rotation: number) {
-  const square = getSquarePoints(points, center);
-  const bounds = getBounds(square);
-  const outerRadius = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) / 2;
-  const innerRadius = outerRadius * 0.46;
-  const startAngle = -90 + rotation;
-
-  return Array.from({ length: 10 }, (_, index) => {
-    const radius = index % 2 === 0 ? outerRadius : innerRadius;
-    const angle = toRadians(startAngle + index * 36);
-    return {
-      x: center.x + Math.cos(angle) * radius,
-      y: center.y + Math.sin(angle) * radius
-    };
-  });
-}
-
-function rotatePoint(point: Point, center: Point, degrees: number) {
-  if (Math.abs(degrees) < 0.001) {
-    return point;
-  }
-
-  const angle = toRadians(degrees);
-  const cosine = Math.cos(angle);
-  const sine = Math.sin(angle);
-  const deltaX = point.x - center.x;
-  const deltaY = point.y - center.y;
-
-  return {
-    x: center.x + deltaX * cosine - deltaY * sine,
-    y: center.y + deltaX * sine + deltaY * cosine
-  };
-}
-
-function pointsToSvgPath(points: Point[], closed: boolean) {
-  if (points.length === 0) {
-    return "";
-  }
-
-  return `${points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ")}${closed ? " Z" : ""}`;
-}
-
-function getBounds(points: Point[]) {
-  const [firstPoint = { x: 0, y: 0 }] = points;
-  let minX = firstPoint.x;
-  let maxX = firstPoint.x;
-  let minY = firstPoint.y;
-  let maxY = firstPoint.y;
-
-  for (const point of points) {
-    minX = Math.min(minX, point.x);
-    maxX = Math.max(maxX, point.x);
-    minY = Math.min(minY, point.y);
-    maxY = Math.max(maxY, point.y);
-  }
-
-  return { minX, maxX, minY, maxY };
-}
-
-function normalizeDegrees(value: number) {
-  let next = value % 360;
-
-  if (next <= -180) {
-    next += 360;
-  }
-
-  if (next > 180) {
-    next -= 360;
-  }
-
-  return next;
-}
-
-function toDegrees(value: number) {
-  return (value * 180) / Math.PI;
-}
-
-function toRadians(value: number) {
-  return (value * Math.PI) / 180;
-}
-
-function isPointCurrentlyVisible(map: CampaignMap, visibleCells: Set<string>, point: Point) {
-  const cell = pointToCell(map, point);
-  return visibleCells.has(cellKey(cell.column, cell.row));
-}
-
-function isDoorCurrentlyVisible(map: CampaignMap, visibleCells: Set<string>, door: CampaignMap["walls"][number]) {
-  const adjacentCells = getAdjacentDoorCellKeys(map, door);
-
-  if (adjacentCells.some((key) => visibleCells.has(key))) {
-    return true;
-  }
-
-  const midpoint = obstacleMidpoint(door);
-  return (
-    isPointCurrentlyVisible(map, visibleCells, door.start) ||
-    isPointCurrentlyVisible(map, visibleCells, door.end) ||
-    isPointCurrentlyVisible(map, visibleCells, midpoint)
-  );
-}
-
-function getAdjacentDoorCellKeys(map: CampaignMap, door: CampaignMap["walls"][number]) {
-  const epsilon = 0.001;
-  const keys = new Set<string>();
-  const startX = (door.start.x - map.grid.offsetX) / map.grid.cellSize;
-  const endX = (door.end.x - map.grid.offsetX) / map.grid.cellSize;
-  const startY = (door.start.y - map.grid.offsetY) / map.grid.cellSize;
-  const endY = (door.end.y - map.grid.offsetY) / map.grid.cellSize;
-
-  if (Math.abs(startX - endX) < epsilon) {
-    const column = Math.round(startX);
-    const minRow = Math.min(startY, endY);
-    const maxRow = Math.max(startY, endY);
-
-    for (let row = Math.floor(minRow); row < Math.ceil(maxRow) - epsilon; row += 1) {
-      keys.add(cellKey(column - 1, row));
-      keys.add(cellKey(column, row));
-    }
-  } else if (Math.abs(startY - endY) < epsilon) {
-    const row = Math.round(startY);
-    const minColumn = Math.min(startX, endX);
-    const maxColumn = Math.max(startX, endX);
-
-    for (let column = Math.floor(minColumn); column < Math.ceil(maxColumn) - epsilon; column += 1) {
-      keys.add(cellKey(column, row - 1));
-      keys.add(cellKey(column, row));
-    }
-  }
-
-  return Array.from(keys);
-}
-
-function initials(label: string) {
-  return label
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-function boardViewStorageKey(userId: string, mapId: string) {
-  return `${boardViewStorageKeyPrefix}:${userId}:${mapId}`;
-}
-
-function readBoardView(userId: string, mapId: string) {
-  const value = readJson<{
-    zoom?: unknown;
-    center?: { x?: unknown; y?: unknown };
-    pan?: { x?: unknown; y?: unknown };
-  }>(boardViewStorageKey(userId, mapId));
-
-  const hasCenter =
-    value &&
-    value.center &&
-    typeof value.center.x === "number" &&
-    typeof value.center.y === "number";
-  const hasPan = value && value.pan && typeof value.pan.x === "number" && typeof value.pan.y === "number";
-
-  if (!value || typeof value.zoom !== "number" || (!hasCenter && !hasPan)) {
-    return null;
-  }
-
-  return {
-    zoom: value.zoom,
-    center: hasCenter
-      ? {
-          x: value.center!.x as number,
-          y: value.center!.y as number
-        }
-      : undefined,
-    pan: hasPan
-      ? {
-          x: value.pan!.x as number,
-          y: value.pan!.y as number
-        }
-      : { x: 0, y: 0 }
-  };
-}
-
-function writeBoardView(userId: string, mapId: string, value: { zoom: number; center: Point; pan: Point }) {
-  writeJson(boardViewStorageKey(userId, mapId), value);
-}
-
-function readDiscoveredDrawingsMemory() {
-  const raw = window.localStorage.getItem(discoveredDrawingsStorageKey);
-
-  if (!raw) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-
-    return Object.fromEntries(
-      Object.entries(parsed).map(([viewerId, maps]) => [
-        viewerId,
-        typeof maps === "object" && maps !== null
-          ? Object.fromEntries(
-              Object.entries(maps as Record<string, unknown>).map(([mapId, value]) => [
-                mapId,
-                Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : []
-              ])
-            )
-          : {}
-      ])
-    );
-  } catch {
-    return {};
-  }
-}
-
-function writeDiscoveredDrawingsMemory(value: Record<string, Record<string, string[]>>) {
-  window.localStorage.setItem(discoveredDrawingsStorageKey, JSON.stringify(value));
-}
-
-function normalizeSelectionRect(rect: SelectionState) {
-  return {
-    x: Math.min(rect.startX, rect.currentX),
-    y: Math.min(rect.startY, rect.currentY),
-    width: Math.abs(rect.currentX - rect.startX),
-    height: Math.abs(rect.currentY - rect.startY)
-  };
-}
-
-function pathBoundsIntersectsRect(points: Point[], rect: { x: number; y: number; width: number; height: number }) {
-  if (points.length === 0) {
-    return false;
-  }
-
-  let minX = points[0].x;
-  let maxX = points[0].x;
-  let minY = points[0].y;
-  let maxY = points[0].y;
-
-  for (const point of points) {
-    minX = Math.min(minX, point.x);
-    maxX = Math.max(maxX, point.x);
-    minY = Math.min(minY, point.y);
-    maxY = Math.max(maxY, point.y);
-  }
-
-  return !(maxX < rect.x || minX > rect.x + rect.width || maxY < rect.y || minY > rect.y + rect.height);
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
 }

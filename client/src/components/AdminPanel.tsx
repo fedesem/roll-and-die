@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowDownToLine, FilePlus2, List, RefreshCw } from "lucide-react";
 
-import type { AdminOverview, SpellEntry } from "@shared/types";
+import type { SpellEntry } from "@shared/types";
 import { ClassPreviewCard, FeatPreviewCard, MonsterPreviewCard, PreviewError, PreviewPlaceholder, SpellPreviewCard, UserPreviewCard } from "./admin/AdminPreview";
+import { useAdminOverviewQuery } from "../features/admin/useAdminOverviewQuery";
 import {
   createCompendiumItem,
   demoteAdminUser,
-  fetchAdminOverview,
   importCompendiumItems,
   promoteAdminUser
 } from "../features/admin/adminService";
@@ -51,8 +51,6 @@ interface AdminPanelProps {
 export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) {
   const [tab, setTab] = useState<AdminTab>("users");
   const [mode, setMode] = useState<AdminMode>("list");
-  const [overview, setOverview] = useState<AdminOverview | null>(null);
-  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState<Record<AdminTab, string>>({
     users: "",
     spells: "",
@@ -79,22 +77,10 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
   const [classForm, setClassForm] = useState<ClassFormState>(createClassForm());
   const activeCompendiumTab: CompendiumTab | null = tab === "users" ? null : tab;
 
-  const refreshOverview = useCallback(async () => {
-    setLoading(true);
-
-    try {
-      const next = await fetchAdminOverview(token);
-      setOverview(next);
-    } catch (error) {
-      onStatus("error", toErrorMessage(error));
-    } finally {
-      setLoading(false);
-    }
-  }, [onStatus, token]);
-
-  useEffect(() => {
-    void refreshOverview();
-  }, [refreshOverview]);
+  const { overview, isLoading: loading, refreshOverview } = useAdminOverviewQuery({
+    token,
+    onError: (message) => onStatus("error", message)
+  });
 
   useEffect(() => {
     if (tab === "users" && mode !== "list") {

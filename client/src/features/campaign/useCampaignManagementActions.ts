@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
-import type { ActorKind, ActorSheet, CampaignMap, CampaignSnapshot, CampaignSummary, MemberRole, MonsterTemplate } from "@shared/types";
+import type { ActorKind, ActorSheet, CampaignMap, CampaignSummary, MemberRole, MonsterTemplate } from "@shared/types";
 
 import {
   acceptCampaignInvite,
@@ -12,7 +12,6 @@ import {
   createMapRecord,
   createMonsterActorRecord,
   deleteActorRecord,
-  fetchCampaigns,
   removeActorFromMapRecord,
   removeTokenRecord,
   saveActorRecord,
@@ -37,9 +36,8 @@ interface UseCampaignManagementActionsOptions {
   joinCode: string;
   inviteDraft: InviteDraft;
   actorCreatorKind: ActorKind;
-  setCampaigns: Dispatch<SetStateAction<CampaignSummary[]>>;
+  refreshCampaigns: () => Promise<CampaignSummary[]>;
   setSelectedCampaignId: (campaignId: string | null, options?: { replace?: boolean }) => void;
-  setSnapshot: Dispatch<SetStateAction<CampaignSnapshot | null>>;
   setSelectedActorId: Dispatch<SetStateAction<string | null>>;
   setActorDraft: Dispatch<SetStateAction<ActorSheet | null>>;
   setActorCreatorOpen: Dispatch<SetStateAction<boolean>>;
@@ -62,9 +60,8 @@ export function useCampaignManagementActions({
   joinCode,
   inviteDraft,
   actorCreatorKind,
-  setCampaigns,
+  refreshCampaigns,
   setSelectedCampaignId,
-  setSnapshot,
   setSelectedActorId,
   setActorDraft,
   setActorCreatorOpen,
@@ -76,24 +73,6 @@ export function useCampaignManagementActions({
   setMapEditorMode,
   onStatus
 }: UseCampaignManagementActionsOptions) {
-  const refreshCampaigns = useCallback(async () => {
-    if (!token) {
-      return;
-    }
-
-    try {
-      const nextCampaigns = await fetchCampaigns(token);
-      setCampaigns(nextCampaigns);
-
-      if (selectedCampaignId && !nextCampaigns.some((entry) => entry.id === selectedCampaignId)) {
-        setSelectedCampaignId(null);
-        setSnapshot(null);
-      }
-    } catch (error) {
-      onStatus("error", toErrorMessage(error));
-    }
-  }, [onStatus, selectedCampaignId, setCampaigns, setSelectedCampaignId, setSnapshot, token]);
-
   const createCampaign = useCallback(async () => {
     if (!token || !createCampaignName.trim()) {
       return;
@@ -328,7 +307,6 @@ export function useCampaignManagementActions({
   );
 
   return {
-    refreshCampaigns,
     createCampaign,
     acceptInvite,
     createActor,

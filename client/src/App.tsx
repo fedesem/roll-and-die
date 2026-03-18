@@ -5,7 +5,6 @@ import type {
   ActorSheet,
   AuthPayload,
   CampaignMap,
-  CampaignSummary,
   MemberRole
 } from "@shared/types";
 
@@ -16,6 +15,7 @@ import { useCampaignManagementActions } from "./features/campaign/useCampaignMan
 import { useCampaignDerivedState } from "./features/campaign/useCampaignDerivedState";
 import { useDeleteTokenHotkey } from "./features/campaign/useDeleteTokenHotkey";
 import { useRoomActions } from "./features/campaign/useRoomActions";
+import { useCampaignSummariesQuery } from "./features/campaign/useCampaignSummariesQuery";
 import { useRoomRealtimeState } from "./features/campaign/useRoomRealtimeState";
 import { useCampaignUiEffects } from "./features/campaign/useCampaignUiEffects";
 import type { ActorTypeFilter, BannerState } from "./features/campaign/types";
@@ -38,7 +38,6 @@ export default function App() {
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [authForm, setAuthForm] = useState({ name: "", email: "", password: "" });
   const [session, setSession] = usePersistentState<AuthPayload | null>(sessionStorageKey, null);
-  const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [selectedCampaignId, setSelectedCampaignIdState] = useState<string | null>(() =>
     route.name === "campaign" ? route.campaignId : readJson<string>(selectedCampaignStorageKey)
   );
@@ -94,13 +93,6 @@ export default function App() {
       navigate({ name: "campaign", campaignId: selectedCampaignId }, { replace: true });
     }
   }, [navigate, route.name, selectedCampaignId, session]);
-
-  useEffect(() => {
-    if (!session) {
-      setCampaigns([]);
-      return;
-    }
-  }, [session]);
 
   const setBannerStatus = useCallback((tone: BannerState["tone"], text: string) => {
     setBanner({ tone, text });
@@ -159,6 +151,26 @@ export default function App() {
   );
 
   const {
+    campaigns,
+    isLoading: isCampaignsLoading,
+    refreshCampaigns
+  } = useCampaignSummariesQuery({
+    token: session?.token,
+    onError: (message) => setBannerStatus("error", message)
+  });
+
+  useEffect(() => {
+    if (!session || !selectedCampaignId || isCampaignsLoading) {
+      return;
+    }
+
+    if (!campaigns.some((entry) => entry.id === selectedCampaignId)) {
+      setSelectedCampaignId(null);
+      setSnapshot(null);
+    }
+  }, [campaigns, isCampaignsLoading, selectedCampaignId, session, setSelectedCampaignId, setSnapshot]);
+
+  const {
     campaign,
     role,
     activeMap,
@@ -187,7 +199,6 @@ export default function App() {
   });
 
   const {
-    refreshCampaigns,
     createCampaign,
     acceptInvite,
     createActor,
@@ -210,9 +221,8 @@ export default function App() {
     joinCode,
     inviteDraft,
     actorCreatorKind,
-    setCampaigns,
+    refreshCampaigns,
     setSelectedCampaignId,
-    setSnapshot,
     setSelectedActorId,
     setActorDraft,
     setActorCreatorOpen,
@@ -224,14 +234,6 @@ export default function App() {
     setMapEditorMode,
     onStatus: setBannerStatus
   });
-
-  useEffect(() => {
-    if (!session?.token) {
-      return;
-    }
-
-    void refreshCampaigns();
-  }, [refreshCampaigns, session?.token]);
 
   useEffect(() => {
     if (!session?.token) {
