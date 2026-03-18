@@ -1,0 +1,150 @@
+@media (max-width: 1500px) {
+  .map-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-grid {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+
+  .detail-column {
+    grid-column: 1 / -1;
+  }
+
+  .table-chat {
+    width: 268px;
+  }
+
+  .table-map-shell > .board-panel .board-toolbar {
+    width: min(700px, calc(100% - 34rem));
+  }
+
+  .table-map-shell > .board-panel > .panel-hint {
+    width: min(60ch, calc(100% - 34rem));
+  }
+}
+
+@media (max-width: 1100px) {
+  .auth-shell,
+  .dashboard-grid,
+  .admin-content-grid,
+  .maps-popup,
+  .workspace-grid,
+  .hero-grid,
+  .popup-grid.two-columns,
+  .monster-browser,
+  .monster-preview-grid,
+  .sheet-top-grid,
+  .sheet-main-grid,
+  .monster-stat-grid,
+  .monster-main-grid,
+  .sheet-form-grid,
+  .sheet-text-grid,
+  .ability-card-grid,
+  .spell-slot-grid,
+  .combat-grid,
+  .hp-grid,
+  .map-form-grid,
+  .currency-grid,
+  .double-grid,
+  .triple-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar,
+  .topbar-actions,
+  .topbar-room-status,
+  .inline-form,
+  .panel-head,
+  .modal-head,
+  .board-toolbar,
+  .tool-meta,
+  .chat-form,
+  .admin-preview-header,
+  .admin-page-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .chat-form {
+    grid-template-columns: 1fr;
+  }
+
+  .maps-list-scroll {
+    max-height: 220px;
+  }
+
+  .map-preview-stage {
+    height: 62vh;
+    min-height: 460px;
+  }
+
+  .popup-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form-grid,
+  .admin-form-grid-wide,
+  .admin-monster-ability-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-mode-bar {
+    justify-content: stretch;
+  }
+
+  .admin-mode-bar button {
+    flex: 1 1 0;
+  }
+
+  .workspace-shell.is-room-active {
+    overflow: auto;
+  }
+
+  .table-map-shell {
+    display: grid;
+    gap: 0.9rem;
+    min-height: 0;
+  }
+
+  .table-map-shell > .board-panel .board-toolbar,
+  .table-map-shell > .board-panel > .panel-hint,
+  .table-overlay {
+    position: static;
+    transform: none;
+    width: 100%;
+  }
+
+  .table-map-shell > .board-panel {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .table-map-shell > .board-panel .board-toolbar {
+    order: 1;
+  }
+
+  .table-map-shell > .board-panel .board-scroll {
+    order: 2;
+  }
+
+  .table-map-shell > .board-panel > .panel-hint {
+    order: 3;
+  }
+
+  .table-map-shell > .board-panel .board-surface {
+    height: 68vh;
+    min-height: 520px;
+  }
+
+  .table-menu,
+  .table-chat {
+    width: 100%;
+    position: static;
+    min-height: 340px;
+  }
+
+  .table-chat {
+    bottom: auto;
+  }
+}

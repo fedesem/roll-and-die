@@ -146,7 +146,7 @@ export function getDrawingStrokePath(
   drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">,
   worldToScreen: (point: Point) => Point
 ) {
-  return pointsToSvgPath(getDrawingRenderPoints(drawing).map(worldToScreen), false);
+  return pointsToSvgPath(getDrawingRenderPoints(drawing).map(worldToScreen), drawing.kind !== "freehand");
 }
 
 export function getDrawingFillPath(

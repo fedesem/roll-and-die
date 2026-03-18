@@ -1,3 +1,10 @@
 @import "tailwindcss";
 @import "./styles/base.css";
-@import "./styles/legacy.css";
+@import "./styles/components/shared-ui.css";
+@import "./styles/components/admin-panel.css";
+@import "./styles/components/admin-preview.css";
+@import "./styles/components/campaign-page.css";
+@import "./styles/components/board.css";
+@import "./styles/components/map-configurator.css";
+@import "./styles/components/character-sheet.css";
+@import "./styles/components/responsive.css";

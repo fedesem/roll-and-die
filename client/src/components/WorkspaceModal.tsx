@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { X } from "lucide-react";
 
 interface WorkspaceModalProps {
   title: string;
@@ -30,11 +29,11 @@ export function WorkspaceModal({ title, onClose, size = "default", children }: W
           <h2 className="font-serif text-2xl tracking-wide text-amber-50">{title}</h2>
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-200 transition hover:border-amber-200/18 hover:text-amber-50"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] p-0 text-lg font-semibold leading-none text-slate-200 transition hover:border-amber-200/18 hover:text-amber-50"
             onClick={onClose}
             aria-label="Close popup"
           >
-            <X size={16} />
+            <span aria-hidden="true">X</span>
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto px-6 py-5">{children}</div>
