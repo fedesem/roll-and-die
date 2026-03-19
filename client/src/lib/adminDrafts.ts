@@ -223,7 +223,8 @@ export function spellFormToEntry(form: SpellFormState): Omit<SpellEntry, "id"> {
       source: "",
       kind: "class" as const,
       className: name,
-      classSource: ""
+      classSource: "",
+      definedInSources: []
     }))
   };
 }

@@ -152,9 +152,12 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     try {
       const parsed = JSON.parse(value) as unknown;
       const count = resolveImportEntryCount(activeCompendiumTab, parsed);
+      const isSpellLookup = activeCompendiumTab === "spells" && isGeneratedSpellLookupPayload(parsed);
       return {
         valid: true,
-        message: `${count} ${count === 1 ? singularLabel(activeCompendiumTab) : labelForTab(activeCompendiumTab)} ready to import.`
+        message: isSpellLookup
+          ? `${count} spell class lookups ready to apply to imported spells.`
+          : `${count} ${count === 1 ? singularLabel(activeCompendiumTab) : labelForTab(activeCompendiumTab)} ready to import.`
       };
     } catch (error) {
       return { valid: false, message: toErrorMessage(error) };
@@ -786,6 +789,9 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                               ? `${importFiles[activeCompendiumTab]?.content.length.toLocaleString()} characters loaded`
                               : `Upload one ${singularLabel(tab).toLowerCase()} object or an array of ${labelForTab(tab).toLowerCase()}.`}
                           </small>
+                          {tab === "spells" ? (
+                            <small>Accepted spell files: raw 5etools `spell` JSON or `gendata-spell-source-lookup.json` to enrich imported spells with class references.</small>
+                          ) : null}
                         </div>
                         <button
                           type="button"
@@ -849,6 +855,10 @@ function resolveImportEntryCount(kind: CompendiumTab, parsed: unknown) {
       return record.spell.length;
     }
 
+    if (kind === "spells" && isGeneratedSpellLookupPayload(record)) {
+      return countGeneratedSpellLookupEntries(record);
+    }
+
     if (kind === "feats" && Array.isArray(record.feat)) {
       return record.feat.length;
     }
@@ -859,4 +869,46 @@ function resolveImportEntryCount(kind: CompendiumTab, parsed: unknown) {
   }
 
   return 1;
+}
+
+function isGeneratedSpellLookupPayload(value: unknown) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  return Object.values(value).some((spellBucket) => {
+    if (typeof spellBucket !== "object" || spellBucket === null || Array.isArray(spellBucket)) {
+      return false;
+    }
+
+    return Object.values(spellBucket).some((lookupEntry) => {
+      if (typeof lookupEntry !== "object" || lookupEntry === null || Array.isArray(lookupEntry)) {
+        return false;
+      }
+
+      return ["class", "classVariant", "subclass", "subclassVariant"].some((key) => key in lookupEntry);
+    });
+  });
+}
+
+function countGeneratedSpellLookupEntries(value: Record<string, unknown>) {
+  let count = 0;
+
+  Object.values(value).forEach((spellBucket) => {
+    if (typeof spellBucket !== "object" || spellBucket === null || Array.isArray(spellBucket)) {
+      return;
+    }
+
+    Object.values(spellBucket).forEach((lookupEntry) => {
+      if (typeof lookupEntry !== "object" || lookupEntry === null || Array.isArray(lookupEntry)) {
+        return;
+      }
+
+      if (["class", "classVariant", "subclass", "subclassVariant"].some((key) => key in lookupEntry)) {
+        count += 1;
+      }
+    });
+  });
+
+  return count;
 }

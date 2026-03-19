@@ -348,7 +348,8 @@ export const spellClassReferenceSchema: z.ZodType<SpellClassReference> = z.objec
   source: trimmedString,
   kind: spellClassReferenceKindSchema,
   className: trimmedString,
-  classSource: trimmedString
+  classSource: trimmedString,
+  definedInSources: z.array(trimmedString)
 });
 
 export const spellEntrySchema: z.ZodType<SpellEntry> = z.object({

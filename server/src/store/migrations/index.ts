@@ -8,6 +8,7 @@ import { actorTokenImagesMigration } from "./108_actor_token_images.js";
 import { monsterInitiativeMigration } from "./109_monster_initiative.js";
 import { monsterSpellcastingMigration } from "./110_monster_spellcasting.js";
 import { compendiumReferenceTablesMigration } from "./111_compendium_reference_tables.js";
+import { spellClassReferenceMetadataMigration } from "./112_spell_class_reference_metadata.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -19,5 +20,6 @@ export const migrations = [
   actorTokenImagesMigration,
   monsterInitiativeMigration,
   monsterSpellcastingMigration,
-  compendiumReferenceTablesMigration
+  compendiumReferenceTablesMigration,
+  spellClassReferenceMetadataMigration
 ];

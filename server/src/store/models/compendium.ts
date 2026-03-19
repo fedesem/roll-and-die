@@ -26,6 +26,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     kind: SpellClassReference["kind"];
     className: string;
     classSource: string;
+    definedInSourcesJson: string;
   }>(
     database,
     `
@@ -35,7 +36,8 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
         source,
         kind,
         class_name as className,
-        class_source as classSource
+        class_source as classSource,
+        defined_in_sources_json as definedInSourcesJson
       FROM compendium_spell_classes
       ORDER BY spell_id, sort_order
     `
@@ -47,7 +49,8 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
       source: row.source,
       kind: row.kind,
       className: row.className,
-      classSource: row.classSource
+      classSource: row.classSource,
+      definedInSources: parseJsonArray<string>(row.definedInSourcesJson)
     });
 
     spellClassReferencesBySpellId.set(row.spellId, current);
@@ -504,8 +507,8 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
   `);
   const insertSpellClass = database.prepare(`
     INSERT INTO compendium_spell_classes (
-      spell_id, sort_order, name, source, kind, class_name, class_source
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      spell_id, sort_order, name, source, kind, class_name, class_source, defined_in_sources_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertMonster = database.prepare(`
     INSERT INTO compendium_monsters (
@@ -591,7 +594,8 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
         reference.source,
         reference.kind,
         reference.className,
-        reference.classSource
+        reference.classSource,
+        JSON.stringify(reference.definedInSources)
       );
     });
   });
@@ -726,7 +730,8 @@ function ensureSpellClassReferences(spell: SpellEntry): SpellClassReference[] {
     source: "",
     kind: "class" as const,
     className,
-    classSource: ""
+    classSource: "",
+    definedInSources: []
   }));
 }
 

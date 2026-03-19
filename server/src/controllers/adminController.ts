@@ -16,6 +16,8 @@ import { parseWithSchema, requireRouteParam } from "../http/validation.js";
 import { mutateDatabase, readDatabase } from "../store.js";
 import { requireAdmin, toUserProfile } from "../services/authService.js";
 import {
+  importGeneratedSpellLookupIntoSpells,
+  isGeneratedSpellLookupImport,
   normalizeCompendiumImportEntries,
   sanitizeCompendiumEntry,
   type CompendiumKind
@@ -184,6 +186,13 @@ export const adminController = {
     requireAdmin(request);
     const kind = parseWithSchema(compendiumKindSchema, request.params.kind, "Invalid compendium type.");
     const body = parseCompendiumImportBody(kind, request.body);
+
+    if (kind === "spells" && isGeneratedSpellLookupImport(body.entries)) {
+      const result = await mutateDatabase((database) => importGeneratedSpellLookupIntoSpells(database.compendium.spells, body.entries));
+      response.status(201).json(result);
+      return;
+    }
+
     const entries = normalizeCompendiumImportEntries(kind, body.entries).map((entry) => sanitizeCompendiumEntry(kind, entry));
 
     const result = await mutateDatabase((database) => {

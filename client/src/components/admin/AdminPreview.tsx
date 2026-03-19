@@ -91,6 +91,8 @@ export function SpellPreviewCard({
   ]
     .filter(Boolean)
     .join(", ");
+  const displayedClasses = formatSpellClassList(spell);
+  const referencingClasses = getReferencingClassesForSpell(spell.name, classEntries);
 
   return (
     <PreviewFrame eyebrow="Spell" title={spell.name} source={spell.source} subtitle={subtitle}>
@@ -117,11 +119,14 @@ export function SpellPreviewCard({
         {spell.fullDescription && spell.fullDescription !== spell.description && (
           <p className="admin-preview-body"><RulesText text={spell.fullDescription} spellEntries={[spell]} featEntries={featEntries} classEntries={classEntries} /></p>
         )}
-        {(spell.classReferences.length > 0 || spell.classes.length > 0) && (
+        <p className="admin-preview-footnote">
+          <strong>Classes:</strong> {displayedClasses || "Unavailable in imported source data"}
+        </p>
+        {referencingClasses.length > 0 ? (
           <p className="admin-preview-footnote">
-            <strong>Classes:</strong> {formatSpellClassList(spell)}
+            <strong>Referenced by classes:</strong> {referencingClasses.join(", ")}
           </p>
-        )}
+        ) : null}
       </div>
     </PreviewFrame>
   );
@@ -274,6 +279,7 @@ export function ClassPreviewCard({
   featEntries?: FeatEntry[];
 }) {
   const normalizedDescription = normalizeClassPreviewDescription(entry);
+  const referencedSpells = getReferencedSpellsForClass(entry, spellEntries);
 
   return (
     <PreviewFrame eyebrow="Class" title={entry.name} source={entry.source}>
@@ -287,6 +293,18 @@ export function ClassPreviewCard({
         {normalizedDescription ? (
           <p className="admin-preview-body"><RulesText text={normalizedDescription} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} /></p>
         ) : null}
+        {referencedSpells.length > 0 && (
+          <Section title="Referenced Spells">
+            <p className="admin-preview-body">
+              {referencedSpells.map((spellName, index) => (
+                <span key={spellName}>
+                  {index > 0 ? ", " : null}
+                  <RulesText text={`{@spell ${spellName}}`} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
+                </span>
+              ))}
+            </p>
+          </Section>
+        )}
         {entry.features.length > 0 && (
           <Section title="Features">
             {entry.features.map((feature) => (
@@ -303,6 +321,7 @@ export function ClassPreviewCard({
               <table className="admin-class-table">
                 <thead>
                   <tr>
+                    <th>Level</th>
                     {table.columns.map((column) => (
                       <th key={column}>
                         <RulesText text={column} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
@@ -313,6 +332,7 @@ export function ClassPreviewCard({
                 <tbody>
                   {table.rows.map((row, rowIndex) => (
                     <tr key={`${table.name}-${rowIndex}`}>
+                      <td>{rowIndex + 1}</td>
                       {row.map((cell, cellIndex) => (
                         <td key={`${table.name}-${rowIndex}-${cellIndex}`}>
                           <RulesText text={cell} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
@@ -406,6 +426,26 @@ function formatSpellClassList(spell: SpellEntry | Omit<SpellEntry, "id">) {
   return spell.classes.join(", ");
 }
 
+function getReferencingClassesForSpell(
+  spellName: string,
+  classEntries: Array<ClassEntry | Omit<ClassEntry, "id">>
+) {
+  const pattern = new RegExp(`\\{@spell\\s+${escapeRegExp(spellName)}(?:\\|[^}]*)?}`, "i");
+
+  return classEntries
+    .filter((entry) => {
+      const texts = [
+        entry.description,
+        ...entry.features.map((feature) => feature.description),
+        ...entry.tables.flatMap((table) => [table.name, ...table.columns, ...table.rows.flat()])
+      ];
+
+      return texts.some((text) => pattern.test(text));
+    })
+    .map((entry) => entry.name)
+    .sort((left, right) => left.localeCompare(right));
+}
+
 function hasStartingProficiencies(entry: ClassEntry | Omit<ClassEntry, "id">) {
   return (
     entry.startingProficiencies.armor.length > 0 ||
@@ -440,6 +480,167 @@ function normalizeClassPreviewDescription(entry: ClassEntry | Omit<ClassEntry, "
     .map((line) => line.trim())
     .filter((line) => line && !duplicatePrefixes.some((prefix) => line.startsWith(prefix)))
     .join("\n");
+}
+
+function getReferencedSpellsForClass(
+  entry: ClassEntry | Omit<ClassEntry, "id">,
+  spellEntries: Array<SpellEntry | Omit<SpellEntry, "id">>
+) {
+  const availableSpellNames = new Set(spellEntries.map((spell) => spell.name.toLowerCase()));
+  const rawTexts = [
+    entry.description,
+    ...entry.features.map((feature) => feature.description),
+    ...entry.tables.flatMap((table) => [table.name, ...table.columns, ...table.rows.flat()])
+  ];
+  const matches = rawTexts
+    .flatMap((text) => Array.from(text.matchAll(/\{@spell ([^}|]+)(?:\|[^}]+)?}/gi), (match) => match[1].trim()))
+    .filter((spellName) => availableSpellNames.has(spellName.toLowerCase()));
+
+  return Array.from(new Set(matches)).sort((left, right) => left.localeCompare(right));
+}
+
+function parseFilterTag(text: string) {
+  const match = text.match(/^\{@filter ([^|}]+)\|([^|}]+)(?:\|([^}]+))?}/i);
+
+  if (!match) {
+    return null;
+  }
+
+  const filters = (match[3] ?? "")
+    .split("|")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .reduce<Record<string, string>>((accumulator, entry) => {
+      const [key, ...rest] = entry.split("=");
+
+      if (!key || rest.length === 0) {
+        return accumulator;
+      }
+
+      accumulator[key.trim().toLowerCase()] = rest.join("=").trim();
+      return accumulator;
+    }, {});
+
+  return {
+    label: match[1].trim(),
+    target: match[2].trim().toLowerCase(),
+    filters
+  };
+}
+
+function getFilteredSpellEntries(
+  spellEntries: Array<SpellEntry | Omit<SpellEntry, "id">>,
+  filters: Record<string, string>
+) {
+  const classFilters = splitFilterValues(filters.class).map((value) => value.toLowerCase());
+  const levelFilters = splitFilterValues(filters.level);
+  const schoolFilters = splitFilterValues(filters.school).map(normalizeSpellSchoolFilter).filter(Boolean);
+
+  return [...spellEntries]
+    .filter((spell) => {
+      if (classFilters.length > 0) {
+        const spellClassNames = new Set(
+          [
+            ...spell.classes,
+            ...spell.classReferences.flatMap((reference) => [
+              reference.name,
+              reference.className,
+              `${reference.name} (${reference.className})`
+            ])
+          ]
+            .filter(Boolean)
+            .map((entry) => entry.toLowerCase())
+        );
+
+        if (!classFilters.some((classFilter) => spellClassNames.has(classFilter))) {
+          return false;
+        }
+      }
+
+      if (levelFilters.length > 0) {
+        const spellLevel = spell.level === "cantrip" ? "0" : String(spell.level);
+        const excludedLevels = levelFilters.filter((value) => value.startsWith("!")).map((value) => value.slice(1));
+        const includedLevels = levelFilters.filter((value) => !value.startsWith("!"));
+
+        if (excludedLevels.includes(spellLevel)) {
+          return false;
+        }
+
+        if (includedLevels.length > 0 && !includedLevels.includes(spellLevel)) {
+          return false;
+        }
+      }
+
+      if (schoolFilters.length > 0 && !schoolFilters.includes(spell.school)) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((left, right) => {
+      const leftLevel = left.level === "cantrip" ? 0 : left.level;
+      const rightLevel = right.level === "cantrip" ? 0 : right.level;
+
+      if (leftLevel !== rightLevel) {
+        return leftLevel - rightLevel;
+      }
+
+      return left.name.localeCompare(right.name);
+    });
+}
+
+function splitFilterValues(value = "") {
+  return value
+    .split(";")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function normalizeSpellSchoolFilter(value: string) {
+  const mapping: Record<string, SpellEntry["school"]> = {
+    A: "Abjuration",
+    C: "Conjuration",
+    D: "Divination",
+    E: "Enchantment",
+    V: "Evocation",
+    I: "Illusion",
+    N: "Necromancy",
+    T: "Transmutation"
+  };
+
+  const normalized = value.trim().toUpperCase();
+  return mapping[normalized] ?? "";
+}
+
+function SpellFilterTooltip({ spells }: { spells: Array<SpellEntry | Omit<SpellEntry, "id">> }) {
+  const limitedSpells = spells.slice(0, 24);
+  const groups = limitedSpells.reduce<Array<{ label: string; spells: string[] }>>((accumulator, spell) => {
+    const label = spell.level === "cantrip" ? "Cantrips" : `Level ${spell.level}`;
+    const currentGroup = accumulator.at(-1);
+
+    if (!currentGroup || currentGroup.label !== label) {
+      accumulator.push({ label, spells: [spell.name] });
+      return accumulator;
+    }
+
+    currentGroup.spells.push(spell.name);
+    return accumulator;
+  }, []);
+
+  return (
+    <>
+      {groups.map((group) => (
+        <div key={group.label} className="rules-tooltip-body rules-tooltip-body-secondary">
+          <strong>{group.label}.</strong> {group.spells.join(", ")}
+        </div>
+      ))}
+      {spells.length > limitedSpells.length ? (
+        <div className="rules-tooltip-body rules-tooltip-body-secondary">
+          +{spells.length - limitedSpells.length} more
+        </div>
+      ) : null}
+    </>
+  );
 }
 
 function RulesTextInner({
@@ -531,6 +732,41 @@ function RulesTextInner({
               ))}
             </RulesTooltip>
           ) : null, disableHover);
+        }
+
+        const filterTag = parseFilterTag(part);
+
+        if (filterTag) {
+          const filteredSpells =
+            filterTag.target === "spells"
+              ? getFilteredSpellEntries(spellEntries, filterTag.filters)
+              : [];
+
+          return renderLinkedTag(
+            part,
+            index,
+            filterTag.label,
+            filterTag.target === "spells" ? (
+              <RulesTooltip
+                title={filterTag.label}
+                subtitle={
+                  filteredSpells.length > 0
+                    ? `${filteredSpells.length} imported spell${filteredSpells.length === 1 ? "" : "s"}`
+                    : "No imported spells matched"
+                }
+              >
+                {filteredSpells.length > 0 ? (
+                  <SpellFilterTooltip spells={filteredSpells} />
+                ) : (
+                  <div className="rules-tooltip-body rules-tooltip-body-secondary">
+                    No imported spells matched this filter. 5etools spell source files often omit class-list metadata, so
+                    spell-list hovers need spells imported with class references.
+                  </div>
+                )}
+              </RulesTooltip>
+            ) : null,
+            disableHover
+          );
         }
 
         const dcMatch = part.match(/^\{@dc ([^}]+)}/i);
@@ -718,6 +954,10 @@ function formatAttackTag(value: string) {
   }
 
   return "";
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function renderLinkedTag(

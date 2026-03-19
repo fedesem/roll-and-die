@@ -215,6 +215,7 @@ export interface SpellClassReference {
   kind: SpellClassReferenceKind;
   className: string;
   classSource: string;
+  definedInSources: string[];
 }
 
 export interface SpellEntry {

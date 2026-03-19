@@ -77,6 +77,39 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
   return [input];
 }
 
+export function isGeneratedSpellLookupImport(input: unknown) {
+  return readGeneratedSpellLookupData(input).entryCount > 0;
+}
+
+export function importGeneratedSpellLookupIntoSpells(spells: SpellEntry[], input: unknown) {
+  const lookupData = readGeneratedSpellLookupData(input);
+
+  if (lookupData.entryCount === 0) {
+    throw new HttpError(400, "The uploaded JSON is not a supported 5etools spell lookup file.");
+  }
+
+  let updated = 0;
+
+  spells.forEach((spell) => {
+    const spellLookupKey = createGeneratedSpellLookupKey(getSpellSourceCode(spell.source), spell.name);
+    const lookupReferences = lookupData.referencesBySpellKey.get(spellLookupKey);
+
+    if (!lookupReferences || lookupReferences.length === 0) {
+      return;
+    }
+
+    const mergedReferences = mergeSpellClassReferences(ensureSpellClassReferences(spell), lookupReferences);
+    spell.classReferences = mergedReferences;
+    spell.classes = uniqueStrings(mergedReferences.map(formatSpellClassReferenceDisplay));
+    updated += 1;
+  });
+
+  return {
+    imported: updated,
+    skipped: Math.max(lookupData.entryCount - updated, 0)
+  };
+}
+
 function sanitizeSpellEntry(input: unknown): SpellEntry {
   const object = asObject(input, "Spell");
 
@@ -436,7 +469,8 @@ function sanitizeSpellClassReference(input: Record<string, unknown>): SpellClass
     source,
     kind: normalizedKind,
     className,
-    classSource
+    classSource,
+    definedInSources: readStringArray(input.definedInSources)
   };
 }
 
@@ -467,8 +501,13 @@ function createBaseSpellClassReference(name: string): SpellClassReference {
     source: "",
     kind: "class",
     className: name,
-    classSource: ""
+    classSource: "",
+    definedInSources: []
   };
+}
+
+function ensureSpellClassReferences(spell: SpellEntry): SpellClassReference[] {
+  return spell.classReferences.length > 0 ? spell.classReferences : spell.classes.map(createBaseSpellClassReference);
 }
 
 function formatSpellClassReferenceDisplay(reference: SpellClassReference) {
@@ -798,6 +837,183 @@ function parseExternalSpellClassReferences(value: unknown): SpellClassReference[
   );
 }
 
+function readGeneratedSpellLookupData(value: unknown) {
+  const root = asOptionalObject(value);
+  const referencesBySpellKey = new Map<string, SpellClassReference[]>();
+
+  if (!root) {
+    return {
+      entryCount: 0,
+      referencesBySpellKey
+    };
+  }
+
+  Object.entries(root).forEach(([spellSource, spellBucket]) => {
+    const spells = asOptionalObject(spellBucket);
+
+    if (!spells) {
+      return;
+    }
+
+    Object.entries(spells).forEach(([spellName, lookupEntry]) => {
+      const lookupObject = asOptionalObject(lookupEntry);
+
+      if (!lookupObject) {
+        return;
+      }
+
+      const references = parseGeneratedSpellLookupReferences(lookupObject);
+
+      if (references.length === 0) {
+        return;
+      }
+
+      referencesBySpellKey.set(createGeneratedSpellLookupKey(spellSource, spellName), references);
+    });
+  });
+
+  return {
+    entryCount: referencesBySpellKey.size,
+    referencesBySpellKey
+  };
+}
+
+function parseGeneratedSpellLookupReferences(lookupObject: Record<string, unknown>) {
+  return uniqueBy(
+    [
+      ...parseGeneratedSpellLookupClassReferences(lookupObject.class, "class"),
+      ...parseGeneratedSpellLookupClassReferences(lookupObject.classVariant, "classVariant"),
+      ...parseGeneratedSpellLookupSubclassReferences(lookupObject.subclass, "subclass"),
+      ...parseGeneratedSpellLookupSubclassReferences(lookupObject.subclassVariant, "subclassVariant")
+    ],
+    (entry) =>
+      [
+        entry.kind,
+        entry.name.toLowerCase(),
+        entry.source.toLowerCase(),
+        entry.className.toLowerCase(),
+        entry.classSource.toLowerCase()
+      ].join("|")
+  );
+}
+
+function parseGeneratedSpellLookupClassReferences(
+  value: unknown,
+  kind: "class" | "classVariant"
+): SpellClassReference[] {
+  const sources = asOptionalObject(value);
+
+  if (!sources) {
+    return [];
+  }
+
+  return Object.entries(sources).flatMap(([classSource, classEntries]) => {
+    const classes = asOptionalObject(classEntries);
+
+    if (!classes) {
+      return [];
+    }
+
+    return Object.entries(classes).map(([className, classMetadata]) =>
+      sanitizeSpellClassReference({
+        name: className,
+        source: classSource,
+        kind,
+        className,
+        classSource,
+        definedInSources: readStringArray(asOptionalObject(classMetadata)?.definedInSources)
+      })
+    );
+  });
+}
+
+function parseGeneratedSpellLookupSubclassReferences(
+  value: unknown,
+  kind: "subclass" | "subclassVariant"
+): SpellClassReference[] {
+  const classSources = asOptionalObject(value);
+
+  if (!classSources) {
+    return [];
+  }
+
+  return Object.entries(classSources).flatMap(([classSource, classesValue]) => {
+    const classes = asOptionalObject(classesValue);
+
+    if (!classes) {
+      return [];
+    }
+
+    return Object.entries(classes).flatMap(([className, subclassSourcesValue]) => {
+      const subclassSources = asOptionalObject(subclassSourcesValue);
+
+      if (!subclassSources) {
+        return [];
+      }
+
+      return Object.entries(subclassSources).flatMap(([subclassSource, subclassEntriesValue]) => {
+        const subclassEntries = asOptionalObject(subclassEntriesValue);
+
+        if (!subclassEntries) {
+          return [];
+        }
+
+        return Object.entries(subclassEntries).map(([fallbackName, subclassMetadata]) => {
+          const metadata = asOptionalObject(subclassMetadata);
+
+          return sanitizeSpellClassReference({
+            name: readString(metadata?.name) || fallbackName,
+            source: subclassSource,
+            kind,
+            className,
+            classSource,
+            definedInSources: readStringArray(metadata?.definedInSources)
+          });
+        });
+      });
+    });
+  });
+}
+
+function mergeSpellClassReferences(existing: SpellClassReference[], incoming: SpellClassReference[]) {
+  const exactEntries = uniqueBy(
+    [...incoming, ...existing],
+    (entry) =>
+      [
+        entry.kind,
+        entry.name.toLowerCase(),
+        entry.source.toLowerCase(),
+        entry.className.toLowerCase(),
+        entry.classSource.toLowerCase()
+      ].join("|")
+  );
+  const richKeys = new Set(
+    exactEntries
+      .filter((entry) => entry.source || entry.classSource)
+      .map((entry) => [entry.kind, entry.name.toLowerCase(), entry.className.toLowerCase()].join("|"))
+  );
+
+  return exactEntries.filter((entry) => {
+    if (entry.source || entry.classSource) {
+      return true;
+    }
+
+    return !richKeys.has([entry.kind, entry.name.toLowerCase(), entry.className.toLowerCase()].join("|"));
+  });
+}
+
+function createGeneratedSpellLookupKey(source: string, spellName: string) {
+  return `${normalizeGeneratedSpellLookupPart(source)}|${normalizeGeneratedSpellLookupPart(spellName)}`;
+}
+
+function normalizeGeneratedSpellLookupPart(value: string) {
+  return value.trim().toLowerCase().replace(/[’]/g, "'").replace(/\s+/g, " ");
+}
+
+function getSpellSourceCode(source: string) {
+  return source.split(/\s+p\.\d+/i)[0]?.trim() || source.trim();
+}
+
 function readExternalSpellDamageNotation(object: Record<string, unknown>) {
   const scaling = asOptionalObject(object.scalingLevelDice);
   const label = readString(scaling?.label);
@@ -971,9 +1187,8 @@ function parseExternalClassTables(value: unknown) {
   return readObjectArray(value).map((entry) => ({
     name: readString(entry.title) || readString(entry.name) || "Class Table",
     columns: readArray(entry.colLabels).map((label) => renderTableCell(label)).filter(Boolean),
-    rows: Array.isArray(entry.rows)
-      ? entry.rows.map((row) => (Array.isArray(row) ? row.map((cell) => renderTableCell(cell)) : []))
-      : []
+    rows: readArray(Array.isArray(entry.rows) && entry.rows.length > 0 ? entry.rows : entry.rowsSpellProgression)
+      .map((row) => (Array.isArray(row) ? row.map((cell) => renderTableCell(cell)) : []))
   }));
 }
 

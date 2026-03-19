@@ -41,6 +41,7 @@ export const compendiumReferenceTablesMigration: Migration = {
         kind TEXT NOT NULL,
         class_name TEXT NOT NULL,
         class_source TEXT NOT NULL,
+        defined_in_sources_json TEXT NOT NULL DEFAULT '[]',
         PRIMARY KEY (spell_id, sort_order)
       );
 
@@ -95,13 +96,13 @@ export const compendiumReferenceTablesMigration: Migration = {
       );
       const insertSpellClass = database.prepare(`
         INSERT INTO compendium_spell_classes (
-          spell_id, sort_order, name, source, kind, class_name, class_source
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          spell_id, sort_order, name, source, kind, class_name, class_source, defined_in_sources_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       spellRows.forEach((row) => {
         parseJsonArray<string>(row.classesJson).forEach((className, index) => {
-          insertSpellClass.run(row.id, index, className, "", "class", className, "");
+          insertSpellClass.run(row.id, index, className, "", "class", className, "", "[]");
         });
       });
     }
