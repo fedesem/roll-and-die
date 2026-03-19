@@ -2,7 +2,10 @@ import type { DatabaseSync } from "node:sqlite";
 
 import type {
   AbilityKey,
+  ActorBonusEntry,
+  ActorClassEntry,
   ActorKind,
+  ActorLayoutEntry,
   ActorSheet,
   ArmorEntry,
   AttackEntry,
@@ -149,6 +152,8 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     currencyCp: number;
     notes: string;
     color: string;
+    preparedSpellsJson: string;
+    layoutJson: string;
   }>(
     database,
     `
@@ -190,7 +195,9 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
         currency_sp as currencySp,
         currency_cp as currencyCp,
         notes,
-        color
+        color,
+        prepared_spells_json as preparedSpellsJson,
+        layout_json as layoutJson
       FROM actors
       ORDER BY campaign_id, sort_order, id
     `
@@ -232,11 +239,15 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
         cha: row.abilityCha
       },
       skills: [],
+      classes: [],
       spellSlots: [],
       features: [],
       spells: [],
+      preparedSpells: parseJsonArray<string>(row.preparedSpellsJson),
       talents: [],
       feats: [],
+      bonuses: [],
+      layout: parseJsonArray<ActorLayoutEntry>(row.layoutJson),
       attacks: [],
       armorItems: [],
       resources: [],
@@ -254,6 +265,45 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
 
     campaignsById.get(row.campaignId)?.actors.push(actor);
     actorsById.set(actor.id, actor);
+  }
+
+  for (const row of readAll<{
+    actorId: string;
+    id: string;
+    compendiumId: string;
+    name: string;
+    source: string;
+    level: number;
+    hitDieFaces: number;
+    usedHitDice: number;
+    spellcastingAbility: AbilityKey | null;
+  }>(
+    database,
+    `
+      SELECT
+        actor_id as actorId,
+        id,
+        compendium_id as compendiumId,
+        name,
+        source,
+        level,
+        hit_die_faces as hitDieFaces,
+        used_hit_dice as usedHitDice,
+        spellcasting_ability as spellcastingAbility
+      FROM actor_classes
+      ORDER BY actor_id, sort_order, id
+    `
+  )) {
+    actorsById.get(row.actorId)?.classes.push({
+      id: row.id,
+      compendiumId: row.compendiumId,
+      name: row.name,
+      source: row.source,
+      level: row.level,
+      hitDieFaces: row.hitDieFaces,
+      usedHitDice: row.usedHitDice,
+      spellcastingAbility: row.spellcastingAbility
+    } satisfies ActorClassEntry);
   }
 
   for (const row of readAll<{ actorId: string; id: string; name: string; ability: AbilityKey; proficient: number; expertise: number }>(
@@ -321,10 +371,29 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     } satisfies AttackEntry);
   }
 
-  for (const row of readAll<{ actorId: string; id: string; name: string; armorClass: number; notes: string }>(
+  for (const row of readAll<{
+    actorId: string;
+    id: string;
+    name: string;
+    kind: ArmorEntry["kind"];
+    armorClass: number;
+    maxDexBonus: number | null;
+    bonus: number;
+    equipped: number;
+    notes: string;
+  }>(
     database,
     `
-      SELECT actor_id as actorId, id, name, armor_class as armorClass, notes
+      SELECT
+        actor_id as actorId,
+        id,
+        name,
+        kind,
+        armor_class as armorClass,
+        max_dex_bonus as maxDexBonus,
+        bonus,
+        equipped,
+        notes
       FROM actor_armor_items
       ORDER BY actor_id, sort_order, id
     `
@@ -332,15 +401,70 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     actorsById.get(row.actorId)?.armorItems.push({
       id: row.id,
       name: row.name,
+      kind: row.kind,
       armorClass: row.armorClass,
+      maxDexBonus: row.maxDexBonus,
+      bonus: row.bonus,
+      equipped: toBoolean(row.equipped),
       notes: row.notes
     } satisfies ArmorEntry);
   }
 
-  for (const row of readAll<{ actorId: string; id: string; name: string; current: number; max: number; resetOn: string }>(
+  for (const row of readAll<{
+    actorId: string;
+    id: string;
+    name: string;
+    sourceType: ActorBonusEntry["sourceType"];
+    targetType: ActorBonusEntry["targetType"];
+    targetKey: string;
+    value: number;
+    enabled: number;
+  }>(
     database,
     `
-      SELECT actor_id as actorId, id, name, current_value as current, max_value as max, reset_on as resetOn
+      SELECT
+        actor_id as actorId,
+        id,
+        name,
+        source_type as sourceType,
+        target_type as targetType,
+        target_key as targetKey,
+        value,
+        enabled
+      FROM actor_bonuses
+      ORDER BY actor_id, sort_order, id
+    `
+  )) {
+    actorsById.get(row.actorId)?.bonuses.push({
+      id: row.id,
+      name: row.name,
+      sourceType: row.sourceType,
+      targetType: row.targetType,
+      targetKey: row.targetKey,
+      value: row.value,
+      enabled: toBoolean(row.enabled)
+    } satisfies ActorBonusEntry);
+  }
+
+  for (const row of readAll<{
+    actorId: string;
+    id: string;
+    name: string;
+    current: number;
+    max: number;
+    resetOn: string;
+    restoreAmount: number;
+  }>(
+    database,
+    `
+      SELECT
+        actor_id as actorId,
+        id,
+        name,
+        current_value as current,
+        max_value as max,
+        reset_on as resetOn,
+        restore_amount as restoreAmount
       FROM actor_resources
       ORDER BY actor_id, sort_order, id
     `
@@ -350,14 +474,30 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
       name: row.name,
       current: row.current,
       max: row.max,
-      resetOn: row.resetOn
+      resetOn: row.resetOn,
+      restoreAmount: row.restoreAmount
     } satisfies ResourceEntry);
   }
 
-  for (const row of readAll<{ actorId: string; id: string; name: string; quantity: number }>(
+  for (const row of readAll<{
+    actorId: string;
+    id: string;
+    name: string;
+    itemType: InventoryEntry["type"];
+    quantity: number;
+    equipped: number;
+    notes: string;
+  }>(
     database,
     `
-      SELECT actor_id as actorId, id, name, quantity
+      SELECT
+        actor_id as actorId,
+        id,
+        name,
+        item_type as itemType,
+        quantity,
+        equipped,
+        notes
       FROM actor_inventory
       ORDER BY actor_id, sort_order, id
     `
@@ -365,7 +505,10 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     actorsById.get(row.actorId)?.inventory.push({
       id: row.id,
       name: row.name,
-      quantity: row.quantity
+      type: row.itemType,
+      quantity: row.quantity,
+      equipped: toBoolean(row.equipped),
+      notes: row.notes
     } satisfies InventoryEntry);
   }
 
@@ -656,8 +799,13 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
       id, campaign_id, sort_order, owner_id, template_id, name, kind, image_url, class_name, species, background, alignment, level,
       challenge_rating, experience, spellcasting_ability, armor_class, initiative, speed, proficiency_bonus, inspiration,
       vision_range, hit_points_current, hit_points_max, hit_points_temp, hit_dice, ability_str, ability_dex, ability_con,
-      ability_int, ability_wis, ability_cha, currency_pp, currency_gp, currency_ep, currency_sp, currency_cp, notes, color
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ability_int, ability_wis, ability_cha, currency_pp, currency_gp, currency_ep, currency_sp, currency_cp, notes, color,
+      prepared_spells_json, layout_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertActorClass = database.prepare(`
+    INSERT INTO actor_classes (actor_id, id, sort_order, compendium_id, name, source, level, hit_die_faces, used_hit_dice, spellcasting_ability)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertActorSkill = database.prepare(`
     INSERT INTO actor_skills (actor_id, id, sort_order, name, ability, proficient, expertise)
@@ -676,16 +824,20 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertActorArmorItem = database.prepare(`
-    INSERT INTO actor_armor_items (actor_id, id, sort_order, name, armor_class, notes)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO actor_armor_items (actor_id, id, sort_order, name, kind, armor_class, max_dex_bonus, bonus, equipped, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertActorBonus = database.prepare(`
+    INSERT INTO actor_bonuses (actor_id, id, sort_order, name, source_type, target_type, target_key, value, enabled)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertActorResource = database.prepare(`
-    INSERT INTO actor_resources (actor_id, id, sort_order, name, current_value, max_value, reset_on)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO actor_resources (actor_id, id, sort_order, name, current_value, max_value, reset_on, restore_amount)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertActorInventory = database.prepare(`
-    INSERT INTO actor_inventory (actor_id, id, sort_order, name, quantity)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO actor_inventory (actor_id, id, sort_order, name, item_type, quantity, equipped, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertMap = database.prepare(`
     INSERT INTO maps (
@@ -790,8 +942,25 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
         actor.currency.sp,
         actor.currency.cp,
         actor.notes,
-        actor.color
+        actor.color,
+        JSON.stringify(actor.preparedSpells),
+        JSON.stringify(actor.layout)
       );
+
+      actor.classes.forEach((actorClass, classOrder) => {
+        insertActorClass.run(
+          actor.id,
+          actorClass.id,
+          classOrder,
+          actorClass.compendiumId,
+          actorClass.name,
+          actorClass.source,
+          actorClass.level,
+          actorClass.hitDieFaces,
+          actorClass.usedHitDice,
+          actorClass.spellcastingAbility
+        );
+      });
 
       actor.skills.forEach((skill, skillOrder) => {
         insertActorSkill.run(actor.id, skill.id, skillOrder, skill.name, skill.ability, toIntegerBoolean(skill.proficient), toIntegerBoolean(skill.expertise));
@@ -811,15 +980,58 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
       });
 
       actor.armorItems.forEach((item, itemOrder) => {
-        insertActorArmorItem.run(actor.id, item.id, itemOrder, item.name, item.armorClass, item.notes);
+        insertActorArmorItem.run(
+          actor.id,
+          item.id,
+          itemOrder,
+          item.name,
+          item.kind,
+          item.armorClass,
+          item.maxDexBonus,
+          item.bonus,
+          toIntegerBoolean(item.equipped),
+          item.notes
+        );
+      });
+
+      actor.bonuses.forEach((bonus, bonusOrder) => {
+        insertActorBonus.run(
+          actor.id,
+          bonus.id,
+          bonusOrder,
+          bonus.name,
+          bonus.sourceType,
+          bonus.targetType,
+          bonus.targetKey,
+          bonus.value,
+          toIntegerBoolean(bonus.enabled)
+        );
       });
 
       actor.resources.forEach((resource, resourceOrder) => {
-        insertActorResource.run(actor.id, resource.id, resourceOrder, resource.name, resource.current, resource.max, resource.resetOn);
+        insertActorResource.run(
+          actor.id,
+          resource.id,
+          resourceOrder,
+          resource.name,
+          resource.current,
+          resource.max,
+          resource.resetOn,
+          resource.restoreAmount
+        );
       });
 
       actor.inventory.forEach((item, itemOrder) => {
-        insertActorInventory.run(actor.id, item.id, itemOrder, item.name, item.quantity);
+        insertActorInventory.run(
+          actor.id,
+          item.id,
+          itemOrder,
+          item.name,
+          item.type,
+          item.quantity,
+          toIntegerBoolean(item.equipped),
+          item.notes
+        );
       });
     });
 
@@ -916,11 +1128,13 @@ export function clearRelationalTables(database: DatabaseSync) {
     DELETE FROM maps;
     DELETE FROM actor_inventory;
     DELETE FROM actor_resources;
+    DELETE FROM actor_bonuses;
     DELETE FROM actor_armor_items;
     DELETE FROM actor_attacks;
     DELETE FROM actor_text_entries;
     DELETE FROM actor_spell_slots;
     DELETE FROM actor_skills;
+    DELETE FROM actor_classes;
     DELETE FROM actors;
     DELETE FROM campaign_invites;
     DELETE FROM campaign_members;
@@ -939,4 +1153,13 @@ function writeActorTextEntries(
   values.forEach((value, index) => {
     statement.run(actorId, kind, index, value);
   });
+}
+
+function parseJsonArray<T>(raw: string) {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
 }

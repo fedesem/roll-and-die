@@ -28,6 +28,7 @@ type ActivePopup = "sheet" | "actors" | "maps" | "room" | null;
 
 interface CampaignPageProps {
   campaign: CampaignSnapshot["campaign"];
+  compendium: CampaignSnapshot["compendium"];
   role: MemberRole;
   currentUserId: string;
   roomStatus: "offline" | "connecting" | "online";
@@ -109,6 +110,7 @@ interface CampaignPageProps {
 
 export function CampaignPage({
   campaign,
+  compendium,
   role,
   currentUserId,
   activeMap,
@@ -338,7 +340,14 @@ export function CampaignPage({
 
       {activePopup === "sheet" && (
         <WorkspaceModal title={selectedActor ? `${selectedActor.name} Sheet` : "Interactive Sheet"} size="wide" onClose={() => onSetActivePopup(null)}>
-          <CharacterSheet actor={selectedActor ?? undefined} role={role} currentUserId={currentUserId} onSave={onSaveActor} onRoll={onRoll} />
+          <CharacterSheet
+            actor={selectedActor ?? undefined}
+            compendium={compendium}
+            role={role}
+            currentUserId={currentUserId}
+            onSave={onSaveActor}
+            onRoll={onRoll}
+          />
         </WorkspaceModal>
       )}
 
@@ -571,6 +580,7 @@ export function CampaignPage({
                     actorDraft && (
                       <CharacterSheet
                         actor={actorDraft}
+                        compendium={compendium}
                         role={role}
                         currentUserId={currentUserId}
                         onSave={onCreateActor}

@@ -3,7 +3,12 @@ import { z } from "zod";
 import type {
   AbilityKey,
   AbilityScores,
+  ActorBonusEntry,
+  ActorBonusSourceType,
+  ActorBonusTargetType,
+  ActorClassEntry,
   ActorKind,
+  ActorLayoutEntry,
   ActorSheet,
   AdminOverview,
   ArmorEntry,
@@ -32,6 +37,7 @@ import type {
   GridConfig,
   HitPoints,
   InventoryEntry,
+  InventoryItemType,
   MapActorAssignment,
   MapPing,
   MapViewportRecall,
@@ -131,7 +137,11 @@ export const attackEntrySchema: z.ZodType<AttackEntry> = z.object({
 export const armorEntrySchema: z.ZodType<ArmorEntry> = z.object({
   id: trimmedString,
   name: trimmedString,
+  kind: z.enum(["armor", "shield"]),
   armorClass: finiteNumber,
+  maxDexBonus: finiteNumber.nullable(),
+  bonus: finiteNumber,
+  equipped: z.boolean(),
   notes: trimmedString
 });
 
@@ -140,13 +150,24 @@ export const resourceEntrySchema: z.ZodType<ResourceEntry> = z.object({
   name: trimmedString,
   current: finiteNumber,
   max: finiteNumber,
-  resetOn: trimmedString
+  resetOn: trimmedString,
+  restoreAmount: finiteNumber
 });
+
+export const inventoryItemTypeSchema: z.ZodType<InventoryItemType> = z.enum([
+  "gear",
+  "reagent",
+  "loot",
+  "consumable"
+]);
 
 export const inventoryEntrySchema: z.ZodType<InventoryEntry> = z.object({
   id: trimmedString,
   name: trimmedString,
-  quantity: finiteNumber
+  type: inventoryItemTypeSchema,
+  quantity: finiteNumber,
+  equipped: z.boolean(),
+  notes: trimmedString
 });
 
 export const currencyPouchSchema: z.ZodType<CurrencyPouch> = z.object({
@@ -155,6 +176,42 @@ export const currencyPouchSchema: z.ZodType<CurrencyPouch> = z.object({
   ep: finiteNumber,
   sp: finiteNumber,
   cp: finiteNumber
+});
+
+export const actorClassEntrySchema: z.ZodType<ActorClassEntry> = z.object({
+  id: trimmedString,
+  compendiumId: trimmedString,
+  name: trimmedString,
+  source: trimmedString,
+  level: finiteNumber,
+  hitDieFaces: finiteNumber,
+  usedHitDice: finiteNumber,
+  spellcastingAbility: abilityKeySchema.nullable()
+});
+
+export const actorBonusSourceTypeSchema: z.ZodType<ActorBonusSourceType> = z.enum(["gear", "buff"]);
+export const actorBonusTargetTypeSchema: z.ZodType<ActorBonusTargetType> = z.enum([
+  "armorClass",
+  "speed",
+  "ability",
+  "skill",
+  "savingThrow"
+]);
+
+export const actorBonusEntrySchema: z.ZodType<ActorBonusEntry> = z.object({
+  id: trimmedString,
+  name: trimmedString,
+  sourceType: actorBonusSourceTypeSchema,
+  targetType: actorBonusTargetTypeSchema,
+  targetKey: trimmedString,
+  value: finiteNumber,
+  enabled: z.boolean()
+});
+
+export const actorLayoutEntrySchema: z.ZodType<ActorLayoutEntry> = z.object({
+  sectionId: trimmedString,
+  column: finiteNumber,
+  order: finiteNumber
 });
 
 export const actorSheetSchema: z.ZodType<ActorSheet> = z.object({
@@ -184,11 +241,15 @@ export const actorSheetSchema: z.ZodType<ActorSheet> = z.object({
   hitDice: trimmedString,
   abilities: abilityScoresSchema,
   skills: z.array(skillEntrySchema),
+  classes: z.array(actorClassEntrySchema),
   spellSlots: z.array(spellSlotTrackSchema),
   features: z.array(trimmedString),
   spells: z.array(trimmedString),
+  preparedSpells: z.array(trimmedString),
   talents: z.array(trimmedString),
   feats: z.array(trimmedString),
+  bonuses: z.array(actorBonusEntrySchema),
+  layout: z.array(actorLayoutEntrySchema),
   attacks: z.array(attackEntrySchema),
   armorItems: z.array(armorEntrySchema),
   resources: z.array(resourceEntrySchema),
@@ -596,6 +657,11 @@ export const campaignSnapshotSchema: z.ZodType<CampaignSnapshot> = z.object({
   currentUser: userProfileSchema,
   role: memberRoleSchema,
   catalog: z.array(monsterTemplateSchema),
+  compendium: z.object({
+    spells: z.array(spellEntrySchema),
+    feats: z.array(featEntrySchema),
+    classes: z.array(classEntrySchema)
+  }),
   playerVision: z.record(z.string(), z.array(trimmedString))
 });
 

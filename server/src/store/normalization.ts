@@ -77,7 +77,34 @@ function normalizeCampaign(campaign: Campaign): Campaign {
       ? campaign.actors.map((actor) => ({
           ...actor,
           imageUrl: actor.imageUrl ?? "",
-          visionRange: actor.visionRange ?? 6
+          visionRange: actor.visionRange ?? 6,
+          classes: Array.isArray(actor.classes) ? actor.classes : [],
+          preparedSpells: Array.isArray(actor.preparedSpells) ? actor.preparedSpells : [],
+          bonuses: Array.isArray(actor.bonuses) ? actor.bonuses : [],
+          layout: Array.isArray(actor.layout) ? actor.layout : [],
+          armorItems: Array.isArray(actor.armorItems)
+            ? actor.armorItems.map((item) => ({
+                ...item,
+                kind: item.kind ?? "armor",
+                maxDexBonus: item.maxDexBonus ?? null,
+                bonus: item.bonus ?? 0,
+                equipped: Boolean(item.equipped)
+              }))
+            : [],
+          resources: Array.isArray(actor.resources)
+            ? actor.resources.map((resource) => ({
+                ...resource,
+                restoreAmount: resource.restoreAmount ?? resource.max ?? 1
+              }))
+            : [],
+          inventory: Array.isArray(actor.inventory)
+            ? actor.inventory.map((item) => ({
+                ...item,
+                type: item.type ?? "gear",
+                equipped: Boolean(item.equipped),
+                notes: item.notes ?? ""
+              }))
+            : []
         }))
       : [],
     maps,

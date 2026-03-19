@@ -452,6 +452,7 @@ export default function App() {
       ) : (
         <CampaignPage
           campaign={snapshot.campaign}
+          compendium={snapshot.compendium}
           role={role}
           currentUserId={session.user.id}
           roomStatus={roomStatus}

@@ -71,11 +71,43 @@ export function createClientActorDraft(kind: ActorKind, currentUserId?: string):
       { id: `sk_${crypto.randomUUID().slice(0, 8)}`, name: "Perception", ability: "wis", proficient: true, expertise: false },
       { id: `sk_${crypto.randomUUID().slice(0, 8)}`, name: "Stealth", ability: "dex", proficient: false, expertise: false }
     ],
+    classes:
+      kind === "character" || kind === "npc"
+        ? [
+            {
+              id: `cls_${crypto.randomUUID().slice(0, 8)}`,
+              compendiumId: "",
+              name: kind === "npc" ? "Supporting Role" : "Adventurer",
+              source: "",
+              level: 1,
+              hitDieFaces: 8,
+              usedHitDice: 0,
+              spellcastingAbility: null
+            }
+          ]
+        : [],
     spellSlots: Array.from({ length: 9 }, (_, index) => ({ level: index + 1, total: 0, used: 0 })),
     features: ["Second Wind"],
     spells: ["Guidance"],
+    preparedSpells: ["Guidance"],
     talents: ["Perception"],
     feats: ["Lucky"],
+    bonuses: [],
+    layout: [
+      { sectionId: "info", column: 1, order: 0 },
+      { sectionId: "abilities", column: 1, order: 1 },
+      { sectionId: "skills", column: 1, order: 2 },
+      { sectionId: "combat", column: 2, order: 3 },
+      { sectionId: "attacks", column: 2, order: 4 },
+      { sectionId: "armor", column: 2, order: 5 },
+      { sectionId: "resources", column: 2, order: 6 },
+      { sectionId: "spellSlots", column: 3, order: 7 },
+      { sectionId: "spells", column: 3, order: 8 },
+      { sectionId: "feats", column: 3, order: 9 },
+      { sectionId: "traits", column: 3, order: 10 },
+      { sectionId: "items", column: 2, order: 11 },
+      { sectionId: "notes", column: 3, order: 12 }
+    ],
     attacks: [
       {
         id: `atk_${crypto.randomUUID().slice(0, 8)}`,
@@ -90,7 +122,11 @@ export function createClientActorDraft(kind: ActorKind, currentUserId?: string):
       {
         id: `arm_${crypto.randomUUID().slice(0, 8)}`,
         name: "Leather Armor",
+        kind: "armor",
         armorClass: 11,
+        maxDexBonus: null,
+        bonus: 0,
+        equipped: true,
         notes: ""
       }
     ],
@@ -100,12 +136,13 @@ export function createClientActorDraft(kind: ActorKind, currentUserId?: string):
         name: "Second Wind",
         current: 1,
         max: 1,
-        resetOn: "Short Rest"
+        resetOn: "Short Rest",
+        restoreAmount: 1
       }
     ],
     inventory: [
-      { id: `inv_${crypto.randomUUID().slice(0, 8)}`, name: "Bedroll", quantity: 1 },
-      { id: `inv_${crypto.randomUUID().slice(0, 8)}`, name: "Torch", quantity: 5 }
+      { id: `inv_${crypto.randomUUID().slice(0, 8)}`, name: "Bedroll", type: "gear", quantity: 1, equipped: false, notes: "" },
+      { id: `inv_${crypto.randomUUID().slice(0, 8)}`, name: "Torch", type: "consumable", quantity: 5, equipped: false, notes: "" }
     ],
     currency: { pp: 0, gp: 15, ep: 0, sp: 5, cp: 12 },
     notes: "",

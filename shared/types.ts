@@ -45,7 +45,11 @@ export interface AttackEntry {
 export interface ArmorEntry {
   id: string;
   name: string;
+  kind: "armor" | "shield";
   armorClass: number;
+  maxDexBonus: number | null;
+  bonus: number;
+  equipped: boolean;
   notes: string;
 }
 
@@ -55,12 +59,18 @@ export interface ResourceEntry {
   current: number;
   max: number;
   resetOn: string;
+  restoreAmount: number;
 }
+
+export type InventoryItemType = "gear" | "reagent" | "loot" | "consumable";
 
 export interface InventoryEntry {
   id: string;
   name: string;
+  type: InventoryItemType;
   quantity: number;
+  equipped: boolean;
+  notes: string;
 }
 
 export interface CurrencyPouch {
@@ -69,6 +79,36 @@ export interface CurrencyPouch {
   ep: number;
   sp: number;
   cp: number;
+}
+
+export interface ActorClassEntry {
+  id: string;
+  compendiumId: string;
+  name: string;
+  source: string;
+  level: number;
+  hitDieFaces: number;
+  usedHitDice: number;
+  spellcastingAbility: AbilityKey | null;
+}
+
+export type ActorBonusSourceType = "gear" | "buff";
+export type ActorBonusTargetType = "armorClass" | "speed" | "ability" | "skill" | "savingThrow";
+
+export interface ActorBonusEntry {
+  id: string;
+  name: string;
+  sourceType: ActorBonusSourceType;
+  targetType: ActorBonusTargetType;
+  targetKey: string;
+  value: number;
+  enabled: boolean;
+}
+
+export interface ActorLayoutEntry {
+  sectionId: string;
+  column: number;
+  order: number;
 }
 
 export interface ActorSheet {
@@ -98,11 +138,15 @@ export interface ActorSheet {
   hitDice: string;
   abilities: AbilityScores;
   skills: SkillEntry[];
+  classes: ActorClassEntry[];
   spellSlots: SpellSlotTrack[];
   features: string[];
   spells: string[];
+  preparedSpells: string[];
   talents: string[];
   feats: string[];
+  bonuses: ActorBonusEntry[];
+  layout: ActorLayoutEntry[];
   attacks: AttackEntry[];
   armorItems: ArmorEntry[];
   resources: ResourceEntry[];
@@ -453,6 +497,7 @@ export interface CampaignSnapshot {
   currentUser: UserProfile;
   role: MemberRole;
   catalog: MonsterTemplate[];
+  compendium: Pick<CompendiumData, "spells" | "feats" | "classes">;
   playerVision: Record<string, CellKey[]>;
 }
 

@@ -100,7 +100,7 @@ export async function broadcastCampaignToRoom(campaignId: string) {
 
     sendSocketMessage(connection, {
       type: "room:snapshot",
-      snapshot: buildCampaignSnapshot(campaign, connection.user, database.compendium.monsters)
+      snapshot: buildCampaignSnapshot(campaign, connection.user, database.compendium)
     });
   }
 }
@@ -160,7 +160,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
       });
       sendSocketMessage(connection, {
         type: "room:snapshot",
-        snapshot: buildCampaignSnapshot(campaign, user, database.compendium.monsters)
+        snapshot: buildCampaignSnapshot(campaign, user, database.compendium)
       });
       return;
     }

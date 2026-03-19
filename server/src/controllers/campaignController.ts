@@ -135,7 +135,7 @@ export const campaignController = {
     const database = await readDatabase();
     const campaign = requireCampaignMember(database, campaignId, user.id).campaign;
 
-    response.json(buildCampaignSnapshot(campaign, user, database.compendium.monsters));
+    response.json(buildCampaignSnapshot(campaign, user, database.compendium));
   },
 
   async createInvite(request: Request, response: Response) {

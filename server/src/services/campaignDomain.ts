@@ -3,7 +3,10 @@ import { randomBytes } from "node:crypto";
 import type {
   AbilityKey,
   AbilityScores,
+  ActorBonusEntry,
+  ActorClassEntry,
   ActorKind,
+  ActorLayoutEntry,
   ActorSheet,
   ArmorEntry,
   AttackEntry,
@@ -62,7 +65,7 @@ const skillTemplates: Array<{ name: string; ability: AbilityKey }> = [
 export function buildCampaignSnapshot(
   campaign: Campaign,
   user: UserProfile,
-  catalog: CompendiumData["monsters"]
+  compendium: Pick<CompendiumData, "spells" | "feats" | "classes" | "monsters">
 ): CampaignSnapshot {
   const member = campaign.members.find((entry) => entry.userId === user.id);
 
@@ -79,7 +82,12 @@ export function buildCampaignSnapshot(
     },
     currentUser: user,
     role: member.role,
-    catalog,
+    catalog: compendium.monsters,
+    compendium: {
+      spells: compendium.spells,
+      feats: compendium.feats,
+      classes: compendium.classes
+    },
     playerVision: member.role === "dm" ? {} : normalizeExplorationMemory(campaign, user.id)
   };
 }
@@ -213,8 +221,12 @@ export function createDefaultActor(
   role: MemberRole
 ): ActorSheet {
   const abilities = defaultAbilities();
+  const defaultClass =
+    kind === "character" || kind === "npc"
+      ? [createActorClassEntry(kind === "npc" ? "Supporting Role" : "Adventurer", 1, 8, null)]
+      : [];
 
-  return {
+  const actor: ActorSheet = {
     id: createId("act"),
     campaignId,
     ownerId: kind === "character" ? userId : role === "dm" ? userId : undefined,
@@ -246,11 +258,15 @@ export function createDefaultActor(
     hitDice: "1d8",
     abilities,
     skills: defaultSkills(),
+    classes: defaultClass,
     spellSlots: defaultSpellSlots(),
     features: ["Second Wind"],
     spells: ["Guidance"],
+    preparedSpells: ["Guidance"],
     talents: ["Perception"],
     feats: ["Lucky"],
+    bonuses: [],
+    layout: defaultActorLayout(),
     attacks: [
       {
         id: createId("atk"),
@@ -265,7 +281,11 @@ export function createDefaultActor(
       {
         id: createId("arm"),
         name: "Leather Armor",
+        kind: "armor",
         armorClass: 11,
+        maxDexBonus: null,
+        bonus: 0,
+        equipped: true,
         notes: ""
       }
     ],
@@ -275,13 +295,14 @@ export function createDefaultActor(
         name: "Second Wind",
         current: 1,
         max: 1,
-        resetOn: "Short Rest"
+        resetOn: "Short Rest",
+        restoreAmount: 1
       }
     ],
     inventory: [
-      { id: createId("inv"), name: "Bedroll", quantity: 1 },
-      { id: createId("inv"), name: "Torch", quantity: 5 },
-      { id: createId("inv"), name: "Rations", quantity: 3 }
+      { id: createId("inv"), name: "Bedroll", type: "gear", quantity: 1, equipped: false, notes: "" },
+      { id: createId("inv"), name: "Torch", type: "consumable", quantity: 5, equipped: false, notes: "" },
+      { id: createId("inv"), name: "Rations", type: "consumable", quantity: 3, equipped: false, notes: "" }
     ],
     currency: { pp: 0, gp: 15, ep: 0, sp: 5, cp: 12 },
     notes: "",
@@ -294,6 +315,9 @@ export function createDefaultActor(
             ? "#6e8897"
             : "#8cae75"
   };
+
+  finalizeDerivedActor(actor);
+  return actor;
 }
 
 export function createMonsterActor(
@@ -304,7 +328,7 @@ export function createMonsterActor(
   const dexModifier = Math.floor((template.abilities.dex - 10) / 2);
   const proficiencyBonus = template.proficiencyBonus;
 
-  return {
+  const actor: ActorSheet = {
     id: createId("act"),
     campaignId,
     ownerId: userId,
@@ -330,11 +354,15 @@ export function createMonsterActor(
     hitDice: "Monster HD",
     abilities: template.abilities,
     skills: defaultSkills(),
+    classes: [],
     spellSlots: defaultSpellSlots(),
     features: template.traits,
     spells: template.spells.length > 0 ? template.spells : template.spellcasting.flatMap((entry) => entry.spells.map(stripTaggedSpellName)),
+    preparedSpells: [],
     talents: [],
     feats: [],
+    bonuses: [],
+    layout: defaultActorLayout(),
     attacks: template.actions.map((action) => ({
       id: createId("atk"),
       name: action.name,
@@ -347,7 +375,11 @@ export function createMonsterActor(
       {
         id: createId("arm"),
         name: "Natural Armor",
+        kind: "armor",
         armorClass: template.armorClass,
+        maxDexBonus: null,
+        bonus: 0,
+        equipped: true,
         notes: ""
       }
     ],
@@ -371,6 +403,9 @@ export function createMonsterActor(
       .join("\n\n"),
     color: template.color
   };
+
+  finalizeDerivedActor(actor);
+  return actor;
 }
 
 export function createSystemMessage(
@@ -593,6 +628,48 @@ function defaultSkills(): SkillEntry[] {
   }));
 }
 
+function createActorClassEntry(
+  name: string,
+  level: number,
+  hitDieFaces: number,
+  spellcastingAbility: AbilityKey | null
+): ActorClassEntry {
+  return {
+    id: createId("cls"),
+    compendiumId: "",
+    name,
+    source: "",
+    level,
+    hitDieFaces,
+    usedHitDice: 0,
+    spellcastingAbility
+  };
+}
+
+function defaultActorLayout(): ActorLayoutEntry[] {
+  const sections = [
+    ["info", 1],
+    ["abilities", 1],
+    ["skills", 1],
+    ["combat", 2],
+    ["attacks", 2],
+    ["armor", 2],
+    ["resources", 2],
+    ["spellSlots", 3],
+    ["spells", 3],
+    ["feats", 3],
+    ["traits", 3],
+    ["items", 2],
+    ["notes", 3]
+  ] as const;
+
+  return sections.map(([sectionId, column], index) => ({
+    sectionId,
+    column,
+    order: index
+  }));
+}
+
 function defaultSpellSlots(): SpellSlotTrack[] {
   return Array.from({ length: 9 }, (_, index) => ({
     level: index + 1,
@@ -662,7 +739,9 @@ function normalizeStringArray(value: unknown, fallback: string[]) {
     .slice(0, 80);
 }
 
-function parseAbilityKey(value: unknown, fallback: AbilityKey): AbilityKey {
+function parseAbilityKey(value: unknown, fallback: AbilityKey): AbilityKey;
+function parseAbilityKey(value: unknown, fallback: AbilityKey | null): AbilityKey | null;
+function parseAbilityKey(value: unknown, fallback: AbilityKey | null) {
   return value === "str" ||
     value === "dex" ||
     value === "con" ||
@@ -791,7 +870,16 @@ function sanitizeArmorItems(value: unknown, fallback: ArmorEntry[]): ArmorEntry[
       return {
         id: typeof armor.id === "string" ? armor.id : createId("arm"),
         name: getOptionalString(armor.name, "Armor"),
+        kind: armor.kind === "shield" ? "shield" : "armor",
         armorClass: getOptionalNumber(armor.armorClass, 10, 0, 30),
+        maxDexBonus:
+          armor.maxDexBonus === null
+            ? null
+            : typeof armor.maxDexBonus === "number" && Number.isFinite(armor.maxDexBonus)
+              ? Math.max(-1, Math.min(10, armor.maxDexBonus))
+              : null,
+        bonus: getOptionalNumber(armor.bonus, 0, -20, 20),
+        equipped: typeof armor.equipped === "boolean" ? armor.equipped : false,
         notes: getOptionalString(armor.notes, "")
       };
     })
@@ -817,7 +905,8 @@ function sanitizeResources(value: unknown, fallback: ResourceEntry[]): ResourceE
         name: getOptionalString(resource.name, "Resource"),
         current: Math.min(max, getOptionalNumber(resource.current, 0, 0, 99)),
         max,
-        resetOn: getOptionalString(resource.resetOn, "")
+        resetOn: getOptionalString(resource.resetOn, ""),
+        restoreAmount: getOptionalNumber(resource.restoreAmount, max, 0, 99)
       };
     })
     .filter((entry): entry is ResourceEntry => Boolean(entry))
@@ -839,11 +928,185 @@ function sanitizeInventory(value: unknown, fallback: InventoryEntry[]): Inventor
       return {
         id: typeof item.id === "string" ? item.id : createId("inv"),
         name: getOptionalString(item.name, "Item"),
-        quantity: getOptionalNumber(item.quantity, 1, 0, 999)
+        type:
+          item.type === "reagent" ||
+          item.type === "loot" ||
+          item.type === "consumable" ||
+          item.type === "gear"
+            ? item.type
+            : "gear",
+        quantity: getOptionalNumber(item.quantity, 1, 0, 999),
+        equipped: typeof item.equipped === "boolean" ? item.equipped : false,
+        notes: getOptionalString(item.notes, "")
       };
     })
     .filter((entry): entry is InventoryEntry => Boolean(entry))
     .slice(0, 80);
+}
+
+function sanitizeActorClasses(value: unknown, fallback: ActorClassEntry[]): ActorClassEntry[] {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const actorClass = entry as Partial<ActorClassEntry>;
+      const level = getOptionalNumber(actorClass.level, 1, 1, 20);
+
+      return {
+        id: typeof actorClass.id === "string" ? actorClass.id : createId("cls"),
+        compendiumId: getOptionalString(actorClass.compendiumId, ""),
+        name: getOptionalString(actorClass.name, "Class"),
+        source: getOptionalString(actorClass.source, ""),
+        level,
+        hitDieFaces: getOptionalNumber(actorClass.hitDieFaces, 8, 4, 20),
+        usedHitDice: getOptionalNumber(actorClass.usedHitDice, 0, 0, level),
+        spellcastingAbility: parseAbilityKey(actorClass.spellcastingAbility, null)
+      };
+    })
+    .filter((entry): entry is ActorClassEntry => Boolean(entry))
+    .slice(0, 8);
+}
+
+function sanitizeActorBonuses(value: unknown, fallback: ActorBonusEntry[]) {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const bonus = entry as Partial<ActorBonusEntry>;
+      return {
+        id: typeof bonus.id === "string" ? bonus.id : createId("bon"),
+        name: getOptionalString(bonus.name, "Bonus"),
+        sourceType: bonus.sourceType === "gear" ? "gear" : "buff",
+        targetType:
+          bonus.targetType === "speed" ||
+          bonus.targetType === "ability" ||
+          bonus.targetType === "skill" ||
+          bonus.targetType === "savingThrow" ||
+          bonus.targetType === "armorClass"
+            ? bonus.targetType
+            : "armorClass",
+        targetKey: getOptionalString(bonus.targetKey, ""),
+        value: getOptionalNumber(bonus.value, 0, -20, 20),
+        enabled: typeof bonus.enabled === "boolean" ? bonus.enabled : true
+      };
+    })
+    .filter((entry): entry is ActorBonusEntry => Boolean(entry))
+    .slice(0, 64);
+}
+
+function sanitizeActorLayout(value: unknown, fallback: ActorLayoutEntry[]) {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const layout = entry as Partial<ActorLayoutEntry>;
+      return {
+        sectionId: getOptionalString(layout.sectionId, ""),
+        column: getOptionalNumber(layout.column, 1, 1, 3),
+        order: getOptionalNumber(layout.order, 0, 0, 99)
+      };
+    })
+    .filter((entry): entry is ActorLayoutEntry => Boolean(entry?.sectionId))
+    .sort((left, right) => left.order - right.order);
+}
+
+function getAbilityModifier(score: number) {
+  return Math.floor((score - 10) / 2);
+}
+
+function getBonusTotal(
+  actor: ActorSheet,
+  targetType: ActorBonusEntry["targetType"],
+  targetKey = ""
+) {
+  const normalizedKey = targetKey.trim().toLowerCase();
+
+  return actor.bonuses.reduce((total, entry) => {
+    if (!entry.enabled || entry.targetType !== targetType) {
+      return total;
+    }
+
+    if (!normalizedKey) {
+      return total + entry.value;
+    }
+
+    return entry.targetKey.trim().toLowerCase() === normalizedKey ? total + entry.value : total;
+  }, 0);
+}
+
+function formatHitDice(actor: ActorSheet) {
+  if (actor.classes.length === 0) {
+    return actor.hitDice;
+  }
+
+  return actor.classes
+    .map((entry) => `d${entry.hitDieFaces} ${Math.max(entry.level - entry.usedHitDice, 0)}/${entry.level}`)
+    .join(" • ");
+}
+
+function deriveArmorClass(actor: ActorSheet) {
+  const dexModifier = getAbilityModifier(actor.abilities.dex);
+  const equippedArmor = actor.armorItems.filter((entry) => entry.equipped && entry.kind === "armor");
+  const equippedShields = actor.armorItems.filter(
+    (entry) => entry.equipped && entry.kind === "shield"
+  );
+  const bestArmorBase =
+    equippedArmor.length > 0
+      ? Math.max(
+          ...equippedArmor.map((entry) => {
+            const dexCap =
+              entry.maxDexBonus === null ? dexModifier : Math.min(dexModifier, entry.maxDexBonus);
+            return entry.armorClass + Math.max(dexCap, -10) + entry.bonus;
+          })
+        )
+      : 10 + dexModifier;
+
+  const shieldBonus = equippedShields.reduce(
+    (total, entry) => total + entry.armorClass + entry.bonus,
+    0
+  );
+
+  return bestArmorBase + shieldBonus + getBonusTotal(actor, "armorClass");
+}
+
+function finalizeDerivedActor(actor: ActorSheet) {
+  if (actor.kind === "character" || actor.kind === "npc") {
+    const totalLevel = actor.classes.reduce((sum, entry) => sum + entry.level, 0);
+
+    if (totalLevel > 0) {
+      actor.level = totalLevel;
+      actor.proficiencyBonus = Math.min(6, 2 + Math.floor((Math.max(totalLevel, 1) - 1) / 4));
+      actor.className = actor.classes.map((entry) => entry.name).join(" / ");
+
+      const firstSpellcastingClass = actor.classes.find((entry) => entry.spellcastingAbility);
+      if (firstSpellcastingClass?.spellcastingAbility) {
+        actor.spellcastingAbility = firstSpellcastingClass.spellcastingAbility;
+      }
+    }
+  }
+
+  actor.hitDice = formatHitDice(actor);
+  actor.armorClass = deriveArmorClass(actor);
+  actor.hitPoints.current = Math.min(actor.hitPoints.current, actor.hitPoints.max);
+  actor.hitPoints.temp = Math.max(0, actor.hitPoints.temp);
 }
 
 function sanitizeCurrency(value: unknown, fallback: CurrencyPouch): CurrencyPouch {
@@ -983,11 +1246,15 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   actor.hitDice = getOptionalString(patch.hitDice, actor.hitDice);
   actor.abilities = sanitizeAbilities(patch.abilities, actor.abilities);
   actor.skills = sanitizeSkills(patch.skills, actor.skills);
+  actor.classes = sanitizeActorClasses(patch.classes, actor.classes);
   actor.spellSlots = sanitizeSpellSlots(patch.spellSlots, actor.spellSlots);
   actor.features = normalizeStringArray(patch.features, actor.features);
   actor.spells = normalizeStringArray(patch.spells, actor.spells);
+  actor.preparedSpells = normalizeStringArray(patch.preparedSpells, actor.preparedSpells);
   actor.talents = normalizeStringArray(patch.talents, actor.talents);
   actor.feats = normalizeStringArray(patch.feats, actor.feats);
+  actor.bonuses = sanitizeActorBonuses(patch.bonuses, actor.bonuses);
+  actor.layout = sanitizeActorLayout(patch.layout, actor.layout);
   actor.attacks = sanitizeAttacks(patch.attacks, actor.attacks);
   actor.armorItems = sanitizeArmorItems(patch.armorItems, actor.armorItems);
   actor.resources = sanitizeResources(patch.resources, actor.resources);
@@ -995,6 +1262,7 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   actor.currency = sanitizeCurrency(patch.currency, actor.currency);
   actor.notes = getOptionalString(patch.notes, actor.notes);
   actor.color = getOptionalString(patch.color, actor.color);
+  finalizeDerivedActor(actor);
 }
 
 function stripTaggedSpellName(value: string) {
