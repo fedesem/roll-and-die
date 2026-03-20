@@ -4,3 +4,5 @@ dist
 server/data/db.json
 server/data/app.sqlite
 server/data/app.sqlite*
+data/app.sqlite
+data/app.sqlite*

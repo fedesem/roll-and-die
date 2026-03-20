@@ -1,13 +1,11 @@
 import type { Migration } from "../types.js";
+import { addColumnIfMissing } from "../helpers.js";
 
 export const monsterInitiativeMigration: Migration = {
   version: 109,
   name: "monster_initiative",
   up(database) {
-    database.exec(`
-      ALTER TABLE compendium_monsters
-      ADD COLUMN initiative INTEGER NOT NULL DEFAULT 0;
-    `);
+    addColumnIfMissing(database, "compendium_monsters", "initiative", "INTEGER NOT NULL DEFAULT 0");
 
     database.exec(`
       UPDATE compendium_monsters

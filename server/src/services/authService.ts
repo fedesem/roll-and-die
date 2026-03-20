@@ -30,6 +30,22 @@ export function hashPassword(password: string, salt: string) {
   return scryptSync(password, salt, 64).toString("hex");
 }
 
+export function hasPasswordCredentials(candidate: Partial<Pick<StoredUser, "passwordHash" | "salt">>) {
+  return typeof candidate.passwordHash === "string" && typeof candidate.salt === "string";
+}
+
+export function passwordMatches(password: string, candidate: Pick<StoredUser, "passwordHash" | "salt">) {
+  if (!hasPasswordCredentials(candidate)) {
+    return false;
+  }
+
+  try {
+    return candidate.passwordHash === hashPassword(password, candidate.salt);
+  } catch {
+    return false;
+  }
+}
+
 export function toUserProfile(user: StoredUser): UserProfile {
   return {
     id: user.id,

@@ -8,8 +8,9 @@ import {
   createId,
   createPassword,
   createToken,
-  hashPassword,
+  hasPasswordCredentials,
   now,
+  passwordMatches,
   requireUser,
   toUserProfile
 } from "../services/authService.js";
@@ -62,8 +63,20 @@ export const authController = {
 
     const payload = await mutateDatabase((database) => {
       const user = database.users.find((entry) => entry.email === email);
+      const credentialsMatch = user ? passwordMatches(password, user) : false;
 
-      if (!user || user.passwordHash !== hashPassword(password, user.salt)) {
+      if (user && !hasPasswordCredentials(user)) {
+        request.log.warn(
+          {
+            event: "auth.login.invalid-stored-credentials",
+            userId: user.id,
+            email
+          },
+          "auth.login.invalid-stored-credentials"
+        );
+      }
+
+      if (!user || !credentialsMatch) {
         throw new HttpError(401, "Invalid email or password.");
       }
 
