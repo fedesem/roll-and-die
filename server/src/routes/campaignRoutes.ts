@@ -6,6 +6,7 @@ import { wrap } from "../http/wrap.js";
 export function createCampaignRouter() {
   const router = Router();
 
+  router.get("/books", wrap(campaignController.sourceBooks));
   router.get("/", wrap(campaignController.list));
   router.post("/", wrap(campaignController.create));
   router.get("/:campaignId/snapshot", wrap(campaignController.snapshot));

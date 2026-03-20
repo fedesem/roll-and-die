@@ -25,7 +25,8 @@ export const currentSchemaMigration: Migration = {
         name TEXT NOT NULL,
         created_at TEXT NOT NULL,
         created_by TEXT NOT NULL REFERENCES users(id),
-        active_map_id TEXT NOT NULL DEFAULT ''
+        active_map_id TEXT NOT NULL DEFAULT '',
+        allowed_source_books_json TEXT NOT NULL DEFAULT '[]'
       );
 
       CREATE TABLE IF NOT EXISTS campaign_members (

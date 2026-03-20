@@ -2,6 +2,7 @@ import type {
   ActorKind,
   ActorSheet,
   CampaignMap,
+  CampaignSourceBook,
   CampaignSummary,
   MemberRole
 } from "@shared/types";
@@ -11,6 +12,7 @@ import {
   assignActorToMapBodySchema,
   campaignInviteResponseSchema,
   campaignListResponseSchema,
+  campaignSourceBooksResponseSchema,
   campaignSummaryResponseSchema,
   createActorBodySchema,
   createCampaignBodySchema,
@@ -32,11 +34,18 @@ export function fetchCampaigns(token: string) {
   });
 }
 
-export function createCampaignRecord(token: string, name: string) {
+export function fetchCampaignSourceBooks(token: string) {
+  return apiRequest<CampaignSourceBook[]>("/campaigns/books", {
+    token,
+    responseSchema: campaignSourceBooksResponseSchema
+  });
+}
+
+export function createCampaignRecord(token: string, name: string, allowedSourceBooks: string[]) {
   return apiRequest<CampaignSummary>("/campaigns", {
     method: "POST",
     token,
-    body: { name },
+    body: { name, allowedSourceBooks },
     bodySchema: createCampaignBodySchema,
     responseSchema: campaignSummaryResponseSchema
   });

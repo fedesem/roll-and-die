@@ -378,6 +378,11 @@ export interface CampaignInvite {
   createdBy: string;
 }
 
+export interface CampaignSourceBook {
+  source: string;
+  entryCount: number;
+}
+
 export interface Point {
   x: number;
   y: number;
@@ -487,6 +492,7 @@ export interface Campaign {
   createdAt: string;
   createdBy: string;
   activeMapId: string;
+  allowedSourceBooks: string[];
   members: CampaignMember[];
   invites: CampaignInvite[];
   actors: ActorSheet[];

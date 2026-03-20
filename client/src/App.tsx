@@ -5,6 +5,7 @@ import type {
   ActorSheet,
   AuthPayload,
   CampaignMap,
+  CampaignSourceBook,
   MemberRole
 } from "@shared/types";
 
@@ -24,6 +25,8 @@ import { usePersistentState } from "./hooks/usePersistentState";
 import { createClientActorDraft, createClientMapDraft, cloneMap } from "./lib/drafts";
 import { readJson, writeJson } from "./lib/storage";
 import { AuthPage, type AuthMode } from "./pages/AuthPage";
+import { CampaignCreatePage } from "./pages/CampaignCreatePage";
+import { CampaignJoinPage } from "./pages/CampaignJoinPage";
 import { CampaignLoadingPage } from "./pages/CampaignLoadingPage";
 import { CampaignPage } from "./pages/CampaignPage";
 import { CampaignsPage } from "./pages/CampaignsPage";
@@ -47,6 +50,7 @@ export default function App() {
   const [selectedBoardItemCount, setSelectedBoardItemCount] = useState(0);
   const [banner, setBanner] = useState<BannerState | null>(null);
   const [createCampaignName, setCreateCampaignName] = useState("");
+  const [createCampaignAllowedSourceBooks, setCreateCampaignAllowedSourceBooks] = useState<string[]>([]);
   const [joinCode, setJoinCode] = useState("");
   const [actorSearch, setActorSearch] = useState("");
   const [mapActorSearch, setMapActorSearch] = useState("");
@@ -64,6 +68,7 @@ export default function App() {
   const [dmFogEnabled, setDmFogEnabled] = useState(false);
   const [dmFogUserId, setDmFogUserId] = useState<string | null>(null);
   const [activePopup, setActivePopup] = useState<"sheet" | "actors" | "maps" | "room" | null>(null);
+  const [inviteLinkConsumed, setInviteLinkConsumed] = useState<string | null>(null);
 
   useEffect(() => {
     if (!banner) {
@@ -88,12 +93,6 @@ export default function App() {
       setSelectedCampaignIdState((current) => (current === route.campaignId ? current : route.campaignId));
     }
   }, [route]);
-
-  useEffect(() => {
-    if (route.name === "home" && selectedCampaignId && session) {
-      navigate({ name: "campaign", campaignId: selectedCampaignId }, { replace: true });
-    }
-  }, [navigate, route.name, selectedCampaignId, session]);
 
   const setBannerStatus = useCallback((tone: BannerState["tone"], text: string) => {
     setBanner({ tone, text });
@@ -146,19 +145,24 @@ export default function App() {
   const setSelectedCampaignId = useCallback(
     (nextCampaignId: string | null, options?: { replace?: boolean }) => {
       setSelectedCampaignIdState(nextCampaignId);
-      navigate(nextCampaignId ? { name: "campaign", campaignId: nextCampaignId } : { name: "home" }, options);
+      navigate(nextCampaignId ? { name: "campaign", campaignId: nextCampaignId } : { name: "campaigns" }, options);
     },
     [navigate]
   );
 
   const {
     campaigns,
+    campaignSourceBooks,
     isLoading: isCampaignsLoading,
     refreshCampaigns
   } = useCampaignSummariesQuery({
     token: session?.token,
     onError: (message) => setBannerStatus("error", message)
   });
+
+  useEffect(() => {
+    setCreateCampaignAllowedSourceBooks((current) => syncSelectedCampaignSourceBooks(current, campaignSourceBooks));
+  }, [campaignSourceBooks]);
 
   useEffect(() => {
     if (!session || !selectedCampaignId || isCampaignsLoading) {
@@ -219,6 +223,7 @@ export default function App() {
     selectedActorId,
     activeMap: activeMap ?? null,
     createCampaignName,
+    createCampaignAllowedSourceBooks,
     joinCode,
     inviteDraft,
     actorCreatorKind,
@@ -257,9 +262,19 @@ export default function App() {
 
   useEffect(() => {
     if (route.name === "admin" && session && !session.user.isAdmin) {
-      navigate({ name: "home" }, { replace: true });
+      navigate({ name: "campaigns" }, { replace: true });
     }
   }, [navigate, route.name, session]);
+
+  useEffect(() => {
+    if (!session?.token || route.name !== "campaignJoin" || !route.code || inviteLinkConsumed === route.code) {
+      return;
+    }
+
+    setInviteLinkConsumed(route.code);
+    setJoinCode(route.code);
+    void acceptInvite(route.code);
+  }, [acceptInvite, inviteLinkConsumed, route, session?.token]);
 
   useCampaignUiEffects({
     campaign,
@@ -304,6 +319,9 @@ export default function App() {
       setAuthError(null);
       setBanner({ tone: "info", text: authMode === "login" ? "Signed in." : "Account created." });
       setAuthForm({ name: "", email: "", password: "" });
+      if (route.name === "campaignJoin" && route.code) {
+        setJoinCode(route.code);
+      }
     } catch (error) {
       const message = toAuthErrorMessage(authMode, error);
       setAuthError(message);
@@ -437,7 +455,7 @@ export default function App() {
         roomStatus={roomStatus}
         showRoomStatus={route.name === "campaign" && Boolean(campaign)}
         onOpenAdmin={() => navigate({ name: "admin" })}
-        onOpenCampaigns={() => setSelectedCampaignId(null)}
+        onOpenCampaigns={() => navigate({ name: "campaigns" })}
         onLogout={handleLogout}
       />
 
@@ -447,16 +465,30 @@ export default function App() {
           currentUserId={session.user.id}
           onStatus={setBannerStatus}
         />
-      ) : !selectedCampaignId ? (
+      ) : route.name === "campaignCreate" ? (
+        <CampaignCreatePage
+          campaignSourceBooks={campaignSourceBooks}
+          createCampaignName={createCampaignName}
+          createCampaignAllowedSourceBooks={createCampaignAllowedSourceBooks}
+          onCreateCampaignNameChange={setCreateCampaignName}
+          onCreateCampaignAllowedSourceBooksChange={setCreateCampaignAllowedSourceBooks}
+          onCreateCampaign={() => void createCampaign()}
+          onBack={() => navigate({ name: "campaigns" })}
+        />
+      ) : route.name === "campaignJoin" ? (
+        <CampaignJoinPage
+          joinCode={joinCode}
+          hasInviteLink={Boolean(route.code)}
+          onJoinCodeChange={setJoinCode}
+          onAcceptInvite={() => void acceptInvite()}
+          onBack={() => navigate({ name: "campaigns" })}
+        />
+      ) : route.name === "campaigns" || !selectedCampaignId ? (
         <CampaignsPage
           campaigns={campaigns}
-          createCampaignName={createCampaignName}
-          joinCode={joinCode}
-          onCreateCampaignNameChange={setCreateCampaignName}
-          onJoinCodeChange={setJoinCode}
-          onCreateCampaign={() => void createCampaign()}
-          onAcceptInvite={() => void acceptInvite()}
           onOpenCampaign={(campaignId) => setSelectedCampaignId(campaignId)}
+          onOpenCreateCampaign={() => navigate({ name: "campaignCreate" })}
+          onOpenJoinCampaign={() => navigate({ name: "campaignJoin" })}
         />
       ) : route.name !== "campaign" || !snapshot ? (
         <CampaignLoadingPage roomStatus={roomStatus} />
@@ -553,4 +585,18 @@ export default function App() {
       )}
     </div>
   );
+}
+
+function syncSelectedCampaignSourceBooks(
+  current: string[],
+  availableBooks: CampaignSourceBook[]
+) {
+  const availableSources = availableBooks.map((entry) => entry.source);
+
+  if (availableSources.length === 0) {
+    return [];
+  }
+
+  const normalizedCurrent = current.filter((entry) => availableSources.includes(entry));
+  return normalizedCurrent.length > 0 ? normalizedCurrent : availableSources;
 }

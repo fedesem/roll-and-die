@@ -5,6 +5,7 @@ import {
   actorSheetSchema,
   boardTokenSchema,
   campaignInviteSchema,
+  campaignSourceBookSchema,
   campaignMapSchema,
   campaignSnapshotSchema,
   campaignSummarySchema,
@@ -23,9 +24,11 @@ export const emptyResponseSchema = z.null();
 
 export const campaignListResponseSchema = z.array(campaignSummarySchema);
 export const createCampaignBodySchema = z.object({
-  name: z.string().trim().min(1)
+  name: z.string().trim().min(1),
+  allowedSourceBooks: z.array(z.string().trim().min(1)).default([])
 });
 export const campaignSummaryResponseSchema = campaignSummarySchema;
+export const campaignSourceBooksResponseSchema = z.array(campaignSourceBookSchema);
 
 export const acceptInviteBodySchema = z.object({
   code: z.string().trim().min(1)

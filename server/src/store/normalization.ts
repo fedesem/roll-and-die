@@ -78,6 +78,9 @@ function normalizeCampaign(campaign: Campaign): Campaign {
   return {
     ...campaign,
     activeMapId,
+    allowedSourceBooks: Array.isArray((campaign as Partial<Campaign>).allowedSourceBooks)
+      ? (campaign as Partial<Campaign>).allowedSourceBooks!.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+      : [],
     exploration: campaign.exploration ?? {},
     actors: Array.isArray(campaign.actors)
       ? campaign.actors.map((actor) => ({

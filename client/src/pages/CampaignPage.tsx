@@ -185,6 +185,8 @@ export function CampaignPage({
   onInviteDraftChange,
   onCreateInvite
 }: CampaignPageProps) {
+  const inviteBaseUrl = typeof window !== "undefined" ? window.location.origin : "";
+
   return (
     <>
       <main className="table-layout">
@@ -729,6 +731,13 @@ export function CampaignPage({
                     <div key={invite.id} className="invite-card">
                       <strong>{invite.code}</strong>
                       <span>{invite.label}</span>
+                      <a
+                        href={`${inviteBaseUrl}/join/${encodeURIComponent(invite.code)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {`${inviteBaseUrl}/join/${encodeURIComponent(invite.code)}`}
+                      </a>
                       <small>{invite.role}</small>
                     </div>
                   ))}

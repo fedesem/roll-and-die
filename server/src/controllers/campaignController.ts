@@ -22,6 +22,7 @@ import {
   createDefaultMap,
   createMonsterActor,
   createSystemMessage,
+  listCampaignSourceBooks,
   randomInviteCode,
   requireCampaignMember,
   requireDungeonMaster,
@@ -41,11 +42,19 @@ export const campaignController = {
     response.json(summaries);
   },
 
+  async sourceBooks(request: Request, response: Response) {
+    requireUser(request);
+    const database = await readDatabase();
+
+    response.json(listCampaignSourceBooks(database.compendium));
+  },
+
   async create(request: Request, response: Response) {
     const user = requireUser(request);
     const body = parseWithSchema(createCampaignBodySchema, request.body);
 
     const campaign = await mutateDatabase((database) => {
+      const availableBooks = new Set(listCampaignSourceBooks(database.compendium).map((entry) => entry.source));
       const campaignId = createId("cmp");
       const initialMap = createDefaultMap("Main Map");
       const member: CampaignMember = {
@@ -61,6 +70,7 @@ export const campaignController = {
         createdAt: now(),
         createdBy: user.id,
         activeMapId: initialMap.id,
+        allowedSourceBooks: body.allowedSourceBooks.filter((entry) => availableBooks.has(entry)),
         members: [member],
         invites: [],
         actors: [],

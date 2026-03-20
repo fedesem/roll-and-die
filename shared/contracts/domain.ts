@@ -20,6 +20,7 @@ import type {
   CampaignMap,
   CampaignMember,
   CampaignSnapshot,
+  CampaignSourceBook,
   CampaignSummary,
   ChatMessage,
   ChatMessageKind,
@@ -531,6 +532,11 @@ export const campaignInviteSchema: z.ZodType<CampaignInvite> = z.object({
   createdBy: trimmedString
 });
 
+export const campaignSourceBookSchema: z.ZodType<CampaignSourceBook> = z.object({
+  source: trimmedString,
+  entryCount: finiteNumber
+});
+
 export const pointSchema: z.ZodType<Point> = z.object({
   x: finiteNumber,
   y: finiteNumber
@@ -649,6 +655,7 @@ export const campaignSchema: z.ZodType<Campaign> = z.object({
   createdAt: trimmedString,
   createdBy: trimmedString,
   activeMapId: trimmedString,
+  allowedSourceBooks: z.array(trimmedString),
   members: z.array(campaignMemberSchema),
   invites: z.array(campaignInviteSchema),
   actors: z.array(actorSheetSchema),

@@ -35,10 +35,11 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     createdAt: string;
     createdBy: string;
     activeMapId: string;
+    allowedSourceBooksJson: string;
   }>(
     database,
     `
-      SELECT id, name, created_at as createdAt, created_by as createdBy, active_map_id as activeMapId
+      SELECT id, name, created_at as createdAt, created_by as createdBy, active_map_id as activeMapId, allowed_source_books_json as allowedSourceBooksJson
       FROM campaigns
       ORDER BY sort_order, created_at, id
     `
@@ -48,6 +49,7 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     createdAt: row.createdAt,
     createdBy: row.createdBy,
     activeMapId: row.activeMapId,
+    allowedSourceBooks: parseJsonArray<string>(row.allowedSourceBooksJson),
     members: [],
     invites: [],
     actors: [],
@@ -789,8 +791,8 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
   const normalized = normalizeStoreState(state);
 
   const insertCampaign = database.prepare(`
-    INSERT INTO campaigns (id, sort_order, name, created_at, created_by, active_map_id)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO campaigns (id, sort_order, name, created_at, created_by, active_map_id, allowed_source_books_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   const insertCampaignMember = database.prepare(`
     INSERT INTO campaign_members (campaign_id, user_id, sort_order, name, email, role)
@@ -889,7 +891,15 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
   `);
 
   normalized.campaigns.forEach((campaign, campaignOrder) => {
-    insertCampaign.run(campaign.id, campaignOrder, campaign.name, campaign.createdAt, campaign.createdBy, campaign.activeMapId);
+    insertCampaign.run(
+      campaign.id,
+      campaignOrder,
+      campaign.name,
+      campaign.createdAt,
+      campaign.createdBy,
+      campaign.activeMapId,
+      JSON.stringify(campaign.allowedSourceBooks)
+    );
 
     campaign.members.forEach((member, memberOrder) => {
       insertCampaignMember.run(campaign.id, member.userId, memberOrder, member.name, member.email, member.role);

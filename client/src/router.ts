@@ -1,8 +1,31 @@
 import { useCallback, useEffect, useState } from "react";
 
-export type AppRoute = { name: "home" } | { name: "admin" } | { name: "campaign"; campaignId: string };
+export type AppRoute =
+  | { name: "campaigns" }
+  | { name: "campaignCreate" }
+  | { name: "campaignJoin"; code?: string }
+  | { name: "admin" }
+  | { name: "campaign"; campaignId: string };
 
 function parseRoute(pathname: string): AppRoute {
+  if (pathname === "/" || pathname === "/campaigns") {
+    return { name: "campaigns" };
+  }
+
+  if (pathname === "/campaigns/new") {
+    return { name: "campaignCreate" };
+  }
+
+  if (pathname === "/join") {
+    return { name: "campaignJoin" };
+  }
+
+  const joinMatch = pathname.match(/^\/join\/([^/]+)$/);
+
+  if (joinMatch?.[1]) {
+    return { name: "campaignJoin", code: decodeURIComponent(joinMatch[1]) };
+  }
+
   if (pathname === "/admin") {
     return { name: "admin" };
   }
@@ -12,8 +35,7 @@ function parseRoute(pathname: string): AppRoute {
   if (match?.[1]) {
     return { name: "campaign", campaignId: decodeURIComponent(match[1]) };
   }
-
-  return { name: "home" };
+  return { name: "campaigns" };
 }
 
 function routeToPath(route: AppRoute) {
@@ -21,11 +43,19 @@ function routeToPath(route: AppRoute) {
     return `/campaign/${encodeURIComponent(route.campaignId)}`;
   }
 
+  if (route.name === "campaignCreate") {
+    return "/campaigns/new";
+  }
+
+  if (route.name === "campaignJoin") {
+    return route.code ? `/join/${encodeURIComponent(route.code)}` : "/join";
+  }
+
   if (route.name === "admin") {
     return "/admin";
   }
 
-  return "/";
+  return "/campaigns";
 }
 
 export function useAppRouter() {

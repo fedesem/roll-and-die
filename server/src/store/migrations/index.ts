@@ -11,6 +11,7 @@ import { compendiumReferenceTablesMigration } from "./111_compendium_reference_t
 import { spellClassReferenceMetadataMigration } from "./112_spell_class_reference_metadata.js";
 import { actorSheet2024Migration } from "./113_actor_sheet_2024.js";
 import { compendiumExpansionMigration } from "./114_compendium_expansion.js";
+import { campaignSourceBooksMigration } from "./115_campaign_source_books.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -25,5 +26,6 @@ export const migrations = [
   compendiumReferenceTablesMigration,
   spellClassReferenceMetadataMigration,
   actorSheet2024Migration,
-  compendiumExpansionMigration
+  compendiumExpansionMigration,
+  campaignSourceBooksMigration
 ];

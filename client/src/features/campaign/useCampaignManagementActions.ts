@@ -33,6 +33,7 @@ interface UseCampaignManagementActionsOptions {
   selectedActorId: string | null;
   activeMap: CampaignMap | null;
   createCampaignName: string;
+  createCampaignAllowedSourceBooks: string[];
   joinCode: string;
   inviteDraft: InviteDraft;
   actorCreatorKind: ActorKind;
@@ -57,6 +58,7 @@ export function useCampaignManagementActions({
   selectedActorId,
   activeMap,
   createCampaignName,
+  createCampaignAllowedSourceBooks,
   joinCode,
   inviteDraft,
   actorCreatorKind,
@@ -79,7 +81,7 @@ export function useCampaignManagementActions({
     }
 
     try {
-      const created = await createCampaignRecord(token, createCampaignName.trim());
+      const created = await createCampaignRecord(token, createCampaignName.trim(), createCampaignAllowedSourceBooks);
 
       setCreateCampaignName("");
       await refreshCampaigns();
@@ -88,15 +90,17 @@ export function useCampaignManagementActions({
     } catch (error) {
       onStatus("error", toErrorMessage(error));
     }
-  }, [createCampaignName, onStatus, refreshCampaigns, setCreateCampaignName, setSelectedCampaignId, token]);
+  }, [createCampaignAllowedSourceBooks, createCampaignName, onStatus, refreshCampaigns, setCreateCampaignName, setSelectedCampaignId, token]);
 
-  const acceptInvite = useCallback(async () => {
-    if (!token || !joinCode.trim()) {
+  const acceptInvite = useCallback(async (overrideCode?: string) => {
+    const nextCode = (overrideCode ?? joinCode).trim();
+
+    if (!token || !nextCode) {
       return;
     }
 
     try {
-      const joined = await acceptCampaignInvite(token, joinCode.trim());
+      const joined = await acceptCampaignInvite(token, nextCode);
 
       setJoinCode("");
       await refreshCampaigns();

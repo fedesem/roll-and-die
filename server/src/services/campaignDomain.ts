@@ -13,6 +13,7 @@ import type {
   Campaign,
   CampaignMap,
   CampaignSnapshot,
+  CampaignSourceBook,
   CampaignSummary,
   CellKey,
   ChatMessage,
@@ -73,6 +74,8 @@ export function buildCampaignSnapshot(
     throw new HttpError(403, "You do not have access to that campaign.");
   }
 
+  const filteredCompendium = filterCampaignCompendium(campaign, compendium);
+
   return {
     campaign: {
       ...campaign,
@@ -82,14 +85,43 @@ export function buildCampaignSnapshot(
     },
     currentUser: user,
     role: member.role,
-    catalog: compendium.monsters,
+    catalog: filteredCompendium.monsters,
     compendium: {
-      spells: compendium.spells,
-      feats: compendium.feats,
-      classes: compendium.classes
+      spells: filteredCompendium.spells,
+      feats: filteredCompendium.feats,
+      classes: filteredCompendium.classes
     },
     playerVision: member.role === "dm" ? {} : normalizeExplorationMemory(campaign, user.id)
   };
+}
+
+export function listCampaignSourceBooks(compendium: CompendiumData): CampaignSourceBook[] {
+  const counts = new Map<string, number>();
+
+  [
+    ...compendium.spells,
+    ...compendium.monsters,
+    ...compendium.feats,
+    ...compendium.classes,
+    ...compendium.actions,
+    ...compendium.backgrounds,
+    ...compendium.items,
+    ...compendium.languages,
+    ...compendium.races,
+    ...compendium.skills
+  ].forEach((entry) => {
+    const source = getCompendiumBookSource(entry.source);
+
+    if (!source) {
+      return;
+    }
+
+    counts.set(source, (counts.get(source) ?? 0) + 1);
+  });
+
+  return Array.from(counts.entries())
+    .map(([source, entryCount]) => ({ source, entryCount }))
+    .sort((left, right) => left.source.localeCompare(right.source));
 }
 
 export function normalizeExplorationMemory(campaign: Campaign, userId: string) {
@@ -186,6 +218,28 @@ export function toCampaignSummary(campaign: Campaign, userId: string): CampaignS
     mapCount: campaign.maps.length,
     createdAt: campaign.createdAt
   };
+}
+
+function filterCampaignCompendium(
+  campaign: Campaign,
+  compendium: Pick<CompendiumData, "spells" | "feats" | "classes" | "monsters">
+) {
+  const allowedBooks = new Set(campaign.allowedSourceBooks.map((entry) => entry.trim()).filter(Boolean));
+
+  if (allowedBooks.size === 0) {
+    return compendium;
+  }
+
+  return {
+    spells: compendium.spells.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
+    feats: compendium.feats.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
+    classes: compendium.classes.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
+    monsters: compendium.monsters.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source)))
+  };
+}
+
+function getCompendiumBookSource(source: string) {
+  return source.split(/\s+p\.\d+/i)[0]?.trim() ?? "";
 }
 
 export function createDefaultMap(name: string): CampaignMap {
