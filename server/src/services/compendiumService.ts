@@ -110,7 +110,7 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
     return [
       ...readObjectArray(object.race),
       ...readObjectArray(object.subrace)
-    ];
+    ].filter(isImportableRaceReferenceEntry);
   }
 
   if (kind === "skills" && Array.isArray(object.skill)) {
@@ -748,6 +748,10 @@ function readObjectArray(value: unknown) {
   return Array.isArray(value)
     ? value.filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null)
     : [];
+}
+
+function isImportableRaceReferenceEntry(entry: Record<string, unknown>) {
+  return readString(entry.name).trim().length > 0;
 }
 
 function parseAbilityOrNull(value: unknown): AbilityKey | null {
