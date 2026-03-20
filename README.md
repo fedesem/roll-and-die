@@ -15,7 +15,7 @@ PWA-ready Dungeon and Dragons 5e 2024 campaign board built as a Vite monorepo wi
 - Drawing, walls, and fog of war
 - One chat per campaign room
 - Dice rolls from sheet actions or `/roll 1d20+5` in chat
-- JSON-backed persistence in the backend
+- SQLite-backed persistence in the backend
 - PWA manifest and service worker via `vite-plugin-pwa`
 
 ## Workspace
@@ -43,4 +43,4 @@ npm run build
 
 ## Data
 
-The backend stores persistent data in `server/data/db.json`, created automatically on first run.
+The backend stores persistent data in `data/app.sqlite`, created automatically on first run.

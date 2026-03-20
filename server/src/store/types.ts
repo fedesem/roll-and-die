@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { basename, resolve } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 
 import type {
@@ -37,7 +37,11 @@ export interface Migration {
   up(database: DatabaseSync): Promise<void> | void;
 }
 
-export const sqlitePath = resolve(process.cwd(), "data", "app.sqlite");
+function resolveProjectRoot() {
+  return basename(process.cwd()) === "server" ? resolve(process.cwd(), "..") : process.cwd();
+}
+
+export const sqlitePath = resolve(resolveProjectRoot(), "data", "app.sqlite");
 
 export const defaultDatabase: Database = {
   users: [],
