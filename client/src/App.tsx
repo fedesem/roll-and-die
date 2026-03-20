@@ -10,6 +10,7 @@ import type {
 
 import { AdminPanel } from "./components/AdminPanel";
 import { AppTopbar } from "./components/AppTopbar";
+import { toAuthErrorMessage } from "./features/auth/authErrors";
 import { fetchCurrentUser, login, register } from "./features/auth/authService";
 import { useCampaignManagementActions } from "./features/campaign/useCampaignManagementActions";
 import { useCampaignDerivedState } from "./features/campaign/useCampaignDerivedState";
@@ -21,7 +22,6 @@ import { useCampaignUiEffects } from "./features/campaign/useCampaignUiEffects";
 import type { ActorTypeFilter, BannerState } from "./features/campaign/types";
 import { usePersistentState } from "./hooks/usePersistentState";
 import { createClientActorDraft, createClientMapDraft, cloneMap } from "./lib/drafts";
-import { toErrorMessage } from "./lib/errors";
 import { readJson, writeJson } from "./lib/storage";
 import { AuthPage, type AuthMode } from "./pages/AuthPage";
 import { CampaignLoadingPage } from "./pages/CampaignLoadingPage";
@@ -37,6 +37,7 @@ export default function App() {
   const { route, navigate } = useAppRouter();
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [authForm, setAuthForm] = useState({ name: "", email: "", password: "" });
+  const [authError, setAuthError] = useState<string | null>(null);
   const [session, setSession] = usePersistentState<AuthPayload | null>(sessionStorageKey, null);
   const [selectedCampaignId, setSelectedCampaignIdState] = useState<string | null>(() =>
     route.name === "campaign" ? route.campaignId : readJson<string>(selectedCampaignStorageKey)
@@ -300,10 +301,13 @@ export default function App() {
       const payload = await (authMode === "login" ? login(authForm) : register(authForm));
 
       setSession(payload);
+      setAuthError(null);
       setBanner({ tone: "info", text: authMode === "login" ? "Signed in." : "Account created." });
       setAuthForm({ name: "", email: "", password: "" });
     } catch (error) {
-      setBanner({ tone: "error", text: toErrorMessage(error) });
+      const message = toAuthErrorMessage(authMode, error);
+      setAuthError(message);
+      setBanner({ tone: "error", text: message });
     }
   }
 
@@ -354,10 +358,16 @@ export default function App() {
   });
 
   function handleAuthFormChange(field: "name" | "email" | "password", value: string) {
+    setAuthError(null);
     setAuthForm((current) => ({
       ...current,
       [field]: value
     }));
+  }
+
+  function handleAuthModeChange(mode: AuthMode) {
+    setAuthError(null);
+    setAuthMode(mode);
   }
 
   function openMapEditorForCreate() {
@@ -407,7 +417,8 @@ export default function App() {
       <AuthPage
         authMode={authMode}
         authForm={authForm}
-        onAuthModeChange={setAuthMode}
+        authError={authError}
+        onAuthModeChange={handleAuthModeChange}
         onAuthFormChange={handleAuthFormChange}
         onSubmit={handleAuthSubmit}
       />

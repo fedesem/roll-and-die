@@ -9,6 +9,7 @@ interface AuthPageProps {
     email: string;
     password: string;
   };
+  authError: string | null;
   onAuthModeChange: (mode: AuthMode) => void;
   onAuthFormChange: (field: "name" | "email" | "password", value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -17,6 +18,7 @@ interface AuthPageProps {
 export function AuthPage({
   authMode,
   authForm,
+  authError,
   onAuthModeChange,
   onAuthFormChange,
   onSubmit
@@ -89,6 +91,14 @@ export function AuthPage({
           <button className="inline-flex h-12 items-center justify-center rounded-none border border-amber-200/20 bg-amber-300/18 px-5 text-sm font-semibold text-amber-50 transition hover:bg-amber-300/24" type="submit">
             {authMode === "login" ? "Enter the table" : "Create account"}
           </button>
+          {authError && (
+            <p
+              className="rounded-none border border-rose-300/20 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-100"
+              role="alert"
+            >
+              {authError}
+            </p>
+          )}
         </form>
       </section>
     </div>
