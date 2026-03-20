@@ -73,6 +73,7 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
   }
 
   if (kind === "classes" && Array.isArray(object.class)) {
+    const subclassEntries = readObjectArray(object.subclass);
     const classFeatureLookup = new Map(
       [
         ...readObjectArray(object.classFeature),
@@ -83,7 +84,7 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
     return object.class.map((entry) => ({
       ...entry,
       __classFeatureLookup: Object.fromEntries(classFeatureLookup),
-      __subclassEntries: readObjectArray(object.subclass)
+      __subclassEntries: subclassEntries.filter((subclassEntry) => isSubclassForClassEntry(subclassEntry, entry))
     }));
   }
 
@@ -121,6 +122,12 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
 }
 
 export function isGeneratedSpellLookupImport(input: unknown) {
+  const root = asOptionalObject(input);
+
+  if (!root || Array.isArray(root.spell)) {
+    return false;
+  }
+
   return readGeneratedSpellLookupData(input).entryCount > 0;
 }
 
@@ -154,6 +161,12 @@ export function importGeneratedSpellLookupIntoSpells(spells: SpellEntry[], input
 }
 
 export function isGeneratedSubclassLookupImport(input: unknown) {
+  const root = asOptionalObject(input);
+
+  if (!root || Array.isArray(root.class) || Array.isArray(root.subclass) || Array.isArray(root.classFeature) || Array.isArray(root.subclassFeature)) {
+    return false;
+  }
+
   return readGeneratedSubclassLookupData(input).entryCount > 0;
 }
 
@@ -752,6 +765,24 @@ function readObjectArray(value: unknown) {
 
 function isImportableRaceReferenceEntry(entry: Record<string, unknown>) {
   return readString(entry.name).trim().length > 0;
+}
+
+function isSubclassForClassEntry(subclassEntry: Record<string, unknown>, classEntry: Record<string, unknown>) {
+  const subclassClassName = readString(subclassEntry.className);
+  const className = readString(classEntry.name);
+
+  if (!subclassClassName || !className || subclassClassName.toLowerCase() !== className.toLowerCase()) {
+    return false;
+  }
+
+  const subclassClassSource = readString(subclassEntry.classSource);
+  const classSource = readString(classEntry.source);
+
+  if (!subclassClassSource || !classSource) {
+    return true;
+  }
+
+  return subclassClassSource.toLowerCase() === classSource.toLowerCase();
 }
 
 function parseAbilityOrNull(value: unknown): AbilityKey | null {
