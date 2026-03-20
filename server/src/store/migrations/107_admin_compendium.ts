@@ -1,5 +1,4 @@
-import { monsterCatalog } from "../../catalog.js";
-import { addColumnIfMissing, readCount, tableExists } from "../helpers.js";
+import { addColumnIfMissing, tableExists } from "../helpers.js";
 import type { Migration } from "../types.js";
 
 export const adminCompendiumMigration: Migration = {
@@ -112,68 +111,5 @@ export const adminCompendiumMigration: Migration = {
       }
     }
 
-    if (readCount(database, "compendium_monsters") === 0) {
-      const insertMonster = database.prepare(`
-        INSERT INTO compendium_monsters (
-          id, sort_order, name, source, challenge_rating, armor_class, hit_points,
-          initiative,
-          speed_walk, speed_fly, speed_burrow, speed_swim, speed_climb,
-          ability_str, ability_dex, ability_con, ability_int, ability_wis, ability_cha,
-          skills_json, senses_json, passive_perception, languages_json, xp, proficiency_bonus,
-          gear_json, resistances_json, vulnerabilities_json, immunities_json,
-          traits_json, actions_json, bonus_actions_json, reactions_json, legendary_actions_json,
-          legendary_actions_use, lair_actions_json, regional_effects_json, spells_json, spellcasting_json,
-          habitat, treasure, image_url, color
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      monsterCatalog.forEach((monster, index) => {
-        insertMonster.run(
-          monster.id,
-          index,
-          monster.name,
-          monster.source,
-          monster.challengeRating,
-          monster.armorClass,
-          monster.hitPoints,
-          monster.initiative,
-          monster.speedModes.walk,
-          monster.speedModes.fly,
-          monster.speedModes.burrow,
-          monster.speedModes.swim,
-          monster.speedModes.climb,
-          monster.abilities.str,
-          monster.abilities.dex,
-          monster.abilities.con,
-          monster.abilities.int,
-          monster.abilities.wis,
-          monster.abilities.cha,
-          JSON.stringify(monster.skills),
-          JSON.stringify(monster.senses),
-          monster.passivePerception,
-          JSON.stringify(monster.languages),
-          monster.xp,
-          monster.proficiencyBonus,
-          JSON.stringify(monster.gear),
-          JSON.stringify(monster.resistances),
-          JSON.stringify(monster.vulnerabilities),
-          JSON.stringify(monster.immunities),
-          JSON.stringify(monster.traits),
-          JSON.stringify(monster.actions),
-          JSON.stringify(monster.bonusActions),
-          JSON.stringify(monster.reactions),
-          JSON.stringify(monster.legendaryActions),
-          monster.legendaryActionsUse,
-          JSON.stringify(monster.lairActions),
-          JSON.stringify(monster.regionalEffects),
-          JSON.stringify(monster.spells),
-          JSON.stringify(monster.spellcasting),
-          monster.habitat,
-          monster.treasure,
-          monster.imageUrl,
-          monster.color
-        );
-      });
-    }
   }
 };
