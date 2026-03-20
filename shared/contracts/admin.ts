@@ -5,7 +5,18 @@ import {
   userProfileSchema
 } from "./domain.js";
 
-export const compendiumKindSchema = z.enum(["spells", "monsters", "feats", "classes"]);
+export const compendiumKindSchema = z.enum([
+  "spells",
+  "monsters",
+  "feats",
+  "classes",
+  "actions",
+  "backgrounds",
+  "items",
+  "languages",
+  "races",
+  "skills"
+]);
 
 export const adminOverviewResponseSchema = adminOverviewSchema;
 
@@ -19,6 +30,12 @@ export const createSpellBodySchema = z.unknown();
 export const createMonsterBodySchema = z.unknown();
 export const createFeatBodySchema = z.unknown();
 export const createClassBodySchema = z.unknown();
+export const createActionBodySchema = z.unknown();
+export const createBackgroundBodySchema = z.unknown();
+export const createItemBodySchema = z.unknown();
+export const createLanguageBodySchema = z.unknown();
+export const createRaceBodySchema = z.unknown();
+export const createSkillBodySchema = z.unknown();
 
 export const createdCompendiumEntryResponseSchema = z.object({
   id: z.string().trim().min(1)
@@ -41,5 +58,23 @@ export const importFeatsBodySchema = z.object({
   entries: z.union([z.unknown(), z.array(z.unknown())])
 });
 export const importClassesBodySchema = z.object({
+  entries: z.union([z.unknown(), z.array(z.unknown())])
+});
+export const importActionsBodySchema = z.object({
+  entries: z.union([z.unknown(), z.array(z.unknown())])
+});
+export const importBackgroundsBodySchema = z.object({
+  entries: z.union([z.unknown(), z.array(z.unknown())])
+});
+export const importItemsBodySchema = z.object({
+  entries: z.union([z.unknown(), z.array(z.unknown())])
+});
+export const importLanguagesBodySchema = z.object({
+  entries: z.union([z.unknown(), z.array(z.unknown())])
+});
+export const importRacesBodySchema = z.object({
+  entries: z.union([z.unknown(), z.array(z.unknown())])
+});
+export const importSkillsBodySchema = z.object({
   entries: z.union([z.unknown(), z.array(z.unknown())])
 });

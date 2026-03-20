@@ -51,6 +51,12 @@ export const defaultDatabase: Database = {
     spells: [],
     monsters: [],
     feats: [],
-    classes: []
+    classes: [],
+    actions: [],
+    backgrounds: [],
+    items: [],
+    languages: [],
+    races: [],
+    skills: []
   }
 };

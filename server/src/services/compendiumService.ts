@@ -2,7 +2,9 @@ import type {
   AbilityKey,
   ClassEntry,
   ClassFeatureEntry,
+  ClassSubclassEntry,
   CompendiumData,
+  CompendiumReferenceEntry,
   FeatEntry,
   MonsterActionEntry,
   MonsterAttackType,
@@ -33,6 +35,13 @@ export function sanitizeCompendiumEntry(kind: CompendiumKind, input: unknown) {
       return sanitizeFeatEntry(input);
     case "classes":
       return sanitizeClassEntry(input);
+    case "actions":
+    case "backgrounds":
+    case "items":
+    case "languages":
+    case "races":
+    case "skills":
+      return sanitizeReferenceEntry(kind, input);
   }
 }
 
@@ -65,13 +74,47 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
 
   if (kind === "classes" && Array.isArray(object.class)) {
     const classFeatureLookup = new Map(
-      readObjectArray(object.classFeature).map((entry) => [getCompendiumEntityKey(entry), entry] as const)
+      [
+        ...readObjectArray(object.classFeature),
+        ...readObjectArray(object.subclassFeature)
+      ].map((entry) => [getCompendiumEntityKey(entry), entry] as const)
     );
 
     return object.class.map((entry) => ({
       ...entry,
-      __classFeatureLookup: Object.fromEntries(classFeatureLookup)
+      __classFeatureLookup: Object.fromEntries(classFeatureLookup),
+      __subclassEntries: readObjectArray(object.subclass)
     }));
+  }
+
+  if (kind === "actions" && Array.isArray(object.action)) {
+    return object.action;
+  }
+
+  if (kind === "backgrounds" && Array.isArray(object.background)) {
+    return object.background;
+  }
+
+  if (kind === "items") {
+    return [
+      ...readObjectArray(object.item),
+      ...readObjectArray(object.baseitem)
+    ];
+  }
+
+  if (kind === "languages" && Array.isArray(object.language)) {
+    return object.language;
+  }
+
+  if (kind === "races") {
+    return [
+      ...readObjectArray(object.race),
+      ...readObjectArray(object.subrace)
+    ];
+  }
+
+  if (kind === "skills" && Array.isArray(object.skill)) {
+    return object.skill;
   }
 
   return [input];
@@ -107,6 +150,60 @@ export function importGeneratedSpellLookupIntoSpells(spells: SpellEntry[], input
   return {
     imported: updated,
     skipped: Math.max(lookupData.entryCount - updated, 0)
+  };
+}
+
+export function isGeneratedSubclassLookupImport(input: unknown) {
+  return readGeneratedSubclassLookupData(input).entryCount > 0;
+}
+
+export function importGeneratedSubclassLookupIntoClasses(classes: ClassEntry[], input: unknown) {
+  const lookupData = readGeneratedSubclassLookupData(input);
+
+  if (lookupData.entryCount === 0) {
+    throw new HttpError(400, "The uploaded JSON is not a supported 5etools subclass lookup file.");
+  }
+
+  let imported = 0;
+
+  classes.forEach((entry) => {
+    const subclasses = lookupData.subclassesByClassKey.get(
+      createGeneratedSubclassLookupKey(getSpellSourceCode(entry.source), entry.name)
+    );
+
+    if (!subclasses || subclasses.length === 0) {
+      return;
+    }
+
+    const existingKeys = new Set(
+      entry.subclasses.map((subclass) => `${subclass.source.toLowerCase()}|${subclass.name.toLowerCase()}`)
+    );
+
+    subclasses.forEach((subclass) => {
+      const key = `${subclass.source.toLowerCase()}|${subclass.name.toLowerCase()}`;
+
+      if (existingKeys.has(key)) {
+        return;
+      }
+
+      entry.subclasses.push({
+        id: createId("subcls"),
+        name: subclass.name,
+        shortName: subclass.shortName,
+        source: subclass.source,
+        className: entry.name,
+        classSource: entry.source,
+        description: "",
+        features: []
+      });
+      existingKeys.add(key);
+      imported += 1;
+    });
+  });
+
+  return {
+    imported,
+    skipped: Math.max(lookupData.entryCount - imported, 0)
   };
 }
 
@@ -356,6 +453,7 @@ function sanitizeClassEntry(input: unknown): ClassEntry {
       source: readString(entry.source),
       reference: readString(entry.reference)
     })),
+    subclasses: readObjectArray(object.subclasses).map((entry) => sanitizeClassSubclassEntry(entry, readString(object.name), readString(object.source))),
     tables: readObjectArray(object.tables).map((entry) => ({
       name: requireString(entry.name, "Class table name"),
       columns: readStringArray(entry.columns),
@@ -363,6 +461,22 @@ function sanitizeClassEntry(input: unknown): ClassEntry {
         ? entry.rows.map((row) => (Array.isArray(row) ? row.map((cell) => String(cell ?? "")) : []))
         : []
     }))
+  };
+}
+
+function sanitizeReferenceEntry(
+  kind: Extract<CompendiumKind, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  input: unknown
+): CompendiumReferenceEntry {
+  const object = asObject(input, `${kind} entry`);
+
+  return {
+    id: readString(object.id) || createId(kind.slice(0, 3)),
+    name: requireString(object.name, `${kind} name`),
+    source: formatSourceWithPage(object, kind.slice(0, 1).toUpperCase() + kind.slice(1, -1)),
+    category: readReferenceCategory(kind, object),
+    description: readReferenceDescription(kind, object),
+    tags: readReferenceTags(kind, object)
   };
 }
 
@@ -436,6 +550,7 @@ function sanitizeExternalClassEntry(object: Record<string, unknown>): ClassEntry
   const primaryAbilities = readPrimaryAbilities(object.primaryAbility);
   const savingThrowProficiencies = readStringArray(object.proficiency).map(toTitleCase);
   const starting = asOptionalObject(object.startingProficiencies);
+  const subclassEntries = readObjectArray(object.__subclassEntries);
 
   return {
     id: readString(object.id) || createId("cls"),
@@ -451,7 +566,56 @@ function sanitizeExternalClassEntry(object: Record<string, unknown>): ClassEntry
       tools: readStringArray(starting?.tools)
     },
     features: parseExternalClassFeatures(object.classFeatures, lookup, requireString(object.name, "Class name"), readString(object.source)),
+    subclasses: subclassEntries.map((entry) =>
+      sanitizeExternalClassSubclassEntry(
+        entry,
+        lookup,
+        requireString(object.name, "Class name"),
+        readString(object.source)
+      )
+    ),
     tables: parseExternalClassTables(object.classTableGroups)
+  };
+}
+
+function sanitizeClassSubclassEntry(input: Record<string, unknown>, className: string, classSource: string): ClassSubclassEntry {
+  return {
+    id: readString(input.id) || createId("subcls"),
+    name: requireString(input.name, "Subclass name"),
+    shortName: readString(input.shortName) || requireString(input.name, "Subclass short name"),
+    source: requireString(input.source, "Subclass source"),
+    className: readString(input.className) || className,
+    classSource: readString(input.classSource) || classSource,
+    description: readString(input.description),
+    features: readObjectArray(input.features).map((feature) => ({
+      level: clampNumber(feature.level, 1, 20, 1),
+      name: requireString(feature.name, "Subclass feature name"),
+      description: requireString(feature.description, "Subclass feature description"),
+      source: readString(feature.source),
+      reference: readString(feature.reference)
+    }))
+  };
+}
+
+function sanitizeExternalClassSubclassEntry(
+  object: Record<string, unknown>,
+  lookup: Map<string, Record<string, unknown>>,
+  className: string,
+  classSource: string
+): ClassSubclassEntry {
+  const subclassFeatures = readObjectArray(object.subclassFeatures);
+  const name = requireString(object.name, "Subclass name");
+  const source = readString(object.source);
+
+  return {
+    id: readString(object.id) || createId("subcls"),
+    name,
+    shortName: readString(object.shortName) || name,
+    source,
+    className: readString(object.className) || className,
+    classSource: readString(object.classSource) || classSource,
+    description: joinEntries(object.entries) || readString(object.description),
+    features: parseExternalClassFeatures(subclassFeatures, lookup, className, source || classSource)
   };
 }
 
@@ -975,6 +1139,62 @@ function parseGeneratedSpellLookupSubclassReferences(
   });
 }
 
+function readGeneratedSubclassLookupData(value: unknown) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return {
+      entryCount: 0,
+      subclassesByClassKey: new Map<string, Array<{ name: string; shortName: string; source: string }>>()
+    };
+  }
+
+  const subclassesByClassKey = new Map<string, Array<{ name: string; shortName: string; source: string }>>();
+  let entryCount = 0;
+
+  Object.entries(value as Record<string, unknown>).forEach(([classSource, classesValue]) => {
+    const classes = asOptionalObject(classesValue);
+
+    if (!classes) {
+      return;
+    }
+
+    Object.entries(classes).forEach(([className, subclassSourcesValue]) => {
+      const subclassSources = asOptionalObject(subclassSourcesValue);
+
+      if (!subclassSources) {
+        return;
+      }
+
+      const classKey = createGeneratedSubclassLookupKey(classSource, className);
+      const current = subclassesByClassKey.get(classKey) ?? [];
+
+      Object.entries(subclassSources).forEach(([subclassSource, subclassesValue]) => {
+        const subclasses = asOptionalObject(subclassesValue);
+
+        if (!subclasses) {
+          return;
+        }
+
+        Object.entries(subclasses).forEach(([shortName, subclassValue]) => {
+          const metadata = asOptionalObject(subclassValue);
+          current.push({
+            name: readString(metadata?.name) || shortName,
+            shortName,
+            source: subclassSource
+          });
+          entryCount += 1;
+        });
+      });
+
+      subclassesByClassKey.set(classKey, current);
+    });
+  });
+
+  return {
+    entryCount,
+    subclassesByClassKey
+  };
+}
+
 function mergeSpellClassReferences(existing: SpellClassReference[], incoming: SpellClassReference[]) {
   const exactEntries = uniqueBy(
     [...incoming, ...existing],
@@ -1004,6 +1224,10 @@ function mergeSpellClassReferences(existing: SpellClassReference[], incoming: Sp
 
 function createGeneratedSpellLookupKey(source: string, spellName: string) {
   return `${normalizeGeneratedSpellLookupPart(source)}|${normalizeGeneratedSpellLookupPart(spellName)}`;
+}
+
+function createGeneratedSubclassLookupKey(source: string, className: string) {
+  return `${normalizeGeneratedSpellLookupPart(source)}|${normalizeGeneratedSpellLookupPart(className)}`;
 }
 
 function normalizeGeneratedSpellLookupPart(value: string) {
@@ -1113,40 +1337,6 @@ function formatExternalFeatPrerequisite(value: unknown) {
     })
     .filter(Boolean)
     .join(" or ");
-}
-
-function buildExternalClassDescription(object: Record<string, unknown>) {
-  const parts = [];
-  const primaryAbilities = readPrimaryAbilities(object.primaryAbility);
-  if (primaryAbilities.length > 0) {
-    parts.push(`Primary Ability: ${primaryAbilities.join(" or ")}`);
-  }
-
-  const hitDie = asOptionalObject(object.hd);
-  if (typeof hitDie?.faces === "number") {
-    parts.push(`Hit Die: d${hitDie.faces}`);
-  }
-
-  const proficiency = readStringArray(object.proficiency).map(toTitleCase);
-  if (proficiency.length > 0) {
-    parts.push(`Saving Throw Proficiencies: ${proficiency.join(", ")}`);
-  }
-
-  const starting = asOptionalObject(object.startingProficiencies);
-  const armor = readStringArray(starting?.armor);
-  const weapons = readStringArray(starting?.weapons);
-  const tools = readStringArray(starting?.tools);
-  if (armor.length > 0) {
-    parts.push(`Armor Training: ${armor.join(", ")}`);
-  }
-  if (weapons.length > 0) {
-    parts.push(`Weapon Proficiencies: ${weapons.join(", ")}`);
-  }
-  if (tools.length > 0) {
-    parts.push(`Tool Proficiencies: ${tools.join(", ")}`);
-  }
-
-  return parts.join("\n");
 }
 
 function parseExternalClassFeatures(
@@ -1391,6 +1581,98 @@ function getCompendiumEntityKey(entry: Record<string, unknown>) {
     .filter(Boolean)
     .join("|")
     .toLowerCase();
+}
+
+function readReferenceCategory(
+  kind: Extract<CompendiumKind, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  object: Record<string, unknown>
+) {
+  switch (kind) {
+    case "actions":
+      return readObjectArray(object.time)
+        .map((entry) => {
+          const number = clampNumber(entry.number, 0, 24, 0);
+          const unit = readString(entry.unit);
+          return number > 0 && unit ? `${number} ${unit}` : unit;
+        })
+        .filter(Boolean)
+        .join(", ") || "Action";
+    case "backgrounds":
+      return "Background";
+    case "items":
+      return [readString(object.type), readString(object.rarity)].filter(Boolean).join(" • ") || "Item";
+    case "languages":
+      return readString(object.type) || "Language";
+    case "races":
+      return readStringArray(object.size).join("/") || "Race";
+    case "skills":
+      return readString(object.ability).toUpperCase() || "Skill";
+  }
+}
+
+function readReferenceDescription(
+  kind: Extract<CompendiumKind, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  object: Record<string, unknown>
+) {
+  const entries = joinEntries(object.entries) || joinEntries(object.additionalEntries);
+
+  switch (kind) {
+    case "actions":
+    case "backgrounds":
+    case "items":
+    case "races":
+    case "skills":
+      return entries || requireString(object.name, `${kind} description`);
+    case "languages": {
+      const details = [
+        entries,
+        readString(object.origin) ? `Origin: ${readString(object.origin)}` : "",
+        readString(object.script) ? `Script: ${readString(object.script)}` : "",
+        readStringArray(object.typicalSpeakers).length > 0
+          ? `Typical Speakers: ${readStringArray(object.typicalSpeakers).join(", ")}`
+          : ""
+      ].filter(Boolean);
+
+      return details.join("\n") || requireString(object.name, "Language description");
+    }
+  }
+}
+
+function readReferenceTags(
+  kind: Extract<CompendiumKind, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  object: Record<string, unknown>
+) {
+  switch (kind) {
+    case "actions":
+      return uniqueStrings(readObjectArray(object.time).map((entry) => readString(entry.unit)));
+    case "backgrounds":
+      return uniqueStrings([
+        ...Object.keys(asOptionalObject(readObjectArray(object.skillProficiencies)[0]) ?? {}).map(toTitleCase),
+        ...Object.keys(asOptionalObject(readObjectArray(object.toolProficiencies)[0]) ?? {}).map(toTitleCase),
+        ...readStringArray(object.feats).map(extractPipeDisplayName)
+      ]);
+    case "items":
+      return uniqueStrings([
+        readString(object.type),
+        readString(object.rarity),
+        readBoolean(object.wondrous) ? "wondrous" : "",
+        readString(object.reqAttune)
+      ]);
+    case "languages":
+      return uniqueStrings([
+        readString(object.type),
+        readString(object.script),
+        ...readStringArray(object.typicalSpeakers)
+      ]);
+    case "races":
+      return uniqueStrings([
+        ...readStringArray(object.traitTags),
+        ...readStringArray(object.creatureTypes),
+        ...readStringArray(object.size)
+      ]);
+    case "skills":
+      return uniqueStrings([readString(object.ability).toUpperCase()]);
+  }
 }
 
 function extractPipeDisplayName(value: string) {

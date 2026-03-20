@@ -25,8 +25,10 @@ import type {
   ChatMessageKind,
   ClassEntry,
   ClassFeatureEntry,
+  ClassSubclassEntry,
   ClassStartingProficiencies,
   ClassTableEntry,
+  CompendiumReferenceEntry,
   CompendiumData,
   CurrencyPouch,
   DiceRoll,
@@ -460,6 +462,17 @@ export const classTableEntrySchema: z.ZodType<ClassTableEntry> = z.object({
   rows: z.array(z.array(trimmedString))
 });
 
+export const classSubclassEntrySchema: z.ZodType<ClassSubclassEntry> = z.object({
+  id: trimmedString,
+  name: trimmedString,
+  shortName: trimmedString,
+  source: trimmedString,
+  className: trimmedString,
+  classSource: trimmedString,
+  description: trimmedString,
+  features: z.array(classFeatureEntrySchema)
+});
+
 export const classStartingProficienciesSchema: z.ZodType<ClassStartingProficiencies> = z.object({
   armor: z.array(trimmedString),
   weapons: z.array(trimmedString),
@@ -476,14 +489,30 @@ export const classEntrySchema: z.ZodType<ClassEntry> = z.object({
   savingThrowProficiencies: z.array(trimmedString),
   startingProficiencies: classStartingProficienciesSchema,
   features: z.array(classFeatureEntrySchema),
+  subclasses: z.array(classSubclassEntrySchema),
   tables: z.array(classTableEntrySchema)
+});
+
+export const compendiumReferenceEntrySchema: z.ZodType<CompendiumReferenceEntry> = z.object({
+  id: trimmedString,
+  name: trimmedString,
+  source: trimmedString,
+  category: trimmedString,
+  description: trimmedString,
+  tags: z.array(trimmedString)
 });
 
 export const compendiumDataSchema: z.ZodType<CompendiumData> = z.object({
   spells: z.array(spellEntrySchema),
   monsters: z.array(monsterTemplateSchema),
   feats: z.array(featEntrySchema),
-  classes: z.array(classEntrySchema)
+  classes: z.array(classEntrySchema),
+  actions: z.array(compendiumReferenceEntrySchema),
+  backgrounds: z.array(compendiumReferenceEntrySchema),
+  items: z.array(compendiumReferenceEntrySchema),
+  languages: z.array(compendiumReferenceEntrySchema),
+  races: z.array(compendiumReferenceEntrySchema),
+  skills: z.array(compendiumReferenceEntrySchema)
 });
 
 export const campaignMemberSchema: z.ZodType<CampaignMember> = z.object({

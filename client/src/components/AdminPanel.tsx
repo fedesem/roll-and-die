@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { ArrowDownToLine, FilePlus2, List, RefreshCw } from "lucide-react";
 
-import type { SpellEntry } from "@shared/types";
-import { ClassPreviewCard, FeatPreviewCard, MonsterPreviewCard, PreviewError, PreviewPlaceholder, SpellPreviewCard, UserPreviewCard } from "./admin/AdminPreview";
+import type { CompendiumReferenceEntry, SpellEntry } from "@shared/types";
+import { ClassPreviewCard, FeatPreviewCard, MonsterPreviewCard, PreviewPlaceholder, ReferencePreviewCard, SpellPreviewCard, UserPreviewCard } from "./admin/AdminPreview";
 import styles from "./AdminPanel.module.css";
 import { useAdminOverviewQuery } from "../features/admin/useAdminOverviewQuery";
 import {
@@ -62,20 +62,38 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     spells: "",
     monsters: "",
     feats: "",
-    classes: ""
+    classes: "",
+    actions: "",
+    backgrounds: "",
+    items: "",
+    languages: "",
+    races: "",
+    skills: ""
   });
   const [selectedIds, setSelectedIds] = useState<Record<AdminTab, string | null>>({
     users: null,
     spells: null,
     monsters: null,
     feats: null,
-    classes: null
+    classes: null,
+    actions: null,
+    backgrounds: null,
+    items: null,
+    languages: null,
+    races: null,
+    skills: null
   });
   const [importFiles, setImportFiles] = useState<Record<CompendiumTab, { name: string; content: string } | null>>({
     spells: null,
     monsters: null,
     feats: null,
-    classes: null
+    classes: null,
+    actions: null,
+    backgrounds: null,
+    items: null,
+    languages: null,
+    races: null,
+    skills: null
   });
   const [spellForm, setSpellForm] = useState<SpellFormState>(createSpellForm());
   const [monsterForm, setMonsterForm] = useState<MonsterFormState>(createMonsterForm());
@@ -100,7 +118,13 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
       spells: overview?.compendium.spells.length ?? 0,
       monsters: overview?.compendium.monsters.length ?? 0,
       feats: overview?.compendium.feats.length ?? 0,
-      classes: overview?.compendium.classes.length ?? 0
+      classes: overview?.compendium.classes.length ?? 0,
+      actions: overview?.compendium.actions.length ?? 0,
+      backgrounds: overview?.compendium.backgrounds.length ?? 0,
+      items: overview?.compendium.items.length ?? 0,
+      languages: overview?.compendium.languages.length ?? 0,
+      races: overview?.compendium.races.length ?? 0,
+      skills: overview?.compendium.skills.length ?? 0
     }),
     [overview]
   );
@@ -125,19 +149,49 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     () => filterEntries(overview?.compendium.classes ?? [], search.classes, (entry) => [entry.name, entry.source]),
     [overview?.compendium.classes, search.classes]
   );
+  const actions = useMemo(
+    () => filterEntries(overview?.compendium.actions ?? [], search.actions, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    [overview?.compendium.actions, search.actions]
+  );
+  const backgrounds = useMemo(
+    () => filterEntries(overview?.compendium.backgrounds ?? [], search.backgrounds, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    [overview?.compendium.backgrounds, search.backgrounds]
+  );
+  const items = useMemo(
+    () => filterEntries(overview?.compendium.items ?? [], search.items, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    [overview?.compendium.items, search.items]
+  );
+  const languages = useMemo(
+    () => filterEntries(overview?.compendium.languages ?? [], search.languages, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    [overview?.compendium.languages, search.languages]
+  );
+  const races = useMemo(
+    () => filterEntries(overview?.compendium.races ?? [], search.races, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    [overview?.compendium.races, search.races]
+  );
+  const skills = useMemo(
+    () => filterEntries(overview?.compendium.skills ?? [], search.skills, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    [overview?.compendium.skills, search.skills]
+  );
 
   const selectedUser = resolveSelected(users, selectedIds.users);
   const selectedSpell = resolveSelected(spells, selectedIds.spells);
   const selectedMonster = resolveSelected(monsters, selectedIds.monsters);
   const selectedFeat = resolveSelected(feats, selectedIds.feats);
   const selectedClass = resolveSelected(classes, selectedIds.classes);
+  const selectedAction = resolveSelected(actions, selectedIds.actions);
+  const selectedBackground = resolveSelected(backgrounds, selectedIds.backgrounds);
+  const selectedItem = resolveSelected(items, selectedIds.items);
+  const selectedLanguage = resolveSelected(languages, selectedIds.languages);
+  const selectedRace = resolveSelected(races, selectedIds.races);
+  const selectedSkill = resolveSelected(skills, selectedIds.skills);
 
-  const spellPreview = useMemo(() => buildPreview(() => spellFormToEntry(spellForm)), [spellForm]);
-  const monsterPreview = useMemo(() => buildPreview(() => monsterFormToEntry(monsterForm)), [monsterForm]);
-  const featPreview = useMemo(() => buildPreview(() => featFormToEntry(featForm)), [featForm]);
-  const classPreview = useMemo(() => buildPreview(() => classFormToEntry(classForm)), [classForm]);
+  const _spellPreview = useMemo(() => buildPreview(() => spellFormToEntry(spellForm)), [spellForm]);
+  const _monsterPreview = useMemo(() => buildPreview(() => monsterFormToEntry(monsterForm)), [monsterForm]);
+  const _featPreview = useMemo(() => buildPreview(() => featFormToEntry(featForm)), [featForm]);
+  const _classPreview = useMemo(() => buildPreview(() => classFormToEntry(classForm)), [classForm]);
 
-  const importSummary = useMemo(() => {
+  const _importSummary = useMemo(() => {
     if (!activeCompendiumTab) {
       return null;
     }
@@ -153,11 +207,14 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
       const parsed = JSON.parse(value) as unknown;
       const count = resolveImportEntryCount(activeCompendiumTab, parsed);
       const isSpellLookup = activeCompendiumTab === "spells" && isGeneratedSpellLookupPayload(parsed);
+      const isSubclassLookup = activeCompendiumTab === "classes" && isGeneratedSubclassLookupPayload(parsed);
       return {
         valid: true,
         message: isSpellLookup
           ? `${count} spell class lookups ready to apply to imported spells.`
-          : `${count} ${count === 1 ? singularLabel(activeCompendiumTab) : labelForTab(activeCompendiumTab)} ready to import.`
+          : isSubclassLookup
+            ? `${count} subclasses ready to apply to imported classes.`
+            : `${count} ${count === 1 ? singularLabel(activeCompendiumTab) : labelForTab(activeCompendiumTab)} ready to import.`
       };
     } catch (error) {
       return { valid: false, message: toErrorMessage(error) };
@@ -365,7 +422,8 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
           </div>
 
           <div className={styles.upperGrid}>
-            <section className="admin-pane admin-list-pane">
+            {mode === "list" || tab === "users" ? (
+              <section className="admin-pane admin-list-pane">
               <div className="panel-head">
                 <div>
                   <p className="panel-label">Library</p>
@@ -486,106 +544,53 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                     </button>
                   ))}
 
+                {tab === "actions" && renderReferenceRows(actions, selectedAction, "actions", setSelectedIds)}
+                {tab === "backgrounds" && renderReferenceRows(backgrounds, selectedBackground, "backgrounds", setSelectedIds)}
+                {tab === "items" && renderReferenceRows(items, selectedItem, "items", setSelectedIds)}
+                {tab === "languages" && renderReferenceRows(languages, selectedLanguage, "languages", setSelectedIds)}
+                {tab === "races" && renderReferenceRows(races, selectedRace, "races", setSelectedIds)}
+                {tab === "skills" && renderReferenceRows(skills, selectedSkill, "skills", setSelectedIds)}
+
                 {countForTab(tab, {
                   users: users.length,
                   spells: spells.length,
                   monsters: monsters.length,
                   feats: feats.length,
-                  classes: classes.length
+                  classes: classes.length,
+                  actions: actions.length,
+                  backgrounds: backgrounds.length,
+                  items: items.length,
+                  languages: languages.length,
+                  races: races.length,
+                  skills: skills.length
                 }) === 0 && <p className="empty-state">No entries found.</p>}
               </div>
-            </section>
-
-            <section className="admin-pane admin-preview-pane">
-              <div className="panel-head">
-                <div>
-                  <p className="panel-label">Selected</p>
-                  <h3>{tab === "users" ? "User preview" : `${singularLabel(tab)} preview`}</h3>
-                </div>
-                {tab === "users" && selectedUser ? (
-                  <div className="admin-row-actions">
-                    {selectedUser.isAdmin ? (
-                      selectedUser.id !== currentUserId ? (
-                        <button type="button" onClick={() => void demoteUser(selectedUser.id)}>
-                          Demote
-                        </button>
-                      ) : null
-                    ) : (
-                      <button type="button" className="accent-button" onClick={() => void promoteUser(selectedUser.id)}>
-                        Promote
-                      </button>
-                    )}
-                    <button type="button" className="danger-button" onClick={() => void removeUser(selectedUser.id)}>
-                      Delete
+              </section>
+            ) : (
+              <section className="admin-pane admin-form-pane">
+                <div className="panel-head">
+                  <div>
+                    <p className="panel-label">{mode === "add" ? "Create" : "Import"}</p>
+                    <h3>{mode === "add" ? `Add ${singularLabel(tab)}` : `Import ${labelForTab(tab)}`}</h3>
+                  </div>
+                  {mode === "import" ? (
+                    <button
+                      type="button"
+                      className="accent-button"
+                      onClick={() => {
+                        if (activeCompendiumTab) {
+                          void importEntries(activeCompendiumTab);
+                        }
+                      }}
+                      disabled={!activeCompendiumTab || !importFiles[activeCompendiumTab]?.content.trim()}
+                    >
+                      Import
                     </button>
-                  </div>
-                ) : tab !== "users" ? (
-                  <div className="admin-row-actions">
-                    {tab === "spells" && selectedSpell ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("spells", selectedSpell.id)}>
-                        Delete
-                      </button>
-                    ) : null}
-                    {tab === "monsters" && selectedMonster ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("monsters", selectedMonster.id)}>
-                        Delete
-                      </button>
-                    ) : null}
-                    {tab === "feats" && selectedFeat ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("feats", selectedFeat.id)}>
-                        Delete
-                      </button>
-                    ) : null}
-                    {tab === "classes" && selectedClass ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("classes", selectedClass.id)}>
-                        Delete
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-
-              {tab === "users" && (selectedUser ? <UserPreviewCard user={selectedUser} /> : <PreviewPlaceholder title="Users" message="Select a user to inspect details and manage access." />)}
-              {tab === "spells" && (selectedSpell ? <SpellPreviewCard spell={selectedSpell} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Spells" message="Select a spell to preview it here." />)}
-              {tab === "monsters" && (selectedMonster ? <MonsterPreviewCard monster={selectedMonster} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Monsters" message="Select a monster to preview it here." />)}
-              {tab === "feats" && (selectedFeat ? <FeatPreviewCard feat={selectedFeat} spellEntries={overview?.compendium.spells ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Feats" message="Select a feat to preview it here." />)}
-              {tab === "classes" && (selectedClass ? <ClassPreviewCard entry={selectedClass} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} /> : <PreviewPlaceholder title="Classes" message="Select a class to preview it here." />)}
-            </section>
-          </div>
-          {tab !== "users" ? (
-            <section className={cx(styles.lowerShell, "admin-pane")}>
-              <div className={styles.lowerHead}>
-                <div>
-                  <p className="panel-label">{mode === "add" ? "Create" : mode === "import" ? "Import" : "Browse"}</p>
-                  <h3>
-                    {mode === "add"
-                      ? `Add ${singularLabel(tab)}`
-                      : mode === "import"
-                        ? `Import ${labelForTab(tab)}`
-                        : `${labelForTab(tab)} tools`}
-                  </h3>
+                  ) : null}
                 </div>
-                {mode === "import" ? (
-                  <button
-                    type="button"
-                    className="accent-button"
-                    onClick={() => {
-                      if (activeCompendiumTab) {
-                        void importEntries(activeCompendiumTab);
-                      }
-                    }}
-                    disabled={!activeCompendiumTab || !importFiles[activeCompendiumTab]?.content.trim()}
-                  >
-                    Import
-                  </button>
-                ) : null}
-              </div>
 
-              {mode === "list" ? (
-                <PreviewPlaceholder title="Compendium tools" message="Use Add or Import to create new entries. The selected item preview stays visible above." />
-              ) : mode === "add" ? (
-                <div className={styles.workspaceGrid}>
-                  <section className="admin-form-pane">
+                {mode === "add" ? (
+                  <>
                     {tab === "spells" && (
                       <form className="admin-form-grid" onSubmit={handleSpellSubmit}>
                         <AdminField label="Name"><input value={spellForm.name} onChange={(event) => setSpellForm({ ...spellForm, name: event.target.value })} /></AdminField>
@@ -666,7 +671,6 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         <button className="accent-button" type="submit">Add spell</button>
                       </form>
                     )}
-
                     {tab === "monsters" && (
                       <form className="admin-form-grid admin-form-grid-wide" onSubmit={handleMonsterSubmit}>
                         <AdminField label="Name"><input value={monsterForm.name} onChange={(event) => setMonsterForm({ ...monsterForm, name: event.target.value })} /></AdminField>
@@ -727,7 +731,6 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         <button className="accent-button" type="submit">Add monster</button>
                       </form>
                     )}
-
                     {tab === "feats" && (
                       <form className="admin-form-grid" onSubmit={handleFeatSubmit}>
                         <AdminField label="Name"><input value={featForm.name} onChange={(event) => setFeatForm({ ...featForm, name: event.target.value })} /></AdminField>
@@ -739,7 +742,6 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         <button className="accent-button" type="submit">Add feat</button>
                       </form>
                     )}
-
                     {tab === "classes" && (
                       <form className="admin-form-grid" onSubmit={handleClassSubmit}>
                         <AdminField label="Name"><input value={classForm.name} onChange={(event) => setClassForm({ ...classForm, name: event.target.value })} /></AdminField>
@@ -750,24 +752,15 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         <button className="accent-button" type="submit">Add class</button>
                       </form>
                     )}
-                  </section>
-
-                  <section className="admin-preview-pane">
-                    <div className="panel-head">
-                      <div>
-                        <p className="panel-label">Draft</p>
-                        <h3>{singularLabel(tab)} preview</h3>
-                      </div>
-                    </div>
-                    {tab === "spells" && (spellPreview.entry ? <SpellPreviewCard spell={spellPreview.entry} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewError title="Spell" message={spellPreview.error ?? "Fill in the form to preview the spell."} />)}
-                    {tab === "monsters" && (monsterPreview.entry ? <MonsterPreviewCard monster={monsterPreview.entry} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewError title="Monster" message={monsterPreview.error ?? "Fill in the form to preview the monster."} />)}
-                    {tab === "feats" && (featPreview.entry ? <FeatPreviewCard feat={featPreview.entry} spellEntries={overview?.compendium.spells ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewError title="Feat" message={featPreview.error ?? "Fill in the form to preview the feat."} />)}
-                    {tab === "classes" && (classPreview.entry ? <ClassPreviewCard entry={classPreview.entry} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} /> : <PreviewError title="Class" message={classPreview.error ?? "Fill in the form to preview the class."} />)}
-                  </section>
-                </div>
-              ) : (
-                <div className={styles.workspaceGrid}>
-                  <section className="admin-form-pane">
+                    {["actions", "backgrounds", "items", "languages", "races", "skills"].includes(tab) && (
+                      <PreviewPlaceholder
+                        title={`${singularLabel(tab)} add`}
+                        message="Use Import mode for these reference libraries. The backend now supports direct imports for the matching 5etools JSON files."
+                      />
+                    )}
+                  </>
+                ) : (
+                  <>
                     <label className="admin-search-field">
                       <span>JSON file</span>
                       <div className="admin-import-upload">
@@ -791,6 +784,10 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                           </small>
                           {tab === "spells" ? (
                             <small>Accepted spell files: raw 5etools `spell` JSON or `gendata-spell-source-lookup.json` to enrich imported spells with class references.</small>
+                          ) : tab === "classes" ? (
+                            <small>Accepted class files: raw 5etools `class` JSON, including `subclass` and `subclassFeature`, or `gendata-subclass-lookup.json` to enrich imported classes with subclass stubs.</small>
+                          ) : tab === "items" ? (
+                            <small>Accepted item files: 5etools `items.json` and `items-base.json`.</small>
                           ) : null}
                         </div>
                         <button
@@ -812,25 +809,103 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                       <span>Example JSON</span>
                       <textarea className="admin-json admin-json-example" value={importExample} readOnly />
                     </label>
-                  </section>
+                  </>
+                )}
+              </section>
+            )}
 
-                  <section className="admin-preview-pane">
-                    <div className="panel-head">
-                      <div>
-                        <p className="panel-label">Import status</p>
-                        <h3>{singularLabel(tab)} import</h3>
-                      </div>
-                    </div>
-                    {importSummary?.valid ? (
-                      <PreviewPlaceholder title="Ready" message={importSummary.message} />
-                    ) : (
-                      <PreviewError title="Import" message={importSummary?.message ?? "Upload a JSON file to validate the import payload."} />
-                    )}
-                  </section>
+            <section className="admin-pane admin-preview-pane">
+              <div className="panel-head">
+                <div>
+                  <p className="panel-label">Selected</p>
+                  <h3>{tab === "users" ? "User preview" : `${singularLabel(tab)} preview`}</h3>
                 </div>
-              )}
+                {tab === "users" && selectedUser ? (
+                  <div className="admin-row-actions">
+                    {selectedUser.isAdmin ? (
+                      selectedUser.id !== currentUserId ? (
+                        <button type="button" onClick={() => void demoteUser(selectedUser.id)}>
+                          Demote
+                        </button>
+                      ) : null
+                    ) : (
+                      <button type="button" className="accent-button" onClick={() => void promoteUser(selectedUser.id)}>
+                        Promote
+                      </button>
+                    )}
+                    <button type="button" className="danger-button" onClick={() => void removeUser(selectedUser.id)}>
+                      Delete
+                    </button>
+                  </div>
+                ) : tab !== "users" ? (
+                  <div className="admin-row-actions">
+                    {tab === "spells" && selectedSpell ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("spells", selectedSpell.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "monsters" && selectedMonster ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("monsters", selectedMonster.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "feats" && selectedFeat ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("feats", selectedFeat.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "classes" && selectedClass ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("classes", selectedClass.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "actions" && selectedAction ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("actions", selectedAction.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "backgrounds" && selectedBackground ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("backgrounds", selectedBackground.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "items" && selectedItem ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("items", selectedItem.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "languages" && selectedLanguage ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("languages", selectedLanguage.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "races" && selectedRace ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("races", selectedRace.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "skills" && selectedSkill ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("skills", selectedSkill.id)}>
+                        Delete
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              {tab === "users" && (selectedUser ? <UserPreviewCard user={selectedUser} /> : <PreviewPlaceholder title="Users" message="Select a user to inspect details and manage access." />)}
+              {tab === "spells" && (selectedSpell ? <SpellPreviewCard spell={selectedSpell} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Spells" message="Select a spell to preview it here." />)}
+              {tab === "monsters" && (selectedMonster ? <MonsterPreviewCard monster={selectedMonster} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Monsters" message="Select a monster to preview it here." />)}
+              {tab === "feats" && (selectedFeat ? <FeatPreviewCard feat={selectedFeat} spellEntries={overview?.compendium.spells ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Feats" message="Select a feat to preview it here." />)}
+              {tab === "classes" && (selectedClass ? <ClassPreviewCard entry={selectedClass} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} /> : <PreviewPlaceholder title="Classes" message="Select a class to preview it here." />)}
+              {tab === "actions" && (selectedAction ? <ReferencePreviewCard title="Action" eyebrow="Action" entry={selectedAction} /> : <PreviewPlaceholder title="Actions" message="Select an action to preview it here." />)}
+              {tab === "backgrounds" && (selectedBackground ? <ReferencePreviewCard title="Background" eyebrow="Background" entry={selectedBackground} /> : <PreviewPlaceholder title="Backgrounds" message="Select a background to preview it here." />)}
+              {tab === "items" && (selectedItem ? <ReferencePreviewCard title="Item" eyebrow="Item" entry={selectedItem} /> : <PreviewPlaceholder title="Items" message="Select an item to preview it here." />)}
+              {tab === "languages" && (selectedLanguage ? <ReferencePreviewCard title="Language" eyebrow="Language" entry={selectedLanguage} /> : <PreviewPlaceholder title="Languages" message="Select a language to preview it here." />)}
+              {tab === "races" && (selectedRace ? <ReferencePreviewCard title="Race" eyebrow="Race" entry={selectedRace} /> : <PreviewPlaceholder title="Races" message="Select a race to preview it here." />)}
+              {tab === "skills" && (selectedSkill ? <ReferencePreviewCard title="Skill" eyebrow="Skill" entry={selectedSkill} /> : <PreviewPlaceholder title="Skills" message="Select a skill to preview it here." />)}
             </section>
-          ) : null}
+          </div>
         </div>
       </section>
     </main>
@@ -865,6 +940,34 @@ function resolveImportEntryCount(kind: CompendiumTab, parsed: unknown) {
 
     if (kind === "classes" && Array.isArray(record.class)) {
       return record.class.length;
+    }
+
+    if (kind === "classes" && isGeneratedSubclassLookupPayload(record)) {
+      return countGeneratedSubclassLookupEntries(record);
+    }
+
+    if (kind === "actions" && Array.isArray(record.action)) {
+      return record.action.length;
+    }
+
+    if (kind === "backgrounds" && Array.isArray(record.background)) {
+      return record.background.length;
+    }
+
+    if (kind === "items") {
+      return [...readObjectArray(record.item), ...readObjectArray(record.baseitem)].length || 1;
+    }
+
+    if (kind === "languages" && Array.isArray(record.language)) {
+      return record.language.length;
+    }
+
+    if (kind === "races") {
+      return [...readObjectArray(record.race), ...readObjectArray(record.subrace)].length || 1;
+    }
+
+    if (kind === "skills" && Array.isArray(record.skill)) {
+      return record.skill.length;
     }
   }
 
@@ -911,4 +1014,80 @@ function countGeneratedSpellLookupEntries(value: Record<string, unknown>) {
   });
 
   return count;
+}
+
+function isGeneratedSubclassLookupPayload(value: unknown) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  return Object.values(value).some((classBucket) => {
+    if (typeof classBucket !== "object" || classBucket === null || Array.isArray(classBucket)) {
+      return false;
+    }
+
+    return Object.values(classBucket).some((subclassBucket) => {
+      if (typeof subclassBucket !== "object" || subclassBucket === null || Array.isArray(subclassBucket)) {
+        return false;
+      }
+
+      return Object.values(subclassBucket).some((entries) => typeof entries === "object" && entries !== null && !Array.isArray(entries));
+    });
+  });
+}
+
+function countGeneratedSubclassLookupEntries(value: Record<string, unknown>) {
+  let count = 0;
+
+  Object.values(value).forEach((classBucket) => {
+    if (typeof classBucket !== "object" || classBucket === null || Array.isArray(classBucket)) {
+      return;
+    }
+
+    Object.values(classBucket).forEach((subclassBucket) => {
+      if (typeof subclassBucket !== "object" || subclassBucket === null || Array.isArray(subclassBucket)) {
+        return;
+      }
+
+      Object.values(subclassBucket).forEach((entries) => {
+        if (typeof entries !== "object" || entries === null || Array.isArray(entries)) {
+          return;
+        }
+
+        count += Object.keys(entries).length;
+      });
+    });
+  });
+
+  return count;
+}
+
+function readObjectArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null)
+    : [];
+}
+
+function renderReferenceRows(
+  entries: CompendiumReferenceEntry[],
+  selected: CompendiumReferenceEntry | null,
+  kind: Extract<CompendiumTab, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  setSelectedIds: Dispatch<SetStateAction<Record<AdminTab, string | null>>>
+) {
+  return entries.map((entry) => (
+    <button
+      key={entry.id}
+      type="button"
+      className={`admin-list-row ${selected?.id === entry.id ? "is-selected" : ""}`}
+      onClick={() => setSelectedIds((current) => ({ ...current, [kind]: entry.id }))}
+    >
+      <div className="admin-list-main">
+        <strong>{entry.name}</strong>
+        <small>{entry.category}</small>
+      </div>
+      <div className="admin-list-badges">
+        <span className="badge subtle">{entry.source}</span>
+      </div>
+    </button>
+  ));
 }

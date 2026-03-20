@@ -17,10 +17,16 @@ export function normalizeStoreState(database: Database): Database {
             spells: Array.isArray(database.compendium.spells) ? database.compendium.spells : [],
             monsters: Array.isArray(database.compendium.monsters) ? database.compendium.monsters : [],
             feats: Array.isArray(database.compendium.feats) ? database.compendium.feats : [],
-            classes: Array.isArray(database.compendium.classes) ? database.compendium.classes : []
+            classes: Array.isArray(database.compendium.classes) ? database.compendium.classes : [],
+            actions: Array.isArray(database.compendium.actions) ? database.compendium.actions : [],
+            backgrounds: Array.isArray(database.compendium.backgrounds) ? database.compendium.backgrounds : [],
+            items: Array.isArray(database.compendium.items) ? database.compendium.items : [],
+            languages: Array.isArray(database.compendium.languages) ? database.compendium.languages : [],
+            races: Array.isArray(database.compendium.races) ? database.compendium.races : [],
+            skills: Array.isArray(database.compendium.skills) ? database.compendium.skills : []
           }
         : defaultDatabase.compendium
-      };
+  };
 }
 
 function normalizeCampaign(campaign: Campaign): Campaign {

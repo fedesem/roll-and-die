@@ -774,7 +774,13 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
       spells: [],
       monsters: [],
       feats: [],
-      classes: []
+      classes: [],
+      actions: [],
+      backgrounds: [],
+      items: [],
+      languages: [],
+      races: [],
+      skills: []
     }
   }).campaigns;
 }

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { ClassEntry, FeatEntry, MonsterActionEntry, MonsterTemplate, SpellEntry, UserProfile } from "@shared/types";
+import type { ClassEntry, CompendiumReferenceEntry, FeatEntry, MonsterActionEntry, MonsterTemplate, SpellEntry, UserProfile } from "@shared/types";
 
 interface RulesLookupData {
   spellEntries?: Array<SpellEntry | Omit<SpellEntry, "id">>;
@@ -314,6 +314,31 @@ export function ClassPreviewCard({
             ))}
           </Section>
         )}
+        {entry.subclasses.length > 0 && (
+          <Section title="Subclasses">
+            {entry.subclasses.map((subclass) => (
+              <div key={subclass.id} className="admin-preview-body">
+                <strong>{subclass.name}</strong> {subclass.source ? `(${subclass.source})` : ""}
+                {subclass.description ? (
+                  <>
+                    {" "}
+                    <RulesText text={subclass.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
+                  </>
+                ) : null}
+                {subclass.features.length > 0 ? (
+                  <div>
+                    {subclass.features.map((feature) => (
+                      <p key={`${subclass.id}-${feature.reference || `${feature.level}-${feature.name}`}`} className="admin-preview-body">
+                        <strong>Level {feature.level}: {feature.name}.</strong>{" "}
+                        <RulesText text={feature.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </Section>
+        )}
         {entry.tables.map((table) => (
           <section key={table.name} className="admin-preview-section">
             <h4><RulesText text={table.name} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} /></h4>
@@ -345,6 +370,31 @@ export function ClassPreviewCard({
             </div>
           </section>
         ))}
+      </div>
+    </PreviewFrame>
+  );
+}
+
+export function ReferencePreviewCard({
+  title,
+  eyebrow,
+  entry
+}: {
+  title: string;
+  eyebrow: string;
+  entry: CompendiumReferenceEntry;
+}) {
+  return (
+    <PreviewFrame eyebrow={eyebrow} title={entry.name} source={entry.source} subtitle={entry.category}>
+      <div className="admin-preview-stack">
+        <p className="admin-preview-body">
+          <RulesText text={entry.description} />
+        </p>
+        {entry.tags.length > 0 ? (
+          <p className="admin-preview-footnote">
+            <strong>{title} tags:</strong> {entry.tags.join(", ")}
+          </p>
+        ) : null}
       </div>
     </PreviewFrame>
   );

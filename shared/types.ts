@@ -309,6 +309,17 @@ export interface ClassTableEntry {
   rows: string[][];
 }
 
+export interface ClassSubclassEntry {
+  id: string;
+  name: string;
+  shortName: string;
+  source: string;
+  className: string;
+  classSource: string;
+  description: string;
+  features: ClassFeatureEntry[];
+}
+
 export interface ClassStartingProficiencies {
   armor: string[];
   weapons: string[];
@@ -325,7 +336,17 @@ export interface ClassEntry {
   savingThrowProficiencies: string[];
   startingProficiencies: ClassStartingProficiencies;
   features: ClassFeatureEntry[];
+  subclasses: ClassSubclassEntry[];
   tables: ClassTableEntry[];
+}
+
+export interface CompendiumReferenceEntry {
+  id: string;
+  name: string;
+  source: string;
+  category: string;
+  description: string;
+  tags: string[];
 }
 
 export interface CompendiumData {
@@ -333,6 +354,12 @@ export interface CompendiumData {
   monsters: MonsterTemplate[];
   feats: FeatEntry[];
   classes: ClassEntry[];
+  actions: CompendiumReferenceEntry[];
+  backgrounds: CompendiumReferenceEntry[];
+  items: CompendiumReferenceEntry[];
+  languages: CompendiumReferenceEntry[];
+  races: CompendiumReferenceEntry[];
+  skills: CompendiumReferenceEntry[];
 }
 
 export interface CampaignMember {

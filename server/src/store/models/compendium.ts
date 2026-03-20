@@ -4,7 +4,9 @@ import type {
   AbilityKey,
   ClassEntry,
   ClassFeatureEntry,
+  ClassSubclassEntry,
   CompendiumData,
+  CompendiumReferenceEntry,
   FeatEntry,
   MonsterActionEntry,
   MonsterSense,
@@ -449,6 +451,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     startingWeaponsJson: string;
     startingToolsJson: string;
     featuresJson: string;
+    subclassesJson: string;
     tablesJson: string;
   }>(
     database,
@@ -465,6 +468,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
         starting_weapons_json as startingWeaponsJson,
         starting_tools_json as startingToolsJson,
         features_json as featuresJson,
+        subclasses_json as subclassesJson,
         tables_json as tablesJson
       FROM compendium_classes
       ORDER BY sort_order, name, id
@@ -483,14 +487,63 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
       tools: parseJsonArray<string>(row.startingToolsJson)
     },
     features: classFeaturesByClassId.get(row.id) ?? parseJsonArray<ClassFeatureEntry>(row.featuresJson),
+    subclasses: parseJsonArray<ClassSubclassEntry>(row.subclassesJson),
     tables: classTablesByClassId.get(row.id) ?? parseJsonArray<ClassEntry["tables"][number]>(row.tablesJson)
   }));
+
+  const referencesByKind = new Map<keyof Pick<CompendiumData, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">, CompendiumReferenceEntry[]>([
+    ["actions", []],
+    ["backgrounds", []],
+    ["items", []],
+    ["languages", []],
+    ["races", []],
+    ["skills", []]
+  ]);
+
+  readAll<{
+    kind: keyof typeof referencesByKind extends never ? never : keyof Pick<CompendiumData, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">;
+    id: string;
+    name: string;
+    source: string;
+    category: string;
+    description: string;
+    tagsJson: string;
+  }>(
+    database,
+    `
+      SELECT
+        kind,
+        id,
+        name,
+        source,
+        category,
+        description,
+        tags_json as tagsJson
+      FROM compendium_references
+      ORDER BY kind, sort_order, name, id
+    `
+  ).forEach((row) => {
+    referencesByKind.get(row.kind)?.push({
+      id: row.id,
+      name: row.name,
+      source: row.source,
+      category: row.category,
+      description: row.description,
+      tags: parseJsonArray<string>(row.tagsJson)
+    });
+  });
 
   return {
     spells,
     monsters,
     feats,
-    classes
+    classes,
+    actions: referencesByKind.get("actions") ?? [],
+    backgrounds: referencesByKind.get("backgrounds") ?? [],
+    items: referencesByKind.get("items") ?? [],
+    languages: referencesByKind.get("languages") ?? [],
+    races: referencesByKind.get("races") ?? [],
+    skills: referencesByKind.get("skills") ?? []
   };
 }
 
@@ -533,8 +586,8 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
       id, sort_order, name, source, description,
       hit_die_faces, primary_abilities_json, saving_throw_proficiencies_json,
       starting_armor_json, starting_weapons_json, starting_tools_json,
-      features_json, tables_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      features_json, subclasses_json, tables_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertClassFeature = database.prepare(`
     INSERT INTO compendium_class_features (
@@ -555,6 +608,11 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
     INSERT INTO compendium_class_table_cells (
       class_id, table_index, row_index, cell_index, value
     ) VALUES (?, ?, ?, ?, ?)
+  `);
+  const insertReference = database.prepare(`
+    INSERT INTO compendium_references (
+      kind, id, sort_order, name, source, category, description, tags_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   compendium.spells.forEach((spell, index) => {
@@ -675,6 +733,7 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
       JSON.stringify(entry.startingProficiencies.weapons),
       JSON.stringify(entry.startingProficiencies.tools),
       JSON.stringify(entry.features),
+      JSON.stringify(entry.subclasses),
       JSON.stringify(entry.tables)
     );
 
@@ -704,10 +763,26 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
       });
     });
   });
+
+  const referenceKinds: Array<keyof Pick<CompendiumData, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">> = [
+    "actions",
+    "backgrounds",
+    "items",
+    "languages",
+    "races",
+    "skills"
+  ];
+
+  referenceKinds.forEach((kind) => {
+    compendium[kind].forEach((entry, index) => {
+      insertReference.run(kind, entry.id, index, entry.name, entry.source, entry.category, entry.description, JSON.stringify(entry.tags));
+    });
+  });
 }
 
 export function clearCompendiumTables(database: DatabaseSync) {
   database.exec(`
+    DELETE FROM compendium_references;
     DELETE FROM compendium_class_table_cells;
     DELETE FROM compendium_class_table_columns;
     DELETE FROM compendium_class_tables;

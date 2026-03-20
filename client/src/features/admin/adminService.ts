@@ -3,16 +3,28 @@ import {
   adminOverviewResponseSchema,
   adminUserMutationResponseSchema,
   compendiumKindSchema,
+  createActionBodySchema,
+  createBackgroundBodySchema,
   createClassBodySchema,
   createFeatBodySchema,
+  createItemBodySchema,
+  createLanguageBodySchema,
   createMonsterBodySchema,
+  createRaceBodySchema,
+  createSkillBodySchema,
   createSpellBodySchema,
   createdCompendiumEntryResponseSchema,
   emptyAdminResponseSchema,
+  importActionsBodySchema,
+  importBackgroundsBodySchema,
   importClassesBodySchema,
   importCompendiumResultResponseSchema,
   importFeatsBodySchema,
+  importItemsBodySchema,
+  importLanguagesBodySchema,
   importMonstersBodySchema,
+  importRacesBodySchema,
+  importSkillsBodySchema,
   importSpellsBodySchema
 } from "@shared/contracts/admin";
 
@@ -24,14 +36,26 @@ const createBodySchemaByKind = {
   spells: createSpellBodySchema,
   monsters: createMonsterBodySchema,
   feats: createFeatBodySchema,
-  classes: createClassBodySchema
+  classes: createClassBodySchema,
+  actions: createActionBodySchema,
+  backgrounds: createBackgroundBodySchema,
+  items: createItemBodySchema,
+  languages: createLanguageBodySchema,
+  races: createRaceBodySchema,
+  skills: createSkillBodySchema
 } as const;
 
 const importBodySchemaByKind = {
   spells: importSpellsBodySchema,
   monsters: importMonstersBodySchema,
   feats: importFeatsBodySchema,
-  classes: importClassesBodySchema
+  classes: importClassesBodySchema,
+  actions: importActionsBodySchema,
+  backgrounds: importBackgroundsBodySchema,
+  items: importItemsBodySchema,
+  languages: importLanguagesBodySchema,
+  races: importRacesBodySchema,
+  skills: importSkillsBodySchema
 } as const;
 
 export function fetchAdminOverview(token: string) {

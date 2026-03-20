@@ -3,12 +3,24 @@ import type { Request, Response } from "express";
 import {
   compendiumKindSchema,
   createClassBodySchema,
+  createActionBodySchema,
+  createBackgroundBodySchema,
   createFeatBodySchema,
+  createItemBodySchema,
+  createLanguageBodySchema,
   createMonsterBodySchema,
+  createRaceBodySchema,
+  createSkillBodySchema,
   createSpellBodySchema,
+  importActionsBodySchema,
+  importBackgroundsBodySchema,
   importClassesBodySchema,
   importFeatsBodySchema,
+  importItemsBodySchema,
+  importLanguagesBodySchema,
   importMonstersBodySchema,
+  importRacesBodySchema,
+  importSkillsBodySchema,
   importSpellsBodySchema
 } from "../../../shared/contracts/admin.js";
 import { HttpError } from "../http/errors.js";
@@ -17,6 +29,8 @@ import { mutateDatabase, readDatabase } from "../store.js";
 import { requireAdmin, toUserProfile } from "../services/authService.js";
 import {
   importGeneratedSpellLookupIntoSpells,
+  importGeneratedSubclassLookupIntoClasses,
+  isGeneratedSubclassLookupImport,
   isGeneratedSpellLookupImport,
   normalizeCompendiumImportEntries,
   sanitizeCompendiumEntry,
@@ -33,6 +47,18 @@ function parseCompendiumCreateBody(kind: CompendiumKind, value: unknown) {
       return parseWithSchema(createFeatBodySchema, value);
     case "classes":
       return parseWithSchema(createClassBodySchema, value);
+    case "actions":
+      return parseWithSchema(createActionBodySchema, value);
+    case "backgrounds":
+      return parseWithSchema(createBackgroundBodySchema, value);
+    case "items":
+      return parseWithSchema(createItemBodySchema, value);
+    case "languages":
+      return parseWithSchema(createLanguageBodySchema, value);
+    case "races":
+      return parseWithSchema(createRaceBodySchema, value);
+    case "skills":
+      return parseWithSchema(createSkillBodySchema, value);
   }
 }
 
@@ -46,6 +72,18 @@ function parseCompendiumImportBody(kind: CompendiumKind, value: unknown) {
       return parseWithSchema(importFeatsBodySchema, value);
     case "classes":
       return parseWithSchema(importClassesBodySchema, value);
+    case "actions":
+      return parseWithSchema(importActionsBodySchema, value);
+    case "backgrounds":
+      return parseWithSchema(importBackgroundsBodySchema, value);
+    case "items":
+      return parseWithSchema(importItemsBodySchema, value);
+    case "languages":
+      return parseWithSchema(importLanguagesBodySchema, value);
+    case "races":
+      return parseWithSchema(importRacesBodySchema, value);
+    case "skills":
+      return parseWithSchema(importSkillsBodySchema, value);
   }
 }
 
@@ -189,6 +227,12 @@ export const adminController = {
 
     if (kind === "spells" && isGeneratedSpellLookupImport(body.entries)) {
       const result = await mutateDatabase((database) => importGeneratedSpellLookupIntoSpells(database.compendium.spells, body.entries));
+      response.status(201).json(result);
+      return;
+    }
+
+    if (kind === "classes" && isGeneratedSubclassLookupImport(body.entries)) {
+      const result = await mutateDatabase((database) => importGeneratedSubclassLookupIntoClasses(database.compendium.classes, body.entries));
       response.status(201).json(result);
       return;
     }

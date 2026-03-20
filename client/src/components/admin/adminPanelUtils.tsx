@@ -1,10 +1,21 @@
 import type { ReactNode } from "react";
 
-import { GraduationCap, ShieldPlus, Skull, Sparkles, Users, type LucideIcon } from "lucide-react";
+import { BookText, GraduationCap, ShieldPlus, Skull, Sparkles, Swords, Users, type LucideIcon } from "lucide-react";
 
 import { toErrorMessage } from "../../lib/errors";
 
-export type AdminTab = "users" | "spells" | "monsters" | "feats" | "classes";
+export type AdminTab =
+  | "users"
+  | "spells"
+  | "monsters"
+  | "feats"
+  | "classes"
+  | "actions"
+  | "backgrounds"
+  | "items"
+  | "languages"
+  | "races"
+  | "skills";
 export type CompendiumTab = Exclude<AdminTab, "users">;
 
 export interface PreviewState<T> {
@@ -17,7 +28,13 @@ export const tabIcons = {
   spells: Sparkles,
   monsters: Skull,
   feats: ShieldPlus,
-  classes: GraduationCap
+  classes: GraduationCap,
+  actions: Swords,
+  backgrounds: BookText,
+  items: BookText,
+  languages: BookText,
+  races: BookText,
+  skills: BookText
 } satisfies Record<AdminTab, LucideIcon>;
 
 export function AdminField({
@@ -77,6 +94,18 @@ export function labelForTab(tab: AdminTab) {
       return "Feats";
     case "classes":
       return "Classes";
+    case "actions":
+      return "Actions";
+    case "backgrounds":
+      return "Backgrounds";
+    case "items":
+      return "Items";
+    case "languages":
+      return "Languages";
+    case "races":
+      return "Races";
+    case "skills":
+      return "Skills";
   }
 }
 
@@ -94,6 +123,18 @@ export function singularLabel(tab: AdminTab) {
       return "Feat";
     case "classes":
       return "Class";
+    case "actions":
+      return "Action";
+    case "backgrounds":
+      return "Background";
+    case "items":
+      return "Item";
+    case "languages":
+      return "Language";
+    case "races":
+      return "Race";
+    case "skills":
+      return "Skill";
   }
 }
 
@@ -286,6 +327,80 @@ export function getImportExample(tab: CompendiumTab) {
             source: "XPHB",
             level: 2,
             entries: ["You gain an uncanny sense of when things aren't as they should be."]
+          }
+        ]
+      }, null, 2);
+    case "actions":
+      return JSON.stringify({
+        action: [
+          {
+            name: "Disengage",
+            source: "PHB",
+            page: 192,
+            time: [{ number: 1, unit: "action" }],
+            entries: ["If you take the Disengage action, your movement doesn't provoke opportunity attacks for the rest of the turn."]
+          }
+        ]
+      }, null, 2);
+    case "backgrounds":
+      return JSON.stringify({
+        background: [
+          {
+            name: "Acolyte",
+            source: "PHB",
+            page: 127,
+            entries: ["You have spent your life in the service of a temple."],
+            skillProficiencies: [{ insight: true, religion: true }]
+          }
+        ]
+      }, null, 2);
+    case "items":
+      return JSON.stringify({
+        item: [
+          {
+            name: "Alchemy Jug",
+            source: "DMG",
+            page: 150,
+            type: "W",
+            rarity: "uncommon",
+            entries: ["This ceramic jug appears to be able to hold a gallon of liquid and weighs 12 pounds whether full or empty."]
+          }
+        ]
+      }, null, 2);
+    case "languages":
+      return JSON.stringify({
+        language: [
+          {
+            name: "Abyssal",
+            source: "PHB",
+            page: 123,
+            type: "exotic",
+            script: "Infernal",
+            typicalSpeakers: ["Demons"]
+          }
+        ]
+      }, null, 2);
+    case "races":
+      return JSON.stringify({
+        race: [
+          {
+            name: "Aarakocra",
+            source: "DMG",
+            page: 282,
+            size: ["M"],
+            entries: ["You can speak, read, and write Auran."]
+          }
+        ]
+      }, null, 2);
+    case "skills":
+      return JSON.stringify({
+        skill: [
+          {
+            name: "Arcana",
+            source: "PHB",
+            page: 177,
+            ability: "int",
+            entries: ["Your Intelligence (Arcana) check measures your ability to recall lore about spells and magic items."]
           }
         ]
       }, null, 2);

@@ -10,6 +10,7 @@ import { monsterSpellcastingMigration } from "./110_monster_spellcasting.js";
 import { compendiumReferenceTablesMigration } from "./111_compendium_reference_tables.js";
 import { spellClassReferenceMetadataMigration } from "./112_spell_class_reference_metadata.js";
 import { actorSheet2024Migration } from "./113_actor_sheet_2024.js";
+import { compendiumExpansionMigration } from "./114_compendium_expansion.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -23,5 +24,6 @@ export const migrations = [
   monsterSpellcastingMigration,
   compendiumReferenceTablesMigration,
   spellClassReferenceMetadataMigration,
-  actorSheet2024Migration
+  actorSheet2024Migration,
+  compendiumExpansionMigration
 ];
