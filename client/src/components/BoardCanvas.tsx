@@ -27,7 +27,6 @@ import type {
 import {
   cellKey,
   computeVisibleCellsForUser,
-  findTeleporterDestination,
   snapPointToGrid,
   tokenCellKey,
   traceMovementPath,
@@ -218,6 +217,7 @@ export function BoardCanvas({
   const lastMeasurePreviewKeyRef = useRef<string | null>(null);
   const lastSelectedTokenPositionRef = useRef<Point | null>(null);
   const pendingTeleportCenterRef = useRef<Point | null>(null);
+  const pendingDoorToggleRef = useRef<string | null>(null);
   const moveActorRef = useRef(onMoveActor);
   const broadcastMovePreviewRef = useRef(onBroadcastMovePreview);
   const broadcastMeasurePreviewRef = useRef(onBroadcastMeasurePreview);
@@ -247,6 +247,8 @@ export function BoardCanvas({
   const [selectionBox, setSelectionBox] = useState<SelectionState | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [hoveredTeleporterId, setHoveredTeleporterId] = useState<string | null>(null);
+  const [optimisticTokenPositions, setOptimisticTokenPositions] = useState<Record<string, Point>>({});
+  const [pendingKeyboardMoves, setPendingKeyboardMoves] = useState<Array<{ deltaX: number; deltaY: number }>>([]);
   const [discoveredDrawingsByViewer, setDiscoveredDrawingsByViewer] = useState<Record<string, Record<string, string[]>>>(() =>
     readDiscoveredDrawingsMemory()
   );
@@ -277,13 +279,30 @@ export function BoardCanvas({
   const discoveryViewerKey = usesRestrictedVision ? visionUserId : "__dm_full__";
 
   const actorById = useMemo(() => new Map(actors.map((actor) => [actor.id, actor])), [actors]);
+  const displayTokens = useMemo(
+    () =>
+      tokens.map((token) =>
+        optimisticTokenPositions[token.id]
+          ? {
+              ...token,
+              x: optimisticTokenPositions[token.id].x,
+              y: optimisticTokenPositions[token.id].y
+            }
+          : token
+      ),
+    [optimisticTokenPositions, tokens]
+  );
   const visibleTokens = useMemo(
-    () => tokens.filter((token) => token.visible && token.mapId === map?.id),
-    [map?.id, tokens]
+    () => displayTokens.filter((token) => token.visible && token.mapId === map?.id),
+    [displayTokens, map?.id]
+  );
+  const visibleTokenByActorId = useMemo(
+    () => new Map(visibleTokens.map((token) => [token.actorId, token])),
+    [visibleTokens]
   );
   const selectedToken = useMemo(
-    () => visibleTokens.find((token) => token.actorId === selectedActor?.id),
-    [selectedActor?.id, visibleTokens]
+    () => (selectedActor ? visibleTokenByActorId.get(selectedActor.id) : undefined),
+    [selectedActor, visibleTokenByActorId]
   );
 
   const currentVisibleCells = useMemo(() => {
@@ -561,6 +580,30 @@ export function BoardCanvas({
   }, [drawingOverrides]);
 
   useEffect(() => {
+    setOptimisticTokenPositions((current) => {
+      const next = { ...current };
+      let changed = false;
+
+      for (const [tokenId, point] of Object.entries(current)) {
+        const persisted = tokens.find((token) => token.id === tokenId);
+
+        if (!persisted) {
+          delete next[tokenId];
+          changed = true;
+          continue;
+        }
+
+        if (Math.abs(persisted.x - point.x) < 0.0001 && Math.abs(persisted.y - point.y) < 0.0001) {
+          delete next[tokenId];
+          changed = true;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }, [tokens]);
+
+  useEffect(() => {
     if (!map || Object.keys(drawingOverrides).length === 0) {
       return;
     }
@@ -589,8 +632,6 @@ export function BoardCanvas({
 
     const currentMap = map;
     const cellSize = currentMap.grid.cellSize;
-    const actorId = selectedActor.id;
-    const controlledToken = selectedToken;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented) {
@@ -629,14 +670,9 @@ export function BoardCanvas({
       }
 
       event.preventDefault();
-      const trace = traceMovementPath(
-        currentMap,
-        { x: controlledToken.x, y: controlledToken.y },
-        { x: controlledToken.x + deltaX, y: controlledToken.y + deltaY },
-        { ignoreWalls: isDungeonMaster }
+      setPendingKeyboardMoves((current) =>
+        current.length >= 3 ? current : [...current, { deltaX, deltaY }]
       );
-      pendingTeleportCenterRef.current = trace.teleported ? trace.end : null;
-      void onMoveActor(actorId, controlledToken.x + deltaX, controlledToken.y + deltaY);
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -644,6 +680,32 @@ export function BoardCanvas({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [draggingToken, isDungeonMaster, map, onMoveActor, panning, selectedActor, selectedMapItems.length, selectedToken, tool]);
+
+  useEffect(() => {
+    if (!map || !selectedActor || !selectedToken || !canControlActor(selectedActor) || pendingKeyboardMoves.length === 0) {
+      return;
+    }
+
+    if (draggingToken || panning || tool !== "select" || selectedMapItems.length > 0) {
+      return;
+    }
+
+    const [nextMove, ...rest] = pendingKeyboardMoves;
+    const trace = traceMovementPath(
+      map,
+      { x: selectedToken.x, y: selectedToken.y },
+      { x: selectedToken.x + nextMove.deltaX, y: selectedToken.y + nextMove.deltaY },
+      { ignoreWalls: isDungeonMaster }
+    );
+
+    pendingTeleportCenterRef.current = trace.teleported ? trace.end : null;
+    setOptimisticTokenPositions((current) => ({
+      ...current,
+      [selectedToken.id]: { x: trace.end.x, y: trace.end.y }
+    }));
+    setPendingKeyboardMoves(rest);
+    void onMoveActor(selectedActor.id, selectedToken.x + nextMove.deltaX, selectedToken.y + nextMove.deltaY);
+  }, [draggingToken, isDungeonMaster, map, onMoveActor, panning, pendingKeyboardMoves, selectedActor, selectedMapItems.length, selectedToken, tool]);
 
   useEffect(() => {
     if (!boardRef.current) {
@@ -684,9 +746,12 @@ export function BoardCanvas({
     setContextMenu(null);
     setMeasuring(null);
     setHoveredTeleporterId(null);
+    setOptimisticTokenPositions({});
+    setPendingKeyboardMoves([]);
     lastPreviewTargetKeyRef.current = null;
     lastSelectedTokenPositionRef.current = null;
     pendingTeleportCenterRef.current = null;
+    pendingDoorToggleRef.current = null;
   }, [map?.id]);
 
   useEffect(() => {
@@ -727,6 +792,25 @@ export function BoardCanvas({
       setMeasuring(null);
     }
   }, [tool]);
+
+  useEffect(() => {
+    setPendingKeyboardMoves([]);
+  }, [selectedActor?.id]);
+
+  useEffect(() => {
+    const pendingDoorId = pendingDoorToggleRef.current;
+
+    if (!pendingDoorId) {
+      return;
+    }
+
+    if (draggingToken || pendingKeyboardMoves.length > 0 || Object.keys(optimisticTokenPositions).length > 0) {
+      return;
+    }
+
+    pendingDoorToggleRef.current = null;
+    void onToggleDoor(pendingDoorId);
+  }, [draggingToken, onToggleDoor, optimisticTokenPositions, pendingKeyboardMoves.length]);
 
   useEffect(() => {
     if (!map || !usesRestrictedVision) {
@@ -836,6 +920,15 @@ export function BoardCanvas({
       }
 
       pendingTeleportCenterRef.current = trace.teleported ? trace.end : null;
+      const draggedToken = visibleTokenByActorId.get(currentDraggingToken.actorId);
+
+      if (draggedToken) {
+        setOptimisticTokenPositions((current) => ({
+          ...current,
+          [draggedToken.id]: { x: trace.end.x, y: trace.end.y }
+        }));
+      }
+
       void moveActorRef.current(currentDraggingToken.actorId, snappedTarget.x, snappedTarget.y);
     }
 
@@ -851,7 +944,7 @@ export function BoardCanvas({
         void broadcastMovePreviewRef.current(currentDraggingToken.actorId, null);
       }
     };
-  }, [draggingToken, isDungeonMaster, map]);
+  }, [draggingToken, isDungeonMaster, map, visibleTokenByActorId]);
 
   useEffect(() => {
     if (!measuring || !map) {
@@ -1612,6 +1705,11 @@ export function BoardCanvas({
     setContextMenu(null);
 
     if (tool !== "select") {
+      return;
+    }
+
+    if (draggingToken || pendingKeyboardMoves.length > 0 || Object.keys(optimisticTokenPositions).length > 0) {
+      pendingDoorToggleRef.current = doorId;
       return;
     }
 
