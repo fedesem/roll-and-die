@@ -1,5 +1,5 @@
 {
-  "name": "dnd-2024-board",
+  "name": "roll-or-die",
   "private": true,
   "workspaces": [
     "client",

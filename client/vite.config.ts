@@ -13,9 +13,9 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["icon.svg"],
       manifest: {
-        name: "DnD 2024 Board",
-        short_name: "DnD Board",
-        description: "Dungeon and Dragons 5e 2024 collaborative campaign board.",
+        name: "Roll or Die",
+        short_name: "Roll or Die",
+        description: "Roll or Die is a Dungeon and Dragons 5e 2024 collaborative campaign board.",
         theme_color: "#121212",
         background_color: "#121212",
         display: "standalone",

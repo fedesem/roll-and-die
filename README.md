@@ -1,6 +1,6 @@
-# DnD 2024 Board
+# Roll or Die
 
-PWA-ready Dungeon and Dragons 5e 2024 campaign board built as a Vite monorepo with a React frontend and a Node/Express backend.
+Roll or Die is a PWA-ready Dungeon and Dragons 5e 2024 campaign board built as a Vite monorepo with a React frontend and a Node/Express backend.
 
 ## Features
 

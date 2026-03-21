@@ -35,7 +35,7 @@ export function AppTopbar({
     <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-4 border-b border-amber-200/10 bg-slate-950/85 px-5 py-3 text-slate-100 backdrop-blur-xl">
       <div className="min-w-0">
         <p className="text-[0.7rem] font-medium uppercase tracking-[0.28em] text-amber-200/55">Logged in as {userName}</p>
-        <h1 className="font-serif text-xl tracking-wide text-amber-100">DnD 2024 Board</h1>
+        <h1 className="font-serif text-xl tracking-wide text-amber-100">Roll or Die</h1>
       </div>
       {showRoomStatus && campaignName && role && roomStatus && (
         <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2">
