@@ -334,7 +334,9 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         blocked: trace.blocked,
         end: trace.end,
         points: trace.points,
-        steps: trace.steps
+        steps: trace.steps,
+        teleported: trace.teleported,
+        teleportEntry: trace.teleportEntry
       };
 
       broadcastSocketMessageToRoom(campaignId, {

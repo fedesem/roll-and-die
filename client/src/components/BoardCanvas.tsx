@@ -27,6 +27,7 @@ import type {
 import {
   cellKey,
   computeVisibleCellsForUser,
+  findTeleporterDestination,
   snapPointToGrid,
   tokenCellKey,
   traceMovementPath,
@@ -215,6 +216,8 @@ export function BoardCanvas({
   const suppressContextMenuRef = useRef(false);
   const lastPreviewTargetKeyRef = useRef<string | null>(null);
   const lastMeasurePreviewKeyRef = useRef<string | null>(null);
+  const lastSelectedTokenPositionRef = useRef<Point | null>(null);
+  const pendingTeleportCenterRef = useRef<Point | null>(null);
   const moveActorRef = useRef(onMoveActor);
   const broadcastMovePreviewRef = useRef(onBroadcastMovePreview);
   const broadcastMeasurePreviewRef = useRef(onBroadcastMeasurePreview);
@@ -243,6 +246,7 @@ export function BoardCanvas({
   const [panning, setPanning] = useState<PanState | null>(null);
   const [selectionBox, setSelectionBox] = useState<SelectionState | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [hoveredTeleporterId, setHoveredTeleporterId] = useState<string | null>(null);
   const [discoveredDrawingsByViewer, setDiscoveredDrawingsByViewer] = useState<Record<string, Record<string, string[]>>>(() =>
     readDiscoveredDrawingsMemory()
   );
@@ -427,6 +431,14 @@ export function BoardCanvas({
     });
   }, [currentVisibleCells, map, usesRestrictedVision]);
 
+  const visibleTeleporters = useMemo(() => {
+    if (!map || !isDungeonMaster) {
+      return [];
+    }
+
+    return map.teleporters;
+  }, [isDungeonMaster, map]);
+
   const visibleViewportCells = useMemo(() => {
     if (!map || !usesRestrictedVision || viewportSize.width <= 0 || viewportSize.height <= 0) {
       return [];
@@ -478,19 +490,6 @@ export function BoardCanvas({
     );
   }, [beamWidthSquares, coneAngle, map, measureKind, measureSnapMode, measuring]);
 
-  const previewLabelPoint = useMemo(() => {
-    if (!movePreview || movePreview.points.length < 2) {
-      return null;
-    }
-
-    return movePreview.points[Math.floor((movePreview.points.length - 1) / 2)] ?? movePreview.end;
-  }, [movePreview]);
-
-  const moveArrowStrokeWidth = clamp(4 * worldScale, 2.5, 12);
-  const moveArrowHeadSize = clamp(12 * worldScale, 8, 28);
-  const moveLabelFontSize = clamp(14 * worldScale, 12, 28);
-  const moveLabelOffset = clamp(12 * worldScale, 10, 24);
-  const normalizedSelectionBox = selectionBox ? normalizeSelectionRect(selectionBox) : null;
   const visibleMovementPreviews = useMemo(
     () =>
       movementPreviews.filter((entry) => {
@@ -502,6 +501,37 @@ export function BoardCanvas({
       }),
     [draggingToken?.actorId, filteredTokenByActorId, map, movementPreviews]
   );
+  const displayMovePreview = useMemo(
+    () => concealTeleporterTraceForPlayers(movePreview, map, isDungeonMaster),
+    [isDungeonMaster, map, movePreview]
+  );
+  const displayMovementPreviews = useMemo(
+    () =>
+      visibleMovementPreviews.flatMap((entry) => {
+        const preview = concealTeleporterTraceForPlayers(entry.preview, map, isDungeonMaster);
+
+        return preview
+          ? [{
+              ...entry,
+              preview
+            }]
+          : [];
+      }),
+    [isDungeonMaster, map, visibleMovementPreviews]
+  );
+  const previewLabelPoint = useMemo(() => {
+    if (!displayMovePreview || displayMovePreview.points.length < 2) {
+      return null;
+    }
+
+    return displayMovePreview.points[Math.floor((displayMovePreview.points.length - 1) / 2)] ?? displayMovePreview.end;
+  }, [displayMovePreview]);
+
+  const moveArrowStrokeWidth = clamp(4 * worldScale, 2.5, 12);
+  const moveArrowHeadSize = clamp(12 * worldScale, 8, 28);
+  const moveLabelFontSize = clamp(14 * worldScale, 12, 28);
+  const moveLabelOffset = clamp(12 * worldScale, 10, 24);
+  const normalizedSelectionBox = selectionBox ? normalizeSelectionRect(selectionBox) : null;
   const visibleMeasurePreviews = useMemo(
     () =>
       measurePreviews.filter((entry) => {
@@ -553,6 +583,69 @@ export function BoardCanvas({
   }, [drawingOverrides, map]);
 
   useEffect(() => {
+    if (!map || !selectedActor || !selectedToken || !canControlActor(selectedActor)) {
+      return;
+    }
+
+    const currentMap = map;
+    const cellSize = currentMap.grid.cellSize;
+    const actorId = selectedActor.id;
+    const controlledToken = selectedToken;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName;
+
+      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || target?.isContentEditable) {
+        return;
+      }
+
+      if (selectedMapItems.length > 0 || draggingToken || panning || tool !== "select") {
+        return;
+      }
+
+      let deltaX = 0;
+      let deltaY = 0;
+
+      switch (event.key) {
+        case "ArrowUp":
+          deltaY = -cellSize;
+          break;
+        case "ArrowDown":
+          deltaY = cellSize;
+          break;
+        case "ArrowLeft":
+          deltaX = -cellSize;
+          break;
+        case "ArrowRight":
+          deltaX = cellSize;
+          break;
+        default:
+          return;
+      }
+
+      event.preventDefault();
+      const trace = traceMovementPath(
+        currentMap,
+        { x: controlledToken.x, y: controlledToken.y },
+        { x: controlledToken.x + deltaX, y: controlledToken.y + deltaY },
+        { ignoreWalls: isDungeonMaster }
+      );
+      pendingTeleportCenterRef.current = trace.teleported ? trace.end : null;
+      void onMoveActor(actorId, controlledToken.x + deltaX, controlledToken.y + deltaY);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [draggingToken, isDungeonMaster, map, onMoveActor, panning, selectedActor, selectedMapItems.length, selectedToken, tool]);
+
+  useEffect(() => {
     if (!boardRef.current) {
       return;
     }
@@ -590,8 +683,44 @@ export function BoardCanvas({
     setSelectionBox(null);
     setContextMenu(null);
     setMeasuring(null);
+    setHoveredTeleporterId(null);
     lastPreviewTargetKeyRef.current = null;
+    lastSelectedTokenPositionRef.current = null;
+    pendingTeleportCenterRef.current = null;
   }, [map?.id]);
+
+  useEffect(() => {
+    if (!map || !selectedActor || !selectedToken || draggingToken || !canControlActor(selectedActor)) {
+      lastSelectedTokenPositionRef.current = selectedToken ? { x: selectedToken.x, y: selectedToken.y } : null;
+      return;
+    }
+
+    const previousPoint = lastSelectedTokenPositionRef.current;
+    const nextPoint = { x: selectedToken.x, y: selectedToken.y };
+    const pendingTeleportCenter = pendingTeleportCenterRef.current;
+
+    if (
+      pendingTeleportCenter &&
+      Math.abs(pendingTeleportCenter.x - nextPoint.x) < 0.0001 &&
+      Math.abs(pendingTeleportCenter.y - nextPoint.y) < 0.0001 &&
+      viewportSize.width > 0 &&
+      viewportSize.height > 0
+    ) {
+      setViewPan({
+        x: viewportSize.width / 2 - nextPoint.x * worldScale,
+        y: viewportSize.height / 2 - nextPoint.y * worldScale
+      });
+      pendingTeleportCenterRef.current = null;
+    } else if (
+      pendingTeleportCenter &&
+      previousPoint &&
+      (Math.abs(previousPoint.x - nextPoint.x) > 0.0001 || Math.abs(previousPoint.y - nextPoint.y) > 0.0001)
+    ) {
+      pendingTeleportCenterRef.current = null;
+    }
+
+    lastSelectedTokenPositionRef.current = nextPoint;
+  }, [draggingToken, map, selectedActor, selectedToken, setViewPan, viewportSize.height, viewportSize.width, worldScale]);
 
   useEffect(() => {
     if (tool !== "measure") {
@@ -680,6 +809,7 @@ export function BoardCanvas({
 
     function handleWindowPointerUp(event: PointerEvent) {
       const point = toWorldPoint(event.clientX, event.clientY);
+      const snappedTarget = point ? snapPointToGrid(currentMap, point) : null;
       const trace =
         point
           ? traceMovementPath(currentMap, currentDraggingToken.start, point, {
@@ -701,7 +831,12 @@ export function BoardCanvas({
         return;
       }
 
-      void moveActorRef.current(currentDraggingToken.actorId, trace.end.x, trace.end.y);
+      if (!snappedTarget) {
+        return;
+      }
+
+      pendingTeleportCenterRef.current = trace.teleported ? trace.end : null;
+      void moveActorRef.current(currentDraggingToken.actorId, snappedTarget.x, snappedTarget.y);
     }
 
     window.addEventListener("pointermove", handleWindowPointerMove);
@@ -1689,6 +1824,47 @@ export function BoardCanvas({
                 />
               );
             })}
+            {visibleTeleporters.map((teleporter) => {
+              const pointA = worldToScreen(teleporter.pointA);
+              const pointB = worldToScreen(teleporter.pointB);
+
+              return (
+                <g key={teleporter.id}>
+                  {hoveredTeleporterId === teleporter.id && (
+                    <line
+                      x1={pointA.x}
+                      y1={pointA.y}
+                      x2={pointB.x}
+                      y2={pointB.y}
+                      className="board-teleporter-link"
+                      stroke="rgba(200, 119, 255, 0.74)"
+                    />
+                  )}
+                  {[pointA, pointB].map((point, index) => (
+                    <g key={`${teleporter.id}:${index}`}>
+                      <circle
+                        cx={point.x}
+                        cy={point.y}
+                        r={Math.max(12, map.grid.cellSize * worldScale * 0.18)}
+                        className="board-teleporter-node"
+                        fill="rgba(148, 73, 214, 0.9)"
+                        stroke="rgba(245, 229, 255, 0.95)"
+                      />
+                      <text
+                        x={point.x}
+                        y={point.y}
+                        dy="0.35em"
+                        textAnchor="middle"
+                        className="board-teleporter-label"
+                        fill="rgba(255, 248, 252, 0.96)"
+                      >
+                        {teleporter.pairNumber}
+                      </text>
+                    </g>
+                  ))}
+                </g>
+              );
+            })}
             {visibleViewportCells.map((entry) => {
               const screen = worldToScreen({
                 x: map.grid.offsetX + entry.column * map.grid.cellSize,
@@ -1778,16 +1954,16 @@ export function BoardCanvas({
                 className="selection-rect"
               />
             )}
-            {movePreview && movePreview.steps > 0 && (
+            {displayMovePreview && displayMovePreview.steps > 0 && (
               <>
                 <path
-                  d={toSvgPathWorld(movePreview.points)}
-                  className={`board-move-path ${movePreview.blocked ? "is-blocked" : ""}`}
+                  d={toSvgPathWorld(displayMovePreview.points)}
+                  className={`board-move-path ${displayMovePreview.blocked ? "is-blocked" : ""}`}
                   markerEnd="url(#move-arrowhead)"
                   style={{ strokeWidth: moveArrowStrokeWidth }}
                 />
                 {(() => {
-                  const end = worldToScreen(movePreview.end);
+                  const end = worldToScreen(displayMovePreview.end);
                   return (
                     <circle
                       cx={end.x}
@@ -1806,13 +1982,13 @@ export function BoardCanvas({
                       className="board-move-label"
                       style={{ fontSize: `${moveLabelFontSize}px` }}
                     >
-                      {movePreview.steps} sq
+                      {displayMovePreview.steps} sq
                     </text>
                   );
                 })()}
               </>
             )}
-            {visibleMovementPreviews.map((entry) => {
+            {displayMovementPreviews.map((entry) => {
               const token = filteredTokenByActorId.get(entry.actorId);
               const stroke = token?.color ?? "rgba(242, 187, 63, 0.82)";
               const end = worldToScreen(entry.preview.end);
@@ -1846,7 +2022,7 @@ export function BoardCanvas({
             )}
           </svg>
 
-          {((tool === "select" && selectableDrawings.length > 0) || visibleObstacles.some((wall) => wall.kind === "door")) && (
+          {((tool === "select" && selectableDrawings.length > 0) || visibleObstacles.some((wall) => wall.kind === "door") || visibleTeleporters.length > 0) && (
             <svg className="board-interaction-layer" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
               {tool === "select" &&
                 selectableDrawings.map((stroke) => (
@@ -1876,6 +2052,25 @@ export function BoardCanvas({
                   />
                 );
               })}
+              {visibleTeleporters.flatMap((teleporter) =>
+                [teleporter.pointA, teleporter.pointB].map((point, index) => {
+                  const screen = worldToScreen(point);
+                  return (
+                    <circle
+                      key={`teleporter-hover:${teleporter.id}:${index}`}
+                      cx={screen.x}
+                      cy={screen.y}
+                      r={18}
+                      fill="transparent"
+                      pointerEvents="all"
+                      onPointerEnter={() => setHoveredTeleporterId(teleporter.id)}
+                      onPointerLeave={() =>
+                        setHoveredTeleporterId((current) => (current === teleporter.id ? null : current))
+                      }
+                    />
+                  );
+                })
+              )}
             </svg>
           )}
 
@@ -1995,7 +2190,7 @@ export function BoardCanvas({
         {tool === "select" &&
           (selectedActor
             ? selectedToken
-              ? `Selected: ${selectedActor.name}. Drag the token to preview movement and release to move${movePreview ? ` (${movePreview.steps} squares)` : ""}.`
+              ? `Selected: ${selectedActor.name}. Drag the token to preview movement and release to move${displayMovePreview ? ` (${displayMovePreview.steps} squares)` : ""}.`
               : `Selected: ${selectedActor.name}. Click the board to place the token on the grid.`
             : selectedMapItems.length > 0
               ? `${selectedMapItems.length} drawing${selectedMapItems.length === 1 ? "" : "s"} selected. Drag to move them, or press Delete to remove them.`
@@ -2007,4 +2202,33 @@ export function BoardCanvas({
       </p>
     </section>
   );
+}
+
+function concealTeleporterTraceForPlayers(
+  preview: TokenMovementPreview | MovementTrace | null,
+  map: CampaignMap | undefined,
+  isDungeonMaster: boolean
+) {
+  if (!preview || !map || isDungeonMaster || !preview.teleported || !preview.teleportEntry) {
+    return preview;
+  }
+
+  const teleportEntryIndex = preview.points.findIndex(
+    (point) =>
+      Math.abs(point.x - preview.teleportEntry!.x) < 0.0001 &&
+      Math.abs(point.y - preview.teleportEntry!.y) < 0.0001
+  );
+
+  if (teleportEntryIndex <= 0) {
+    return preview;
+  }
+
+  const visiblePoints = preview.points.slice(0, teleportEntryIndex + 1);
+
+  return {
+    ...preview,
+    end: visiblePoints[visiblePoints.length - 1],
+    points: visiblePoints,
+    steps: Math.max(0, visiblePoints.length - 1)
+  };
 }

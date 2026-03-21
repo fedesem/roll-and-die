@@ -8,16 +8,20 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent
 } from "react";
-import { DoorOpen, MousePointer2, Move, RotateCcw, Square, Trash2, Waves, ZoomIn, ZoomOut } from "lucide-react";
+import { DoorOpen, MousePointer2, Move, Radio, RotateCcw, Square, Trash2, Waves, ZoomIn, ZoomOut } from "lucide-react";
 
-import type { CampaignMap, MapWall, MapWallKind, Point } from "@shared/types";
-import { snapPointToGridIntersection } from "@shared/vision";
+import type { CampaignMap, MapTeleporter, MapWall, MapWallKind, Point } from "@shared/types";
+import { snapPointToGrid, snapPointToGridIntersection } from "@shared/vision";
 import { readFileAsDataUrl } from "../lib/media";
 
 interface MapConfiguratorProps {
   map: CampaignMap;
   disabled?: boolean;
   onChange: (nextMap: CampaignMap) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
   onUploadError?: (message: string) => void;
 }
 
@@ -47,7 +51,7 @@ interface ViewportSize {
   height: number;
 }
 
-type EditorMode = "select" | "align" | MapWallKind;
+type EditorMode = "select" | "align" | "teleporter" | MapWallKind;
 
 const minBackgroundScale = 0.05;
 const maxBackgroundScale = 8;
@@ -59,7 +63,16 @@ const minAlignScaleStep = 0.1;
 const maxAlignScaleStep = 10;
 const selectionDragThreshold = 4;
 
-export function MapConfigurator({ map, disabled = false, onChange, onUploadError }: MapConfiguratorProps) {
+export function MapConfigurator({
+  map,
+  disabled = false,
+  onChange,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
+  onUploadError
+}: MapConfiguratorProps) {
   const previewRef = useRef<HTMLDivElement | null>(null);
   const suppressClickRef = useRef(false);
   const [dragging, setDragging] = useState<DragState | null>(null);
@@ -67,10 +80,12 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
   const [viewportSize, setViewportSize] = useState<ViewportSize>({ width: 0, height: 0 });
   const [previewZoom, setPreviewZoom] = useState(defaultPreviewZoom);
   const [alignScaleStep, setAlignScaleStep] = useState(defaultAlignScaleStep);
-  const [editorMode, setEditorMode] = useState<EditorMode>("align");
+  const [editorMode, setEditorMode] = useState<EditorMode>("select");
   const [obstacleAnchor, setObstacleAnchor] = useState<Point | null>(null);
+  const [teleporterAnchor, setTeleporterAnchor] = useState<Point | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Point | null>(null);
-  const [selectedObstacleIds, setSelectedObstacleIds] = useState<string[]>([]);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [hoveredTeleporterId, setHoveredTeleporterId] = useState<string | null>(null);
   const [selectionBox, setSelectionBox] = useState<SelectionState | null>(null);
   const [viewPan, setViewPan] = useState<Point>({ x: 0, y: 0 });
 
@@ -204,20 +219,34 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
   useEffect(() => {
     setPreviewZoom(defaultPreviewZoom);
     setAlignScaleStep(defaultAlignScaleStep);
-    setEditorMode("align");
+    setEditorMode("select");
     setObstacleAnchor(null);
+    setTeleporterAnchor(null);
     setHoverPoint(null);
-    setSelectedObstacleIds([]);
+    setHoveredTeleporterId(null);
+    setSelectedItemIds([]);
     setSelectionBox(null);
     setViewPan({ x: 0, y: 0 });
   }, [map.id]);
 
   useEffect(() => {
-    setSelectedObstacleIds((current) => current.filter((id) => map.walls.some((wall) => wall.id === id)));
-  }, [map.walls]);
+    setSelectedItemIds((current) =>
+      current.filter((id) => {
+        if (id.startsWith("wall:")) {
+          return map.walls.some((wall) => wall.id === id.slice("wall:".length));
+        }
+
+        if (id.startsWith("teleporter:")) {
+          return map.teleporters.some((teleporter) => teleporter.id === id.slice("teleporter:".length));
+        }
+
+        return false;
+      })
+    );
+  }, [map.teleporters, map.walls]);
 
   useEffect(() => {
-    if (disabled || selectedObstacleIds.length === 0) {
+    if (disabled || selectedItemIds.length === 0) {
       return;
     }
 
@@ -234,16 +263,74 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
       }
 
       event.preventDefault();
-      const selected = new Set(selectedObstacleIds);
-      updateWalls(map.walls.filter((wall) => !selected.has(wall.id)));
-      setSelectedObstacleIds([]);
+      const selectedWalls = new Set(
+        selectedItemIds.filter((id) => id.startsWith("wall:")).map((id) => id.slice("wall:".length))
+      );
+      const selectedTeleporters = new Set(
+        selectedItemIds
+          .filter((id) => id.startsWith("teleporter:"))
+          .map((id) => id.slice("teleporter:".length))
+      );
+      const nextWalls =
+        selectedWalls.size > 0 ? mergeAdjacentWalls(map.walls.filter((wall) => !selectedWalls.has(wall.id)), map.grid.cellSize) : map.walls;
+      const nextTeleporters =
+        selectedTeleporters.size > 0 ? map.teleporters.filter((teleporter) => !selectedTeleporters.has(teleporter.id)) : map.teleporters;
+
+      onChange({
+        ...map,
+        walls: nextWalls,
+        teleporters: nextTeleporters
+      });
+
+      setSelectedItemIds([]);
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [disabled, map.walls, selectedObstacleIds]);
+  }, [disabled, map, onChange, selectedItemIds]);
+
+  useEffect(() => {
+    if (disabled) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== "z") {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName;
+
+      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || target?.isContentEditable) {
+        return;
+      }
+
+      if (event.shiftKey) {
+        if (!canRedo || !onRedo) {
+          return;
+        }
+
+        event.preventDefault();
+        onRedo();
+        return;
+      }
+
+      if (!canUndo || !onUndo) {
+        return;
+      }
+
+      event.preventDefault();
+      onUndo();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [canRedo, canUndo, disabled, onRedo, onUndo]);
 
   async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -315,21 +402,28 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
   function updateWalls(nextWalls: MapWall[]) {
     onChange({
       ...map,
-      walls: nextWalls
+      walls: mergeAdjacentWalls(nextWalls, map.grid.cellSize)
     });
   }
 
-  function toggleObstacleSelection(obstacleId: string) {
-    setSelectedObstacleIds((current) =>
-      current.includes(obstacleId) ? current.filter((id) => id !== obstacleId) : [...current, obstacleId]
+  function updateTeleporters(nextTeleporters: MapTeleporter[]) {
+    onChange({
+      ...map,
+      teleporters: nextTeleporters
+    });
+  }
+
+  function toggleItemSelection(itemId: string) {
+    setSelectedItemIds((current) =>
+      current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId]
     );
   }
 
   function handlePreviewPointerDownCapture(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.button === 2 && editorMode !== "align" && editorMode !== "select") {
       event.preventDefault();
-      setEditorMode("select");
       setObstacleAnchor(null);
+      setTeleporterAnchor(null);
       setHoverPoint(null);
       return;
     }
@@ -407,7 +501,13 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
     }
 
     const point = toWorldPoint(event.clientX, event.clientY);
-    setHoverPoint(point ? snapPointToGridIntersection(map, point) : null);
+    setHoverPoint(
+      point
+        ? editorMode === "teleporter"
+          ? snapPointToGrid(map, point)
+          : snapPointToGridIntersection(map, point)
+        : null
+    );
   }
 
   function handlePreviewPointerUp() {
@@ -420,10 +520,15 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
 
     if (dragged) {
       suppressClickRef.current = true;
-      setSelectedObstacleIds(
-        map.walls
-          .filter((wall) => segmentBoundsIntersectsRect(worldToScreen(wall.start), worldToScreen(wall.end), box))
-          .map((wall) => wall.id)
+      setSelectedItemIds(
+        [
+          ...map.walls
+            .filter((wall) => segmentBoundsIntersectsRect(worldToScreen(wall.start), worldToScreen(wall.end), box))
+            .map((wall) => `wall:${wall.id}`),
+          ...map.teleporters
+            .filter((teleporter) => pointIntersectsRect(worldToScreen(teleporter.pointA), box) || pointIntersectsRect(worldToScreen(teleporter.pointB), box))
+            .map((teleporter) => `teleporter:${teleporter.id}`)
+        ]
       );
     }
 
@@ -445,7 +550,7 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
     }
 
     if (editorMode === "select") {
-      setSelectedObstacleIds([]);
+      setSelectedItemIds([]);
       return;
     }
 
@@ -459,7 +564,30 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
       return;
     }
 
-    const snappedPoint = snapPointToGridIntersection(map, point);
+    const snappedPoint = editorMode === "teleporter" ? snapPointToGrid(map, point) : snapPointToGridIntersection(map, point);
+
+    if (editorMode === "teleporter") {
+      if (!teleporterAnchor) {
+        setTeleporterAnchor(snappedPoint);
+        return;
+      }
+
+      if (samePoint(teleporterAnchor, snappedPoint)) {
+        return;
+      }
+
+      const teleporter: MapTeleporter = {
+        id: `teleporter_${crypto.randomUUID().slice(0, 8)}`,
+        pairNumber: nextTeleporterPairNumber(map.teleporters),
+        pointA: teleporterAnchor,
+        pointB: snappedPoint
+      };
+
+      updateTeleporters([...map.teleporters, teleporter]);
+      setTeleporterAnchor(null);
+      setSelectedItemIds([`teleporter:${teleporter.id}`]);
+      return;
+    }
 
     if (!obstacleAnchor) {
       setObstacleAnchor(snappedPoint);
@@ -480,7 +608,7 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
 
     updateWalls([...map.walls, obstacle]);
     setObstacleAnchor(snappedPoint);
-    setSelectedObstacleIds([obstacle.id]);
+    setSelectedItemIds([`wall:${obstacle.id}`]);
   }
 
   function handlePreviewWheel(event: ReactWheelEvent<HTMLDivElement>) {
@@ -522,36 +650,61 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
     setPreviewZoom((current) => clamp(current * (direction > 0 ? 1.15 : 0.87), minPreviewZoom, maxPreviewZoom));
   }
 
-  function removeObstacles(obstacleIds: string[]) {
-    if (obstacleIds.length === 0) {
+  function removeSelectedItems(itemIds: string[]) {
+    if (itemIds.length === 0) {
       return;
     }
 
-    const selected = new Set(obstacleIds);
-    updateWalls(map.walls.filter((wall) => !selected.has(wall.id)));
-    setSelectedObstacleIds((current) => current.filter((id) => !selected.has(id)));
+    const selectedWalls = new Set(
+      itemIds.filter((id) => id.startsWith("wall:")).map((id) => id.slice("wall:".length))
+    );
+    const selectedTeleporters = new Set(
+      itemIds
+        .filter((id) => id.startsWith("teleporter:"))
+        .map((id) => id.slice("teleporter:".length))
+    );
+
+    if (selectedWalls.size > 0) {
+      updateWalls(map.walls.filter((wall) => !selectedWalls.has(wall.id)));
+    }
+
+    if (selectedTeleporters.size > 0) {
+      updateTeleporters(map.teleporters.filter((teleporter) => !selectedTeleporters.has(teleporter.id)));
+    }
+
+    setSelectedItemIds((current) =>
+      current.filter((id) => !selectedWalls.has(id.slice("wall:".length)) && !selectedTeleporters.has(id.slice("teleporter:".length)))
+    );
   }
 
-  function clearObstacles() {
-    if (!window.confirm("Clear all walls, transparent walls, and doors from this map?")) {
+  function clearMapItems() {
+    if (!window.confirm("Clear all walls, transparent walls, doors, and teleporters from this map?")) {
       return;
     }
 
     updateWalls([]);
-    setSelectedObstacleIds([]);
+    updateTeleporters([]);
+    setSelectedItemIds([]);
     setObstacleAnchor(null);
+    setTeleporterAnchor(null);
   }
 
   const helperText =
     editorMode === "align"
       ? "Drag the image to line up the cells. Use right or middle drag to pan the viewport, the mouse wheel to scale the image by the alignment step, and the view controls to zoom the workspace."
       : editorMode === "select"
-        ? selectedObstacleIds.length > 0
-          ? `${selectedObstacleIds.length} obstacle${selectedObstacleIds.length === 1 ? "" : "s"} selected. Press Delete to remove them.`
-          : "Click obstacles to toggle selection or drag a box to select multiple. Use right or middle drag to pan."
+        ? selectedItemIds.length > 0
+          ? `${selectedItemIds.length} map item${selectedItemIds.length === 1 ? "" : "s"} selected. Press Delete to remove them.`
+          : "Click walls or teleporters to toggle selection or drag a box to select multiple. Use right or middle drag to pan."
+        : editorMode === "teleporter"
+          ? teleporterAnchor
+            ? "Click the destination cell to finish the teleporter pair. Right click ends the current pair without leaving the teleporter tool."
+            : "Click one cell, then another, to create a numbered teleporter pair. Right click ends the current pair without leaving the teleporter tool."
         : obstacleAnchor
-          ? `Click the next snapped border point to continue the ${obstacleLabel(editorMode).toLowerCase()}. Right click ends the chain and returns to select.`
-          : `Click two snapped border points to place a ${obstacleLabel(editorMode).toLowerCase()}. Right click returns to select.`;
+          ? `Click the next snapped border point to continue the ${obstacleLabel(editorMode).toLowerCase()}. Right click ends the chain and keeps the tool active.`
+          : editorMode === "door" || editorMode === "transparent"
+            ? `Click two snapped border points to place a ${obstacleLabel(editorMode).toLowerCase()}, or click a wall section to replace one square with it. Right click keeps the tool active.`
+            : `Click two snapped border points to place a ${obstacleLabel(editorMode).toLowerCase()}. Right click keeps the tool active.`;
 
   return (
     <div className="map-editor">
@@ -603,8 +756,8 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
               event.preventDefault();
 
               if (editorMode !== "align" && editorMode !== "select") {
-                setEditorMode("select");
                 setObstacleAnchor(null);
+                setTeleporterAnchor(null);
                 setHoverPoint(null);
               }
             }}
@@ -617,10 +770,10 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
                 const box = normalizeSelectionRect(selectionBox);
 
                 if (box.width >= selectionDragThreshold || box.height >= selectionDragThreshold) {
-                  setSelectedObstacleIds(
+                  setSelectedItemIds(
                     map.walls
                       .filter((wall) => segmentBoundsIntersectsRect(worldToScreen(wall.start), worldToScreen(wall.end), box))
-                      .map((wall) => wall.id)
+                      .map((wall) => `wall:${wall.id}`)
                   );
                   suppressClickRef.current = true;
                 }
@@ -652,6 +805,7 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
                 onClick={() => {
                   setEditorMode("align");
                   setObstacleAnchor(null);
+                  setTeleporterAnchor(null);
                   setHoverPoint(null);
                 }}
               >
@@ -665,6 +819,7 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
                 onClick={() => {
                   setEditorMode("wall");
                   setObstacleAnchor(null);
+                  setTeleporterAnchor(null);
                 }}
               >
                 <Square size={15} />
@@ -677,6 +832,7 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
                 onClick={() => {
                   setEditorMode("transparent");
                   setObstacleAnchor(null);
+                  setTeleporterAnchor(null);
                 }}
               >
                 <Waves size={15} />
@@ -689,21 +845,35 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
                 onClick={() => {
                   setEditorMode("door");
                   setObstacleAnchor(null);
+                  setTeleporterAnchor(null);
                 }}
               >
                 <DoorOpen size={15} />
               </button>
               <button
+                className={`icon-action-button ${editorMode === "teleporter" ? "is-active" : ""}`}
+                type="button"
+                disabled={disabled}
+                title="Teleporter"
+                onClick={() => {
+                  setEditorMode("teleporter");
+                  setObstacleAnchor(null);
+                  setTeleporterAnchor(null);
+                }}
+              >
+                <Radio size={15} />
+              </button>
+              <button
                 className="icon-action-button danger-button"
                 type="button"
-                disabled={disabled || (selectedObstacleIds.length === 0 && map.walls.length === 0)}
-                title={selectedObstacleIds.length > 0 ? "Delete selected" : "Clear all obstacles"}
+                disabled={disabled || (selectedItemIds.length === 0 && map.walls.length === 0 && map.teleporters.length === 0)}
+                title={selectedItemIds.length > 0 ? "Delete selected" : "Clear all map items"}
                 onClick={() => {
-                  if (selectedObstacleIds.length > 0) {
-                    removeObstacles(selectedObstacleIds);
+                  if (selectedItemIds.length > 0) {
+                    removeSelectedItems(selectedItemIds);
                     return;
                   }
-                  clearObstacles();
+                  clearMapItems();
                 }}
               >
                 <Trash2 size={15} />
@@ -734,11 +904,53 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
                     y1={start.y}
                     x2={end.x}
                     y2={end.y}
-                    className={`map-preview-wall kind-${wall.kind} ${wall.isOpen ? "is-open" : ""} ${selectedObstacleIds.includes(wall.id) ? "is-selected" : ""}`}
+                    className={`map-preview-wall kind-${wall.kind} ${wall.isOpen ? "is-open" : ""} ${selectedItemIds.includes(`wall:${wall.id}`) ? "is-selected" : ""}`}
                   />
+                  );
+              })}
+              {map.teleporters.map((teleporter) => {
+                const pointA = worldToScreen(teleporter.pointA);
+                const pointB = worldToScreen(teleporter.pointB);
+                const selected = selectedItemIds.includes(`teleporter:${teleporter.id}`);
+
+                return (
+                  <g key={teleporter.id} className={selected ? "is-selected" : undefined}>
+                    {hoveredTeleporterId === teleporter.id && (
+                      <line
+                        x1={pointA.x}
+                        y1={pointA.y}
+                        x2={pointB.x}
+                        y2={pointB.y}
+                        className="map-preview-teleporter-link"
+                        stroke="rgba(200, 119, 255, 0.76)"
+                      />
+                    )}
+                    {[pointA, pointB].map((point, index) => (
+                      <g key={`${teleporter.id}:${index}`}>
+                        <circle
+                          cx={point.x}
+                          cy={point.y}
+                          r={12}
+                          className="map-preview-teleporter-node"
+                          fill="rgba(148, 73, 214, 0.92)"
+                          stroke="rgba(245, 229, 255, 0.92)"
+                        />
+                        <text
+                          x={point.x}
+                          y={point.y}
+                          dy="0.35em"
+                          textAnchor="middle"
+                          className="map-preview-teleporter-label"
+                          fill="rgba(255, 248, 252, 0.96)"
+                        >
+                          {teleporter.pairNumber}
+                        </text>
+                      </g>
+                    ))}
+                  </g>
                 );
               })}
-              {obstacleAnchor && hoverPoint && editorMode !== "select" && editorMode !== "align" && (
+              {obstacleAnchor && hoverPoint && editorMode !== "select" && editorMode !== "align" && editorMode !== "teleporter" && (
                 <line
                   x1={worldToScreen(obstacleAnchor).x}
                   y1={worldToScreen(obstacleAnchor).y}
@@ -746,6 +958,32 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
                   y2={worldToScreen(hoverPoint).y}
                   className={`map-preview-wall is-preview kind-${editorMode}`}
                 />
+              )}
+              {teleporterAnchor && hoverPoint && editorMode === "teleporter" && (
+                <g>
+                  <line
+                    x1={worldToScreen(teleporterAnchor).x}
+                    y1={worldToScreen(teleporterAnchor).y}
+                    x2={worldToScreen(hoverPoint).x}
+                    y2={worldToScreen(hoverPoint).y}
+                    className="map-preview-teleporter-link is-preview"
+                    stroke="rgba(200, 119, 255, 0.76)"
+                  />
+                  {[teleporterAnchor, hoverPoint].map((point, index) => {
+                    const screen = worldToScreen(point);
+                    return (
+                      <circle
+                        key={`preview-teleporter:${index}`}
+                        cx={screen.x}
+                        cy={screen.y}
+                        r={10}
+                        className="map-preview-teleporter-node is-preview"
+                        fill="rgba(148, 73, 214, 0.42)"
+                        stroke="rgba(245, 229, 255, 0.92)"
+                      />
+                    );
+                  })}
+                </g>
               )}
               {normalizedSelectionBox && (
                 <rect
@@ -759,7 +997,8 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
             </svg>
 
             <svg className="map-preview-hit-layer" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
-              {map.walls.map((wall) => {
+              {(editorMode === "select" || editorMode === "door" || editorMode === "transparent") &&
+                map.walls.map((wall) => {
                 const start = worldToScreen(wall.start);
                 const end = worldToScreen(wall.end);
                 return (
@@ -774,15 +1013,50 @@ export function MapConfigurator({ map, disabled = false, onChange, onUploadError
                     onClick={(event) => {
                       event.stopPropagation();
 
-                      if (editorMode !== "select") {
+                      if (editorMode === "select") {
+                        toggleItemSelection(`wall:${wall.id}`);
                         return;
                       }
 
-                      toggleObstacleSelection(wall.id);
+                      if (editorMode === "door" || editorMode === "transparent") {
+                        const point = toWorldPoint(event.clientX, event.clientY);
+
+                        if (!point) {
+                          return;
+                        }
+
+                        updateWalls(replaceWallSection(map.walls, wall.id, point, editorMode, map.grid.cellSize));
+                        setSelectedItemIds([`wall:${wall.id}`]);
+                      }
                     }}
                   />
                 );
               })}
+              {map.teleporters.flatMap((teleporter) =>
+                [teleporter.pointA, teleporter.pointB].map((point, index) => {
+                  const screen = worldToScreen(point);
+                  return (
+                    <circle
+                      key={`${teleporter.id}:${index}`}
+                      cx={screen.x}
+                      cy={screen.y}
+                      r={14}
+                      className="map-preview-hit-node"
+                      onClick={(event) => {
+                        event.stopPropagation();
+
+                        if (editorMode === "select") {
+                          toggleItemSelection(`teleporter:${teleporter.id}`);
+                        }
+                      }}
+                      onPointerEnter={() => setHoveredTeleporterId(teleporter.id)}
+                      onPointerLeave={() =>
+                        setHoveredTeleporterId((current) => (current === teleporter.id ? null : current))
+                      }
+                    />
+                  );
+                })
+              )}
             </svg>
 
             <div className="map-preview-crosshair" />
@@ -915,6 +1189,8 @@ function obstacleLabel(kind: EditorMode) {
   switch (kind) {
     case "door":
       return "Door";
+    case "teleporter":
+      return "Teleporter";
     case "transparent":
       return "Transparent Wall";
     case "wall":
@@ -962,6 +1238,202 @@ function segmentBoundsIntersectsRect(start: Point, end: Point, rect: { x: number
   const maxY = Math.max(start.y, end.y);
 
   return !(maxX < rect.x || minX > rect.x + rect.width || maxY < rect.y || minY > rect.y + rect.height);
+}
+
+function pointIntersectsRect(point: Point, rect: { x: number; y: number; width: number; height: number }) {
+  return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height;
+}
+
+function nextTeleporterPairNumber(teleporters: MapTeleporter[]) {
+  return teleporters.reduce((maxPairNumber, teleporter) => Math.max(maxPairNumber, teleporter.pairNumber), 0) + 1;
+}
+
+function replaceWallSection(
+  walls: MapWall[],
+  wallId: string,
+  point: Point,
+  kind: Extract<MapWallKind, "door" | "transparent">,
+  cellSize: number
+) {
+  const nextWalls: MapWall[] = [];
+
+  for (const wall of walls) {
+    if (wall.id !== wallId) {
+      nextWalls.push(wall);
+      continue;
+    }
+
+    const replacement = splitWallSection(wall, point, kind, cellSize);
+
+    if (!replacement) {
+      nextWalls.push(wall);
+      continue;
+    }
+
+    nextWalls.push(...replacement);
+  }
+
+  return mergeAdjacentWalls(nextWalls, cellSize);
+}
+
+function splitWallSection(
+  wall: MapWall,
+  point: Point,
+  kind: Extract<MapWallKind, "door" | "transparent">,
+  cellSize: number
+) {
+  const horizontal = Math.abs(wall.start.y - wall.end.y) < 0.0001;
+  const vertical = Math.abs(wall.start.x - wall.end.x) < 0.0001;
+
+  if (!horizontal && !vertical) {
+    return null;
+  }
+
+  if (horizontal) {
+    const minX = Math.min(wall.start.x, wall.end.x);
+    const maxX = Math.max(wall.start.x, wall.end.x);
+    const segmentCount = Math.round((maxX - minX) / cellSize);
+
+    if (segmentCount <= 0) {
+      return null;
+    }
+
+    const rawIndex = Math.floor((Math.max(minX, Math.min(maxX - 0.0001, point.x)) - minX) / cellSize);
+    const index = Math.max(0, Math.min(segmentCount - 1, rawIndex));
+    const sectionStartX = minX + index * cellSize;
+    const sectionEndX = sectionStartX + cellSize;
+    const y = wall.start.y;
+
+    return buildSplitWallParts(wall, kind, { x: sectionStartX, y }, { x: sectionEndX, y });
+  }
+
+  const minY = Math.min(wall.start.y, wall.end.y);
+  const maxY = Math.max(wall.start.y, wall.end.y);
+  const segmentCount = Math.round((maxY - minY) / cellSize);
+
+  if (segmentCount <= 0) {
+    return null;
+  }
+
+  const rawIndex = Math.floor((Math.max(minY, Math.min(maxY - 0.0001, point.y)) - minY) / cellSize);
+  const index = Math.max(0, Math.min(segmentCount - 1, rawIndex));
+  const sectionStartY = minY + index * cellSize;
+  const sectionEndY = sectionStartY + cellSize;
+  const x = wall.start.x;
+
+  return buildSplitWallParts(wall, kind, { x, y: sectionStartY }, { x, y: sectionEndY });
+}
+
+function buildSplitWallParts(
+  wall: MapWall,
+  kind: Extract<MapWallKind, "door" | "transparent">,
+  sectionStart: Point,
+  sectionEnd: Point
+) {
+  const ordered = orderWallEndpoints(wall.start, wall.end);
+  const orderedSection = orderWallEndpoints(sectionStart, sectionEnd);
+  const nextWalls: MapWall[] = [];
+
+  if (!samePoint(ordered.start, orderedSection.start)) {
+    nextWalls.push({
+      ...wall,
+      id: `wall_${crypto.randomUUID().slice(0, 8)}`,
+      start: ordered.start,
+      end: orderedSection.start,
+      kind: wall.kind,
+      isOpen: wall.kind === "door" ? wall.isOpen : false
+    });
+  }
+
+  nextWalls.push({
+    ...wall,
+    id: `wall_${crypto.randomUUID().slice(0, 8)}`,
+    start: orderedSection.start,
+    end: orderedSection.end,
+    kind,
+    isOpen: false
+  });
+
+  if (!samePoint(ordered.end, orderedSection.end)) {
+    nextWalls.push({
+      ...wall,
+      id: `wall_${crypto.randomUUID().slice(0, 8)}`,
+      start: orderedSection.end,
+      end: ordered.end,
+      kind: wall.kind,
+      isOpen: wall.kind === "door" ? wall.isOpen : false
+    });
+  }
+
+  return nextWalls;
+}
+
+function mergeAdjacentWalls(walls: MapWall[], cellSize: number) {
+  const sortedWalls = [...walls].filter((wall) => !samePoint(wall.start, wall.end)).sort(compareWallsForMerge);
+  const merged: MapWall[] = [];
+
+  for (const wall of sortedWalls) {
+    const previous = merged[merged.length - 1];
+
+    if (previous && canMergeWalls(previous, wall, cellSize)) {
+      previous.start = orderWallEndpoints(previous.start, previous.end).start;
+      previous.end = orderWallEndpoints(previous.start, wall.end).end;
+      continue;
+    }
+
+    merged.push({ ...wall });
+  }
+
+  return merged;
+}
+
+function canMergeWalls(left: MapWall, right: MapWall, cellSize: number) {
+  if (left.kind !== right.kind || left.isOpen !== right.isOpen) {
+    return false;
+  }
+
+  const orderedLeft = orderWallEndpoints(left.start, left.end);
+  const orderedRight = orderWallEndpoints(right.start, right.end);
+  const leftHorizontal = Math.abs(orderedLeft.start.y - orderedLeft.end.y) < 0.0001;
+  const rightHorizontal = Math.abs(orderedRight.start.y - orderedRight.end.y) < 0.0001;
+  const leftVertical = Math.abs(orderedLeft.start.x - orderedLeft.end.x) < 0.0001;
+  const rightVertical = Math.abs(orderedRight.start.x - orderedRight.end.x) < 0.0001;
+
+  if (leftHorizontal && rightHorizontal && Math.abs(orderedLeft.start.y - orderedRight.start.y) < 0.0001) {
+    return samePoint(orderedLeft.end, orderedRight.start) && Math.abs(orderedLeft.end.x - orderedRight.start.x) <= cellSize + 0.0001;
+  }
+
+  if (leftVertical && rightVertical && Math.abs(orderedLeft.start.x - orderedRight.start.x) < 0.0001) {
+    return samePoint(orderedLeft.end, orderedRight.start) && Math.abs(orderedLeft.end.y - orderedRight.start.y) <= cellSize + 0.0001;
+  }
+
+  return false;
+}
+
+function orderWallEndpoints(start: Point, end: Point) {
+  if (start.x < end.x || (Math.abs(start.x - end.x) < 0.0001 && start.y <= end.y)) {
+    return { start, end };
+  }
+
+  return {
+    start: end,
+    end: start
+  };
+}
+
+function compareWallsForMerge(left: MapWall, right: MapWall) {
+  const orderedLeft = orderWallEndpoints(left.start, left.end);
+  const orderedRight = orderWallEndpoints(right.start, right.end);
+
+  if (Math.abs(orderedLeft.start.y - orderedRight.start.y) > 0.0001) {
+    return orderedLeft.start.y - orderedRight.start.y;
+  }
+
+  if (Math.abs(orderedLeft.start.x - orderedRight.start.x) > 0.0001) {
+    return orderedLeft.start.x - orderedRight.start.x;
+  }
+
+  return orderedLeft.end.x - orderedRight.end.x || orderedLeft.end.y - orderedRight.end.y;
 }
 
 function clamp(value: number, min: number, max: number) {

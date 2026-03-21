@@ -1,4 +1,4 @@
-import type { Campaign } from "../../../shared/types.js";
+import type { Campaign, CampaignMap, MapTeleporter } from "../../../shared/types.js";
 import { defaultDatabase, type Database } from "./types.js";
 
 export function normalizeStoreState(database: Database): Database {
@@ -30,12 +30,24 @@ export function normalizeStoreState(database: Database): Database {
 }
 
 function normalizeCampaign(campaign: Campaign): Campaign {
-  const maps = Array.isArray(campaign.maps)
+  const maps: CampaignMap[] = Array.isArray(campaign.maps)
     ? campaign.maps.map((map) => ({
         ...map,
         backgroundOffsetX: map.backgroundOffsetX ?? 0,
         backgroundOffsetY: map.backgroundOffsetY ?? 0,
         backgroundScale: map.backgroundScale ?? 1,
+        teleporters: Array.isArray((map as Partial<CampaignMap>).teleporters)
+          ? (map as Partial<CampaignMap>).teleporters!.filter(
+              (teleporter): teleporter is MapTeleporter =>
+                Boolean(teleporter) &&
+                typeof teleporter?.id === "string" &&
+                typeof teleporter?.pairNumber === "number" &&
+                typeof teleporter?.pointA?.x === "number" &&
+                typeof teleporter?.pointA?.y === "number" &&
+                typeof teleporter?.pointB?.x === "number" &&
+                typeof teleporter?.pointB?.y === "number"
+            )
+          : [],
         drawings: Array.isArray(map.drawings)
           ? map.drawings.map((drawing) => ({
               ...drawing,

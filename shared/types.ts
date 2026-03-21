@@ -413,6 +413,13 @@ export interface MapWall {
   isOpen: boolean;
 }
 
+export interface MapTeleporter {
+  id: string;
+  pairNumber: number;
+  pointA: Point;
+  pointB: Point;
+}
+
 export interface FogRect {
   id: string;
   x: number;
@@ -441,6 +448,7 @@ export interface CampaignMap {
   height: number;
   grid: GridConfig;
   walls: MapWall[];
+  teleporters: MapTeleporter[];
   drawings: DrawingStroke[];
   fog: FogRect[];
   visibilityVersion: number;
@@ -553,6 +561,8 @@ export interface TokenMovementPreview {
   end: Point;
   points: Point[];
   steps: number;
+  teleported?: boolean;
+  teleportEntry?: Point;
 }
 
 export type MeasureKind = "line" | "cone" | "beam" | "emanation" | "square";

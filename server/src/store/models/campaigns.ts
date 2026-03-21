@@ -19,6 +19,7 @@ import type {
   DrawingKind,
   DrawingStroke,
   InventoryEntry,
+  MapTeleporter,
   MapWall,
   ResourceEntry,
   SkillEntry,
@@ -573,6 +574,7 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
         color: row.gridColor
       },
       walls: [],
+      teleporters: [],
       drawings: [],
       fog: [],
       visibilityVersion: row.visibilityVersion ?? 1
@@ -597,6 +599,37 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
       kind: row.kind ?? "wall",
       isOpen: Boolean(row.isOpen)
     } satisfies MapWall);
+  }
+
+  for (const row of readAll<{
+    id: string;
+    mapId: string;
+    pairNumber: number;
+    pointAX: number;
+    pointAY: number;
+    pointBX: number;
+    pointBY: number;
+  }>(
+    database,
+    `
+      SELECT
+        id,
+        map_id as mapId,
+        pair_number as pairNumber,
+        point_a_x as pointAX,
+        point_a_y as pointAY,
+        point_b_x as pointBX,
+        point_b_y as pointBY
+      FROM map_teleporters
+      ORDER BY map_id, sort_order, id
+    `
+  )) {
+    mapsById.get(row.mapId)?.teleporters.push({
+      id: row.id,
+      pairNumber: row.pairNumber,
+      pointA: { x: row.pointAX, y: row.pointAY },
+      pointB: { x: row.pointBX, y: row.pointBY }
+    } satisfies MapTeleporter);
   }
 
   for (const row of readAll<{
@@ -899,6 +932,10 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
     INSERT INTO map_walls (id, map_id, sort_order, start_x, start_y, end_x, end_y, kind, is_open)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
+  const insertMapTeleporter = database.prepare(`
+    INSERT INTO map_teleporters (id, map_id, sort_order, pair_number, point_a_x, point_a_y, point_b_x, point_b_y)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
   const insertMapDrawing = database.prepare(`
     INSERT INTO map_drawings (id, map_id, sort_order, owner_id, kind, color, stroke_opacity, fill_color, fill_opacity, size, rotation)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1121,6 +1158,19 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
         insertMapWall.run(wall.id, map.id, wallOrder, wall.start.x, wall.start.y, wall.end.x, wall.end.y, wall.kind ?? "wall", toIntegerBoolean(wall.kind === "door" ? wall.isOpen : false));
       });
 
+      map.teleporters.forEach((teleporter, teleporterOrder) => {
+        insertMapTeleporter.run(
+          teleporter.id,
+          map.id,
+          teleporterOrder,
+          teleporter.pairNumber,
+          teleporter.pointA.x,
+          teleporter.pointA.y,
+          teleporter.pointB.x,
+          teleporter.pointB.y
+        );
+      });
+
       map.drawings.forEach((stroke, strokeOrder) => {
         insertMapDrawing.run(
           stroke.id,
@@ -1207,6 +1257,7 @@ export function clearRelationalTables(database: DatabaseSync) {
     DELETE FROM tokens;
     DELETE FROM map_drawing_points;
     DELETE FROM map_drawings;
+    DELETE FROM map_teleporters;
     DELETE FROM map_walls;
     DELETE FROM maps;
     DELETE FROM actor_inventory;

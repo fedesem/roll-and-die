@@ -23,6 +23,7 @@ import type {
   DrawingStroke,
   HitPoints,
   InventoryEntry,
+  MapTeleporter,
   MapWall,
   MeasurePreview,
   MeasureSnapMode,
@@ -262,6 +263,7 @@ export function createDefaultMap(name: string): CampaignMap {
       color: "rgba(220, 182, 92, 0.5)"
     },
     walls: [],
+    teleporters: [],
     drawings: [],
     fog: [],
     visibilityVersion: 1
@@ -661,6 +663,11 @@ export function applyMapPatch(map: CampaignMap, patch: Record<string, unknown> |
     start: snapPointToGridIntersection(map, wall.start),
     end: snapPointToGridIntersection(map, wall.end),
     isOpen: wall.kind === "door" ? wall.isOpen : false
+  }));
+  map.teleporters = sanitizeTeleporters(patch.teleporters, map.teleporters).map((teleporter) => ({
+    ...teleporter,
+    pointA: snapPointToGrid(map, teleporter.pointA),
+    pointB: snapPointToGrid(map, teleporter.pointB)
   }));
   map.drawings = sanitizeDrawings(patch.drawings, map.drawings);
   map.fog = [];
@@ -1228,6 +1235,37 @@ function sanitizeWalls(value: unknown, fallback: MapWall[]) {
     })
     .filter((entry): entry is MapWall => Boolean(entry))
     .slice(0, 400);
+}
+
+function sanitizeTeleporters(value: unknown, fallback: MapTeleporter[]) {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  return value
+    .map((entry) => {
+      if (
+        !entry ||
+        typeof entry !== "object" ||
+        typeof (entry as Partial<MapTeleporter>).pointA?.x !== "number" ||
+        typeof (entry as Partial<MapTeleporter>).pointA?.y !== "number" ||
+        typeof (entry as Partial<MapTeleporter>).pointB?.x !== "number" ||
+        typeof (entry as Partial<MapTeleporter>).pointB?.y !== "number"
+      ) {
+        return null;
+      }
+
+      const teleporter = entry as MapTeleporter;
+
+      return {
+        id: typeof teleporter.id === "string" ? teleporter.id : createId("tel"),
+        pairNumber: getOptionalNumber(teleporter.pairNumber, 1, 1, 999),
+        pointA: teleporter.pointA,
+        pointB: teleporter.pointB
+      };
+    })
+    .filter((entry): entry is MapTeleporter => Boolean(entry))
+    .slice(0, 200);
 }
 
 export function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {

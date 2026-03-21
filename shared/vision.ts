@@ -16,6 +16,8 @@ export interface MovementTrace {
   end: Point;
   points: Point[];
   steps: number;
+  teleported: boolean;
+  teleportEntry?: Point;
 }
 
 interface MovementOptions {
@@ -215,6 +217,8 @@ export function traceMovementPath(
   const points = [cellCenter(map, traversedCells[0].column, traversedCells[0].row)];
   const cells = [cellKey(traversedCells[0].column, traversedCells[0].row)];
   let blocked = false;
+  let teleported = false;
+  let teleportEntry: Point | undefined;
 
   for (let index = 1; index < traversedCells.length; index += 1) {
     const previous = traversedCells[index - 1];
@@ -229,6 +233,17 @@ export function traceMovementPath(
 
     points.push(nextPoint);
     cells.push(cellKey(next.column, next.row));
+
+    const teleportDestination = findTeleporterDestination(map.teleporters, nextPoint);
+
+    if (teleportDestination) {
+      teleported = true;
+      teleportEntry = nextPoint;
+      points.push(teleportDestination);
+      const destinationCell = pointToCell(map, teleportDestination);
+      cells.push(cellKey(destinationCell.column, destinationCell.row));
+      break;
+    }
   }
 
   return {
@@ -236,7 +251,9 @@ export function traceMovementPath(
     cells,
     end: points[points.length - 1],
     points,
-    steps: Math.max(0, points.length - 1)
+    steps: Math.max(0, points.length - 1),
+    teleported,
+    teleportEntry
   };
 }
 
@@ -257,6 +274,20 @@ export function obstacleMidpoint(wall: MapWall): Point {
 
 function obstacleBlocksMode(wall: MapWall, mode: "view" | "movement") {
   return mode === "view" ? obstacleBlocksVision(wall) : obstacleBlocksMovement(wall);
+}
+
+export function findTeleporterDestination(teleporters: CampaignMap["teleporters"], point: Point) {
+  for (const teleporter of teleporters) {
+    if (isSamePoint(point, teleporter.pointA)) {
+      return teleporter.pointB;
+    }
+
+    if (isSamePoint(point, teleporter.pointB)) {
+      return teleporter.pointA;
+    }
+  }
+
+  return null;
 }
 
 type SegmentIntersection =

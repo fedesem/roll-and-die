@@ -13,6 +13,7 @@ import { actorSheet2024Migration } from "./113_actor_sheet_2024.js";
 import { compendiumExpansionMigration } from "./114_compendium_expansion.js";
 import { campaignSourceBooksMigration } from "./115_campaign_source_books.js";
 import { chatRollContextMigration } from "./116_chat_roll_context.js";
+import { mapTeleportersMigration } from "./117_map_teleporters.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -29,5 +30,6 @@ export const migrations = [
   actorSheet2024Migration,
   compendiumExpansionMigration,
   campaignSourceBooksMigration,
-  chatRollContextMigration
+  chatRollContextMigration,
+  mapTeleportersMigration
 ];

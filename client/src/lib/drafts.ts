@@ -28,6 +28,7 @@ export function createClientMapDraft(name = "Encounter Map"): CampaignMap {
       color: "rgba(220, 182, 92, 0.5)"
     },
     walls: [],
+    teleporters: [],
     drawings: [],
     fog: [],
     visibilityVersion: 1

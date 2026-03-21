@@ -1,4 +1,4 @@
-import { Castle, Eye, FilePlus2, Map as MapIcon, Minus, Pencil, Plus, ScrollText, Trash2, Users } from "lucide-react";
+import { Castle, Eye, FilePlus2, Map as MapIcon, Minus, Pencil, Plus, Redo2, ScrollText, Trash2, Undo2, Users } from "lucide-react";
 
 import type {
   ActorKind,
@@ -101,6 +101,11 @@ interface CampaignPageProps {
   onChangeEditingMap: (map: CampaignMap) => void;
   onSaveEditingMap: () => void;
   onReloadEditingMap: () => void;
+  onUndoEditingMap: () => void;
+  onRedoEditingMap: () => void;
+  canUndoEditingMap: boolean;
+  canRedoEditingMap: boolean;
+  canPersistEditingMap: boolean;
   onSetEditingMapActive: () => void;
   onBackToMapsList: () => void;
   onMapUploadError: (message: string) => void;
@@ -179,6 +184,11 @@ export function CampaignPage({
   onChangeEditingMap,
   onSaveEditingMap,
   onReloadEditingMap,
+  onUndoEditingMap,
+  onRedoEditingMap,
+  canUndoEditingMap,
+  canRedoEditingMap,
+  canPersistEditingMap,
   onSetEditingMapActive,
   onBackToMapsList,
   onMapUploadError,
@@ -232,10 +242,12 @@ export function CampaignPage({
                   <Users size={15} />
                   <span>Actors</span>
                 </button>
-                <button type="button" onClick={() => onSetActivePopup("maps")}>
-                  <MapIcon size={15} />
-                  <span>Maps</span>
-                </button>
+                {role === "dm" && (
+                  <button type="button" onClick={() => onSetActivePopup("maps")}>
+                    <MapIcon size={15} />
+                    <span>Maps</span>
+                  </button>
+                )}
                 <button type="button" disabled={!selectedActor} onClick={() => onSetActivePopup("sheet")}>
                   <ScrollText size={15} />
                   <span>Sheet</span>
@@ -597,7 +609,7 @@ export function CampaignPage({
         </WorkspaceModal>
       )}
 
-      {activePopup === "maps" && (
+      {role === "dm" && activePopup === "maps" && (
         <WorkspaceModal
           title="Maps"
           size={editingMap ? "full" : "compact"}
@@ -670,15 +682,30 @@ export function CampaignPage({
                         {editingMap.id === activeMap?.id ? "Current Board" : "Set Active Board"}
                       </button>
                     )}
-                    <button type="button" onClick={onReloadEditingMap}>
+                    <button type="button" disabled={!canUndoEditingMap} title="Undo (Ctrl+Z)" onClick={onUndoEditingMap}>
+                      <Undo2 size={15} />
+                    </button>
+                    <button type="button" disabled={!canRedoEditingMap} title="Redo (Ctrl+Shift+Z)" onClick={onRedoEditingMap}>
+                      <Redo2 size={15} />
+                    </button>
+                    <button type="button" disabled={!canPersistEditingMap} onClick={onReloadEditingMap}>
                       Reload
                     </button>
-                    <button className="accent-button" type="button" onClick={onSaveEditingMap}>
+                    <button className="accent-button" type="button" disabled={!canPersistEditingMap} onClick={onSaveEditingMap}>
                       Save
                     </button>
                   </div>
                 )}
-                <MapConfigurator map={editingMap} disabled={role !== "dm"} onChange={onChangeEditingMap} onUploadError={onMapUploadError} />
+                <MapConfigurator
+                  map={editingMap}
+                  disabled={role !== "dm"}
+                  onChange={onChangeEditingMap}
+                  onUndo={onUndoEditingMap}
+                  onRedo={onRedoEditingMap}
+                  canUndo={canUndoEditingMap}
+                  canRedo={canRedoEditingMap}
+                  onUploadError={onMapUploadError}
+                />
               </section>
             )}
           </div>

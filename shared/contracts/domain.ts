@@ -44,6 +44,7 @@ import type {
   InventoryItemType,
   MapActorAssignment,
   MapPing,
+  MapTeleporter,
   MapViewportRecall,
   MapWall,
   MapWallKind,
@@ -577,6 +578,13 @@ export const mapWallSchema: z.ZodType<MapWall> = z.object({
   isOpen: z.boolean()
 });
 
+export const mapTeleporterSchema: z.ZodType<MapTeleporter> = z.object({
+  id: trimmedString,
+  pairNumber: finiteNumber,
+  pointA: pointSchema,
+  pointB: pointSchema
+});
+
 export const fogRectSchema: z.ZodType<FogRect> = z.object({
   id: trimmedString,
   x: finiteNumber,
@@ -605,6 +613,7 @@ export const campaignMapSchema: z.ZodType<CampaignMap> = z.object({
   height: finiteNumber,
   grid: gridConfigSchema,
   walls: z.array(mapWallSchema),
+  teleporters: z.array(mapTeleporterSchema),
   drawings: z.array(drawingStrokeSchema),
   fog: z.array(fogRectSchema),
   visibilityVersion: finiteNumber

@@ -65,6 +65,9 @@ export default function App() {
   const [mapDraft, setMapDraft] = useState<CampaignMap | null>(null);
   const [newMapDraft, setNewMapDraft] = useState<CampaignMap>(() => createClientMapDraft("New Map"));
   const [mapEditorMode, setMapEditorMode] = useState<"create" | "edit" | null>(null);
+  const [mapEditorPast, setMapEditorPast] = useState<CampaignMap[]>([]);
+  const [mapEditorFuture, setMapEditorFuture] = useState<CampaignMap[]>([]);
+  const [mapEditorBaseline, setMapEditorBaseline] = useState<CampaignMap | null>(null);
   const [dmFogEnabled, setDmFogEnabled] = useState(false);
   const [dmFogUserId, setDmFogUserId] = useState<string | null>(null);
   const [activePopup, setActivePopup] = useState<"sheet" | "actors" | "maps" | "room" | null>(null);
@@ -308,6 +311,25 @@ export default function App() {
   });
 
   const editingMap = mapEditorMode === "create" ? newMapDraft : mapEditorMode === "edit" ? mapDraft : null;
+  const canUndoEditingMap = mapEditorPast.length > 0;
+  const canRedoEditingMap = mapEditorFuture.length > 0;
+  const canPersistEditingMap =
+    Boolean(editingMap) && Boolean(mapEditorBaseline) && JSON.stringify(editingMap) !== JSON.stringify(mapEditorBaseline);
+
+  function replaceEditingMap(nextMap: CampaignMap) {
+    if (mapEditorMode === "create") {
+      setNewMapDraft(nextMap);
+      return;
+    }
+
+    setMapDraft(nextMap);
+  }
+
+  function resetMapEditorHistory(baseMap: CampaignMap) {
+    setMapEditorBaseline(cloneMap(baseMap));
+    setMapEditorPast([]);
+    setMapEditorFuture([]);
+  }
 
   async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -389,43 +411,78 @@ export default function App() {
   }
 
   function openMapEditorForCreate() {
-    setNewMapDraft(createClientMapDraft("New Map"));
+    const nextMap = createClientMapDraft("New Map");
+    setNewMapDraft(nextMap);
     setMapEditorMode("create");
+    resetMapEditorHistory(nextMap);
   }
 
   function openMapEditorForEdit(map: CampaignMap) {
     setSelectedMapId(map.id);
-    setMapDraft(cloneMap(map));
+    const nextMap = cloneMap(map);
+    setMapDraft(nextMap);
     setMapEditorMode("edit");
+    resetMapEditorHistory(nextMap);
   }
 
   function changeEditingMap(nextMap: CampaignMap) {
-    if (mapEditorMode === "create") {
-      setNewMapDraft(nextMap);
+    if (!editingMap) {
       return;
     }
 
-    setMapDraft(nextMap);
+    if (JSON.stringify(editingMap) === JSON.stringify(nextMap)) {
+      return;
+    }
+
+    setMapEditorPast((current) => [...current, cloneMap(editingMap)]);
+    setMapEditorFuture([]);
+    replaceEditingMap(nextMap);
   }
 
   function reloadEditingMap() {
-    if (mapEditorMode === "create") {
-      setNewMapDraft(createClientMapDraft("New Map"));
+    if (!mapEditorBaseline) {
       return;
     }
 
-    if (selectedMap) {
-      setMapDraft(cloneMap(selectedMap));
+    replaceEditingMap(cloneMap(mapEditorBaseline));
+    resetMapEditorHistory(mapEditorBaseline);
+  }
+
+  function undoEditingMap() {
+    if (!editingMap || mapEditorPast.length === 0) {
+      return;
     }
+
+    const previous = mapEditorPast[mapEditorPast.length - 1];
+    setMapEditorPast((current) => current.slice(0, -1));
+    setMapEditorFuture((current) => [cloneMap(editingMap), ...current]);
+    replaceEditingMap(cloneMap(previous));
+  }
+
+  function redoEditingMap() {
+    if (!editingMap || mapEditorFuture.length === 0) {
+      return;
+    }
+
+    const [next, ...rest] = mapEditorFuture;
+    setMapEditorFuture(rest);
+    setMapEditorPast((current) => [...current, cloneMap(editingMap)]);
+    replaceEditingMap(cloneMap(next));
   }
 
   function saveEditingMap() {
+    if (!canPersistEditingMap || !editingMap) {
+      return;
+    }
+
     if (mapEditorMode === "create") {
+      resetMapEditorHistory(editingMap);
       void createMap(newMapDraft);
       return;
     }
 
     if (mapDraft) {
+      resetMapEditorHistory(mapDraft);
       void saveMap(mapDraft);
     }
   }
@@ -565,6 +622,11 @@ export default function App() {
           onChangeEditingMap={changeEditingMap}
           onSaveEditingMap={saveEditingMap}
           onReloadEditingMap={reloadEditingMap}
+          onUndoEditingMap={undoEditingMap}
+          onRedoEditingMap={redoEditingMap}
+          canUndoEditingMap={canUndoEditingMap}
+          canRedoEditingMap={canRedoEditingMap}
+          canPersistEditingMap={canPersistEditingMap}
           onSetEditingMapActive={setEditingMapActive}
           onBackToMapsList={() => setMapEditorMode(null)}
           onMapUploadError={(message) => setBanner({ tone: "error", text: message })}

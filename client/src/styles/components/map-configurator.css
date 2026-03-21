@@ -170,9 +170,42 @@
   stroke-dasharray: 10 8;
 }
 
+.map-preview-teleporter-link {
+  stroke: rgba(200, 119, 255, 0.76);
+  stroke-width: 3;
+  stroke-dasharray: 8 7;
+}
+
+.map-preview-teleporter-node {
+  fill: rgba(148, 73, 214, 0.92);
+  stroke: rgba(245, 229, 255, 0.92);
+  stroke-width: 2;
+}
+
+.map-preview-teleporter-node.is-preview {
+  fill: rgba(148, 73, 214, 0.42);
+}
+
+.map-preview-teleporter-label {
+  fill: rgba(255, 248, 252, 0.96);
+  font-size: 0.78rem;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: rgba(20, 18, 24, 0.92);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
 .map-preview-hit {
   stroke: transparent;
   pointer-events: stroke;
+  cursor: pointer;
+}
+
+.map-preview-hit-node {
+  fill: transparent;
+  pointer-events: all;
   cursor: pointer;
 }
 

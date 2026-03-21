@@ -256,6 +256,32 @@
   stroke-dasharray: 14 10;
 }
 
+.board-teleporter-link {
+  fill: none;
+  stroke: rgba(200, 119, 255, 0.74);
+  stroke-width: 3;
+  stroke-dasharray: 8 7;
+}
+
+.board-teleporter-node {
+  fill: rgba(148, 73, 214, 0.9);
+  stroke: rgba(245, 229, 255, 0.95);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 10px rgba(148, 73, 214, 0.32));
+}
+
+.board-teleporter-label {
+  fill: rgba(255, 248, 252, 0.96);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  paint-order: stroke;
+  stroke: rgba(20, 18, 24, 0.92);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
 .board-drawing-selected {
   stroke: rgba(242, 187, 63, 0.98);
   filter: drop-shadow(0 0 8px rgba(242, 187, 63, 0.4));
