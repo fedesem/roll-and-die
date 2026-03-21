@@ -692,10 +692,33 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
     });
   }
 
-  for (const row of readAll<{ id: string; campaignId: string; userId: string; userName: string; text: string; createdAt: string; kind: ChatMessage["kind"] }>(
+  for (const row of readAll<{
+    id: string;
+    campaignId: string;
+    userId: string;
+    userName: string;
+    text: string;
+    createdAt: string;
+    kind: ChatMessage["kind"];
+    actorId: string | null;
+    actorName: string | null;
+    actorImageUrl: string | null;
+    actorColor: string | null;
+  }>(
     database,
     `
-      SELECT id, campaign_id as campaignId, user_id as userId, user_name as userName, text, created_at as createdAt, kind
+      SELECT
+        id,
+        campaign_id as campaignId,
+        user_id as userId,
+        user_name as userName,
+        text,
+        created_at as createdAt,
+        kind,
+        actor_id as actorId,
+        actor_name as actorName,
+        actor_image_url as actorImageUrl,
+        actor_color as actorColor
       FROM chat_messages
       ORDER BY campaign_id, sort_order, id
     `
@@ -707,16 +730,34 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
       userName: row.userName,
       text: row.text,
       createdAt: row.createdAt,
-      kind: row.kind
+      kind: row.kind,
+      actor:
+        row.actorId && row.actorName && row.actorImageUrl !== null && row.actorColor
+          ? {
+              actorId: row.actorId,
+              actorName: row.actorName,
+              actorImageUrl: row.actorImageUrl,
+              actorColor: row.actorColor
+            }
+          : undefined
     };
     campaignsById.get(row.campaignId)?.chat.push(message);
     messagesById.set(message.id, message);
   }
 
-  for (const row of readAll<{ id: string; messageId: string; label: string; notation: string; modifier: number; total: number; createdAt: string }>(
+  for (const row of readAll<{
+    id: string;
+    messageId: string;
+    label: string;
+    notation: string;
+    modifier: number;
+    total: number;
+    breakdown: string | null;
+    createdAt: string;
+  }>(
     database,
     `
-      SELECT id, message_id as messageId, label, notation, modifier, total, created_at as createdAt
+      SELECT id, message_id as messageId, label, notation, modifier, total, breakdown, created_at as createdAt
       FROM chat_rolls
       ORDER BY message_id
     `
@@ -728,6 +769,7 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
       rolls: [],
       modifier: row.modifier,
       total: row.total,
+      breakdown: row.breakdown ?? undefined,
       createdAt: row.createdAt
     };
     const message = messagesById.get(row.messageId);
@@ -874,12 +916,15 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertChatMessage = database.prepare(`
-    INSERT INTO chat_messages (id, campaign_id, sort_order, user_id, user_name, text, created_at, kind)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO chat_messages (
+      id, campaign_id, sort_order, user_id, user_name, text, created_at, kind,
+      actor_id, actor_name, actor_image_url, actor_color
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertChatRoll = database.prepare(`
-    INSERT INTO chat_rolls (id, message_id, label, notation, modifier, total, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO chat_rolls (id, message_id, label, notation, modifier, total, breakdown, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertChatRollValue = database.prepare(`
     INSERT INTO chat_roll_values (roll_id, sort_order, value)
@@ -1105,13 +1150,35 @@ export function writeCampaigns(database: DatabaseSync, state: Database) {
     });
 
     campaign.chat.forEach((message, messageOrder) => {
-      insertChatMessage.run(message.id, campaign.id, messageOrder, message.userId, message.userName, message.text, message.createdAt, message.kind);
+      insertChatMessage.run(
+        message.id,
+        campaign.id,
+        messageOrder,
+        message.userId,
+        message.userName,
+        message.text,
+        message.createdAt,
+        message.kind,
+        message.actor?.actorId ?? null,
+        message.actor?.actorName ?? null,
+        message.actor?.actorImageUrl ?? null,
+        message.actor?.actorColor ?? null
+      );
 
       if (!message.roll) {
         return;
       }
 
-      insertChatRoll.run(message.roll.id, message.id, message.roll.label, message.roll.notation, message.roll.modifier, message.roll.total, message.roll.createdAt);
+      insertChatRoll.run(
+        message.roll.id,
+        message.id,
+        message.roll.label,
+        message.roll.notation,
+        message.roll.modifier,
+        message.roll.total,
+        message.roll.breakdown ?? null,
+        message.roll.createdAt
+      );
       message.roll.rolls.forEach((value, valueOrder) => {
         insertChatRollValue.run(message.roll!.id, valueOrder, value);
       });

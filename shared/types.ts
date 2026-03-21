@@ -472,7 +472,15 @@ export interface DiceRoll {
   rolls: number[];
   modifier: number;
   total: number;
+  breakdown?: string;
   createdAt: string;
+}
+
+export interface ChatActorContext {
+  actorId: string;
+  actorName: string;
+  actorImageUrl: string;
+  actorColor: string;
 }
 
 export interface ChatMessage {
@@ -483,6 +491,7 @@ export interface ChatMessage {
   text: string;
   createdAt: string;
   kind: ChatMessageKind;
+  actor?: ChatActorContext;
   roll?: DiceRoll;
 }
 
@@ -588,6 +597,7 @@ export type ClientRoomMessage =
       type: "roll:send";
       notation: string;
       label: string;
+      actorId?: string;
     }
   | {
       type: "token:move";

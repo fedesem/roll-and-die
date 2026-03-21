@@ -12,6 +12,7 @@ import { spellClassReferenceMetadataMigration } from "./112_spell_class_referenc
 import { actorSheet2024Migration } from "./113_actor_sheet_2024.js";
 import { compendiumExpansionMigration } from "./114_compendium_expansion.js";
 import { campaignSourceBooksMigration } from "./115_campaign_source_books.js";
+import { chatRollContextMigration } from "./116_chat_roll_context.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -27,5 +28,6 @@ export const migrations = [
   spellClassReferenceMetadataMigration,
   actorSheet2024Migration,
   compendiumExpansionMigration,
-  campaignSourceBooksMigration
+  campaignSourceBooksMigration,
+  chatRollContextMigration
 ];

@@ -9,8 +9,8 @@ import { parseWithSchema, requireRouteParam } from "../http/validation.js";
 import { broadcastCampaignToRoom } from "../realtime/roomGateway.js";
 import { mutateDatabase } from "../store.js";
 import { createId, now, requireUser } from "../services/authService.js";
-import { requireCampaignMember, trimChat } from "../services/campaignDomain.js";
-import { rollDice } from "../dice.js";
+import { requireCampaignMember, resolveChatActorContext, trimChat } from "../services/campaignDomain.js";
+import { parseRollCommand, rollDice } from "../dice.js";
 
 export const chatController = {
   async createMessage(request: Request, response: Response) {
@@ -21,9 +21,10 @@ export const chatController = {
     const message = await mutateDatabase((database) => {
       const { campaign } = requireCampaignMember(database, campaignId, user.id);
       const text = body.text.slice(0, 500);
+      const rollCommand = parseRollCommand(text);
 
-      if (/^\/roll\s+/i.test(text)) {
-        const roll = rollDice(text, `${user.name} rolled`);
+      if (rollCommand) {
+        const roll = rollDice(rollCommand.expression, `${user.name} rolled`);
         const message: ChatMessage = {
           id: createId("msg"),
           campaignId,
@@ -67,6 +68,7 @@ export const chatController = {
     const message = await mutateDatabase((database) => {
       const { campaign } = requireCampaignMember(database, campaignId, user.id);
       const roll = rollDice(body.notation, body.label ?? `${user.name} rolled`);
+      const actor = body.actorId ? resolveChatActorContext(campaign, body.actorId) ?? undefined : undefined;
       const message: ChatMessage = {
         id: createId("msg"),
         campaignId,
@@ -75,6 +77,7 @@ export const chatController = {
         text: `${roll.label}: ${roll.notation}`,
         createdAt: now(),
         kind: "roll",
+        actor,
         roll
       };
 

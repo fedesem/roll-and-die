@@ -1,4 +1,4 @@
-import { ImagePlus, ScrollText, Shield, X } from "lucide-react";
+import { ImagePlus, ScrollText, Shield } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 
 import type { ActorSheet, CompendiumData, MemberRole } from "@shared/types";
@@ -13,7 +13,7 @@ interface CharacterSheetProps {
   role: MemberRole;
   currentUserId: string;
   onSave: (actor: ActorSheet) => Promise<void>;
-  onRoll: (notation: string, label: string) => Promise<void>;
+  onRoll: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
 }
 
 export function CharacterSheet({
@@ -85,7 +85,7 @@ export function CharacterSheet({
         role={role}
         currentUserId={currentUserId}
         onSave={onSave}
-        onRoll={onRoll}
+        onRoll={(notation, label) => onRoll(notation, label, actor)}
       />
     );
   }

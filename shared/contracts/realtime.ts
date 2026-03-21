@@ -24,7 +24,8 @@ export const clientRoomMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("roll:send"),
     notation: z.string().trim().min(1),
-    label: z.string().trim().min(1)
+    label: z.string().trim().min(1),
+    actorId: z.string().trim().min(1).optional()
   }),
   z.object({
     type: z.literal("token:move"),

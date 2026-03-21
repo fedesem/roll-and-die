@@ -81,7 +81,7 @@ interface CampaignPageProps {
   onPingAndRecall: (point: Point, center: Point, zoom: number) => Promise<void>;
   onSendChat: (text: string) => Promise<void>;
   onSaveActor: (actor: ActorSheet) => Promise<void>;
-  onRoll: (notation: string, label: string) => Promise<void>;
+  onRoll: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
   onActorSearchChange: (value: string) => void;
   onMapActorSearchChange: (value: string) => void;
   onActorTypeFilterChange: (value: ActorTypeFilter) => void;

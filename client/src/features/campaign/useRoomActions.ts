@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import type { AuthPayload, CampaignMap, ClientRoomMessage, DrawingStroke, MapPing, MeasurePreview, Point } from "@shared/types";
+import type { ActorSheet, AuthPayload, CampaignMap, ClientRoomMessage, DrawingStroke, MapPing, MeasurePreview, Point } from "@shared/types";
 
 import { toErrorMessage } from "../../lib/errors";
 import type { BannerState } from "./types";
@@ -45,7 +45,7 @@ export function useRoomActions({
   );
 
   const rollFromSheet = useCallback(
-    async (notation: string, label: string) => {
+    async (notation: string, label: string, actor?: ActorSheet | null) => {
       if (!selectedCampaignId) {
         return;
       }
@@ -54,7 +54,8 @@ export function useRoomActions({
         await sendRoomMessage({
           type: "roll:send",
           notation,
-          label
+          label,
+          actorId: actor?.id
         });
       } catch (error) {
         onStatus("error", toErrorMessage(error));

@@ -16,6 +16,7 @@ import type {
   CampaignSourceBook,
   CampaignSummary,
   CellKey,
+  ChatActorContext,
   ChatMessage,
   CompendiumData,
   CurrencyPouch,
@@ -554,6 +555,21 @@ export function randomInviteCode() {
 
 export function trimChat(campaign: Campaign) {
   campaign.chat = campaign.chat.slice(-200);
+}
+
+export function resolveChatActorContext(campaign: Campaign, actorId: string): ChatActorContext | null {
+  const actor = campaign.actors.find((entry) => entry.id === actorId);
+
+  if (!actor) {
+    return null;
+  }
+
+  return {
+    actorId: actor.id,
+    actorName: actor.name,
+    actorImageUrl: actor.imageUrl,
+    actorColor: actor.color
+  };
 }
 
 export function sanitizeMeasurePreview(preview: MeasurePreview, map: CampaignMap): MeasurePreview {

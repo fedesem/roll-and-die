@@ -85,7 +85,8 @@ export const createChatBodySchema = z.object({
 });
 export const createRollBodySchema = z.object({
   notation: z.string().trim().min(1),
-  label: z.string().trim().min(1).optional()
+  label: z.string().trim().min(1).optional(),
+  actorId: z.string().trim().min(1).optional()
 });
 export const chatMessageResponseSchema = chatMessageSchema;
 

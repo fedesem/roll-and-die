@@ -22,6 +22,7 @@ import type {
   CampaignSnapshot,
   CampaignSourceBook,
   CampaignSummary,
+  ChatActorContext,
   ChatMessage,
   ChatMessageKind,
   ClassEntry,
@@ -635,7 +636,15 @@ export const diceRollSchema: z.ZodType<DiceRoll> = z.object({
   rolls: z.array(finiteNumber),
   modifier: finiteNumber,
   total: finiteNumber,
+  breakdown: trimmedString.optional(),
   createdAt: trimmedString
+});
+
+export const chatActorContextSchema: z.ZodType<ChatActorContext> = z.object({
+  actorId: trimmedString,
+  actorName: trimmedString,
+  actorImageUrl: trimmedString,
+  actorColor: trimmedString
 });
 
 export const chatMessageSchema: z.ZodType<ChatMessage> = z.object({
@@ -646,6 +655,7 @@ export const chatMessageSchema: z.ZodType<ChatMessage> = z.object({
   text: trimmedString,
   createdAt: trimmedString,
   kind: chatMessageKindSchema,
+  actor: chatActorContextSchema.optional(),
   roll: diceRollSchema.optional()
 });
 

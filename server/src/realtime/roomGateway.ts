@@ -14,7 +14,7 @@ import type {
 import { snapPointToGrid, traceMovementPath } from "../../../shared/vision.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema } from "../http/validation.js";
-import { rollDice } from "../dice.js";
+import { parseRollCommand, rollDice } from "../dice.js";
 import { mutateDatabase, readDatabase } from "../store.js";
 import { createId, now, toUserProfile } from "../services/authService.js";
 import {
@@ -27,6 +27,7 @@ import {
   requireCampaignMember,
   requireDungeonMaster,
   resetFogForMap,
+  resolveChatActorContext,
   sanitizeDrawings,
   sanitizeMeasurePreview,
   trimChat,
@@ -171,9 +172,10 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
       await mutateDatabase((database) => {
         const { campaign } = requireCampaignMember(database, campaignId, user.id);
         const text = payload.text.slice(0, 500);
+        const rollCommand = parseRollCommand(text);
 
-        if (/^\/roll\s+/i.test(text)) {
-          const roll = rollDice(text, `${user.name} rolled`);
+        if (rollCommand) {
+          const roll = rollDice(rollCommand.expression, `${user.name} rolled`);
           campaign.chat.push({
             id: createId("msg"),
             campaignId,
@@ -207,6 +209,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
       await mutateDatabase((database) => {
         const { campaign } = requireCampaignMember(database, campaignId, user.id);
         const roll = rollDice(payload.notation, payload.label);
+        const actor = payload.actorId ? resolveChatActorContext(campaign, payload.actorId) ?? undefined : undefined;
 
         campaign.chat.push({
           id: createId("msg"),
@@ -216,6 +219,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
           text: `${payload.label}: ${roll.notation}`,
           createdAt: now(),
           kind: "roll",
+          actor,
           roll
         });
         trimChat(campaign);
