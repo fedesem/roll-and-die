@@ -10,6 +10,7 @@ import type {
   MapPing,
   MapViewportRecall,
   MeasurePreview,
+  RoomCampaignPatch,
   RoomDoorToggled,
   RoomTokenMoved,
   ServerRoomMessage,
@@ -25,6 +26,7 @@ interface UseRoomConnectionOptions {
   onDisconnect: () => void;
   onStatusChange: (status: RoomStatus) => void;
   onSnapshot: (snapshot: CampaignSnapshot) => void;
+  onCampaignPatch: (patch: RoomCampaignPatch) => void;
   onTokenMoved: (update: RoomTokenMoved) => void;
   onDoorToggled: (update: RoomDoorToggled) => void;
   onMovementPreview: (actorId: string, mapId: string, preview: TokenMovementPreview | null) => void;
@@ -41,6 +43,7 @@ export function useRoomConnection({
   onDisconnect,
   onStatusChange,
   onSnapshot,
+  onCampaignPatch,
   onTokenMoved,
   onDoorToggled,
   onMovementPreview,
@@ -89,6 +92,13 @@ export function useRoomConnection({
           onStatusChange("online");
           startTransition(() => {
             onSnapshot(message.snapshot);
+          });
+          return;
+        }
+
+        if (message.type === "room:campaign-patch") {
+          startTransition(() => {
+            onCampaignPatch(message.patch);
           });
           return;
         }
@@ -187,6 +197,7 @@ export function useRoomConnection({
   }, [
     campaignId,
     enabled,
+    onCampaignPatch,
     onDisconnect,
     onDoorToggled,
     onError,

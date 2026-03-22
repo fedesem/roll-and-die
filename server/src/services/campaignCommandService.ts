@@ -4,7 +4,8 @@ import type { Campaign, CampaignInvite, ChatMessage, DrawingStroke } from "../..
 import { snapPointToGrid, traceMovementPath } from "../../../shared/vision.js";
 import { parseRollCommand, rollDice } from "../dice.js";
 import { HttpError } from "../http/errors.js";
-import { runStoreTransaction } from "../store.js";
+import { runStoreQuery, runStoreTransaction } from "../store.js";
+import { externalizeImageUrl } from "./assetStorage.js";
 import {
   clearMapDrawingRecords,
   clearMapExploration,
@@ -55,6 +56,10 @@ import {
   updateExplorationForCampaign,
   updateExplorationForMap
 } from "./campaignDomain.js";
+
+function runCampaignTransaction<T>(campaignId: string, task: (database: DatabaseSync) => Promise<T> | T) {
+  return runStoreTransaction(task, { queueKey: `campaign:${campaignId}` });
+}
 
 export async function createCampaignCommand(params: {
   user: { id: string; name: string; email: string };
@@ -119,6 +124,8 @@ export async function acceptInviteCommand(params: {
       throw new HttpError(404, "Invite code not found.");
     }
 
+    let joinMessage: ChatMessage | null = null;
+
     if (!campaign.members.some((member) => member.userId === params.user.id)) {
       insertCampaignMemberRecord(database, campaign.id, {
         userId: params.user.id,
@@ -127,15 +134,13 @@ export async function acceptInviteCommand(params: {
         role: invite.role
       });
       deleteCampaignInviteByCode(database, normalizedCode);
-      insertChatMessageRecord(
-        database,
-        createSystemMessage(
-          createId("msg"),
-          { ...params.user, isAdmin: false },
-          campaign.id,
-          `${params.user.name} joined as ${invite.role.toUpperCase()}.`
-        )
+      joinMessage = createSystemMessage(
+        createId("msg"),
+        { ...params.user, isAdmin: false },
+        campaign.id,
+        `${params.user.name} joined as ${invite.role.toUpperCase()}.`
       );
+      insertChatMessageRecord(database, joinMessage);
 
       campaign.members.push({
         userId: params.user.id,
@@ -145,7 +150,10 @@ export async function acceptInviteCommand(params: {
       });
     }
 
-    return campaign;
+    return {
+      campaign,
+      joinMessage
+    };
   });
 }
 
@@ -155,7 +163,7 @@ export async function createInviteCommand(params: {
   label: string;
   role: CampaignInvite["role"];
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     requireDungeonMaster(campaign, params.userId);
 
@@ -179,7 +187,7 @@ export async function createActorCommand(params: {
   name: string;
   kind: "character" | "npc" | "monster" | "static";
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     const role = requireCampaignRole(campaign, params.user.id);
 
@@ -199,7 +207,18 @@ export async function updateActorCommand(params: {
   userId: string;
   patch: unknown;
 }) {
-  return runStoreTransaction((database) => {
+  const patch =
+    params.patch && typeof params.patch === "object"
+      ? {
+          ...(params.patch as Record<string, unknown>),
+          imageUrl:
+            typeof (params.patch as { imageUrl?: unknown }).imageUrl === "string"
+              ? await externalizeImageUrl((params.patch as { imageUrl: string }).imageUrl, "actors")
+              : (params.patch as { imageUrl?: unknown }).imageUrl
+        }
+      : params.patch;
+
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     const role = requireCampaignRole(campaign, params.userId);
     const actor = campaign.actors.find((entry) => entry.id === params.actorId);
@@ -212,18 +231,23 @@ export async function updateActorCommand(params: {
       throw new HttpError(403, "You cannot edit that actor.");
     }
 
-    applyActorPatch(actor, params.patch as Record<string, unknown>);
+    applyActorPatch(actor, patch as Record<string, unknown>);
     syncActorTokens(campaign, actor);
     updateExplorationForCampaign(campaign);
 
     upsertActorRecord(database, campaign.id, actor);
 
-    for (const token of campaign.tokens.filter((entry) => entry.actorId === actor.id)) {
+    const syncedTokens = campaign.tokens.filter((entry) => entry.actorId === actor.id);
+
+    for (const token of syncedTokens) {
       upsertCampaignToken(database, campaign.id, token);
     }
 
     replaceCampaignExploration(database, campaign.id, campaign.exploration);
-    return actor;
+    return {
+      actor,
+      tokens: syncedTokens.map((entry) => ({ ...entry }))
+    };
   });
 }
 
@@ -232,17 +256,23 @@ export async function createMonsterActorCommand(params: {
   userId: string;
   templateId: string;
 }) {
-  return runStoreTransaction((database) => {
-    const campaign = requireStoredCampaign(database, params.campaignId);
-    requireDungeonMaster(campaign, params.userId);
+  const template = await runStoreQuery((database) => {
+    const nextTemplate = readMonsterTemplateById(database, params.templateId);
 
-    const template = readMonsterTemplateById(database, params.templateId);
-
-    if (!template) {
+    if (!nextTemplate) {
       throw new HttpError(404, "Monster template not found.");
     }
 
+    return nextTemplate;
+  });
+  const imageUrl = await externalizeImageUrl(template.imageUrl, "actors");
+
+  return runCampaignTransaction(params.campaignId, (database) => {
+    const campaign = requireStoredCampaign(database, params.campaignId);
+    requireDungeonMaster(campaign, params.userId);
+
     const actor = createMonsterActor(params.campaignId, params.userId, template);
+    actor.imageUrl = imageUrl;
     upsertActorRecord(database, campaign.id, actor);
     return actor;
   });
@@ -253,7 +283,7 @@ export async function deleteActorCommand(params: {
   actorId: string;
   userId: string;
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     const role = requireCampaignRole(campaign, params.userId);
 
@@ -271,6 +301,9 @@ export async function deleteActorCommand(params: {
       throw new HttpError(403, "You can only delete actors you own.");
     }
 
+    const removedAssignments = campaign.mapAssignments.filter((entry) => entry.actorId === params.actorId);
+    const removedTokens = campaign.tokens.filter((entry) => entry.actorId === params.actorId);
+
     campaign.actors = campaign.actors.filter((entry) => entry.id !== params.actorId);
     campaign.mapAssignments = campaign.mapAssignments.filter((entry) => entry.actorId !== params.actorId);
     campaign.tokens = campaign.tokens.filter((entry) => entry.actorId !== params.actorId);
@@ -278,6 +311,11 @@ export async function deleteActorCommand(params: {
 
     deleteActorRecord(database, params.actorId);
     replaceCampaignExploration(database, campaign.id, campaign.exploration);
+    return {
+      actorId: params.actorId,
+      assignmentKeys: removedAssignments.map((entry) => ({ mapId: entry.mapId, actorId: entry.actorId })),
+      tokenIds: removedTokens.map((entry) => entry.id)
+    };
   });
 }
 
@@ -286,13 +324,24 @@ export async function createMapCommand(params: {
   userId: string;
   body: unknown;
 }) {
-  return runStoreTransaction((database) => {
+  const body =
+    params.body && typeof params.body === "object"
+      ? {
+          ...(params.body as Record<string, unknown>),
+          backgroundUrl:
+            typeof (params.body as { backgroundUrl?: unknown }).backgroundUrl === "string"
+              ? await externalizeImageUrl((params.body as { backgroundUrl: string }).backgroundUrl, "maps")
+              : (params.body as { backgroundUrl?: unknown }).backgroundUrl
+        }
+      : params.body;
+
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     requireDungeonMaster(campaign, params.userId);
 
-    const body = params.body as Record<string, unknown>;
-    const map = createDefaultMap(typeof body.name === "string" ? body.name : "Map");
-    applyMapPatch(map, body);
+    const patchBody = body as Record<string, unknown>;
+    const map = createDefaultMap(typeof patchBody.name === "string" ? patchBody.name : "Map");
+    applyMapPatch(map, patchBody);
     upsertMapRecord(database, campaign.id, map);
     return map;
   });
@@ -304,7 +353,18 @@ export async function updateMapCommand(params: {
   userId: string;
   patch: unknown;
 }) {
-  return runStoreTransaction((database) => {
+  const patch =
+    params.patch && typeof params.patch === "object"
+      ? {
+          ...(params.patch as Record<string, unknown>),
+          backgroundUrl:
+            typeof (params.patch as { backgroundUrl?: unknown }).backgroundUrl === "string"
+              ? await externalizeImageUrl((params.patch as { backgroundUrl: string }).backgroundUrl, "maps")
+              : (params.patch as { backgroundUrl?: unknown }).backgroundUrl
+        }
+      : params.patch;
+
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     requireDungeonMaster(campaign, params.userId);
     const map = campaign.maps.find((entry) => entry.id === params.mapId);
@@ -313,7 +373,7 @@ export async function updateMapCommand(params: {
       throw new HttpError(404, "Map not found.");
     }
 
-    applyMapPatch(map, params.patch as Record<string, unknown>);
+    applyMapPatch(map, patch as Record<string, unknown>);
     updateExplorationForCampaign(campaign);
     upsertMapRecord(database, campaign.id, map);
     replaceCampaignExploration(database, campaign.id, campaign.exploration);
@@ -327,7 +387,7 @@ export async function assignActorToMapCommand(params: {
   actorId: string;
   userId: string;
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     requireDungeonMaster(campaign, params.userId);
 
@@ -344,7 +404,19 @@ export async function assignActorToMapCommand(params: {
         actorId: params.actorId,
         mapId: params.mapId
       });
+
+      return {
+        assigned: true,
+        mapId: params.mapId,
+        actorId: params.actorId
+      };
     }
+
+    return {
+      assigned: false,
+      mapId: params.mapId,
+      actorId: params.actorId
+    };
   });
 }
 
@@ -354,7 +426,7 @@ export async function removeActorFromMapCommand(params: {
   actorId: string;
   userId: string;
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     requireDungeonMaster(campaign, params.userId);
 
@@ -373,6 +445,10 @@ export async function removeActorFromMapCommand(params: {
     campaign.mapAssignments = campaign.mapAssignments.filter(
       (assignment) => !(assignment.actorId === params.actorId && assignment.mapId === params.mapId)
     );
+    const removedTokens = campaign.tokens.filter(
+      (token) => token.actorId === params.actorId && token.mapId === params.mapId
+    );
+
     campaign.tokens = campaign.tokens.filter(
       (token) => !(token.actorId === params.actorId && token.mapId === params.mapId)
     );
@@ -381,6 +457,11 @@ export async function removeActorFromMapCommand(params: {
     deleteMapAssignmentRecord(database, campaign.id, params.mapId, params.actorId);
     deleteTokensForActorOnMap(database, params.mapId, params.actorId);
     replaceCampaignExploration(database, campaign.id, campaign.exploration);
+    return {
+      mapId: params.mapId,
+      actorId: params.actorId,
+      tokenIds: removedTokens.map((entry) => entry.id)
+    };
   });
 }
 
@@ -392,7 +473,7 @@ export async function createTokenCommand(params: {
   x: number;
   y: number;
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     const role = requireCampaignRole(campaign, params.userId);
     const actor = campaign.actors.find((entry) => entry.id === params.actorId);
@@ -469,7 +550,7 @@ export async function updateTokenCommand(params: {
     visible?: boolean;
   };
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     const role = requireCampaignRole(campaign, params.userId);
     const token = campaign.tokens.find((entry) => entry.id === params.tokenId);
@@ -535,7 +616,7 @@ export async function removeTokenCommand(params: {
   tokenId: string;
   userId: string;
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     const role = requireCampaignRole(campaign, params.userId);
 
@@ -554,6 +635,10 @@ export async function removeTokenCommand(params: {
 
     deleteTokenRecord(database, params.tokenId);
     replaceCampaignExploration(database, campaign.id, campaign.exploration);
+    return {
+      tokenId: token.id,
+      mapId: token.mapId
+    };
   });
 }
 
@@ -562,7 +647,7 @@ export async function appendChatMessageCommand(params: {
   user: { id: string; name: string };
   text: string;
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     requireCampaignRole(campaign, params.user.id);
 
@@ -606,7 +691,7 @@ export async function appendRollMessageCommand(params: {
   label: string;
   actorId?: string;
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     requireCampaignRole(campaign, params.user.id);
     const roll = rollDice(params.notation, params.label);
@@ -637,7 +722,7 @@ export async function createDrawingCommand(params: {
   mapId: string;
   stroke: DrawingStroke;
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     const activeMap = requireActiveMap(campaign);
 
@@ -663,7 +748,7 @@ export async function updateDrawingsCommand(params: {
   mapId: string;
   drawings: Array<{ id: string; points: DrawingStroke["points"]; rotation: number }>;
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     const role = requireCampaignRole(campaign, params.userId);
     const activeMap = requireActiveMap(campaign);
@@ -703,7 +788,7 @@ export async function deleteDrawingsCommand(params: {
   mapId: string;
   drawingIds: string[];
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     const role = requireCampaignRole(campaign, params.userId);
     const activeMap = requireActiveMap(campaign);
@@ -733,7 +818,7 @@ export async function clearDrawingsCommand(params: {
   userId: string;
   mapId: string;
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     requireDungeonMaster(campaign, params.userId);
     const activeMap = requireActiveMap(campaign);
@@ -751,7 +836,7 @@ export async function setActiveMapCommand(params: {
   userId: string;
   mapId: string;
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     requireDungeonMaster(campaign, params.userId);
 
@@ -771,7 +856,7 @@ export async function resetFogCommand(params: {
   userId: string;
   mapId: string;
 }) {
-  return runStoreTransaction((database) => {
+  return runCampaignTransaction(params.campaignId, (database) => {
     const campaign = requireStoredCampaign(database, params.campaignId);
     requireDungeonMaster(campaign, params.userId);
 

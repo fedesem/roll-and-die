@@ -5,7 +5,7 @@ import {
   createRollBodySchema
 } from "../../../shared/contracts/campaigns.js";
 import { parseWithSchema, requireRouteParam } from "../http/validation.js";
-import { broadcastCampaignToRoom } from "../realtime/roomGateway.js";
+import { broadcastChatAppendedToRoom } from "../realtime/roomGateway.js";
 import { requireUser } from "../services/authService.js";
 import {
   appendChatMessageCommand,
@@ -24,7 +24,7 @@ export const chatController = {
       text: body.text
     });
 
-    await broadcastCampaignToRoom(campaignId);
+    broadcastChatAppendedToRoom(campaignId, message);
     response.status(201).json(message);
   },
 
@@ -41,7 +41,7 @@ export const chatController = {
       actorId: body.actorId ?? undefined
     });
 
-    await broadcastCampaignToRoom(campaignId);
+    broadcastChatAppendedToRoom(campaignId, message);
     response.status(201).json(message);
   }
 };

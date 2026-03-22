@@ -14,6 +14,8 @@ import { compendiumExpansionMigration } from "./114_compendium_expansion.js";
 import { campaignSourceBooksMigration } from "./115_campaign_source_books.js";
 import { chatRollContextMigration } from "./116_chat_roll_context.js";
 import { mapTeleportersMigration } from "./117_map_teleporters.js";
+import { externalizeInlineImagesMigration } from "./118_externalize_inline_images.js";
+import { hotPathIndexesMigration } from "./119_hot_path_indexes.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -31,5 +33,7 @@ export const migrations = [
   compendiumExpansionMigration,
   campaignSourceBooksMigration,
   chatRollContextMigration,
-  mapTeleportersMigration
+  mapTeleportersMigration,
+  externalizeInlineImagesMigration,
+  hotPathIndexesMigration
 ];

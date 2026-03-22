@@ -4,9 +4,17 @@ import { WebSocket, WebSocketServer, type RawData } from "ws";
 
 import { clientRoomMessageSchema, serverRoomMessageSchema } from "../../../shared/contracts/realtime.js";
 import type {
+  ActorSheet,
   BoardToken,
+  CampaignInvite,
+  CampaignMap,
+  CampaignMember,
+  ChatMessage,
   MapPing,
   MapViewportRecall,
+  MapActorAssignment,
+  MemberRole,
+  RoomCampaignPatch,
   RoomDoorToggled,
   RoomPlayerVisionUpdate,
   RoomTokenMoved,
@@ -20,12 +28,12 @@ import { parseWithSchema } from "../http/validation.js";
 import { runStoreQuery, runStoreTransaction } from "../store.js";
 import {
   insertCampaignExplorationCells,
+  readActiveBoardCampaign,
   readCampaignById,
-  readRealtimeCampaign,
+  readMapEditorMap,
   updateCampaignDoorState,
   upsertCampaignToken
 } from "../store/models/campaigns.js";
-import { readCampaignCompendium } from "../store/models/compendium.js";
 import { readSession, readUserById } from "../store/models/users.js";
 import { createId, now, toUserProfile } from "../services/authService.js";
 import {
@@ -51,11 +59,13 @@ import {
   updateExplorationForActorMove,
   updateExplorationForMap
 } from "../services/campaignDomain.js";
+import { readRoomCompendiumCache } from "../services/roomCompendiumCache.js";
 
 interface RoomConnection {
   socket: WebSocket;
   user?: UserProfile;
   campaignId?: string;
+  role?: MemberRole;
 }
 
 const roomConnections = new Set<RoomConnection>();
@@ -73,7 +83,9 @@ export function createRoomGateway(httpServer: Server) {
 
     socket.on("close", () => {
       if (connection.user && connection.campaignId) {
-        void runStoreQuery((database) => readCampaignById(database, connection.campaignId!))
+        void runStoreQuery((database) => readCampaignById(database, connection.campaignId!), {
+          queueKey: `campaign:${connection.campaignId!}`
+        })
           .then((campaign) => {
 
             if (!campaign) {
@@ -98,10 +110,10 @@ export function createRoomGateway(httpServer: Server) {
 }
 
 export async function broadcastCampaignToRoom(campaignId: string) {
-  const { campaign, compendium } = await runStoreQuery((database) => ({
-    campaign: readCampaignById(database, campaignId),
-    compendium: readCampaignCompendium(database)
-  }));
+  const [campaign, compendium] = await Promise.all([
+    runStoreQuery((database) => readCampaignById(database, campaignId), { queueKey: `campaign:${campaignId}` }),
+    readRoomCompendiumCache()
+  ]);
 
   if (!campaign) {
     return;
@@ -121,6 +133,38 @@ export async function broadcastCampaignToRoom(campaignId: string) {
     sendSocketMessage(connection, {
       type: "room:snapshot",
       snapshot: buildCampaignSnapshot(campaign, connection.user, compendium)
+    });
+  }
+}
+
+function hasCampaignPatchContent(patch: RoomCampaignPatch) {
+  return Object.values(patch).some((value) => {
+    if (Array.isArray(value)) {
+      return value.length > 0;
+    }
+
+    return value !== undefined;
+  });
+}
+
+function broadcastCampaignPatchToRoom(
+  campaignId: string,
+  buildPatch: (connection: RoomConnection) => RoomCampaignPatch | null
+) {
+  for (const connection of roomConnections) {
+    if (!connection.user || connection.campaignId !== campaignId) {
+      continue;
+    }
+
+    const patch = buildPatch(connection);
+
+    if (!patch || !hasCampaignPatchContent(patch)) {
+      continue;
+    }
+
+    sendSocketMessage(connection, {
+      type: "room:campaign-patch",
+      patch
     });
   }
 }
@@ -157,6 +201,125 @@ function buildPlayerVisionUpdateForMap(
   };
 }
 
+function buildVisibleActorForConnection(connection: RoomConnection, actor: ActorSheet) {
+  if (!connection.user || !connection.role) {
+    return null;
+  }
+
+  if (connection.role === "dm" || (actor.kind === "character" && actor.ownerId === connection.user.id)) {
+    return {
+      ...actor,
+      sheetAccess: "full"
+    } satisfies ActorSheet;
+  }
+
+  return null;
+}
+
+export function broadcastChatAppendedToRoom(campaignId: string, message: ChatMessage) {
+  broadcastCampaignPatchToRoom(campaignId, () => ({
+    chatAppended: [message]
+  }));
+}
+
+export function broadcastCampaignMembershipToRoom(
+  campaignId: string,
+  members: CampaignMember[],
+  invites: CampaignInvite[]
+) {
+  broadcastCampaignPatchToRoom(campaignId, () => ({
+    members,
+    invites
+  }));
+}
+
+export function broadcastActorUpsertToRoom(campaignId: string, actor: ActorSheet) {
+  broadcastCampaignPatchToRoom(campaignId, (connection) => {
+    const visibleActor = buildVisibleActorForConnection(connection, actor);
+
+    return visibleActor
+      ? {
+          actorsUpsert: [visibleActor]
+        }
+      : null;
+  });
+}
+
+export function broadcastActorRemovedToRoom(
+  campaignId: string,
+  actorId: string,
+  options?: {
+    mapAssignmentsRemoved?: Array<{ mapId: string; actorId: string }>;
+    tokenIdsRemoved?: string[];
+  }
+) {
+  broadcastCampaignPatchToRoom(campaignId, () => ({
+    actorIdsRemoved: [actorId],
+    mapAssignmentsRemoved: options?.mapAssignmentsRemoved,
+    tokenIdsRemoved: options?.tokenIdsRemoved
+  }));
+}
+
+export function broadcastActorUpdatedToRoom(
+  campaignId: string,
+  actor: ActorSheet,
+  tokens: BoardToken[]
+) {
+  broadcastCampaignPatchToRoom(campaignId, (connection) => {
+    const visibleActor = buildVisibleActorForConnection(connection, actor);
+
+    return {
+      actorsUpsert: visibleActor ? [visibleActor] : undefined,
+      tokensUpsert: tokens
+    };
+  });
+}
+
+export function broadcastMapUpsertToRoom(
+  campaignId: string,
+  map: CampaignMap,
+  options?: {
+    activeMapId?: string;
+    playerVision?: (connection: RoomConnection) => RoomPlayerVisionUpdate | undefined;
+  }
+) {
+  broadcastCampaignPatchToRoom(campaignId, (connection) => ({
+    activeMapId: options?.activeMapId,
+    mapsUpsert: [map],
+    playerVision: options?.playerVision?.(connection)
+  }));
+}
+
+export function broadcastMapAssignmentsToRoom(
+  campaignId: string,
+  patch: {
+    upsert?: MapActorAssignment[];
+    removed?: Array<{ mapId: string; actorId: string }>;
+    tokenIdsRemoved?: string[];
+  }
+) {
+  broadcastCampaignPatchToRoom(campaignId, () => ({
+    mapAssignmentsUpsert: patch.upsert,
+    mapAssignmentsRemoved: patch.removed,
+    tokenIdsRemoved: patch.tokenIdsRemoved
+  }));
+}
+
+export function broadcastTokenPatchToRoom(
+  campaignId: string,
+  patch: {
+    tokensUpsert?: BoardToken[];
+    tokenIdsRemoved?: string[];
+    playerVision?: (connection: RoomConnection) => RoomPlayerVisionUpdate | undefined;
+  }
+) {
+  broadcastCampaignPatchToRoom(campaignId, (connection) => ({
+    tokensUpsert: patch.tokensUpsert,
+    tokenIdsRemoved: patch.tokenIdsRemoved,
+    playerVision: patch.playerVision?.(connection)
+  }));
+}
+
 function captureExplorationForMap(campaign: Parameters<typeof buildCampaignSnapshot>[0], mapId: string) {
   const snapshot = new Map<string, string[]>();
 
@@ -176,7 +339,7 @@ function persistExplorationDeltaForMap(
   campaign: Parameters<typeof buildCampaignSnapshot>[0],
   mapId: string,
   previous: Map<string, string[]>,
-  database: Parameters<typeof readRealtimeCampaign>[0]
+  database: Parameters<typeof readActiveBoardCampaign>[0]
 ) {
   for (const member of campaign.members) {
     if (member.role !== "player") {
@@ -251,7 +414,8 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     const payload = parseWithSchema(clientRoomMessageSchema, JSON.parse(raw), "Invalid websocket payload.");
 
     if (payload.type === "room:join") {
-      const { session, userRecord, campaign, compendium } = await runStoreQuery((database) => {
+      const [{ session, userRecord, campaign }, compendium] = await Promise.all([
+        runStoreQuery((database) => {
         const session = readSession(database, payload.token);
         const userRecord = session ? readUserById(database, session.userId) : null;
         const campaign = readCampaignById(database, payload.campaignId);
@@ -259,10 +423,11 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         return {
           session,
           userRecord,
-          campaign,
-          compendium: readCampaignCompendium(database)
+          campaign
         };
-      });
+        }, { queueKey: `campaign:${payload.campaignId}` }),
+        readRoomCompendiumCache()
+      ]);
 
       if (!session || !userRecord) {
         throw new HttpError(401, "Authentication required.");
@@ -280,6 +445,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
 
       connection.user = user;
       connection.campaignId = campaign.id;
+      connection.role = campaign.members.find((entry) => entry.userId === user.id)?.role;
 
       sendSocketMessage(connection, {
         type: "room:joined",
@@ -295,18 +461,18 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     const { user, campaignId } = requireJoinedConnection(connection);
 
     if (payload.type === "chat:send") {
-      await appendChatMessageCommand({
+      const message = await appendChatMessageCommand({
         campaignId,
         user,
         text: payload.text
       });
 
-      await broadcastCampaignToRoom(campaignId);
+      broadcastChatAppendedToRoom(campaignId, message);
       return;
     }
 
     if (payload.type === "roll:send") {
-      await appendRollMessageCommand({
+      const message = await appendRollMessageCommand({
         campaignId,
         user,
         notation: payload.notation,
@@ -314,13 +480,13 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         actorId: payload.actorId ?? undefined
       });
 
-      await broadcastCampaignToRoom(campaignId);
+      broadcastChatAppendedToRoom(campaignId, message);
       return;
     }
 
     if (payload.type === "token:move") {
       const { campaign, token, activeMapId } = await runStoreTransaction((database) => {
-        const campaign = readRealtimeCampaign(database, campaignId);
+        const campaign = readActiveBoardCampaign(database, campaignId);
 
         if (!campaign) {
           throw new HttpError(404, "Campaign not found.");
@@ -386,7 +552,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
           token: { ...token },
           activeMapId
         };
-      });
+      }, { queueKey: `campaign:${campaignId}` });
 
       broadcastSocketMessageToRoom(campaignId, {
         type: "room:token-preview",
@@ -399,7 +565,9 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "token:preview") {
-      const campaign = await runStoreQuery((database) => readRealtimeCampaign(database, campaignId));
+      const campaign = await runStoreQuery((database) => readActiveBoardCampaign(database, campaignId), {
+        queueKey: `campaign:${campaignId}`
+      });
 
       if (!campaign) {
         throw new HttpError(404, "Campaign not found.");
@@ -457,7 +625,9 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "measure:preview") {
-      const campaign = await runStoreQuery((database) => readRealtimeCampaign(database, campaignId));
+      const campaign = await runStoreQuery((database) => readActiveBoardCampaign(database, campaignId), {
+        queueKey: `campaign:${campaignId}`
+      });
 
       if (!campaign) {
         throw new HttpError(404, "Campaign not found.");
@@ -484,7 +654,14 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         stroke: payload.stroke
       });
 
-      await broadcastCampaignToRoom(campaignId);
+      const map = await runStoreQuery(
+        (database) => readMapEditorMap(database, campaignId, payload.mapId),
+        { queueKey: `campaign:${campaignId}` }
+      );
+
+      if (map) {
+        broadcastMapUpsertToRoom(campaignId, map);
+      }
       return;
     }
 
@@ -496,7 +673,14 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         drawings: payload.drawings
       });
 
-      await broadcastCampaignToRoom(campaignId);
+      const map = await runStoreQuery(
+        (database) => readMapEditorMap(database, campaignId, payload.mapId),
+        { queueKey: `campaign:${campaignId}` }
+      );
+
+      if (map) {
+        broadcastMapUpsertToRoom(campaignId, map);
+      }
       return;
     }
 
@@ -508,7 +692,14 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         drawingIds: payload.drawingIds
       });
 
-      await broadcastCampaignToRoom(campaignId);
+      const map = await runStoreQuery(
+        (database) => readMapEditorMap(database, campaignId, payload.mapId),
+        { queueKey: `campaign:${campaignId}` }
+      );
+
+      if (map) {
+        broadcastMapUpsertToRoom(campaignId, map);
+      }
       return;
     }
 
@@ -519,7 +710,14 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         mapId: payload.mapId
       });
 
-      await broadcastCampaignToRoom(campaignId);
+      const map = await runStoreQuery(
+        (database) => readMapEditorMap(database, campaignId, payload.mapId),
+        { queueKey: `campaign:${campaignId}` }
+      );
+
+      if (map) {
+        broadcastMapUpsertToRoom(campaignId, map);
+      }
       return;
     }
 
@@ -530,12 +728,31 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         mapId: payload.mapId
       });
 
-      await broadcastCampaignToRoom(campaignId);
+      const campaign = await runStoreQuery((database) => readActiveBoardCampaign(database, campaignId), {
+        queueKey: `campaign:${campaignId}`
+      });
+
+      if (!campaign) {
+        throw new HttpError(404, "Campaign not found.");
+      }
+
+      const activeMap = requireActiveMap(campaign);
+
+      broadcastCampaignPatchToRoom(campaignId, (connection) => ({
+        activeMapId: activeMap.id,
+        mapsUpsert: [activeMap],
+        playerVision:
+          connection.user && connection.role
+            ? buildPlayerVisionUpdateForMap(campaign, connection.user.id, activeMap.id)
+            : undefined
+      }));
       return;
     }
 
     if (payload.type === "map:ping") {
-      const campaign = await runStoreQuery((database) => readRealtimeCampaign(database, campaignId));
+      const campaign = await runStoreQuery((database) => readActiveBoardCampaign(database, campaignId), {
+        queueKey: `campaign:${campaignId}`
+      });
 
       if (!campaign) {
         throw new HttpError(404, "Campaign not found.");
@@ -565,7 +782,9 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "map:ping-recall") {
-      const campaign = await runStoreQuery((database) => readRealtimeCampaign(database, campaignId));
+      const campaign = await runStoreQuery((database) => readActiveBoardCampaign(database, campaignId), {
+        queueKey: `campaign:${campaignId}`
+      });
 
       if (!campaign) {
         throw new HttpError(404, "Campaign not found.");
@@ -612,13 +831,29 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         mapId: payload.mapId
       });
 
-      await broadcastCampaignToRoom(campaignId);
+      const campaign = await runStoreQuery((database) => readActiveBoardCampaign(database, campaignId), {
+        queueKey: `campaign:${campaignId}`
+      });
+
+      if (!campaign) {
+        throw new HttpError(404, "Campaign not found.");
+      }
+
+      const map = requireActiveMap(campaign);
+
+      broadcastCampaignPatchToRoom(campaignId, (connection) => ({
+        mapsUpsert: [map],
+        playerVision:
+          connection.user && connection.role
+            ? buildPlayerVisionUpdateForMap(campaign, connection.user.id, map.id)
+            : undefined
+      }));
       return;
     }
 
     if (payload.type === "door:toggle") {
       const { campaign, activeMapId, doorId, isOpen } = await runStoreTransaction((database) => {
-        const campaign = readRealtimeCampaign(database, campaignId);
+        const campaign = readActiveBoardCampaign(database, campaignId);
 
         if (!campaign) {
           throw new HttpError(404, "Campaign not found.");
@@ -649,7 +884,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
           doorId: door.id,
           isOpen: door.isOpen
         };
-      });
+      }, { queueKey: `campaign:${campaignId}` });
 
       broadcastDoorToggledToRoom(campaignId, campaign, {
         mapId: activeMapId,

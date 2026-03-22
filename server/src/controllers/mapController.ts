@@ -5,11 +5,16 @@ import {
   createMapBodySchema,
   saveMapBodySchema
 } from "../../../shared/contracts/campaigns.js";
+import { HttpError } from "../http/errors.js";
 import { parseWithSchema, requireRouteParam } from "../http/validation.js";
-import { broadcastCampaignToRoom } from "../realtime/roomGateway.js";
-import { requireUser } from "../services/authService.js";
 import {
-} from "../services/campaignDomain.js";
+  broadcastMapAssignmentsToRoom,
+  broadcastMapUpsertToRoom
+} from "../realtime/roomGateway.js";
+import { runStoreQuery } from "../store.js";
+import { requireUser } from "../services/authService.js";
+import { normalizeExplorationMemoryForMap } from "../services/campaignDomain.js";
+import { readActiveBoardCampaign, readMapEditorMap } from "../store/models/campaigns.js";
 import {
   assignActorToMapCommand,
   createMapCommand,
@@ -29,7 +34,7 @@ export const mapController = {
       body
     });
 
-    await broadcastCampaignToRoom(campaignId);
+    broadcastMapUpsertToRoom(campaignId, map);
     response.status(201).json(map);
   },
 
@@ -39,14 +44,43 @@ export const mapController = {
     const mapId = requireRouteParam(request.params.mapId, "mapId");
     const patch = parseWithSchema(saveMapBodySchema, request.body);
 
-    const map = await updateMapCommand({
+    await updateMapCommand({
       campaignId,
       mapId,
       userId: user.id,
       patch
     });
 
-    await broadcastCampaignToRoom(campaignId);
+    const map = await runStoreQuery(
+      (database) => readMapEditorMap(database, campaignId, mapId),
+      { queueKey: `campaign:${campaignId}` }
+    );
+
+    if (!map) {
+      throw new HttpError(404, "Map not found.");
+    }
+
+    const activeBoardCampaign = await runStoreQuery(
+      (database) => readActiveBoardCampaign(database, campaignId),
+      { queueKey: `campaign:${campaignId}` }
+    );
+
+    broadcastMapUpsertToRoom(campaignId, map, {
+      activeMapId: activeBoardCampaign?.activeMapId,
+      playerVision:
+        activeBoardCampaign && activeBoardCampaign.activeMapId === map.id
+          ? (connection) =>
+              connection.user
+                ? {
+                    mapId: map.id,
+                    cells:
+                      connection.role === "dm"
+                        ? []
+                        : normalizeExplorationMemoryForMap(activeBoardCampaign, connection.user.id, map.id)
+                  }
+                : undefined
+          : undefined
+    });
     response.json(map);
   },
 
@@ -56,14 +90,18 @@ export const mapController = {
     const mapId = requireRouteParam(request.params.mapId, "mapId");
     const body = parseWithSchema(assignActorToMapBodySchema, request.body);
 
-    await assignActorToMapCommand({
+    const result = await assignActorToMapCommand({
       campaignId,
       mapId,
       actorId: body.actorId,
       userId: user.id
     });
 
-    await broadcastCampaignToRoom(campaignId);
+    if (result.assigned) {
+      broadcastMapAssignmentsToRoom(campaignId, {
+        upsert: [{ mapId: result.mapId, actorId: result.actorId }]
+      });
+    }
     response.status(204).send();
   },
 
@@ -73,14 +111,17 @@ export const mapController = {
     const mapId = requireRouteParam(request.params.mapId, "mapId");
     const actorId = requireRouteParam(request.params.actorId, "actorId");
 
-    await removeActorFromMapCommand({
+    const result = await removeActorFromMapCommand({
       campaignId,
       mapId,
       actorId,
       userId: user.id
     });
 
-    await broadcastCampaignToRoom(campaignId);
+    broadcastMapAssignmentsToRoom(campaignId, {
+      removed: [{ mapId: result.mapId, actorId: result.actorId }],
+      tokenIdsRemoved: result.tokenIds
+    });
     response.status(204).send();
   }
 };

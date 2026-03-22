@@ -330,6 +330,250 @@ export function readRealtimeCampaign(database: DatabaseSync, campaignId: string)
   return campaign;
 }
 
+export function readActiveBoardCampaign(database: DatabaseSync, campaignId: string) {
+  return readRealtimeCampaign(database, campaignId);
+}
+
+export function readMapEditorMap(database: DatabaseSync, campaignId: string, mapId: string): CampaignMap | null {
+  const row = database
+    .prepare(
+      `
+        SELECT
+          id,
+          name,
+          background_url as backgroundUrl,
+          background_offset_x as backgroundOffsetX,
+          background_offset_y as backgroundOffsetY,
+          background_scale as backgroundScale,
+          width,
+          height,
+          grid_show as gridShow,
+          grid_cell_size as gridCellSize,
+          grid_scale as gridScale,
+          grid_offset_x as gridOffsetX,
+          grid_offset_y as gridOffsetY,
+          grid_color as gridColor,
+          visibility_version as visibilityVersion
+        FROM maps
+        WHERE id = ? AND campaign_id = ?
+        LIMIT 1
+      `
+    )
+    .get(mapId, campaignId) as
+    | {
+        id: string;
+        name: string;
+        backgroundUrl: string;
+        backgroundOffsetX: number;
+        backgroundOffsetY: number;
+        backgroundScale: number;
+        width: number;
+        height: number;
+        gridShow: number;
+        gridCellSize: number;
+        gridScale: number;
+        gridOffsetX: number;
+        gridOffsetY: number;
+        gridColor: string;
+        visibilityVersion: number;
+      }
+    | undefined;
+
+  if (!row) {
+    return null;
+  }
+
+  const map: CampaignMap = {
+    id: row.id,
+    name: row.name,
+    backgroundUrl: row.backgroundUrl,
+    backgroundOffsetX: row.backgroundOffsetX,
+    backgroundOffsetY: row.backgroundOffsetY,
+    backgroundScale: row.backgroundScale,
+    width: row.width,
+    height: row.height,
+    grid: {
+      show: toBoolean(row.gridShow),
+      cellSize: row.gridCellSize,
+      scale: row.gridScale,
+      offsetX: row.gridOffsetX,
+      offsetY: row.gridOffsetY,
+      color: row.gridColor
+    },
+    walls: [],
+    teleporters: [],
+    drawings: [],
+    fog: [],
+    visibilityVersion: row.visibilityVersion ?? 1
+  };
+
+  map.walls = readAll<{
+    id: string;
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    kind: MapWall["kind"];
+    isOpen: number;
+  }>(
+    database,
+    `
+      SELECT id, start_x as startX, start_y as startY, end_x as endX, end_y as endY, kind, is_open as isOpen
+      FROM map_walls
+      WHERE map_id = ?
+      ORDER BY sort_order, id
+    `,
+    map.id
+  ).map((wall) => ({
+    id: wall.id,
+    start: { x: wall.startX, y: wall.startY },
+    end: { x: wall.endX, y: wall.endY },
+    kind: wall.kind ?? "wall",
+    isOpen: toBoolean(wall.isOpen)
+  }));
+
+  map.teleporters = readAll<{
+    id: string;
+    pairNumber: number;
+    pointAX: number;
+    pointAY: number;
+    pointBX: number;
+    pointBY: number;
+  }>(
+    database,
+    `
+      SELECT
+        id,
+        pair_number as pairNumber,
+        point_a_x as pointAX,
+        point_a_y as pointAY,
+        point_b_x as pointBX,
+        point_b_y as pointBY
+      FROM map_teleporters
+      WHERE map_id = ?
+      ORDER BY sort_order, id
+    `,
+    map.id
+  ).map((teleporter) => ({
+    id: teleporter.id,
+    pairNumber: teleporter.pairNumber,
+    pointA: { x: teleporter.pointAX, y: teleporter.pointAY },
+    pointB: { x: teleporter.pointBX, y: teleporter.pointBY }
+  }));
+
+  const drawingsById = new Map<string, DrawingStroke>();
+
+  map.drawings = readAll<{
+    id: string;
+    ownerId: string | null;
+    kind: DrawingKind;
+    color: string;
+    strokeOpacity: number;
+    fillColor: string;
+    fillOpacity: number;
+    size: number;
+    rotation: number;
+  }>(
+    database,
+    `
+      SELECT
+        id,
+        owner_id as ownerId,
+        kind,
+        color,
+        stroke_opacity as strokeOpacity,
+        fill_color as fillColor,
+        fill_opacity as fillOpacity,
+        size,
+        rotation
+      FROM map_drawings
+      WHERE map_id = ?
+      ORDER BY sort_order, id
+    `,
+    map.id
+  ).map((drawing) => {
+    const stroke: DrawingStroke = {
+      id: drawing.id,
+      ownerId: drawing.ownerId ?? undefined,
+      kind: drawing.kind ?? "freehand",
+      color: drawing.color,
+      strokeOpacity: drawing.strokeOpacity ?? 1,
+      fillColor: drawing.fillColor ?? "",
+      fillOpacity: drawing.fillOpacity ?? 0.22,
+      size: drawing.size,
+      rotation: drawing.rotation ?? 0,
+      points: []
+    };
+
+    drawingsById.set(stroke.id, stroke);
+    return stroke;
+  });
+
+  for (const point of readAll<{ strokeId: string; x: number; y: number }>(
+    database,
+    `
+      SELECT stroke_id as strokeId, x, y
+      FROM map_drawing_points
+      WHERE stroke_id IN (SELECT id FROM map_drawings WHERE map_id = ?)
+      ORDER BY stroke_id, sort_order
+    `,
+    map.id
+  )) {
+    drawingsById.get(point.strokeId)?.points.push({ x: point.x, y: point.y });
+  }
+
+  return map;
+}
+
+export function readCampaignMembersAndInvites(database: DatabaseSync, campaignId: string) {
+  return {
+    members: readAll<{
+      userId: string;
+      name: string;
+      email: string;
+      role: CampaignMember["role"];
+    }>(
+      database,
+      `
+        SELECT user_id as userId, name, email, role
+        FROM campaign_members
+        WHERE campaign_id = ?
+        ORDER BY sort_order, user_id
+      `,
+      campaignId
+    ).map((member) => ({
+      userId: member.userId,
+      name: member.name,
+      email: member.email,
+      role: member.role
+    })),
+    invites: readAll<{
+      id: string;
+      code: string;
+      label: string;
+      role: CampaignInvite["role"];
+      createdAt: string;
+      createdBy: string;
+    }>(
+      database,
+      `
+        SELECT id, code, label, role, created_at as createdAt, created_by as createdBy
+        FROM campaign_invites
+        WHERE campaign_id = ?
+        ORDER BY sort_order, id
+      `,
+      campaignId
+    ).map((invite) => ({
+      id: invite.id,
+      code: invite.code,
+      label: invite.label,
+      role: invite.role,
+      createdAt: invite.createdAt,
+      createdBy: invite.createdBy
+    }))
+  };
+}
+
 export function upsertCampaignToken(database: DatabaseSync, campaignId: string, token: Campaign["tokens"][number]) {
   database
     .prepare(

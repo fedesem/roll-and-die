@@ -568,6 +568,22 @@ export interface RoomDoorToggled {
   playerVision: RoomPlayerVisionUpdate;
 }
 
+export interface RoomCampaignPatch {
+  activeMapId?: string;
+  members?: CampaignMember[];
+  invites?: CampaignInvite[];
+  actorsUpsert?: ActorSheet[];
+  actorIdsRemoved?: string[];
+  mapsUpsert?: CampaignMap[];
+  mapIdsRemoved?: string[];
+  mapAssignmentsUpsert?: MapActorAssignment[];
+  mapAssignmentsRemoved?: Array<{ mapId: string; actorId: string }>;
+  tokensUpsert?: BoardToken[];
+  tokenIdsRemoved?: string[];
+  chatAppended?: ChatMessage[];
+  playerVision?: RoomPlayerVisionUpdate;
+}
+
 export interface AdminOverview {
   users: UserProfile[];
   compendium: CompendiumData;
@@ -695,6 +711,10 @@ export type ServerRoomMessage =
   | {
       type: "room:snapshot";
       snapshot: CampaignSnapshot;
+    }
+  | {
+      type: "room:campaign-patch";
+      patch: RoomCampaignPatch;
     }
   | {
       type: "room:token-moved";

@@ -5,6 +5,7 @@ import type {
   MapPing,
   MapViewportRecall,
   MeasurePreview,
+  RoomCampaignPatch,
   RoomDoorToggled,
   RoomTokenMoved,
   TokenMovementPreview
@@ -45,6 +46,10 @@ export function useRoomRealtimeState({ isCampaignRoute, selectedCampaignId, onEr
 
   const handleRoomSnapshot = useCallback((nextSnapshot: CampaignSnapshot) => {
     setSnapshot(nextSnapshot);
+  }, []);
+
+  const handleCampaignPatch = useCallback((patch: RoomCampaignPatch) => {
+    setSnapshot((current) => applyCampaignPatch(current, patch));
   }, []);
 
   const handleTokenMoved = useCallback((update: RoomTokenMoved) => {
@@ -201,6 +206,7 @@ export function useRoomRealtimeState({ isCampaignRoute, selectedCampaignId, onEr
     handleRoomDisconnect,
     handleRoomStatusChange,
     handleRoomSnapshot,
+    handleCampaignPatch,
     handleTokenMoved,
     handleDoorToggled,
     handleMovementPreview,
@@ -208,4 +214,110 @@ export function useRoomRealtimeState({ isCampaignRoute, selectedCampaignId, onEr
     handleRoomRecall,
     handleRoomError
   };
+}
+
+function applyCampaignPatch(current: CampaignSnapshot | null, patch: RoomCampaignPatch) {
+  if (!current) {
+    return current;
+  }
+
+  const nextCampaign = { ...current.campaign };
+
+  if (patch.activeMapId) {
+    nextCampaign.activeMapId = patch.activeMapId;
+  }
+
+  if (patch.members) {
+    nextCampaign.members = patch.members;
+  }
+
+  if (patch.invites) {
+    nextCampaign.invites = patch.invites;
+  }
+
+  if (patch.actorsUpsert?.length) {
+    nextCampaign.actors = upsertById(nextCampaign.actors, patch.actorsUpsert);
+  }
+
+  if (patch.actorIdsRemoved?.length) {
+    const removedActorIds = new Set(patch.actorIdsRemoved);
+    nextCampaign.actors = nextCampaign.actors.filter((actor) => !removedActorIds.has(actor.id));
+  }
+
+  if (patch.mapsUpsert?.length) {
+    nextCampaign.maps = upsertById(nextCampaign.maps, patch.mapsUpsert);
+  }
+
+  if (patch.mapIdsRemoved?.length) {
+    const removedMapIds = new Set(patch.mapIdsRemoved);
+    nextCampaign.maps = nextCampaign.maps.filter((map) => !removedMapIds.has(map.id));
+  }
+
+  if (patch.mapAssignmentsUpsert?.length) {
+    nextCampaign.mapAssignments = upsertByCompositeKey(nextCampaign.mapAssignments, patch.mapAssignmentsUpsert);
+  }
+
+  if (patch.mapAssignmentsRemoved?.length) {
+    const removedAssignmentKeys = new Set(
+      patch.mapAssignmentsRemoved.map((entry) => `${entry.mapId}:${entry.actorId}`)
+    );
+    nextCampaign.mapAssignments = nextCampaign.mapAssignments.filter(
+      (assignment) => !removedAssignmentKeys.has(`${assignment.mapId}:${assignment.actorId}`)
+    );
+  }
+
+  if (patch.tokensUpsert?.length) {
+    nextCampaign.tokens = upsertById(nextCampaign.tokens, patch.tokensUpsert);
+  }
+
+  if (patch.tokenIdsRemoved?.length) {
+    const removedTokenIds = new Set(patch.tokenIdsRemoved);
+    nextCampaign.tokens = nextCampaign.tokens.filter((token) => !removedTokenIds.has(token.id));
+  }
+
+  if (patch.chatAppended?.length) {
+    const knownIds = new Set(nextCampaign.chat.map((message) => message.id));
+    const appended = patch.chatAppended.filter((message) => !knownIds.has(message.id));
+
+    if (appended.length > 0) {
+      nextCampaign.chat = [...nextCampaign.chat, ...appended].slice(-200);
+    }
+  }
+
+  return {
+    ...current,
+    campaign: nextCampaign,
+    playerVision: patch.playerVision
+      ? {
+          ...current.playerVision,
+          [patch.playerVision.mapId]: patch.playerVision.cells
+        }
+      : current.playerVision
+  };
+}
+
+function upsertById<T extends { id: string }>(current: T[], updates: T[]) {
+  const updatesById = new Map(updates.map((entry) => [entry.id, entry]));
+  const next = current.map((entry) => updatesById.get(entry.id) ?? entry);
+
+  for (const update of updates) {
+    if (!current.some((entry) => entry.id === update.id)) {
+      next.push(update);
+    }
+  }
+
+  return next;
+}
+
+function upsertByCompositeKey<T extends { mapId: string; actorId: string }>(current: T[], updates: T[]) {
+  const updatesByKey = new Map(updates.map((entry) => [`${entry.mapId}:${entry.actorId}`, entry]));
+  const next = current.map((entry) => updatesByKey.get(`${entry.mapId}:${entry.actorId}`) ?? entry);
+
+  for (const update of updates) {
+    if (!current.some((entry) => entry.mapId === update.mapId && entry.actorId === update.actorId)) {
+      next.push(update);
+    }
+  }
+
+  return next;
 }

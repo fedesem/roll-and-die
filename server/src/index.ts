@@ -13,6 +13,7 @@ import { createCampaignRouter, createInviteRouter } from "./routes/campaignRoute
 import { createChatRouter } from "./routes/chatRoutes.js";
 import { createMapRouter } from "./routes/mapRoutes.js";
 import { createTokenRouter } from "./routes/tokenRoutes.js";
+import { uploadsRootPath } from "./services/assetStorage.js";
 import { createAuthMiddleware } from "./services/authService.js";
 
 const app = express();
@@ -29,6 +30,7 @@ app.use(
 );
 app.use(requestLogger);
 app.use(express.json({ limit: "20mb" }));
+app.use("/uploads", express.static(uploadsRootPath));
 app.use(wrap(createAuthMiddleware()));
 
 app.get("/api/health", (_request, response) => {

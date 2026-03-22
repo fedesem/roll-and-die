@@ -28,6 +28,7 @@ import { HttpError } from "../http/errors.js";
 import { parseWithSchema, requireRouteParam } from "../http/validation.js";
 import { runStoreQuery, runStoreTransaction } from "../store.js";
 import { requireAdmin, toUserProfile } from "../services/authService.js";
+import { invalidateRoomCompendiumCache } from "../services/roomCompendiumCache.js";
 import {
   importGeneratedSpellLookupIntoSpells,
   importGeneratedSubclassLookupIntoClasses,
@@ -271,6 +272,8 @@ export const adminController = {
       return entry;
     });
 
+    invalidateRoomCompendiumCache();
+
     response.status(201).json(created);
   },
 
@@ -293,6 +296,7 @@ export const adminController = {
 
         return result;
       });
+      invalidateRoomCompendiumCache();
       response.status(201).json(result);
       return;
     }
@@ -311,6 +315,7 @@ export const adminController = {
 
         return result;
       });
+      invalidateRoomCompendiumCache();
       response.status(201).json(result);
       return;
     }
@@ -338,6 +343,8 @@ export const adminController = {
       };
     });
 
+    invalidateRoomCompendiumCache();
+
     response.status(201).json(result);
   },
 
@@ -354,6 +361,8 @@ export const adminController = {
       deleteCompendiumEntryRecord(database, kind, itemId);
     });
 
+    invalidateRoomCompendiumCache();
+
     response.status(204).send();
   },
 
@@ -364,6 +373,8 @@ export const adminController = {
     await runStoreTransaction((database) => {
       clearCompendiumCollection(database, kind);
     });
+
+    invalidateRoomCompendiumCache();
 
     response.status(204).send();
   }

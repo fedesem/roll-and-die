@@ -11,15 +11,21 @@ import {
 import type { CampaignInvite } from "../../../shared/types.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema, requireRouteParam } from "../http/validation.js";
-import { broadcastCampaignToRoom } from "../realtime/roomGateway.js";
+import {
+  broadcastActorRemovedToRoom,
+  broadcastActorUpdatedToRoom,
+  broadcastActorUpsertToRoom,
+  broadcastChatAppendedToRoom,
+  broadcastCampaignMembershipToRoom
+} from "../realtime/roomGateway.js";
 import { runStoreQuery } from "../store.js";
 import { requireUser } from "../services/authService.js";
 import {
   buildCampaignSnapshot,
   toCampaignSummary
 } from "../services/campaignDomain.js";
-import { listCampaignSummariesForUser, readCampaignById } from "../store/models/campaigns.js";
-import { readCampaignCompendium, readCompendiumSourceBooks } from "../store/models/compendium.js";
+import { listCampaignSummariesForUser, readCampaignById, readCampaignMembersAndInvites } from "../store/models/campaigns.js";
+import { readCompendiumSourceBooks } from "../store/models/compendium.js";
 import {
   acceptInviteCommand,
   createActorCommand,
@@ -29,6 +35,7 @@ import {
   deleteActorCommand,
   updateActorCommand
 } from "../services/campaignCommandService.js";
+import { readRoomCompendiumCache } from "../services/roomCompendiumCache.js";
 
 export const campaignController = {
   async list(request: Request, response: Response) {
@@ -60,26 +67,31 @@ export const campaignController = {
     const user = requireUser(request);
     const body = parseWithSchema(acceptInviteBodySchema, request.body);
 
-    const campaign = await acceptInviteCommand({
+    const { campaign, joinMessage } = await acceptInviteCommand({
       user,
       code: body.code
     });
 
-    await broadcastCampaignToRoom(campaign.id);
+    const membership = await runStoreQuery(
+      (database) => readCampaignMembersAndInvites(database, campaign.id),
+      { queueKey: `campaign:${campaign.id}` }
+    );
+    broadcastCampaignMembershipToRoom(campaign.id, membership.members, membership.invites);
+    if (joinMessage) {
+      broadcastChatAppendedToRoom(campaign.id, joinMessage);
+    }
     response.json(toCampaignSummary(campaign, user.id));
   },
 
   async snapshot(request: Request, response: Response) {
     const user = requireUser(request);
     const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
-    const { campaign, compendium } = await runStoreQuery((database) => {
-      const campaign = readCampaignById(database, campaignId);
-
-      return {
-        campaign,
-        compendium: readCampaignCompendium(database)
-      };
-    });
+    const [campaign, compendium] = await Promise.all([
+      runStoreQuery((database) => readCampaignById(database, campaignId), {
+        queueKey: `campaign:${campaignId}`
+      }),
+      readRoomCompendiumCache()
+    ]);
 
     if (!campaign) {
       throw new HttpError(404, "Campaign not found.");
@@ -104,7 +116,11 @@ export const campaignController = {
       role: body.role
     });
 
-    await broadcastCampaignToRoom(campaignId);
+    const membership = await runStoreQuery(
+      (database) => readCampaignMembersAndInvites(database, campaignId),
+      { queueKey: `campaign:${campaignId}` }
+    );
+    broadcastCampaignMembershipToRoom(campaignId, membership.members, membership.invites);
     response.status(201).json(invite);
   },
 
@@ -120,7 +136,7 @@ export const campaignController = {
       kind: body.kind
     });
 
-    await broadcastCampaignToRoom(campaignId);
+    broadcastActorUpsertToRoom(campaignId, actor);
     response.status(201).json(actor);
   },
 
@@ -130,14 +146,14 @@ export const campaignController = {
     const actorId = requireRouteParam(request.params.actorId, "actorId");
     const patch = parseWithSchema(saveActorBodySchema, request.body);
 
-    const actor = await updateActorCommand({
+    const { actor, tokens } = await updateActorCommand({
       campaignId,
       actorId,
       userId: user.id,
       patch
     });
 
-    await broadcastCampaignToRoom(campaignId);
+    broadcastActorUpdatedToRoom(campaignId, actor, tokens);
     response.json(actor);
   },
 
@@ -152,7 +168,7 @@ export const campaignController = {
       templateId: body.templateId
     });
 
-    await broadcastCampaignToRoom(campaignId);
+    broadcastActorUpsertToRoom(campaignId, actor);
     response.status(201).json(actor);
   },
 
@@ -161,13 +177,16 @@ export const campaignController = {
     const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
     const actorId = requireRouteParam(request.params.actorId, "actorId");
 
-    await deleteActorCommand({
+    const removed = await deleteActorCommand({
       campaignId,
       actorId,
       userId: user.id
     });
 
-    await broadcastCampaignToRoom(campaignId);
+    broadcastActorRemovedToRoom(campaignId, removed.actorId, {
+      mapAssignmentsRemoved: removed.assignmentKeys,
+      tokenIdsRemoved: removed.tokenIds
+    });
     response.status(204).send();
   }
 };

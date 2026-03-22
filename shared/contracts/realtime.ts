@@ -1,13 +1,19 @@
 import { z } from "zod";
 
 import {
+  actorSheetSchema,
   boardTokenSchema,
   campaignSnapshotSchema,
+  campaignInviteSchema,
+  campaignMapSchema,
+  campaignMemberSchema,
   drawingStrokeSchema,
   mapPingSchema,
+  mapActorAssignmentSchema,
   mapViewportRecallSchema,
   measurePreviewSchema,
   pointSchema,
+  chatMessageSchema,
   tokenMovementPreviewSchema
 } from "./domain.js";
 import { drawingUpdateEntrySchema } from "./campaigns.js";
@@ -94,6 +100,36 @@ export const serverRoomMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("room:snapshot"),
     snapshot: campaignSnapshotSchema
+  }),
+  z.object({
+    type: z.literal("room:campaign-patch"),
+    patch: z.object({
+      activeMapId: z.string().trim().min(1).optional(),
+      members: z.array(campaignMemberSchema).optional(),
+      invites: z.array(campaignInviteSchema).optional(),
+      actorsUpsert: z.array(actorSheetSchema).optional(),
+      actorIdsRemoved: z.array(z.string().trim().min(1)).optional(),
+      mapsUpsert: z.array(campaignMapSchema).optional(),
+      mapIdsRemoved: z.array(z.string().trim().min(1)).optional(),
+      mapAssignmentsUpsert: z.array(mapActorAssignmentSchema).optional(),
+      mapAssignmentsRemoved: z
+        .array(
+          z.object({
+            mapId: z.string().trim().min(1),
+            actorId: z.string().trim().min(1)
+          })
+        )
+        .optional(),
+      tokensUpsert: z.array(boardTokenSchema).optional(),
+      tokenIdsRemoved: z.array(z.string().trim().min(1)).optional(),
+      chatAppended: z.array(chatMessageSchema).optional(),
+      playerVision: z
+        .object({
+          mapId: z.string().trim().min(1),
+          cells: z.array(z.string().trim().min(1))
+        })
+        .optional()
+    })
   }),
   z.object({
     type: z.literal("room:token-moved"),
