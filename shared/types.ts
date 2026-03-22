@@ -454,6 +454,31 @@ export interface CampaignMap {
   visibilityVersion: number;
 }
 
+export const TOKEN_STATUS_MARKERS = [
+  "skull",
+  "slow",
+  "bloodied",
+  "blinded",
+  "charmed",
+  "deafened",
+  "drunkenness",
+  "exhaustion",
+  "frightened",
+  "grappled",
+  "incapacitated",
+  "invisible",
+  "paralyzed",
+  "petrified",
+  "poisoned",
+  "prone",
+  "restrained",
+  "stunned",
+  "unconscious",
+  "cross"
+] as const;
+
+export type TokenStatusMarker = (typeof TOKEN_STATUS_MARKERS)[number];
+
 export interface BoardToken {
   id: string;
   actorId: string;
@@ -466,6 +491,7 @@ export interface BoardToken {
   label: string;
   imageUrl: string;
   visible: boolean;
+  statusMarker: TokenStatusMarker | null;
 }
 
 export interface MapActorAssignment {

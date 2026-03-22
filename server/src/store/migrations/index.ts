@@ -16,6 +16,7 @@ import { chatRollContextMigration } from "./116_chat_roll_context.js";
 import { mapTeleportersMigration } from "./117_map_teleporters.js";
 import { externalizeInlineImagesMigration } from "./118_externalize_inline_images.js";
 import { hotPathIndexesMigration } from "./119_hot_path_indexes.js";
+import { tokenStatusMarkerMigration } from "./120_token_status_marker.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -35,5 +36,6 @@ export const migrations = [
   chatRollContextMigration,
   mapTeleportersMigration,
   externalizeInlineImagesMigration,
-  hotPathIndexesMigration
+  hotPathIndexesMigration,
+  tokenStatusMarkerMigration
 ];

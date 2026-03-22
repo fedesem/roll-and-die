@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { TOKEN_STATUS_MARKERS } from "../types.js";
 import type {
   AbilityKey,
   AbilityScores,
@@ -619,6 +620,8 @@ export const campaignMapSchema: z.ZodType<CampaignMap> = z.object({
   visibilityVersion: finiteNumber
 });
 
+export const tokenStatusMarkerSchema = z.enum(TOKEN_STATUS_MARKERS);
+
 export const boardTokenSchema: z.ZodType<BoardToken> = z.object({
   id: trimmedString,
   actorId: trimmedString,
@@ -630,7 +633,8 @@ export const boardTokenSchema: z.ZodType<BoardToken> = z.object({
   color: trimmedString,
   label: trimmedString,
   imageUrl: trimmedString,
-  visible: z.boolean()
+  visible: z.boolean(),
+  statusMarker: tokenStatusMarkerSchema.nullable()
 });
 
 export const mapActorAssignmentSchema: z.ZodType<MapActorAssignment> = z.object({

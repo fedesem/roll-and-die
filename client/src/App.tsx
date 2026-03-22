@@ -221,6 +221,7 @@ export default function App() {
     assignActorToCurrentMap,
     removeActorFromCurrentMap,
     removeToken,
+    updateToken,
     deleteActor,
     createMap,
     saveMap,
@@ -625,6 +626,7 @@ export default function App() {
           onCreateMonsterActor={(monster) => void createMonsterActor(monster)}
           onAssignActorToCurrentMap={(actorId) => void assignActorToCurrentMap(actorId)}
           onRemoveActorFromCurrentMap={(actorId) => void removeActorFromCurrentMap(actorId)}
+          onUpdateToken={updateToken}
           onDeleteActor={(actor) => void deleteActor(actor)}
           onShowMap={showMap}
           onStartCreateMap={openMapEditorForCreate}

@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
+import { TOKEN_STATUS_MARKERS } from "../../../../shared/types.js";
 import type {
   AbilityKey,
   ActorBonusEntry,
@@ -27,10 +28,17 @@ import type {
   Point,
   ResourceEntry,
   SkillEntry,
-  SpellSlotTrack
+  SpellSlotTrack,
+  TokenStatusMarker
 } from "../../../../shared/types.js";
 import { normalizeStoreState } from "../normalization.js";
 import { parseCellKey, readAll, toBoolean, toIntegerBoolean } from "../helpers.js";
+
+const tokenStatusMarkerSet = new Set<string>(TOKEN_STATUS_MARKERS);
+
+function parseTokenStatusMarker(value: string | null | undefined): TokenStatusMarker | null {
+  return typeof value === "string" && tokenStatusMarkerSet.has(value) ? (value as TokenStatusMarker) : null;
+}
 
 export function readRealtimeCampaign(database: DatabaseSync, campaignId: string): Campaign | null {
   const campaignRow = database
@@ -278,6 +286,7 @@ export function readRealtimeCampaign(database: DatabaseSync, campaignId: string)
     label: string;
     imageUrl: string;
     visible: number;
+    statusMarker: string | null;
   }>(
     database,
     `
@@ -292,7 +301,8 @@ export function readRealtimeCampaign(database: DatabaseSync, campaignId: string)
         color,
         label,
         image_url as imageUrl,
-        visible
+        visible,
+        status_marker as statusMarker
       FROM tokens
       WHERE campaign_id = ? AND map_id = ?
       ORDER BY sort_order, id
@@ -310,7 +320,8 @@ export function readRealtimeCampaign(database: DatabaseSync, campaignId: string)
     color: row.color,
     label: row.label,
     imageUrl: row.imageUrl,
-    visible: toBoolean(row.visible)
+    visible: toBoolean(row.visible),
+    statusMarker: parseTokenStatusMarker(row.statusMarker)
   }));
 
   for (const row of readAll<{ userId: string; columnIndex: number; rowIndex: number }>(
@@ -825,7 +836,8 @@ export function readTokenById(database: DatabaseSync, campaignId: string, tokenI
           color,
           label,
           image_url as imageUrl,
-          visible
+          visible,
+          status_marker as statusMarker
         FROM tokens
         WHERE campaign_id = ? AND id = ?
         LIMIT 1
@@ -844,6 +856,7 @@ export function readTokenById(database: DatabaseSync, campaignId: string, tokenI
         label: string;
         imageUrl: string;
         visible: number;
+        statusMarker: string | null;
       }
     | undefined;
 
@@ -859,7 +872,8 @@ export function readTokenById(database: DatabaseSync, campaignId: string, tokenI
         color: row.color,
         label: row.label,
         imageUrl: row.imageUrl,
-        visible: toBoolean(row.visible)
+        visible: toBoolean(row.visible),
+        statusMarker: parseTokenStatusMarker(row.statusMarker)
       }
     : null;
 }
@@ -877,6 +891,7 @@ export function readTokensForActor(database: DatabaseSync, campaignId: string, a
     label: string;
     imageUrl: string;
     visible: number;
+    statusMarker: string | null;
   }>(
     database,
     `
@@ -891,7 +906,8 @@ export function readTokensForActor(database: DatabaseSync, campaignId: string, a
         color,
         label,
         image_url as imageUrl,
-        visible
+        visible,
+        status_marker as statusMarker
       FROM tokens
       WHERE campaign_id = ? AND actor_id = ?
       ORDER BY sort_order, id
@@ -909,7 +925,8 @@ export function readTokensForActor(database: DatabaseSync, campaignId: string, a
     color: row.color,
     label: row.label,
     imageUrl: row.imageUrl,
-    visible: toBoolean(row.visible)
+    visible: toBoolean(row.visible),
+    statusMarker: parseTokenStatusMarker(row.statusMarker)
   }));
 }
 
@@ -1551,6 +1568,7 @@ export function readCampaignBoardState(database: DatabaseSync, campaignId: strin
     label: string;
     imageUrl: string;
     visible: number;
+    statusMarker: string | null;
   }>(
     database,
     `
@@ -1565,7 +1583,8 @@ export function readCampaignBoardState(database: DatabaseSync, campaignId: strin
         color,
         label,
         image_url as imageUrl,
-        visible
+        visible,
+        status_marker as statusMarker
       FROM tokens
       WHERE campaign_id = ? AND map_id IN (${mapPlaceholders})
       ORDER BY sort_order, id
@@ -1582,7 +1601,8 @@ export function readCampaignBoardState(database: DatabaseSync, campaignId: strin
     color: row.color,
     label: row.label,
     imageUrl: row.imageUrl,
-    visible: toBoolean(row.visible)
+    visible: toBoolean(row.visible),
+    statusMarker: parseTokenStatusMarker(row.statusMarker)
   }));
 
   for (const row of readAll<{ userId: string; mapId: string; columnIndex: number; rowIndex: number }>(
@@ -1608,10 +1628,10 @@ export function upsertCampaignToken(database: DatabaseSync, campaignId: string, 
     .prepare(
       `
         INSERT INTO tokens (
-          id, campaign_id, sort_order, actor_id, actor_kind, map_id, x, y, size, color, label, image_url, visible
+          id, campaign_id, sort_order, actor_id, actor_kind, map_id, x, y, size, color, label, image_url, visible, status_marker
         )
         VALUES (
-          ?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM tokens WHERE campaign_id = ?), 0), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM tokens WHERE campaign_id = ?), 0), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         ON CONFLICT(id) DO UPDATE SET
           actor_id = excluded.actor_id,
@@ -1623,7 +1643,8 @@ export function upsertCampaignToken(database: DatabaseSync, campaignId: string, 
           color = excluded.color,
           label = excluded.label,
           image_url = excluded.image_url,
-          visible = excluded.visible
+          visible = excluded.visible,
+          status_marker = excluded.status_marker
       `
     )
     .run(
@@ -1639,7 +1660,8 @@ export function upsertCampaignToken(database: DatabaseSync, campaignId: string, 
       token.color,
       token.label,
       token.imageUrl,
-      toIntegerBoolean(token.visible)
+      toIntegerBoolean(token.visible),
+      token.statusMarker
     );
 }
 
@@ -1815,8 +1837,8 @@ function prepareCampaignWriteStatements(database: DatabaseSync): CampaignWriteSt
       VALUES (?, ?, ?)
     `),
     insertToken: database.prepare(`
-      INSERT INTO tokens (id, campaign_id, sort_order, actor_id, actor_kind, map_id, x, y, size, color, label, image_url, visible)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO tokens (id, campaign_id, sort_order, actor_id, actor_kind, map_id, x, y, size, color, label, image_url, visible, status_marker)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     insertChatMessage: database.prepare(`
       INSERT INTO chat_messages (
@@ -2104,7 +2126,8 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
       token.color,
       token.label,
       token.imageUrl,
-      toIntegerBoolean(token.visible)
+      toIntegerBoolean(token.visible),
+      token.statusMarker
     );
   });
 
@@ -2967,10 +2990,11 @@ function readCampaignAggregateById(database: DatabaseSync, campaignId: string) {
     label: string;
     imageUrl: string;
     visible: number;
+    statusMarker: string | null;
   }>(
     database,
     `
-      SELECT id, actor_id as actorId, actor_kind as actorKind, map_id as mapId, x, y, size, color, label, image_url as imageUrl, visible
+      SELECT id, actor_id as actorId, actor_kind as actorKind, map_id as mapId, x, y, size, color, label, image_url as imageUrl, visible, status_marker as statusMarker
       FROM tokens
       WHERE campaign_id = ?
       ORDER BY sort_order, id
@@ -2987,7 +3011,8 @@ function readCampaignAggregateById(database: DatabaseSync, campaignId: string) {
     color: row.color,
     label: row.label,
     imageUrl: row.imageUrl,
-    visible: toBoolean(row.visible)
+    visible: toBoolean(row.visible),
+    statusMarker: parseTokenStatusMarker(row.statusMarker)
   }));
 
   for (const row of readAll<{

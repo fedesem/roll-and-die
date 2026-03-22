@@ -21,7 +21,7 @@ import { CharacterSheet } from "../components/CharacterSheet";
 import { ChatPanel } from "../components/ChatPanel";
 import { MapConfigurator } from "../components/MapConfigurator";
 import { WorkspaceModal } from "../components/WorkspaceModal";
-import type { ActorTypeFilter, AvailableActorEntry, CurrentMapRosterEntry } from "../features/campaign/types";
+import type { ActorTypeFilter, AvailableActorEntry, CurrentMapRosterEntry, TokenUpdatePatch } from "../features/campaign/types";
 import { resolveAssetUrl } from "../lib/assets";
 import { formatMonsterModifier } from "../lib/drafts";
 
@@ -96,6 +96,7 @@ interface CampaignPageProps {
   onCreateMonsterActor: (monster: MonsterTemplate) => void;
   onAssignActorToCurrentMap: (actorId: string) => void;
   onRemoveActorFromCurrentMap: (actorId: string) => void;
+  onUpdateToken: (tokenId: string, patch: TokenUpdatePatch) => Promise<void>;
   onDeleteActor: (actor: ActorSheet) => void;
   onShowMap: (mapId: string) => void;
   onStartCreateMap: () => void;
@@ -180,6 +181,7 @@ export function CampaignPage({
   onCreateMonsterActor,
   onAssignActorToCurrentMap,
   onRemoveActorFromCurrentMap,
+  onUpdateToken,
   onDeleteActor,
   onShowMap,
   onStartCreateMap,
@@ -235,6 +237,7 @@ export function CampaignPage({
             onClearDrawings={onClearDrawings}
             onPing={onPing}
             onPingAndRecall={onPingAndRecall}
+            onUpdateToken={onUpdateToken}
           />
 
           <aside className="table-overlay table-menu">

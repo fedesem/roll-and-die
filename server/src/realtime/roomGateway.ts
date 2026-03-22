@@ -539,7 +539,8 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
             color: actor.color,
             label: actor.name,
             imageUrl: actor.imageUrl,
-            visible: true
+            visible: true,
+            statusMarker: null
           };
 
           campaign.tokens.push(token);

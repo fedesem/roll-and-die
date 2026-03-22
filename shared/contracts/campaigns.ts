@@ -17,6 +17,7 @@ import {
   memberRoleSchema,
   monsterTemplateSchema,
   pointSchema,
+  tokenStatusMarkerSchema,
   tokenMovementPreviewSchema
 } from "./domain.js";
 
@@ -76,7 +77,8 @@ export const updateTokenBodySchema = z.object({
   size: z.number().finite().optional(),
   color: z.string().optional(),
   label: z.string().optional(),
-  visible: z.boolean().optional()
+  visible: z.boolean().optional(),
+  statusMarker: tokenStatusMarkerSchema.nullable().optional()
 });
 export const tokenResponseSchema = boardTokenSchema;
 

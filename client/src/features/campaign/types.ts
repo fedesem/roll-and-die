@@ -5,6 +5,7 @@ import type {
   CampaignMap,
   MapActorAssignment,
   MeasurePreview,
+  TokenStatusMarker,
   TokenMovementPreview
 } from "@shared/types";
 
@@ -41,4 +42,15 @@ export interface AvailableActorEntry {
   actor: ActorSheet;
   activeMaps: CampaignMap[];
   onCurrentMap: boolean;
+}
+
+export interface TokenUpdatePatch {
+  mapId?: string;
+  x?: number;
+  y?: number;
+  size?: number;
+  color?: string;
+  label?: string;
+  visible?: boolean;
+  statusMarker?: TokenStatusMarker | null;
 }

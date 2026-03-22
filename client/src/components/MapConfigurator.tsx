@@ -940,8 +940,8 @@ export function MapConfigurator({
                         <text
                           x={point.x}
                           y={point.y}
-                          dy="0.35em"
                           textAnchor="middle"
+                          dominantBaseline="middle"
                           className="map-preview-teleporter-label"
                           fill="rgba(255, 248, 252, 0.96)"
                         >

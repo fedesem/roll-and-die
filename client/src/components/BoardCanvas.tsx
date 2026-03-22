@@ -66,7 +66,9 @@ import {
   minViewZoom,
   selectionDragThreshold
 } from "../features/board/constants";
+import { getTokenStatusOption, TOKEN_STATUS_OPTIONS } from "../features/board/tokenStatus";
 import { useBoardViewport } from "../features/board/useBoardViewport";
+import type { TokenUpdatePatch } from "../features/campaign/types";
 import { resolveAssetUrl } from "../lib/assets";
 
 type Tool = "select" | "draw" | "measure";
@@ -110,6 +112,7 @@ interface BoardCanvasProps {
   onClearDrawings: (mapId: string) => Promise<void>;
   onPing: (point: Point) => Promise<void>;
   onPingAndRecall: (point: Point, center: Point, zoom: number) => Promise<void>;
+  onUpdateToken: (tokenId: string, patch: TokenUpdatePatch) => Promise<void>;
 }
 
 interface DragState {
@@ -155,7 +158,16 @@ interface PanState {
   clientY: number;
   originX: number;
   originY: number;
-  menuPoint?: Point;
+  menu?:
+    | {
+        kind: "board";
+        point: Point;
+      }
+    | {
+        kind: "token";
+        tokenId: string;
+        actorId: string;
+      };
   menuX?: number;
   menuY?: number;
 }
@@ -168,11 +180,19 @@ interface SelectionState {
   currentY: number;
 }
 
-interface ContextMenuState {
-  x: number;
-  y: number;
-  point: Point;
-}
+type ContextMenuState =
+  | {
+      kind: "board";
+      x: number;
+      y: number;
+      point: Point;
+    }
+  | {
+      kind: "token";
+      x: number;
+      y: number;
+      tokenId: string;
+    };
 
 const localMeasurePalette = {
   stroke: "rgba(242, 187, 63, 0.96)",
@@ -209,7 +229,8 @@ export function BoardCanvas({
   onDeleteDrawings,
   onClearDrawings,
   onPing,
-  onPingAndRecall
+  onPingAndRecall,
+  onUpdateToken
 }: BoardCanvasProps) {
   const suppressSurfaceClickRef = useRef(false);
   const suppressContextMenuRef = useRef(false);
@@ -348,6 +369,7 @@ export function BoardCanvas({
       .sort((left, right) => (left.priority === right.priority ? left.index - right.index : left.priority - right.priority))
       .map((entry) => entry.token);
   }, [actorById, filteredTokens, selectedActor?.id]);
+  const renderedTokenById = useMemo(() => new Map(orderedTokens.map((token) => [token.id, token])), [orderedTokens]);
 
   const discoveredDrawingIds = useMemo(() => {
     if (!map) {
@@ -516,6 +538,7 @@ export function BoardCanvas({
   const moveLabelFontSize = clamp(14 * worldScale, 12, 28);
   const moveLabelOffset = clamp(12 * worldScale, 10, 24);
   const normalizedSelectionBox = selectionBox ? normalizeSelectionRect(selectionBox) : null;
+  const contextMenuToken = contextMenu?.kind === "token" ? renderedTokenById.get(contextMenu.tokenId) ?? null : null;
   const visibleMeasurePreviews = useMemo(
     () =>
       measurePreviews.filter((entry) => {
@@ -665,6 +688,12 @@ export function BoardCanvas({
 
     const node = boardRef.current;
     const handleNativeWheel = (event: WheelEvent) => {
+      const eventTarget = event.target instanceof Element ? event.target : null;
+
+      if (eventTarget?.closest(".board-context-menu")) {
+        return;
+      }
+
       event.preventDefault();
     };
 
@@ -684,6 +713,12 @@ export function BoardCanvas({
       setContextMenu(null);
     }
   }, [map, role, viewRecall]);
+
+  useEffect(() => {
+    if (contextMenu?.kind === "token" && !renderedTokenById.has(contextMenu.tokenId)) {
+      setContextMenu(null);
+    }
+  }, [contextMenu, renderedTokenById]);
 
   useEffect(() => {
     setSelectedMapItems([]);
@@ -1117,13 +1152,25 @@ export function BoardCanvas({
         !suppressContextMenuRef.current &&
         typeof currentPan.menuX === "number" &&
         typeof currentPan.menuY === "number" &&
-        currentPan.menuPoint
+        currentPan.menu
       ) {
-        setContextMenu({
-          x: currentPan.menuX,
-          y: currentPan.menuY,
-          point: currentPan.menuPoint
-        });
+        if (currentPan.menu.kind === "token") {
+          setSelectedMapItems([]);
+          onSelectActor(currentPan.menu.actorId);
+          setContextMenu({
+            kind: "token",
+            x: currentPan.menuX,
+            y: currentPan.menuY,
+            tokenId: currentPan.menu.tokenId
+          });
+        } else {
+          setContextMenu({
+            kind: "board",
+            x: currentPan.menuX,
+            y: currentPan.menuY,
+            point: currentPan.menu.point
+          });
+        }
       }
 
       suppressContextMenuRef.current = false;
@@ -1137,7 +1184,7 @@ export function BoardCanvas({
       window.removeEventListener("pointermove", handleWindowPointerMove);
       window.removeEventListener("pointerup", handleWindowPointerUp);
     };
-  }, [panning]);
+  }, [onSelectActor, panning]);
 
   useEffect(() => {
     if (!panning) {
@@ -1336,15 +1383,34 @@ export function BoardCanvas({
     suppressContextMenuRef.current = false;
     const menuLocalPoint = event.button === 2 ? toLocalPoint(event.clientX, event.clientY) : null;
     const menuWorldPoint = event.button === 2 ? toWorldPoint(event.clientX, event.clientY) : null;
+    const target = event.target instanceof Element ? event.target : null;
+    const tokenButton = target?.closest<HTMLElement>("[data-board-token-id]");
+    const menuTokenId = tokenButton?.dataset.boardTokenId;
+    const menuToken = menuTokenId ? renderedTokenById.get(menuTokenId) : undefined;
+    const menuActor = menuToken ? actorById.get(menuToken.actorId) : undefined;
+    const menu =
+      event.button === 2 && menuToken && menuActor && canControlActor(menuActor)
+        ? {
+            kind: "token" as const,
+            tokenId: menuToken.id,
+            actorId: menuActor.id
+          }
+        : event.button === 2 && menuWorldPoint
+          ? {
+              kind: "board" as const,
+              point: menuWorldPoint
+            }
+          : undefined;
+
     setPanning({
       button: event.button,
       clientX: event.clientX,
       clientY: event.clientY,
       originX: viewPan.x,
       originY: viewPan.y,
+      menu,
       menuX: menuLocalPoint?.x,
-      menuY: menuLocalPoint?.y,
-      menuPoint: menuWorldPoint ?? undefined
+      menuY: menuLocalPoint?.y
     });
   }
 
@@ -1513,6 +1579,12 @@ export function BoardCanvas({
       return;
     }
 
+    const eventTarget = event.target instanceof Element ? event.target : null;
+
+    if (eventTarget?.closest(".board-context-menu")) {
+      return;
+    }
+
     event.preventDefault();
     const nextZoom = clamp(viewZoom * (event.deltaY < 0 ? 1.1 : 0.9), minViewZoom, maxViewZoom);
 
@@ -1644,6 +1716,11 @@ export function BoardCanvas({
       actorId: token.actorId,
       start: { x: token.x, y: token.y }
     });
+  }
+
+  async function handleTokenStatusChange(tokenId: string, statusMarker: BoardToken["statusMarker"]) {
+    setContextMenu(null);
+    await onUpdateToken(tokenId, { statusMarker });
   }
 
   function handleDoorClick(doorId: string, event: ReactMouseEvent<SVGLineElement>) {
@@ -1882,8 +1959,8 @@ export function BoardCanvas({
                       <text
                         x={point.x}
                         y={point.y}
-                        dy="0.35em"
                         textAnchor="middle"
+                        dominantBaseline="middle"
                         className="board-teleporter-label"
                         fill="rgba(255, 248, 252, 0.96)"
                       >
@@ -2135,14 +2212,18 @@ export function BoardCanvas({
 
           <div className="board-token-layer" style={tokenLayerStyle}>
             {orderedTokens.map((token) => {
-              const size = map.grid.cellSize * token.size * 0.72;
+              const hasImage = token.imageUrl.length > 0;
+              const size = map.grid.cellSize * token.size * (hasImage ? 0.88 : 0.72);
+              const statusOption = getTokenStatusOption(token.statusMarker);
+              const badgeSize = Math.max(18, size * 0.34);
+              const StatusIcon = statusOption?.Icon;
 
               return (
                 <button
                   key={token.id}
                   type="button"
                   title={token.label}
-                  className={`board-token ${selectedActor?.id === token.actorId ? "is-selected" : ""}`}
+                  className={`board-token ${hasImage ? "has-image" : ""} ${selectedActor?.id === token.actorId ? "is-selected" : ""}`}
                   style={{
                     left: token.x,
                     top: token.y,
@@ -2151,6 +2232,7 @@ export function BoardCanvas({
                     fontSize: Math.max(12, size * 0.34),
                     background: token.color
                   }}
+                  data-board-token-id={token.id}
                   onPointerDown={(event) => handleTokenPointerDown(token, event)}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -2159,7 +2241,26 @@ export function BoardCanvas({
                   {token.imageUrl ? (
                     <img className="board-token-image" src={resolveAssetUrl(token.imageUrl)} alt={token.label} draggable={false} />
                   ) : (
-                    <span>{initials(token.label)}</span>
+                    <span className="board-token-initials">{initials(token.label)}</span>
+                  )}
+                  {statusOption && (
+                    <span
+                      className="board-token-status-badge"
+                      data-tone={statusOption.tone}
+                      style={{
+                        width: badgeSize,
+                        height: badgeSize
+                      }}
+                      title={statusOption.label}
+                    >
+                      {StatusIcon && <StatusIcon className="board-token-status-icon" strokeWidth={2.2} aria-hidden="true" />}
+                    </span>
+                  )}
+                  {token.statusMarker === "cross" && (
+                    <span className="board-token-cross-overlay" aria-hidden="true">
+                      <span />
+                      <span />
+                    </span>
                   )}
                 </button>
               );
@@ -2188,36 +2289,84 @@ export function BoardCanvas({
           </div>
           {contextMenu && (
             <div
-              className="board-context-menu"
+              className={`board-context-menu ${contextMenu.kind === "token" ? "is-token-menu" : ""}`}
               style={{ left: contextMenu.x, top: contextMenu.y }}
               onPointerDown={(event) => event.stopPropagation()}
               onPointerUp={(event) => event.stopPropagation()}
               onClick={(event) => event.stopPropagation()}
+              onWheel={(event) => event.stopPropagation()}
               onContextMenu={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
               }}
             >
-              <button
-                type="button"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={() => {
-                  void onPing(contextMenu.point);
-                  setContextMenu(null);
-                }}
-              >
-                Ping here
-              </button>
-              {isDungeonMaster && (
+              {contextMenu.kind === "board" ? (
+                <>
+                  <button
+                    type="button"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => {
+                      void onPing(contextMenu.point);
+                      setContextMenu(null);
+                    }}
+                  >
+                    Ping here
+                  </button>
+                  {isDungeonMaster && (
+                    <button
+                      type="button"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={() => {
+                        void onPingAndRecall(contextMenu.point, viewCenter, viewZoom);
+                        setContextMenu(null);
+                      }}
+                    >
+                      Ping and recall here
+                    </button>
+                  )}
+                </>
+              ) : contextMenuToken ? (
+                <>
+                  <div className="board-context-menu-heading">{contextMenuToken.label}</div>
+                  <button
+                    type="button"
+                    disabled={!contextMenuToken.statusMarker}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => {
+                      void handleTokenStatusChange(contextMenuToken.id, null);
+                    }}
+                  >
+                    Clear marker
+                  </button>
+                  <div className="board-token-status-menu">
+                    {TOKEN_STATUS_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`board-token-status-option ${contextMenuToken.statusMarker === option.value ? "is-active" : ""}`}
+                        title={option.label}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={() => {
+                          void handleTokenStatusChange(contextMenuToken.id, option.value);
+                        }}
+                      >
+                        <span className="board-token-status-swatch" data-tone={option.tone}>
+                          <option.Icon className="board-token-status-icon" strokeWidth={2.2} aria-hidden="true" />
+                        </span>
+                        <span>{option.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
                 <button
                   type="button"
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={() => {
-                    void onPingAndRecall(contextMenu.point, viewCenter, viewZoom);
                     setContextMenu(null);
                   }}
                 >
-                  Ping and recall here
+                  Close
                 </button>
               )}
             </div>

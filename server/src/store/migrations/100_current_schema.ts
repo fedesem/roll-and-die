@@ -235,7 +235,8 @@ export const currentSchemaMigration: Migration = {
         color TEXT NOT NULL,
         label TEXT NOT NULL,
         image_url TEXT NOT NULL DEFAULT '',
-        visible INTEGER NOT NULL
+        visible INTEGER NOT NULL,
+        status_marker TEXT
       );
 
       CREATE TABLE IF NOT EXISTS chat_messages (

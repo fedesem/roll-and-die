@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-import type { Campaign, CampaignInvite, ChatMessage, DrawingStroke } from "../../../shared/types.js";
+import type { BoardToken, Campaign, CampaignInvite, ChatMessage, DrawingStroke } from "../../../shared/types.js";
 import { snapPointToGrid, traceMovementPath } from "../../../shared/vision.js";
 import { parseRollCommand, rollDice } from "../dice.js";
 import { HttpError } from "../http/errors.js";
@@ -586,7 +586,8 @@ export async function createTokenCommand(params: {
         color: actor.color,
         label: actor.name,
         imageUrl: actor.imageUrl,
-        visible: true
+        visible: true,
+        statusMarker: null
       };
 
     if (existing) {
@@ -618,6 +619,7 @@ export async function updateTokenCommand(params: {
     color?: string;
     label?: string;
     visible?: boolean;
+    statusMarker?: BoardToken["statusMarker"];
   };
 }) {
   return runCampaignTransaction(params.campaignId, (database) => {
@@ -683,6 +685,7 @@ export async function updateTokenCommand(params: {
     storedToken.color = params.patch.color ?? storedToken.color;
     storedToken.label = params.patch.label ?? storedToken.label;
     storedToken.visible = params.patch.visible ?? storedToken.visible;
+    storedToken.statusMarker = params.patch.statusMarker === undefined ? storedToken.statusMarker : params.patch.statusMarker;
 
     updateExplorationForMap(campaign, previousMapId);
 

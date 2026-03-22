@@ -1,4 +1,4 @@
-import type { Campaign, CampaignMap, MapTeleporter } from "../../../shared/types.js";
+import { TOKEN_STATUS_MARKERS, type Campaign, type CampaignMap, type MapTeleporter } from "../../../shared/types.js";
 import { defaultDatabase, type Database } from "./types.js";
 
 export function normalizeStoreState(database: Database): Database {
@@ -140,7 +140,11 @@ function normalizeCampaign(campaign: Campaign): Campaign {
           imageUrl:
             typeof token.imageUrl === "string"
               ? token.imageUrl
-              : campaign.actors.find((actor) => actor.id === token.actorId)?.imageUrl ?? ""
+              : campaign.actors.find((actor) => actor.id === token.actorId)?.imageUrl ?? "",
+          statusMarker:
+            typeof token.statusMarker === "string" && TOKEN_STATUS_MARKERS.includes(token.statusMarker as typeof TOKEN_STATUS_MARKERS[number])
+              ? token.statusMarker
+              : null
         }))
       : [],
     chat: Array.isArray(campaign.chat) ? campaign.chat : [],

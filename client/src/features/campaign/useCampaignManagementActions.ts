@@ -23,11 +23,12 @@ import {
   removeActorFromMapRecord,
   removeTokenRecord,
   saveActorRecord,
-  saveMapRecord
+  saveMapRecord,
+  updateTokenRecord
 } from "./campaignService";
 import { createClientActorDraft, createClientMapDraft, cloneMap } from "../../lib/drafts";
 import { toErrorMessage } from "../../lib/errors";
-import type { BannerState } from "./types";
+import type { BannerState, TokenUpdatePatch } from "./types";
 
 interface InviteDraft {
   label: string;
@@ -103,6 +104,31 @@ export function useCampaignManagementActions({
           campaign: {
             ...current.campaign,
             maps: nextMaps
+          }
+        };
+      });
+    },
+    [selectedCampaignId, setSnapshot]
+  );
+
+  const patchSnapshotToken = useCallback(
+    (nextToken: CampaignSnapshot["campaign"]["tokens"][number]) => {
+      setSnapshot((current) => {
+        if (!current || current.campaign.id !== selectedCampaignId) {
+          return current;
+        }
+
+        const existingTokenIndex = current.campaign.tokens.findIndex((entry) => entry.id === nextToken.id);
+        const nextTokens =
+          existingTokenIndex >= 0
+            ? current.campaign.tokens.map((entry, index) => (index === existingTokenIndex ? nextToken : entry))
+            : [...current.campaign.tokens, nextToken];
+
+        return {
+          ...current,
+          campaign: {
+            ...current.campaign,
+            tokens: nextTokens
           }
         };
       });
@@ -265,6 +291,22 @@ export function useCampaignManagementActions({
     [onStatus, selectedCampaignId, token]
   );
 
+  const updateToken = useCallback(
+    async (tokenId: string, patch: TokenUpdatePatch) => {
+      if (!token || !selectedCampaignId) {
+        return;
+      }
+
+      try {
+        const updated = await updateTokenRecord(token, selectedCampaignId, tokenId, patch);
+        patchSnapshotToken(updated);
+      } catch (error) {
+        onStatus("error", toErrorMessage(error));
+      }
+    },
+    [onStatus, patchSnapshotToken, selectedCampaignId, token]
+  );
+
   const deleteActor = useCallback(
     async (actor: ActorSheet) => {
       if (!token || !selectedCampaignId) {
@@ -356,6 +398,7 @@ export function useCampaignManagementActions({
     assignActorToCurrentMap,
     removeActorFromCurrentMap,
     removeToken,
+    updateToken,
     deleteActor,
     createMap,
     saveMap,

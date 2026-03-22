@@ -1,6 +1,7 @@
 import type {
   ActorKind,
   ActorSheet,
+  BoardToken,
   CampaignMap,
   CampaignSourceBook,
   CampaignSummary,
@@ -22,10 +23,13 @@ import {
   emptyResponseSchema,
   mapResponseSchema,
   saveActorBodySchema,
-  saveMapBodySchema
+  saveMapBodySchema,
+  tokenResponseSchema,
+  updateTokenBodySchema
 } from "@shared/contracts/campaigns";
 
 import { apiRequest } from "../../api";
+import type { TokenUpdatePatch } from "./types";
 
 export function fetchCampaigns(token: string) {
   return apiRequest<CampaignSummary[]>("/campaigns", {
@@ -131,6 +135,16 @@ export function removeTokenRecord(token: string, campaignId: string, tokenId: st
     method: "DELETE",
     token,
     responseSchema: emptyResponseSchema
+  });
+}
+
+export function updateTokenRecord(token: string, campaignId: string, tokenId: string, patch: TokenUpdatePatch) {
+  return apiRequest<BoardToken>(`/campaigns/${campaignId}/tokens/${tokenId}`, {
+    method: "PUT",
+    token,
+    body: patch,
+    bodySchema: updateTokenBodySchema,
+    responseSchema: tokenResponseSchema
   });
 }
 
