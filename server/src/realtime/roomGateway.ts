@@ -29,7 +29,8 @@ import { runStoreQuery, runStoreTransaction } from "../store.js";
 import {
   insertCampaignExplorationCells,
   readActiveBoardCampaign,
-  readCampaignById,
+  readCampaignActiveMapId,
+  readCampaignSnapshotById,
   readMapEditorMap,
   updateCampaignDoorState,
   upsertCampaignToken
@@ -83,19 +84,19 @@ export function createRoomGateway(httpServer: Server) {
 
     socket.on("close", () => {
       if (connection.user && connection.campaignId) {
-        void runStoreQuery((database) => readCampaignById(database, connection.campaignId!), {
+        void runStoreQuery((database) => readCampaignActiveMapId(database, connection.campaignId!), {
           queueKey: `campaign:${connection.campaignId!}`
         })
-          .then((campaign) => {
+          .then((activeMapId) => {
 
-            if (!campaign) {
+            if (!activeMapId) {
               return;
             }
 
             broadcastSocketMessageToRoom(connection.campaignId!, {
               type: "room:measure-preview",
               userId: connection.user!.id,
-              mapId: campaign.activeMapId,
+              mapId: activeMapId,
               preview: null
             });
           })
@@ -111,7 +112,7 @@ export function createRoomGateway(httpServer: Server) {
 
 export async function broadcastCampaignToRoom(campaignId: string) {
   const [campaign, compendium] = await Promise.all([
-    runStoreQuery((database) => readCampaignById(database, campaignId), { queueKey: `campaign:${campaignId}` }),
+    runStoreQuery((database) => readCampaignSnapshotById(database, campaignId), { queueKey: `campaign:${campaignId}` }),
     readRoomCompendiumCache()
   ]);
 
@@ -418,7 +419,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         runStoreQuery((database) => {
         const session = readSession(database, payload.token);
         const userRecord = session ? readUserById(database, session.userId) : null;
-        const campaign = readCampaignById(database, payload.campaignId);
+        const campaign = readCampaignSnapshotById(database, payload.campaignId);
 
         return {
           session,

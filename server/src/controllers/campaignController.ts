@@ -24,7 +24,11 @@ import {
   buildCampaignSnapshot,
   toCampaignSummary
 } from "../services/campaignDomain.js";
-import { listCampaignSummariesForUser, readCampaignById, readCampaignMembersAndInvites } from "../store/models/campaigns.js";
+import {
+  listCampaignSummariesForUser,
+  readCampaignMembersAndInvites,
+  readCampaignSnapshotById
+} from "../store/models/campaigns.js";
 import { readCompendiumSourceBooks } from "../store/models/compendium.js";
 import {
   acceptInviteCommand,
@@ -67,27 +71,27 @@ export const campaignController = {
     const user = requireUser(request);
     const body = parseWithSchema(acceptInviteBodySchema, request.body);
 
-    const { campaign, joinMessage } = await acceptInviteCommand({
+    const { campaignId, summary, joinMessage } = await acceptInviteCommand({
       user,
       code: body.code
     });
 
     const membership = await runStoreQuery(
-      (database) => readCampaignMembersAndInvites(database, campaign.id),
-      { queueKey: `campaign:${campaign.id}` }
+      (database) => readCampaignMembersAndInvites(database, campaignId),
+      { queueKey: `campaign:${campaignId}` }
     );
-    broadcastCampaignMembershipToRoom(campaign.id, membership.members, membership.invites);
+    broadcastCampaignMembershipToRoom(campaignId, membership.members, membership.invites);
     if (joinMessage) {
-      broadcastChatAppendedToRoom(campaign.id, joinMessage);
+      broadcastChatAppendedToRoom(campaignId, joinMessage);
     }
-    response.json(toCampaignSummary(campaign, user.id));
+    response.json(summary);
   },
 
   async snapshot(request: Request, response: Response) {
     const user = requireUser(request);
     const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
     const [campaign, compendium] = await Promise.all([
-      runStoreQuery((database) => readCampaignById(database, campaignId), {
+      runStoreQuery((database) => readCampaignSnapshotById(database, campaignId), {
         queueKey: `campaign:${campaignId}`
       }),
       readRoomCompendiumCache()

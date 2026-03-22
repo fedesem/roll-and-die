@@ -46,7 +46,9 @@ import {
   deleteCampaignMemberRecord,
   deleteCampaignRecord,
   listCampaignIdsForMember,
-  readCampaignById,
+  readCampaignCoreById,
+  readCampaignMembers,
+  readOwnedActorIdsForCampaignUser,
   updateCampaignCreatedBy,
   updateCampaignMemberRole
 } from "../store/models/campaigns.js";
@@ -216,20 +218,20 @@ export const adminController = {
       const campaignIds = listCampaignIdsForMember(database, targetUserId);
 
       for (const campaignId of campaignIds) {
-        const campaign = readCampaignById(database, campaignId);
+        const campaign = readCampaignCoreById(database, campaignId);
 
         if (!campaign) {
           continue;
         }
 
-        const remainingMembers = campaign.members.filter((member) => member.userId !== targetUserId);
+        const remainingMembers = readCampaignMembers(database, campaignId).filter((member) => member.userId !== targetUserId);
 
         deleteCampaignInvitesByCreator(database, campaignId, targetUserId);
         deleteCampaignChatMessagesByUser(database, campaignId, targetUserId);
         deleteCampaignExplorationForUser(database, campaignId, targetUserId);
 
-        for (const actor of campaign.actors.filter((entry) => entry.ownerId === targetUserId)) {
-          deleteActorRecord(database, actor.id);
+        for (const actorId of readOwnedActorIdsForCampaignUser(database, campaignId, targetUserId)) {
+          deleteActorRecord(database, actorId);
         }
 
         deleteCampaignMemberRecord(database, campaignId, targetUserId);
