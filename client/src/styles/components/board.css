@@ -157,18 +157,24 @@
 
 .board-grid,
 .board-overlay,
+.board-fog-layer,
 .board-interaction-layer {
   position: absolute;
   inset: 0;
 }
 
 .board-grid,
-.board-overlay {
+.board-overlay,
+.board-fog-layer {
   z-index: 1;
   pointer-events: none;
 }
 
 .board-overlay {
+  z-index: 2;
+}
+
+.board-fog-layer {
   z-index: 2;
 }
 

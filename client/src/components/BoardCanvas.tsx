@@ -25,7 +25,6 @@ import type {
   TokenMovementPreview
 } from "@shared/types";
 import {
-  cellKey,
   computeVisibleCellsForUser,
   snapPointToGrid,
   tokenCellKey,
@@ -33,6 +32,7 @@ import {
   type MovementTrace
 } from "@shared/vision";
 import { BoardToolbar } from "../features/board/BoardToolbar";
+import { BoardFogOverlay } from "../features/board/BoardFogOverlay";
 import {
   buildMeasurePreview,
   clamp,
@@ -455,41 +455,6 @@ export function BoardCanvas({
 
     return map.teleporters;
   }, [isDungeonMaster, map]);
-
-  const visibleViewportCells = useMemo(() => {
-    if (!map || !usesRestrictedVision || viewportSize.width <= 0 || viewportSize.height <= 0) {
-      return [];
-    }
-
-    const left = (-viewPan.x) / worldScale;
-    const top = (-viewPan.y) / worldScale;
-    const right = (viewportSize.width - viewPan.x) / worldScale;
-    const bottom = (viewportSize.height - viewPan.y) / worldScale;
-    const minColumn = Math.floor((left - map.grid.offsetX) / map.grid.cellSize) - 2;
-    const maxColumn = Math.ceil((right - map.grid.offsetX) / map.grid.cellSize) + 2;
-    const minRow = Math.floor((top - map.grid.offsetY) / map.grid.cellSize) - 2;
-    const maxRow = Math.ceil((bottom - map.grid.offsetY) / map.grid.cellSize) + 2;
-    const cells: Array<{ key: string; column: number; row: number; tone: "memory" | "hidden" }> = [];
-
-    for (let row = minRow; row <= maxRow; row += 1) {
-      for (let column = minColumn; column <= maxColumn; column += 1) {
-        const key = cellKey(column, row);
-
-        if (currentVisibleCells.has(key)) {
-          continue;
-        }
-
-        cells.push({
-          key,
-          column,
-          row,
-          tone: seenCells.has(key) ? "memory" : "hidden"
-        });
-      }
-    }
-
-    return cells;
-  }, [currentVisibleCells, map, seenCells, usesRestrictedVision, viewPan.x, viewPan.y, viewportSize.height, viewportSize.width, worldScale]);
 
   const localMeasurePreview = useMemo(() => {
     if (!map || !measuring) {
@@ -1851,21 +1816,6 @@ export function BoardCanvas({
           {gridStyle && <div className="board-grid" style={gridStyle} />}
 
           <svg className="board-overlay" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
-            <defs>
-              <marker
-                id="move-arrowhead"
-                viewBox="0 0 10 10"
-                markerUnits="userSpaceOnUse"
-                refX="8"
-                refY="5"
-                markerWidth={moveArrowHeadSize}
-                markerHeight={moveArrowHeadSize}
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="#f2bb3f" />
-              </marker>
-            </defs>
-
             {drawingBuckets.underFog.map((stroke) => (
               <g key={stroke.id}>
                 {shouldFillDrawing(stroke) && (
@@ -1942,23 +1892,33 @@ export function BoardCanvas({
                 </g>
               );
             })}
-            {visibleViewportCells.map((entry) => {
-              const screen = worldToScreen({
-                x: map.grid.offsetX + entry.column * map.grid.cellSize,
-                y: map.grid.offsetY + entry.row * map.grid.cellSize
-              });
+          </svg>
 
-              return (
-                <rect
-                  key={entry.key}
-                  x={screen.x}
-                  y={screen.y}
-                  width={map.grid.cellSize * worldScale + 1}
-                  height={map.grid.cellSize * worldScale + 1}
-                  className={entry.tone === "hidden" ? "board-vision-hidden" : "board-vision-memory"}
-                />
-              );
-            })}
+          <BoardFogOverlay
+            map={map}
+            visibleCells={currentVisibleCells}
+            seenCells={seenCells}
+            usesRestrictedVision={usesRestrictedVision}
+            viewportSize={viewportSize}
+            viewPan={viewPan}
+            worldScale={worldScale}
+          />
+
+          <svg className="board-overlay" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
+            <defs>
+              <marker
+                id="move-arrowhead"
+                viewBox="0 0 10 10"
+                markerUnits="userSpaceOnUse"
+                refX="8"
+                refY="5"
+                markerWidth={moveArrowHeadSize}
+                markerHeight={moveArrowHeadSize}
+                orient="auto-start-reverse"
+              >
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#f2bb3f" />
+              </marker>
+            </defs>
             {drawingBuckets.memory.map((stroke) => (
               <g key={stroke.id}>
                 {shouldFillDrawing(stroke) && (
