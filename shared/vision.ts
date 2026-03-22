@@ -24,6 +24,21 @@ interface MovementOptions {
   ignoreWalls?: boolean;
 }
 
+interface VisibleActorTokenEntry {
+  actor: ActorSheet;
+  token: BoardToken;
+}
+
+interface WallSpatialIndex {
+  bucketSize: number;
+  buckets: Map<string, number[]>;
+  walls: CampaignMap["walls"];
+}
+
+type WallCollisionSource = CampaignMap["walls"] | WallSpatialIndex;
+
+const wallSpatialIndexCache = new WeakMap<CampaignMap, WallSpatialIndex>();
+
 export function gridDimensions(map: CampaignMap) {
   return {
     columns: Math.max(1, Math.floor(map.width / map.grid.cellSize)),
@@ -111,65 +126,85 @@ export function computeVisibleCellsForUser({
   }
 
   const actorById = new Map(actors.map((actor) => [actor.id, actor]));
-  const controlledTokens = tokens.filter((token) => {
+  const controlledEntries = tokens.flatMap<VisibleActorTokenEntry>((token) => {
     const actor = actorById.get(token.actorId);
-    return token.mapId === map.id && actor?.kind === "character" && actor.ownerId === userId;
+    return token.mapId === map.id && actor?.kind === "character" && actor.ownerId === userId ? [{ actor, token }] : [];
   });
 
+  return computeVisibleCellsForActorTokens(map, controlledEntries);
+}
+
+export function computeVisibleCellsForActorToken(map: CampaignMap, actor: ActorSheet, token: BoardToken) {
   const visible = new Set<CellKey>();
+  const indexedWalls = getWallSpatialIndex(map);
 
-  for (const token of controlledTokens) {
-    const actor = actorById.get(token.actorId);
-
-    if (!actor) {
-      continue;
-    }
-
-    const rangeCells = Math.max(1, actor.visionRange || defaultVisionRange);
-    const rangePx = rangeCells * map.grid.cellSize;
-    const origin = { x: token.x, y: token.y };
-    const originCell = pointToCell(map, origin);
-    const minColumn = originCell.column - rangeCells;
-    const maxColumn = originCell.column + rangeCells;
-    const minRow = originCell.row - rangeCells;
-    const maxRow = originCell.row + rangeCells;
-
-    for (let row = minRow; row <= maxRow; row += 1) {
-      for (let column = minColumn; column <= maxColumn; column += 1) {
-        const target = cellCenter(map, column, row);
-        const distance = Math.hypot(target.x - origin.x, target.y - origin.y);
-
-        if (distance > rangePx) {
-          continue;
-        }
-
-        if (hasLineOfSight(origin, target, map.walls)) {
-          visible.add(cellKey(column, row));
-        }
-      }
-    }
+  for (const entry of [{ actor, token }]) {
+    addVisibleCellsForActorToken(map, entry, indexedWalls, visible);
   }
 
   return visible;
 }
 
-export function hasLineOfSight(start: Point, end: Point, walls: CampaignMap["walls"]) {
+function computeVisibleCellsForActorTokens(map: CampaignMap, entries: VisibleActorTokenEntry[]) {
+  const visible = new Set<CellKey>();
+  const indexedWalls = getWallSpatialIndex(map);
+
+  for (const entry of entries) {
+    addVisibleCellsForActorToken(map, entry, indexedWalls, visible);
+  }
+
+  return visible;
+}
+
+function addVisibleCellsForActorToken(
+  map: CampaignMap,
+  entry: VisibleActorTokenEntry,
+  wallsSource: WallCollisionSource,
+  visible: Set<CellKey>
+) {
+  const { actor, token } = entry;
+  const rangeCells = Math.max(1, actor.visionRange || defaultVisionRange);
+  const rangePx = rangeCells * map.grid.cellSize;
+  const origin = { x: token.x, y: token.y };
+  const originCell = pointToCell(map, origin);
+  const minColumn = originCell.column - rangeCells;
+  const maxColumn = originCell.column + rangeCells;
+  const minRow = originCell.row - rangeCells;
+  const maxRow = originCell.row + rangeCells;
+
+  for (let row = minRow; row <= maxRow; row += 1) {
+    for (let column = minColumn; column <= maxColumn; column += 1) {
+      const target = cellCenter(map, column, row);
+      const distance = Math.hypot(target.x - origin.x, target.y - origin.y);
+
+      if (distance > rangePx) {
+        continue;
+      }
+
+      if (hasLineOfSight(origin, target, wallsSource)) {
+        visible.add(cellKey(column, row));
+      }
+    }
+  }
+}
+
+export function hasLineOfSight(start: Point, end: Point, walls: WallCollisionSource) {
   return isSegmentPassable(start, end, walls, "view");
 }
 
-export function canTraverseSegment(start: Point, end: Point, walls: CampaignMap["walls"]) {
+export function canTraverseSegment(start: Point, end: Point, walls: WallCollisionSource) {
   return isSegmentPassable(start, end, walls, "movement");
 }
 
 function isSegmentPassable(
   start: Point,
   end: Point,
-  walls: CampaignMap["walls"],
+  walls: WallCollisionSource,
   mode: "view" | "movement"
 ) {
   const sharedCornerHits = new Map<string, number>();
 
-  for (const wall of walls) {
+  for (const wall of getCandidateWalls(walls, start, end)) {
     if (!obstacleBlocksMode(wall, mode)) {
       continue;
     }
@@ -211,6 +246,7 @@ export function traceMovementPath(
   target: Point,
   options: MovementOptions = {}
 ): MovementTrace {
+  const indexedWalls = getWallSpatialIndex(map);
   const startCell = pointToCell(map, start);
   const targetCell = pointToCell(map, target);
   const traversedCells = lineCells(startCell.column, startCell.row, targetCell.column, targetCell.row);
@@ -226,7 +262,7 @@ export function traceMovementPath(
     const previousPoint = cellCenter(map, previous.column, previous.row);
     const nextPoint = cellCenter(map, next.column, next.row);
 
-    if (!options.ignoreWalls && !canTraverseSegment(previousPoint, nextPoint, map.walls)) {
+    if (!options.ignoreWalls && !canTraverseSegment(previousPoint, nextPoint, indexedWalls)) {
       blocked = true;
       break;
     }
@@ -274,6 +310,81 @@ export function obstacleMidpoint(wall: MapWall): Point {
 
 function obstacleBlocksMode(wall: MapWall, mode: "view" | "movement") {
   return mode === "view" ? obstacleBlocksVision(wall) : obstacleBlocksMovement(wall);
+}
+
+function getWallSpatialIndex(map: CampaignMap) {
+  const cached = wallSpatialIndexCache.get(map);
+
+  if (cached) {
+    return cached;
+  }
+
+  const bucketSize = Math.max(1, map.grid.cellSize);
+  const buckets = new Map<string, number[]>();
+
+  map.walls.forEach((wall, index) => {
+    const minBucketX = Math.floor(Math.min(wall.start.x, wall.end.x) / bucketSize);
+    const maxBucketX = Math.floor(Math.max(wall.start.x, wall.end.x) / bucketSize);
+    const minBucketY = Math.floor(Math.min(wall.start.y, wall.end.y) / bucketSize);
+    const maxBucketY = Math.floor(Math.max(wall.start.y, wall.end.y) / bucketSize);
+
+    for (let bucketY = minBucketY; bucketY <= maxBucketY; bucketY += 1) {
+      for (let bucketX = minBucketX; bucketX <= maxBucketX; bucketX += 1) {
+        const key = cellKey(bucketX, bucketY);
+        const entries = buckets.get(key);
+
+        if (entries) {
+          entries.push(index);
+        } else {
+          buckets.set(key, [index]);
+        }
+      }
+    }
+  });
+
+  const index = {
+    bucketSize,
+    buckets,
+    walls: map.walls
+  } satisfies WallSpatialIndex;
+
+  wallSpatialIndexCache.set(map, index);
+  return index;
+}
+
+function getCandidateWalls(source: WallCollisionSource, start: Point, end: Point) {
+  if (Array.isArray(source)) {
+    return source;
+  }
+
+  const epsilon = 0.0001;
+  const minBucketX = Math.floor((Math.min(start.x, end.x) - epsilon) / source.bucketSize);
+  const maxBucketX = Math.floor((Math.max(start.x, end.x) + epsilon) / source.bucketSize);
+  const minBucketY = Math.floor((Math.min(start.y, end.y) - epsilon) / source.bucketSize);
+  const maxBucketY = Math.floor((Math.max(start.y, end.y) + epsilon) / source.bucketSize);
+  const seen = new Set<number>();
+  const candidates: CampaignMap["walls"] = [];
+
+  for (let bucketY = minBucketY; bucketY <= maxBucketY; bucketY += 1) {
+    for (let bucketX = minBucketX; bucketX <= maxBucketX; bucketX += 1) {
+      const entries = source.buckets.get(cellKey(bucketX, bucketY));
+
+      if (!entries) {
+        continue;
+      }
+
+      for (const wallIndex of entries) {
+        if (seen.has(wallIndex)) {
+          continue;
+        }
+
+        seen.add(wallIndex);
+        candidates.push(source.walls[wallIndex]);
+      }
+    }
+  }
+
+  return candidates;
 }
 
 export function findTeleporterDestination(teleporters: CampaignMap["teleporters"], point: Point) {

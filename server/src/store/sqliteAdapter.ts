@@ -81,6 +81,11 @@ export class SqlitePersistenceAdapter implements PersistenceAdapter {
     });
   }
 
+  async transaction<T>(task: (database: DatabaseSync) => Promise<T> | T) {
+    await this.initialize();
+    return runInTransaction(this.getDatabase(), () => task(this.getDatabase()));
+  }
+
   private getDatabase() {
     if (!this.database) {
       throw new Error("SQLite adapter not initialized.");

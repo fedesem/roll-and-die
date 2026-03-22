@@ -36,6 +36,7 @@ import type {
   UserProfile
 } from "../../../shared/types.js";
 import {
+  computeVisibleCellsForActorToken,
   computeVisibleCellsForUser,
   snapPointToGrid,
   snapPointToGridIntersection
@@ -137,7 +138,26 @@ export function normalizeExplorationMemory(campaign: Campaign, userId: string) {
   ) as Record<string, CellKey[]>;
 }
 
+export function normalizeExplorationMemoryForMap(campaign: Campaign, userId: string, mapId: string) {
+  const stored = campaign.exploration[userId] ?? {};
+  const cells = Array.isArray(stored[mapId]) ? stored[mapId] : [];
+
+  return Array.from(new Set(cells.filter((entry) => typeof entry === "string")));
+}
+
 export function updateExplorationForCampaign(campaign: Campaign) {
+  for (const map of campaign.maps) {
+    updateExplorationForMap(campaign, map.id);
+  }
+}
+
+export function updateExplorationForMap(campaign: Campaign, mapId: string) {
+  const map = campaign.maps.find((entry) => entry.id === mapId);
+
+  if (!map) {
+    return;
+  }
+
   for (const member of campaign.members) {
     if (member.role !== "player") {
       continue;
@@ -146,25 +166,49 @@ export function updateExplorationForCampaign(campaign: Campaign) {
     const normalizedMemory = normalizeExplorationMemory(campaign, member.userId);
     const nextMemory = { ...(campaign.exploration[member.userId] ?? {}) };
 
-    for (const map of campaign.maps) {
-      const visible = computeVisibleCellsForUser({
-        map,
-        actors: campaign.actors,
-        tokens: campaign.tokens.filter((token) => token.mapId === map.id && token.visible),
-        userId: member.userId,
-        role: member.role
-      });
-      const knownCells = new Set(normalizedMemory[map.id] ?? []);
+    const visible = computeVisibleCellsForUser({
+      map,
+      actors: campaign.actors,
+      tokens: campaign.tokens.filter((token) => token.mapId === map.id && token.visible),
+      userId: member.userId,
+      role: member.role
+    });
+    const knownCells = new Set(normalizedMemory[map.id] ?? []);
 
-      for (const entry of visible) {
-        knownCells.add(entry);
-      }
-
-      nextMemory[map.id] = Array.from(knownCells);
+    for (const entry of visible) {
+      knownCells.add(entry);
     }
 
+    nextMemory[map.id] = Array.from(knownCells);
     campaign.exploration[member.userId] = nextMemory;
   }
+}
+
+export function updateExplorationForActorMove(campaign: Campaign, mapId: string, actorId: string) {
+  const map = campaign.maps.find((entry) => entry.id === mapId);
+  const actor = campaign.actors.find((entry) => entry.id === actorId);
+
+  if (!map || !actor || actor.kind !== "character" || !actor.ownerId) {
+    return;
+  }
+
+  const member = campaign.members.find((entry) => entry.userId === actor.ownerId);
+  const token = campaign.tokens.find((entry) => entry.actorId === actorId && entry.mapId === mapId && entry.visible);
+
+  if (!token || member?.role !== "player") {
+    return;
+  }
+
+  const nextMemory = { ...(campaign.exploration[actor.ownerId] ?? {}) };
+  const knownCells = new Set(normalizeExplorationMemoryForMap(campaign, actor.ownerId, mapId));
+  const visible = computeVisibleCellsForActorToken(map, actor, token);
+
+  for (const entry of visible) {
+    knownCells.add(entry);
+  }
+
+  nextMemory[mapId] = Array.from(knownCells);
+  campaign.exploration[actor.ownerId] = nextMemory;
 }
 
 export function requireActiveMap(campaign: Campaign) {
@@ -184,16 +228,22 @@ export function requireCampaignMember(database: Database, campaignId: string, us
     throw new HttpError(404, "Campaign not found.");
   }
 
+  const role = requireCampaignRole(campaign, userId);
+
+  return {
+    campaign,
+    role
+  };
+}
+
+export function requireCampaignRole(campaign: Campaign, userId: string) {
   const member = campaign.members.find((entry) => entry.userId === userId);
 
   if (!member) {
     throw new HttpError(403, "You do not have access to that campaign.");
   }
 
-  return {
-    campaign,
-    role: member.role
-  };
+  return member.role;
 }
 
 export function requireDungeonMaster(campaign: Campaign, userId: string) {

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  boardTokenSchema,
   campaignSnapshotSchema,
   drawingStrokeSchema,
   mapPingSchema,
@@ -93,6 +94,28 @@ export const serverRoomMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("room:snapshot"),
     snapshot: campaignSnapshotSchema
+  }),
+  z.object({
+    type: z.literal("room:token-moved"),
+    update: z.object({
+      token: boardTokenSchema,
+      playerVision: z.object({
+        mapId: z.string().trim().min(1),
+        cells: z.array(z.string().trim().min(1))
+      })
+    })
+  }),
+  z.object({
+    type: z.literal("room:door-toggled"),
+    update: z.object({
+      mapId: z.string().trim().min(1),
+      doorId: z.string().trim().min(1),
+      isOpen: z.boolean(),
+      playerVision: z.object({
+        mapId: z.string().trim().min(1),
+        cells: z.array(z.string().trim().min(1))
+      })
+    })
   }),
   z.object({
     type: z.literal("room:token-preview"),

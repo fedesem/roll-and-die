@@ -1,5 +1,6 @@
 import { SqlitePersistenceAdapter } from "./store/sqliteAdapter.js";
 import type { Database } from "./store/types.js";
+import type { DatabaseSync } from "node:sqlite";
 
 export type { Database, StoredUser, SessionRecord } from "./store/types.js";
 
@@ -24,4 +25,15 @@ export async function mutateDatabase<T>(mutator: (database: Database) => Promise
   );
 
   return task;
+}
+
+export async function runStoreTransaction<T>(task: (database: DatabaseSync) => Promise<T> | T): Promise<T> {
+  const queuedTask = writeQueue.then(() => adapter.transaction(task));
+
+  writeQueue = queuedTask.then(
+    () => undefined,
+    () => undefined
+  );
+
+  return queuedTask;
 }

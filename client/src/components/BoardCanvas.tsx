@@ -178,7 +178,6 @@ const localMeasurePalette = {
   fill: "rgba(242, 187, 63, 0.16)",
   endFill: "rgba(18, 21, 26, 0.92)"
 };
-
 export function BoardCanvas({
   map,
   tokens,
@@ -248,7 +247,6 @@ export function BoardCanvas({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [hoveredTeleporterId, setHoveredTeleporterId] = useState<string | null>(null);
   const [optimisticTokenPositions, setOptimisticTokenPositions] = useState<Record<string, Point>>({});
-  const [pendingKeyboardMoves, setPendingKeyboardMoves] = useState<Array<{ deltaX: number; deltaY: number }>>([]);
   const [discoveredDrawingsByViewer, setDiscoveredDrawingsByViewer] = useState<Record<string, Record<string, string[]>>>(() =>
     readDiscoveredDrawingsMemory()
   );
@@ -631,6 +629,8 @@ export function BoardCanvas({
     }
 
     const currentMap = map;
+    const controlledActor = selectedActor;
+    const controlledToken = selectedToken;
     const cellSize = currentMap.grid.cellSize;
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -670,42 +670,26 @@ export function BoardCanvas({
       }
 
       event.preventDefault();
-      setPendingKeyboardMoves((current) =>
-        current.length >= 3 ? current : [...current, { deltaX, deltaY }]
+      const nextTrace = traceMovementPath(
+        currentMap,
+        { x: controlledToken.x, y: controlledToken.y },
+        { x: controlledToken.x + deltaX, y: controlledToken.y + deltaY },
+        { ignoreWalls: isDungeonMaster }
       );
+
+      pendingTeleportCenterRef.current = nextTrace.teleported ? nextTrace.end : null;
+      setOptimisticTokenPositions((current) => ({
+        ...current,
+        [controlledToken.id]: { x: nextTrace.end.x, y: nextTrace.end.y }
+      }));
+      void moveActorRef.current(controlledActor.id, controlledToken.x + deltaX, controlledToken.y + deltaY);
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [draggingToken, isDungeonMaster, map, onMoveActor, panning, selectedActor, selectedMapItems.length, selectedToken, tool]);
-
-  useEffect(() => {
-    if (!map || !selectedActor || !selectedToken || !canControlActor(selectedActor) || pendingKeyboardMoves.length === 0) {
-      return;
-    }
-
-    if (draggingToken || panning || tool !== "select" || selectedMapItems.length > 0) {
-      return;
-    }
-
-    const [nextMove, ...rest] = pendingKeyboardMoves;
-    const trace = traceMovementPath(
-      map,
-      { x: selectedToken.x, y: selectedToken.y },
-      { x: selectedToken.x + nextMove.deltaX, y: selectedToken.y + nextMove.deltaY },
-      { ignoreWalls: isDungeonMaster }
-    );
-
-    pendingTeleportCenterRef.current = trace.teleported ? trace.end : null;
-    setOptimisticTokenPositions((current) => ({
-      ...current,
-      [selectedToken.id]: { x: trace.end.x, y: trace.end.y }
-    }));
-    setPendingKeyboardMoves(rest);
-    void onMoveActor(selectedActor.id, selectedToken.x + nextMove.deltaX, selectedToken.y + nextMove.deltaY);
-  }, [draggingToken, isDungeonMaster, map, onMoveActor, panning, pendingKeyboardMoves, selectedActor, selectedMapItems.length, selectedToken, tool]);
+  }, [draggingToken, isDungeonMaster, map, panning, selectedActor, selectedMapItems.length, selectedToken, tool]);
 
   useEffect(() => {
     if (!boardRef.current) {
@@ -747,7 +731,6 @@ export function BoardCanvas({
     setMeasuring(null);
     setHoveredTeleporterId(null);
     setOptimisticTokenPositions({});
-    setPendingKeyboardMoves([]);
     lastPreviewTargetKeyRef.current = null;
     lastSelectedTokenPositionRef.current = null;
     pendingTeleportCenterRef.current = null;
@@ -794,23 +777,19 @@ export function BoardCanvas({
   }, [tool]);
 
   useEffect(() => {
-    setPendingKeyboardMoves([]);
-  }, [selectedActor?.id]);
-
-  useEffect(() => {
     const pendingDoorId = pendingDoorToggleRef.current;
 
     if (!pendingDoorId) {
       return;
     }
 
-    if (draggingToken || pendingKeyboardMoves.length > 0 || Object.keys(optimisticTokenPositions).length > 0) {
+    if (draggingToken || Object.keys(optimisticTokenPositions).length > 0) {
       return;
     }
 
     pendingDoorToggleRef.current = null;
     void onToggleDoor(pendingDoorId);
-  }, [draggingToken, onToggleDoor, optimisticTokenPositions, pendingKeyboardMoves.length]);
+  }, [draggingToken, onToggleDoor, optimisticTokenPositions]);
 
   useEffect(() => {
     if (!map || !usesRestrictedVision) {
@@ -1708,7 +1687,7 @@ export function BoardCanvas({
       return;
     }
 
-    if (draggingToken || pendingKeyboardMoves.length > 0 || Object.keys(optimisticTokenPositions).length > 0) {
+    if (draggingToken || Object.keys(optimisticTokenPositions).length > 0) {
       pendingDoorToggleRef.current = doorId;
       return;
     }

@@ -862,6 +862,381 @@ export function readCampaigns(database: DatabaseSync): Campaign[] {
   }).campaigns;
 }
 
+export function readRealtimeCampaign(database: DatabaseSync, campaignId: string): Campaign | null {
+  const campaignRow = database
+    .prepare(
+      `
+        SELECT
+          id,
+          name,
+          created_at as createdAt,
+          created_by as createdBy,
+          active_map_id as activeMapId,
+          allowed_source_books_json as allowedSourceBooksJson
+        FROM campaigns
+        WHERE id = ?
+        LIMIT 1
+      `
+    )
+    .get(campaignId) as
+    | {
+        id: string;
+        name: string;
+        createdAt: string;
+        createdBy: string;
+        activeMapId: string;
+        allowedSourceBooksJson: string;
+      }
+    | undefined;
+
+  if (!campaignRow) {
+    return null;
+  }
+
+  const campaign: Campaign = {
+    id: campaignRow.id,
+    name: campaignRow.name,
+    createdAt: campaignRow.createdAt,
+    createdBy: campaignRow.createdBy,
+    activeMapId: campaignRow.activeMapId,
+    allowedSourceBooks: parseJsonArray<string>(campaignRow.allowedSourceBooksJson),
+    members: [],
+    invites: [],
+    actors: [],
+    maps: [],
+    mapAssignments: [],
+    tokens: [],
+    chat: [],
+    exploration: {}
+  };
+
+  campaign.members = readAll<{
+    userId: string;
+    name: string;
+    email: string;
+    role: CampaignMember["role"];
+  }>(
+    database,
+    `
+      SELECT user_id as userId, name, email, role
+      FROM campaign_members
+      WHERE campaign_id = ?
+      ORDER BY sort_order, user_id
+    `,
+    campaignId
+  ).map((row) => ({
+    userId: row.userId,
+    name: row.name,
+    email: row.email,
+    role: row.role
+  }));
+
+  campaign.actors = readAll<{
+    id: string;
+    ownerId: string | null;
+    name: string;
+    kind: ActorKind;
+    imageUrl: string;
+    visionRange: number;
+    color: string;
+  }>(
+    database,
+    `
+      SELECT
+        id,
+        owner_id as ownerId,
+        name,
+        kind,
+        image_url as imageUrl,
+        vision_range as visionRange,
+        color
+      FROM actors
+      WHERE campaign_id = ?
+      ORDER BY sort_order, id
+    `,
+    campaignId
+  ).map((row) => createRealtimeActorShell(campaignId, row));
+
+  const activeMap = database
+    .prepare(
+      `
+        SELECT
+          id,
+          name,
+          background_url as backgroundUrl,
+          background_offset_x as backgroundOffsetX,
+          background_offset_y as backgroundOffsetY,
+          background_scale as backgroundScale,
+          width,
+          height,
+          grid_show as gridShow,
+          grid_cell_size as gridCellSize,
+          grid_scale as gridScale,
+          grid_offset_x as gridOffsetX,
+          grid_offset_y as gridOffsetY,
+          grid_color as gridColor,
+          visibility_version as visibilityVersion
+        FROM maps
+        WHERE id = ?
+        LIMIT 1
+      `
+    )
+    .get(campaign.activeMapId) as
+    | {
+        id: string;
+        name: string;
+        backgroundUrl: string;
+        backgroundOffsetX: number;
+        backgroundOffsetY: number;
+        backgroundScale: number;
+        width: number;
+        height: number;
+        gridShow: number;
+        gridCellSize: number;
+        gridScale: number;
+        gridOffsetX: number;
+        gridOffsetY: number;
+        gridColor: string;
+        visibilityVersion: number;
+      }
+    | undefined;
+
+  if (!activeMap) {
+    return campaign;
+  }
+
+  const map: CampaignMap = {
+    id: activeMap.id,
+    name: activeMap.name,
+    backgroundUrl: activeMap.backgroundUrl,
+    backgroundOffsetX: activeMap.backgroundOffsetX,
+    backgroundOffsetY: activeMap.backgroundOffsetY,
+    backgroundScale: activeMap.backgroundScale,
+    width: activeMap.width,
+    height: activeMap.height,
+    grid: {
+      show: toBoolean(activeMap.gridShow),
+      cellSize: activeMap.gridCellSize,
+      scale: activeMap.gridScale,
+      offsetX: activeMap.gridOffsetX,
+      offsetY: activeMap.gridOffsetY,
+      color: activeMap.gridColor
+    },
+    walls: [],
+    teleporters: [],
+    drawings: [],
+    fog: [],
+    visibilityVersion: activeMap.visibilityVersion ?? 1
+  };
+
+  map.walls = readAll<{
+    id: string;
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    kind: MapWall["kind"];
+    isOpen: number;
+  }>(
+    database,
+    `
+      SELECT id, start_x as startX, start_y as startY, end_x as endX, end_y as endY, kind, is_open as isOpen
+      FROM map_walls
+      WHERE map_id = ?
+      ORDER BY sort_order, id
+    `,
+    map.id
+  ).map((row) => ({
+    id: row.id,
+    start: { x: row.startX, y: row.startY },
+    end: { x: row.endX, y: row.endY },
+    kind: row.kind ?? "wall",
+    isOpen: toBoolean(row.isOpen)
+  }));
+
+  map.teleporters = readAll<{
+    id: string;
+    pairNumber: number;
+    pointAX: number;
+    pointAY: number;
+    pointBX: number;
+    pointBY: number;
+  }>(
+    database,
+    `
+      SELECT
+        id,
+        pair_number as pairNumber,
+        point_a_x as pointAX,
+        point_a_y as pointAY,
+        point_b_x as pointBX,
+        point_b_y as pointBY
+      FROM map_teleporters
+      WHERE map_id = ?
+      ORDER BY sort_order, id
+    `,
+    map.id
+  ).map((row) => ({
+    id: row.id,
+    pairNumber: row.pairNumber,
+    pointA: { x: row.pointAX, y: row.pointAY },
+    pointB: { x: row.pointBX, y: row.pointBY }
+  }));
+
+  campaign.maps = [map];
+  campaign.mapAssignments = readAll<{ mapId: string; actorId: string }>(
+    database,
+    `
+      SELECT map_id as mapId, actor_id as actorId
+      FROM map_actor_assignments
+      WHERE campaign_id = ? AND map_id = ?
+      ORDER BY actor_id
+    `,
+    campaignId,
+    map.id
+  );
+
+  campaign.tokens = readAll<{
+    id: string;
+    actorId: string;
+    actorKind: ActorKind;
+    mapId: string;
+    x: number;
+    y: number;
+    size: number;
+    color: string;
+    label: string;
+    imageUrl: string;
+    visible: number;
+  }>(
+    database,
+    `
+      SELECT
+        id,
+        actor_id as actorId,
+        actor_kind as actorKind,
+        map_id as mapId,
+        x,
+        y,
+        size,
+        color,
+        label,
+        image_url as imageUrl,
+        visible
+      FROM tokens
+      WHERE campaign_id = ? AND map_id = ?
+      ORDER BY sort_order, id
+    `,
+    campaignId,
+    map.id
+  ).map((row) => ({
+    id: row.id,
+    actorId: row.actorId,
+    actorKind: row.actorKind,
+    mapId: row.mapId,
+    x: row.x,
+    y: row.y,
+    size: row.size,
+    color: row.color,
+    label: row.label,
+    imageUrl: row.imageUrl,
+    visible: toBoolean(row.visible)
+  }));
+
+  for (const row of readAll<{ userId: string; columnIndex: number; rowIndex: number }>(
+    database,
+    `
+      SELECT user_id as userId, column_index as columnIndex, row_index as rowIndex
+      FROM exploration_cells
+      WHERE campaign_id = ? AND map_id = ?
+      ORDER BY user_id, column_index, row_index
+    `,
+    campaignId,
+    map.id
+  )) {
+    const userMap = (campaign.exploration[row.userId] ??= {});
+    const cells = (userMap[map.id] ??= []);
+    cells.push(`${row.columnIndex}:${row.rowIndex}`);
+  }
+
+  return campaign;
+}
+
+export function upsertCampaignToken(database: DatabaseSync, campaignId: string, token: Campaign["tokens"][number]) {
+  database
+    .prepare(
+      `
+        INSERT INTO tokens (
+          id, campaign_id, sort_order, actor_id, actor_kind, map_id, x, y, size, color, label, image_url, visible
+        )
+        VALUES (
+          ?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM tokens WHERE campaign_id = ?), 0), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        )
+        ON CONFLICT(id) DO UPDATE SET
+          actor_id = excluded.actor_id,
+          actor_kind = excluded.actor_kind,
+          map_id = excluded.map_id,
+          x = excluded.x,
+          y = excluded.y,
+          size = excluded.size,
+          color = excluded.color,
+          label = excluded.label,
+          image_url = excluded.image_url,
+          visible = excluded.visible
+      `
+    )
+    .run(
+      token.id,
+      campaignId,
+      campaignId,
+      token.actorId,
+      token.actorKind,
+      token.mapId,
+      token.x,
+      token.y,
+      token.size,
+      token.color,
+      token.label,
+      token.imageUrl,
+      toIntegerBoolean(token.visible)
+    );
+}
+
+export function updateCampaignDoorState(database: DatabaseSync, doorId: string, isOpen: boolean) {
+  database
+    .prepare(
+      `
+        UPDATE map_walls
+        SET is_open = ?
+        WHERE id = ? AND kind = 'door'
+      `
+    )
+    .run(toIntegerBoolean(isOpen), doorId);
+}
+
+export function insertCampaignExplorationCells(
+  database: DatabaseSync,
+  campaignId: string,
+  userId: string,
+  mapId: string,
+  cells: string[]
+) {
+  const insertCell = database.prepare(`
+    INSERT OR IGNORE INTO exploration_cells (campaign_id, user_id, map_id, column_index, row_index)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  for (const key of new Set(cells)) {
+    const parsed = parseCellKey(key);
+
+    if (!parsed) {
+      continue;
+    }
+
+    insertCell.run(campaignId, userId, mapId, parsed.column, parsed.row);
+  }
+}
+
 export function writeCampaigns(database: DatabaseSync, state: Database) {
   const normalized = normalizeStoreState(state);
 
@@ -1287,6 +1662,79 @@ function writeActorTextEntries(
   values.forEach((value, index) => {
     statement.run(actorId, kind, index, value);
   });
+}
+
+function createRealtimeActorShell(
+  campaignId: string,
+  row: {
+    id: string;
+    ownerId: string | null;
+    name: string;
+    kind: ActorKind;
+    imageUrl: string;
+    visionRange: number;
+    color: string;
+  }
+): ActorSheet {
+  return {
+    id: row.id,
+    campaignId,
+    ownerId: row.ownerId ?? undefined,
+    name: row.name,
+    kind: row.kind,
+    imageUrl: row.imageUrl,
+    className: "",
+    species: "",
+    background: "",
+    alignment: "",
+    level: 1,
+    challengeRating: "",
+    experience: 0,
+    spellcastingAbility: "wis",
+    armorClass: 10,
+    initiative: 0,
+    speed: 30,
+    proficiencyBonus: 2,
+    inspiration: false,
+    visionRange: row.visionRange,
+    hitPoints: {
+      current: 1,
+      max: 1,
+      temp: 0
+    },
+    hitDice: "",
+    abilities: {
+      str: 10,
+      dex: 10,
+      con: 10,
+      int: 10,
+      wis: 10,
+      cha: 10
+    },
+    skills: [],
+    classes: [],
+    spellSlots: [],
+    features: [],
+    spells: [],
+    preparedSpells: [],
+    talents: [],
+    feats: [],
+    bonuses: [],
+    layout: [],
+    attacks: [],
+    armorItems: [],
+    resources: [],
+    inventory: [],
+    currency: {
+      pp: 0,
+      gp: 0,
+      ep: 0,
+      sp: 0,
+      cp: 0
+    },
+    notes: "",
+    color: row.color
+  };
 }
 
 function parseJsonArray<T>(raw: string) {

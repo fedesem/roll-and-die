@@ -29,6 +29,7 @@ export interface PersistenceAdapter {
   initialize(): Promise<void>;
   read(): Promise<Database>;
   write(database: Database): Promise<void>;
+  transaction<T>(task: (database: DatabaseSync) => Promise<T> | T): Promise<T>;
 }
 
 export interface Migration {

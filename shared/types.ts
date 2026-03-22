@@ -551,6 +551,23 @@ export interface CampaignSnapshot {
   playerVision: Record<string, CellKey[]>;
 }
 
+export interface RoomPlayerVisionUpdate {
+  mapId: string;
+  cells: CellKey[];
+}
+
+export interface RoomTokenMoved {
+  token: BoardToken;
+  playerVision: RoomPlayerVisionUpdate;
+}
+
+export interface RoomDoorToggled {
+  mapId: string;
+  doorId: string;
+  isOpen: boolean;
+  playerVision: RoomPlayerVisionUpdate;
+}
+
 export interface AdminOverview {
   users: UserProfile[];
   compendium: CompendiumData;
@@ -678,6 +695,14 @@ export type ServerRoomMessage =
   | {
       type: "room:snapshot";
       snapshot: CampaignSnapshot;
+    }
+  | {
+      type: "room:token-moved";
+      update: RoomTokenMoved;
+    }
+  | {
+      type: "room:door-toggled";
+      update: RoomDoorToggled;
     }
   | {
       type: "room:token-preview";

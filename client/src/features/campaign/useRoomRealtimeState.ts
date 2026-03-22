@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { CampaignSnapshot, MapPing, MapViewportRecall, MeasurePreview, TokenMovementPreview } from "@shared/types";
+import type {
+  CampaignSnapshot,
+  MapPing,
+  MapViewportRecall,
+  MeasurePreview,
+  RoomDoorToggled,
+  RoomTokenMoved,
+  TokenMovementPreview
+} from "@shared/types";
 
 import type { SharedMeasurePreviewState, SharedMovementPreviewState } from "./types";
 import type { RoomStatus } from "../../services/roomConnection";
@@ -37,6 +45,66 @@ export function useRoomRealtimeState({ isCampaignRoute, selectedCampaignId, onEr
 
   const handleRoomSnapshot = useCallback((nextSnapshot: CampaignSnapshot) => {
     setSnapshot(nextSnapshot);
+  }, []);
+
+  const handleTokenMoved = useCallback((update: RoomTokenMoved) => {
+    setSnapshot((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const tokenIndex = current.campaign.tokens.findIndex((entry) => entry.id === update.token.id);
+      const nextTokens =
+        tokenIndex >= 0
+          ? current.campaign.tokens.map((entry, index) => (index === tokenIndex ? update.token : entry))
+          : [...current.campaign.tokens, update.token];
+
+      return {
+        ...current,
+        campaign: {
+          ...current.campaign,
+          tokens: nextTokens
+        },
+        playerVision: {
+          ...current.playerVision,
+          [update.playerVision.mapId]: update.playerVision.cells
+        }
+      };
+    });
+  }, []);
+
+  const handleDoorToggled = useCallback((update: RoomDoorToggled) => {
+    setSnapshot((current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        campaign: {
+          ...current.campaign,
+          maps: current.campaign.maps.map((map) =>
+            map.id !== update.mapId
+              ? map
+              : {
+                  ...map,
+                  walls: map.walls.map((wall) =>
+                    wall.id === update.doorId && wall.kind === "door"
+                      ? {
+                          ...wall,
+                          isOpen: update.isOpen
+                        }
+                      : wall
+                  )
+                }
+          )
+        },
+        playerVision: {
+          ...current.playerVision,
+          [update.playerVision.mapId]: update.playerVision.cells
+        }
+      };
+    });
   }, []);
 
   const handleMovementPreview = useCallback((actorId: string, mapId: string, preview: TokenMovementPreview | null) => {
@@ -133,6 +201,8 @@ export function useRoomRealtimeState({ isCampaignRoute, selectedCampaignId, onEr
     handleRoomDisconnect,
     handleRoomStatusChange,
     handleRoomSnapshot,
+    handleTokenMoved,
+    handleDoorToggled,
     handleMovementPreview,
     handleMeasurePreview,
     handleRoomRecall,

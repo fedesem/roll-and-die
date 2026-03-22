@@ -7,6 +7,9 @@ import type {
   BoardToken,
   MapPing,
   MapViewportRecall,
+  RoomDoorToggled,
+  RoomPlayerVisionUpdate,
+  RoomTokenMoved,
   ServerRoomMessage,
   TokenMovementPreview,
   UserProfile
@@ -15,7 +18,13 @@ import { snapPointToGrid, traceMovementPath } from "../../../shared/vision.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema } from "../http/validation.js";
 import { parseRollCommand, rollDice } from "../dice.js";
-import { mutateDatabase, readDatabase } from "../store.js";
+import { mutateDatabase, readDatabase, runStoreTransaction } from "../store.js";
+import {
+  insertCampaignExplorationCells,
+  readRealtimeCampaign,
+  updateCampaignDoorState,
+  upsertCampaignToken
+} from "../store/models/campaigns.js";
 import { createId, now, toUserProfile } from "../services/authService.js";
 import {
   buildCampaignSnapshot,
@@ -23,15 +32,18 @@ import {
   canManageDrawing,
   canToggleDoor,
   hasMapAssignment,
+  normalizeExplorationMemoryForMap,
   requireActiveMap,
   requireCampaignMember,
+  requireCampaignRole,
   requireDungeonMaster,
   resetFogForMap,
   resolveChatActorContext,
   sanitizeDrawings,
   sanitizeMeasurePreview,
   trimChat,
-  updateExplorationForCampaign
+  updateExplorationForActorMove,
+  updateExplorationForMap
 } from "../services/campaignDomain.js";
 
 interface RoomConnection {
@@ -122,6 +134,97 @@ function broadcastSocketMessageToRoom(campaignId: string, message: ServerRoomMes
     }
 
     sendSocketMessage(connection, message);
+  }
+}
+
+function buildPlayerVisionUpdateForMap(
+  campaign: Parameters<typeof buildCampaignSnapshot>[0],
+  userId: string,
+  mapId: string
+): RoomPlayerVisionUpdate {
+  const member = campaign.members.find((entry) => entry.userId === userId);
+
+  return {
+    mapId,
+    cells: member?.role === "dm" ? [] : normalizeExplorationMemoryForMap(campaign, userId, mapId)
+  };
+}
+
+function captureExplorationForMap(campaign: Parameters<typeof buildCampaignSnapshot>[0], mapId: string) {
+  const snapshot = new Map<string, string[]>();
+
+  for (const member of campaign.members) {
+    if (member.role !== "player") {
+      continue;
+    }
+
+    snapshot.set(member.userId, normalizeExplorationMemoryForMap(campaign, member.userId, mapId));
+  }
+
+  return snapshot;
+}
+
+function persistExplorationDeltaForMap(
+  campaignId: string,
+  campaign: Parameters<typeof buildCampaignSnapshot>[0],
+  mapId: string,
+  previous: Map<string, string[]>,
+  database: Parameters<typeof readRealtimeCampaign>[0]
+) {
+  for (const member of campaign.members) {
+    if (member.role !== "player") {
+      continue;
+    }
+
+    const priorCells = new Set(previous.get(member.userId) ?? []);
+    const nextCells = normalizeExplorationMemoryForMap(campaign, member.userId, mapId).filter(
+      (cell) => !priorCells.has(cell)
+    );
+
+    if (nextCells.length === 0) {
+      continue;
+    }
+
+    insertCampaignExplorationCells(database, campaignId, member.userId, mapId, nextCells);
+  }
+}
+
+function broadcastTokenMovedToRoom(
+  campaignId: string,
+  campaign: Parameters<typeof buildCampaignSnapshot>[0],
+  token: BoardToken,
+  mapId: string
+) {
+  for (const connection of roomConnections) {
+    if (!connection.user || connection.campaignId !== campaignId) {
+      continue;
+    }
+
+    const update: RoomTokenMoved = {
+      token,
+      playerVision: buildPlayerVisionUpdateForMap(campaign, connection.user.id, mapId)
+    };
+
+    sendSocketMessage(connection, {
+      type: "room:token-moved",
+      update
+    });
+  }
+}
+
+function broadcastDoorToggledToRoom(campaignId: string, campaign: Parameters<typeof buildCampaignSnapshot>[0], update: Omit<RoomDoorToggled, "playerVision">) {
+  for (const connection of roomConnections) {
+    if (!connection.user || connection.campaignId !== campaignId) {
+      continue;
+    }
+
+    sendSocketMessage(connection, {
+      type: "room:door-toggled",
+      update: {
+        ...update,
+        playerVision: buildPlayerVisionUpdateForMap(campaign, connection.user.id, update.mapId)
+      }
+    });
   }
 }
 
@@ -230,12 +333,16 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "token:move") {
-      let activeMapId = "";
+      const { campaign, token, activeMapId } = await runStoreTransaction((database) => {
+        const campaign = readRealtimeCampaign(database, campaignId);
 
-      await mutateDatabase((database) => {
-        const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
+        if (!campaign) {
+          throw new HttpError(404, "Campaign not found.");
+        }
+
+        const role = requireCampaignRole(campaign, user.id);
         const activeMap = requireActiveMap(campaign);
-        activeMapId = activeMap.id;
+        const activeMapId = activeMap.id;
         const actor = campaign.actors.find((entry) => entry.id === payload.actorId);
 
         if (!actor) {
@@ -254,9 +361,11 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
           x: payload.x,
           y: payload.y
         });
+        const previousExploration = captureExplorationForMap(campaign, activeMap.id);
         const existing = campaign.tokens.find(
           (entry) => entry.actorId === actor.id && entry.mapId === activeMap.id
         );
+        let token: BoardToken;
 
         if (existing) {
           const trace = traceMovementPath(activeMap, { x: existing.x, y: existing.y }, snapped, {
@@ -264,8 +373,9 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
           });
           existing.x = trace.end.x;
           existing.y = trace.end.y;
+          token = existing;
         } else {
-          const token: BoardToken = {
+          token = {
             id: createId("tok"),
             actorId: actor.id,
             actorKind: actor.kind,
@@ -282,7 +392,14 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
           campaign.tokens.push(token);
         }
 
-        updateExplorationForCampaign(campaign);
+        updateExplorationForActorMove(campaign, activeMap.id, actor.id);
+        upsertCampaignToken(database, campaignId, token);
+        persistExplorationDeltaForMap(campaignId, campaign, activeMap.id, previousExploration, database);
+        return {
+          campaign,
+          token: { ...token },
+          activeMapId
+        };
       });
 
       broadcastSocketMessageToRoom(campaignId, {
@@ -291,7 +408,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         mapId: activeMapId,
         preview: null
       });
-      await broadcastCampaignToRoom(campaignId);
+      broadcastTokenMovedToRoom(campaignId, campaign, token, activeMapId);
       return;
     }
 
@@ -503,7 +620,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         }
 
         campaign.activeMapId = payload.mapId;
-        updateExplorationForCampaign(campaign);
+        updateExplorationForMap(campaign, payload.mapId);
       });
 
       await broadcastCampaignToRoom(campaignId);
@@ -583,8 +700,14 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "door:toggle") {
-      await mutateDatabase((database) => {
-        const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
+      const { campaign, activeMapId, doorId, isOpen } = await runStoreTransaction((database) => {
+        const campaign = readRealtimeCampaign(database, campaignId);
+
+        if (!campaign) {
+          throw new HttpError(404, "Campaign not found.");
+        }
+
+        const role = requireCampaignRole(campaign, user.id);
         const activeMap = requireActiveMap(campaign);
         const door = activeMap.walls.find(
           (entry) => entry.id === payload.doorId && entry.kind === "door"
@@ -598,11 +721,24 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
           throw new HttpError(403, "Move a controlled character next to the door first.");
         }
 
+        const previousExploration = captureExplorationForMap(campaign, activeMap.id);
         door.isOpen = !door.isOpen;
-        updateExplorationForCampaign(campaign);
+        updateCampaignDoorState(database, door.id, door.isOpen);
+        updateExplorationForMap(campaign, activeMap.id);
+        persistExplorationDeltaForMap(campaignId, campaign, activeMap.id, previousExploration, database);
+        return {
+          campaign,
+          activeMapId: activeMap.id,
+          doorId: door.id,
+          isOpen: door.isOpen
+        };
       });
 
-      await broadcastCampaignToRoom(campaignId);
+      broadcastDoorToggledToRoom(campaignId, campaign, {
+        mapId: activeMapId,
+        doorId,
+        isOpen
+      });
       return;
     }
 

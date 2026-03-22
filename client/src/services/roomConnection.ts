@@ -10,6 +10,8 @@ import type {
   MapPing,
   MapViewportRecall,
   MeasurePreview,
+  RoomDoorToggled,
+  RoomTokenMoved,
   ServerRoomMessage,
   TokenMovementPreview
 } from "@shared/types";
@@ -23,6 +25,8 @@ interface UseRoomConnectionOptions {
   onDisconnect: () => void;
   onStatusChange: (status: RoomStatus) => void;
   onSnapshot: (snapshot: CampaignSnapshot) => void;
+  onTokenMoved: (update: RoomTokenMoved) => void;
+  onDoorToggled: (update: RoomDoorToggled) => void;
   onMovementPreview: (actorId: string, mapId: string, preview: TokenMovementPreview | null) => void;
   onMeasurePreview: (userId: string, mapId: string, preview: MeasurePreview | null) => void;
   onPing: (ping: MapPing) => void;
@@ -37,6 +41,8 @@ export function useRoomConnection({
   onDisconnect,
   onStatusChange,
   onSnapshot,
+  onTokenMoved,
+  onDoorToggled,
   onMovementPreview,
   onMeasurePreview,
   onPing,
@@ -83,6 +89,20 @@ export function useRoomConnection({
           onStatusChange("online");
           startTransition(() => {
             onSnapshot(message.snapshot);
+          });
+          return;
+        }
+
+        if (message.type === "room:token-moved") {
+          startTransition(() => {
+            onTokenMoved(message.update);
+          });
+          return;
+        }
+
+        if (message.type === "room:door-toggled") {
+          startTransition(() => {
+            onDoorToggled(message.update);
           });
           return;
         }
@@ -168,9 +188,11 @@ export function useRoomConnection({
     campaignId,
     enabled,
     onDisconnect,
+    onDoorToggled,
     onError,
     onMeasurePreview,
     onMovementPreview,
+    onTokenMoved,
     onPing,
     onSnapshot,
     onStatusChange,
