@@ -9,50 +9,72 @@ import { sqlitePath } from "./types.js";
 export class SqlitePersistenceAdapter {
   private database: DatabaseSync | null = null;
   private initialized = false;
+  private initializationPromise: Promise<void> | null = null;
+  private transactionQueue: Promise<unknown> = Promise.resolve();
 
   async initialize() {
     if (this.initialized) {
       return;
     }
 
-    await mkdir(dirname(sqlitePath), { recursive: true });
-    this.database = new DatabaseSync(sqlitePath);
-    this.database.exec("PRAGMA foreign_keys = ON;");
-    this.database.exec("PRAGMA journal_mode = WAL;");
-    this.database.exec(`
-      CREATE TABLE IF NOT EXISTS schema_migrations (
-        version INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        applied_at TEXT NOT NULL
-      );
-    `);
+    if (!this.initializationPromise) {
+      this.initializationPromise = (async () => {
+        await mkdir(dirname(sqlitePath), { recursive: true });
 
-    const database = this.getDatabase();
-    const applied = new Set(
-      readAll<{ version: number }>(database, "SELECT version FROM schema_migrations ORDER BY version").map(
-        (row) => row.version
-      )
-    );
+        if (!this.database) {
+          this.database = new DatabaseSync(sqlitePath);
+          this.database.exec("PRAGMA foreign_keys = ON;");
+          this.database.exec("PRAGMA journal_mode = WAL;");
+          this.database.exec(`
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+              version INTEGER PRIMARY KEY,
+              name TEXT NOT NULL,
+              applied_at TEXT NOT NULL
+            );
+          `);
+        }
 
-    for (const migration of migrations) {
-      if (applied.has(migration.version)) {
-        continue;
-      }
+        const database = this.getDatabase();
+        const applied = new Set(
+          readAll<{ version: number }>(database, "SELECT version FROM schema_migrations ORDER BY version").map(
+            (row) => row.version
+          )
+        );
 
-      await runInTransaction(database, async () => {
-        await migration.up(database);
-        database
-          .prepare("INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)")
-          .run(migration.version, migration.name, new Date().toISOString());
+        for (const migration of migrations) {
+          if (applied.has(migration.version)) {
+            continue;
+          }
+
+          await runInTransaction(database, async () => {
+            await migration.up(database);
+            database
+              .prepare("INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)")
+              .run(migration.version, migration.name, new Date().toISOString());
+          });
+        }
+
+        this.initialized = true;
+      })().finally(() => {
+        this.initializationPromise = null;
       });
     }
 
-    this.initialized = true;
+    await this.initializationPromise;
   }
 
   async transaction<T>(task: (database: DatabaseSync) => Promise<T> | T) {
     await this.initialize();
-    return runInTransaction(this.getDatabase(), () => task(this.getDatabase()));
+    const executionTask = this.transactionQueue.then(() =>
+      runInTransaction(this.getDatabase(), () => task(this.getDatabase()))
+    );
+
+    this.transactionQueue = executionTask.then(
+      () => undefined,
+      () => undefined
+    );
+
+    return executionTask;
   }
 
   async query<T>(task: (database: DatabaseSync) => T) {
