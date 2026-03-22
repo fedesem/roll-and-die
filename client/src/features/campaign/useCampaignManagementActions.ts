@@ -1,7 +1,15 @@
 import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
-import type { ActorKind, ActorSheet, CampaignMap, CampaignSummary, MemberRole, MonsterTemplate } from "@shared/types";
+import type {
+  ActorKind,
+  ActorSheet,
+  CampaignMap,
+  CampaignSnapshot,
+  CampaignSummary,
+  MemberRole,
+  MonsterTemplate
+} from "@shared/types";
 
 import {
   acceptCampaignInvite,
@@ -40,6 +48,7 @@ interface UseCampaignManagementActionsOptions {
   refreshCampaigns: () => Promise<CampaignSummary[]>;
   setSelectedCampaignId: (campaignId: string | null, options?: { replace?: boolean }) => void;
   setSelectedActorId: Dispatch<SetStateAction<string | null>>;
+  setSnapshot: Dispatch<SetStateAction<CampaignSnapshot | null>>;
   setActorDraft: Dispatch<SetStateAction<ActorSheet | null>>;
   setActorCreatorOpen: Dispatch<SetStateAction<boolean>>;
   setCreateCampaignName: Dispatch<SetStateAction<string>>;
@@ -65,6 +74,7 @@ export function useCampaignManagementActions({
   refreshCampaigns,
   setSelectedCampaignId,
   setSelectedActorId,
+  setSnapshot,
   setActorDraft,
   setActorCreatorOpen,
   setCreateCampaignName,
@@ -75,6 +85,31 @@ export function useCampaignManagementActions({
   setMapEditorMode,
   onStatus
 }: UseCampaignManagementActionsOptions) {
+  const patchSnapshotMap = useCallback(
+    (nextMap: CampaignMap) => {
+      setSnapshot((current) => {
+        if (!current || current.campaign.id !== selectedCampaignId) {
+          return current;
+        }
+
+        const existingMapIndex = current.campaign.maps.findIndex((entry) => entry.id === nextMap.id);
+        const nextMaps =
+          existingMapIndex >= 0
+            ? current.campaign.maps.map((entry, index) => (index === existingMapIndex ? nextMap : entry))
+            : [...current.campaign.maps, nextMap];
+
+        return {
+          ...current,
+          campaign: {
+            ...current.campaign,
+            maps: nextMaps
+          }
+        };
+      });
+    },
+    [selectedCampaignId, setSnapshot]
+  );
+
   const createCampaign = useCallback(async () => {
     if (!token || !createCampaignName.trim()) {
       return;
@@ -262,21 +297,22 @@ export function useCampaignManagementActions({
       }
 
       try {
-        const created = await createMapRecord(token, selectedCampaignId, {
-          ...nextMap,
-          name: nextMap.name.trim()
-        });
+      const created = await createMapRecord(token, selectedCampaignId, {
+        ...nextMap,
+        name: nextMap.name.trim()
+      });
 
-        setNewMapDraft(createClientMapDraft("New Map"));
-        setSelectedMapId(created.id);
-        setMapDraft(cloneMap(created));
-        setMapEditorMode("edit");
-        onStatus("info", "Map created.");
+      patchSnapshotMap(created);
+      setNewMapDraft(createClientMapDraft("New Map"));
+      setSelectedMapId(created.id);
+      setMapDraft(cloneMap(created));
+      setMapEditorMode("edit");
+      onStatus("info", "Map created.");
       } catch (error) {
         onStatus("error", toErrorMessage(error));
       }
     },
-    [onStatus, selectedCampaignId, setMapDraft, setMapEditorMode, setNewMapDraft, setSelectedMapId, token]
+    [onStatus, patchSnapshotMap, selectedCampaignId, setMapDraft, setMapEditorMode, setNewMapDraft, setSelectedMapId, token]
   );
 
   const saveMap = useCallback(
@@ -286,12 +322,13 @@ export function useCampaignManagementActions({
       }
 
       try {
-        await saveMapRecord(token, selectedCampaignId, nextMap);
+        const savedMap = await saveMapRecord(token, selectedCampaignId, nextMap);
+        patchSnapshotMap(savedMap);
       } catch (error) {
         onStatus("error", toErrorMessage(error));
       }
     },
-    [onStatus, selectedCampaignId, token]
+    [onStatus, patchSnapshotMap, selectedCampaignId, token]
   );
 
   const saveActor = useCallback(

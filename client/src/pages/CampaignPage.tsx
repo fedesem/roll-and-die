@@ -33,6 +33,7 @@ interface CampaignPageProps {
   currentUserId: string;
   roomStatus: "offline" | "connecting" | "online";
   activeMap?: CampaignMap;
+  boardMap?: CampaignMap;
   selectedMap?: CampaignMap;
   selectedActor: ActorSheet | null;
   activePopup: ActivePopup;
@@ -119,6 +120,7 @@ export function CampaignPage({
   role,
   currentUserId,
   activeMap,
+  boardMap,
   selectedMap,
   selectedActor,
   activePopup,
@@ -202,7 +204,7 @@ export function CampaignPage({
       <main className="table-layout">
         <section className="table-map-shell">
           <BoardCanvas
-            map={activeMap}
+            map={boardMap ?? activeMap}
             tokens={campaign.tokens}
             actors={campaign.actors}
             selectedActor={selectedActor ?? undefined}

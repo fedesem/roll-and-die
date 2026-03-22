@@ -237,6 +237,7 @@ export default function App() {
     refreshCampaigns,
     setSelectedCampaignId,
     setSelectedActorId,
+    setSnapshot,
     setActorDraft,
     setActorCreatorOpen,
     setCreateCampaignName,
@@ -315,6 +316,8 @@ export default function App() {
   });
 
   const editingMap = mapEditorMode === "create" ? newMapDraft : mapEditorMode === "edit" ? mapDraft : null;
+  const boardMap =
+    mapEditorMode === "edit" && editingMap && activeMap && editingMap.id === activeMap.id ? editingMap : activeMap;
   const canUndoEditingMap = mapEditorPast.length > 0;
   const canRedoEditingMap = mapEditorFuture.length > 0;
   const canPersistEditingMap =
@@ -561,6 +564,7 @@ export default function App() {
           currentUserId={session.user.id}
           roomStatus={roomStatus}
           activeMap={activeMap}
+          boardMap={boardMap}
           selectedMap={selectedMap ?? undefined}
           selectedActor={selectedActor}
           activePopup={activePopup}
