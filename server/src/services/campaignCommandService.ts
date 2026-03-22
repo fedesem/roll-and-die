@@ -5,7 +5,7 @@ import { snapPointToGrid, traceMovementPath } from "../../../shared/vision.js";
 import { parseRollCommand, rollDice } from "../dice.js";
 import { HttpError } from "../http/errors.js";
 import { runStoreQuery, runStoreTransaction } from "../store.js";
-import { externalizeImageUrl } from "./assetStorage.js";
+import { deleteReplacedStoredUpload, externalizeImageUrl } from "./assetStorage.js";
 import {
   clearMapDrawingRecords,
   clearMapExploration,
@@ -274,6 +274,7 @@ export async function updateActorCommand(params: {
       throw new HttpError(403, "You cannot edit that actor.");
     }
 
+    const previousImageUrl = actor.imageUrl;
     applyActorPatch(actor, patch as Record<string, unknown>);
     upsertActorRecord(database, params.campaignId, actor);
 
@@ -303,10 +304,13 @@ export async function updateActorCommand(params: {
     for (const token of syncedTokens) {
       upsertCampaignToken(database, params.campaignId, token);
     }
-    return {
+    return deleteReplacedStoredUpload({
+      previousValue: previousImageUrl,
+      nextValue: actor.imageUrl
+    }).then(() => ({
       actor,
       tokens: syncedTokens
-    };
+    }));
   });
 }
 
@@ -432,6 +436,7 @@ export async function updateMapCommand(params: {
       throw new HttpError(404, "Map not found.");
     }
 
+    const previousBackgroundUrl = map.backgroundUrl;
     applyMapPatch(map, patch as Record<string, unknown>);
     upsertMapRecord(database, params.campaignId, map);
 
@@ -444,7 +449,10 @@ export async function updateMapCommand(params: {
       persistExplorationForMapIds(database, campaign, [map.id]);
     }
 
-    return map;
+    return deleteReplacedStoredUpload({
+      previousValue: previousBackgroundUrl,
+      nextValue: map.backgroundUrl
+    }).then(() => map);
   });
 }
 

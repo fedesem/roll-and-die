@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { mkdir, stat, writeFile } from "node:fs/promises";
-import { basename, extname, resolve } from "node:path";
+import { mkdir, stat, unlink, writeFile } from "node:fs/promises";
+import { basename, extname, resolve, sep } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 
 type AssetCategory = "actors" | "chat" | "maps" | "tokens";
@@ -131,4 +131,32 @@ export function assetCategoryFromUrl(value: string): AssetCategory | null {
 export function getUploadFileExtension(value: string) {
   const extension = extname(value).replace(/^\./, "").toLowerCase();
   return extension || null;
+}
+
+export async function deleteReplacedStoredUpload(params: {
+  previousValue: string;
+  nextValue: string;
+}) {
+  const previousValue = params.previousValue.trim();
+  const nextValue = params.nextValue.trim();
+
+  if (!previousValue || previousValue === nextValue || !isStoredUploadPath(previousValue)) {
+    return;
+  }
+
+  const relativeUploadPath = previousValue.replace(/^\/uploads\//, "");
+  const filePath = resolve(uploadsRootPath, relativeUploadPath);
+  const uploadsRootWithSeparator = uploadsRootPath.endsWith(sep) ? uploadsRootPath : `${uploadsRootPath}${sep}`;
+
+  if (filePath !== uploadsRootPath && !filePath.startsWith(uploadsRootWithSeparator)) {
+    return;
+  }
+
+  try {
+    await unlink(filePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+  }
 }
