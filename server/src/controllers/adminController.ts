@@ -1,3 +1,4 @@
+import type { DatabaseSync } from "node:sqlite";
 import type { Request, Response } from "express";
 
 import {
@@ -25,7 +26,7 @@ import {
 } from "../../../shared/contracts/admin.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema, requireRouteParam } from "../http/validation.js";
-import { mutateDatabase, readDatabase } from "../store.js";
+import { runStoreQuery, runStoreTransaction } from "../store.js";
 import { requireAdmin, toUserProfile } from "../services/authService.js";
 import {
   importGeneratedSpellLookupIntoSpells,
@@ -36,6 +37,34 @@ import {
   sanitizeCompendiumEntry,
   type CompendiumKind
 } from "../services/compendiumService.js";
+import {
+  deleteActorRecord,
+  deleteCampaignChatMessagesByUser,
+  deleteCampaignExplorationForUser,
+  deleteCampaignInvitesByCreator,
+  deleteCampaignMemberRecord,
+  deleteCampaignRecord,
+  listCampaignIdsForMember,
+  readCampaignById,
+  updateCampaignCreatedBy,
+  updateCampaignMemberRole
+} from "../store/models/campaigns.js";
+import {
+  clearCompendiumCollection,
+  compendiumEntryExists,
+  deleteCompendiumEntryRecord,
+  insertCompendiumEntryAtStart,
+  insertCompendiumEntriesAtStart,
+  readCompendiumCollection,
+  upsertCompendiumEntry
+} from "../store/models/compendium.js";
+import {
+  deleteUser,
+  deleteUserSessions,
+  listUsers,
+  readUserById,
+  setUserAdminFlag
+} from "../store/models/users.js";
 
 function parseCompendiumCreateBody(kind: CompendiumKind, value: unknown) {
   switch (kind) {
@@ -87,14 +116,32 @@ function parseCompendiumImportBody(kind: CompendiumKind, value: unknown) {
   }
 }
 
+function readAdminCompendium(database: DatabaseSync) {
+  return {
+    spells: readCompendiumCollection(database, "spells"),
+    monsters: readCompendiumCollection(database, "monsters"),
+    feats: readCompendiumCollection(database, "feats"),
+    classes: readCompendiumCollection(database, "classes"),
+    actions: readCompendiumCollection(database, "actions"),
+    backgrounds: readCompendiumCollection(database, "backgrounds"),
+    items: readCompendiumCollection(database, "items"),
+    languages: readCompendiumCollection(database, "languages"),
+    races: readCompendiumCollection(database, "races"),
+    skills: readCompendiumCollection(database, "skills")
+  };
+}
+
 export const adminController = {
   async overview(request: Request, response: Response) {
     requireAdmin(request);
-    const database = await readDatabase();
+    const { users, compendium } = await runStoreQuery((database) => ({
+      users: listUsers(database),
+      compendium: readAdminCompendium(database)
+    }));
 
     response.json({
-      users: database.users.map((user) => toUserProfile(user)),
-      compendium: database.compendium
+      users: users.map((user) => toUserProfile(user)),
+      compendium
     });
   },
 
@@ -102,15 +149,18 @@ export const adminController = {
     const admin = requireAdmin(request);
     const targetUserId = requireRouteParam(request.params.userId, "userId");
 
-    const promoted = await mutateDatabase((database) => {
-      const actor = database.users.find((entry) => entry.id === targetUserId);
+    const promoted = await runStoreTransaction((database) => {
+      const user = readUserById(database, targetUserId);
 
-      if (!actor) {
+      if (!user) {
         throw new HttpError(404, "User not found.");
       }
 
-      actor.isAdmin = true;
-      return toUserProfile(actor);
+      setUserAdminFlag(database, targetUserId, true);
+      return toUserProfile({
+        ...user,
+        isAdmin: true
+      });
     });
 
     response.json({
@@ -127,15 +177,18 @@ export const adminController = {
       throw new HttpError(400, "You cannot demote yourself.");
     }
 
-    const demoted = await mutateDatabase((database) => {
-      const target = database.users.find((entry) => entry.id === targetUserId);
+    const demoted = await runStoreTransaction((database) => {
+      const user = readUserById(database, targetUserId);
 
-      if (!target) {
+      if (!user) {
         throw new HttpError(404, "User not found.");
       }
 
-      target.isAdmin = false;
-      return toUserProfile(target);
+      setUserAdminFlag(database, targetUserId, false);
+      return toUserProfile({
+        ...user,
+        isAdmin: false
+      });
     });
 
     response.json({
@@ -152,50 +205,53 @@ export const adminController = {
       throw new HttpError(400, "You cannot delete yourself.");
     }
 
-    await mutateDatabase((database) => {
-      const targetIndex = database.users.findIndex((entry) => entry.id === targetUserId);
+    await runStoreTransaction((database) => {
+      const targetUser = readUserById(database, targetUserId);
 
-      if (targetIndex < 0) {
+      if (!targetUser) {
         throw new HttpError(404, "User not found.");
       }
 
-      database.sessions = database.sessions.filter((entry) => entry.userId !== targetUserId);
+      const campaignIds = listCampaignIdsForMember(database, targetUserId);
 
-      database.campaigns = database.campaigns.flatMap((campaign) => {
-        campaign.members = campaign.members.filter((member) => member.userId !== targetUserId);
-        campaign.invites = campaign.invites.filter((invite) => invite.createdBy !== targetUserId);
+      for (const campaignId of campaignIds) {
+        const campaign = readCampaignById(database, campaignId);
 
-        const removedActorIds = new Set(
-          campaign.actors
-            .filter((actor) => actor.ownerId === targetUserId)
-            .map((actor) => actor.id)
-        );
-
-        campaign.actors = campaign.actors.filter((actor) => actor.ownerId !== targetUserId);
-        campaign.mapAssignments = campaign.mapAssignments.filter((assignment) => !removedActorIds.has(assignment.actorId));
-        campaign.tokens = campaign.tokens.filter((token) => !removedActorIds.has(token.actorId));
-        campaign.chat = campaign.chat.filter((message) => message.userId !== targetUserId);
-        delete campaign.exploration[targetUserId];
-
-        if (campaign.members.length === 0) {
-          return [];
+        if (!campaign) {
+          continue;
         }
 
-        if (!campaign.members.some((member) => member.role === "dm")) {
-          campaign.members[0] = {
-            ...campaign.members[0],
-            role: "dm"
-          };
+        const remainingMembers = campaign.members.filter((member) => member.userId !== targetUserId);
+
+        deleteCampaignInvitesByCreator(database, campaignId, targetUserId);
+        deleteCampaignChatMessagesByUser(database, campaignId, targetUserId);
+        deleteCampaignExplorationForUser(database, campaignId, targetUserId);
+
+        for (const actor of campaign.actors.filter((entry) => entry.ownerId === targetUserId)) {
+          deleteActorRecord(database, actor.id);
         }
 
-        if (campaign.createdBy === targetUserId) {
-          campaign.createdBy = campaign.members.find((member) => member.role === "dm")?.userId ?? campaign.members[0].userId;
+        deleteCampaignMemberRecord(database, campaignId, targetUserId);
+
+        if (remainingMembers.length === 0) {
+          deleteCampaignRecord(database, campaignId);
+          continue;
         }
 
-        return [campaign];
-      });
+        const existingDm = remainingMembers.find((member) => member.role === "dm");
+        const nextDm = existingDm ?? remainingMembers[0];
 
-      database.users.splice(targetIndex, 1);
+        if (!existingDm && nextDm) {
+          updateCampaignMemberRole(database, campaignId, nextDm.userId, "dm");
+        }
+
+        if (campaign.createdBy === targetUserId && nextDm) {
+          updateCampaignCreatedBy(database, campaignId, nextDm.userId);
+        }
+      }
+
+      deleteUserSessions(database, targetUserId);
+      deleteUser(database, targetUserId);
     });
 
     response.status(204).send();
@@ -206,14 +262,12 @@ export const adminController = {
     const kind = parseWithSchema(compendiumKindSchema, request.params.kind, "Invalid compendium type.");
     const entry = sanitizeCompendiumEntry(kind, parseCompendiumCreateBody(kind, request.body));
 
-    const created = await mutateDatabase((database) => {
-      const collection = database.compendium[kind] as typeof database.compendium[typeof kind];
-
-      if (collection.some((current) => current.id === entry.id)) {
+    const created = await runStoreTransaction((database) => {
+      if (compendiumEntryExists(database, kind, entry.id)) {
         throw new HttpError(409, "An entry with that id already exists.");
       }
 
-      collection.unshift(entry as never);
+      insertCompendiumEntryAtStart(database, kind, entry);
       return entry;
     });
 
@@ -226,28 +280,61 @@ export const adminController = {
     const body = parseCompendiumImportBody(kind, request.body);
 
     if (kind === "spells" && isGeneratedSpellLookupImport(body.entries)) {
-      const result = await mutateDatabase((database) => importGeneratedSpellLookupIntoSpells(database.compendium.spells, body.entries));
+      const result = await runStoreTransaction((database) => {
+        const spells = readCompendiumCollection(database, "spells");
+        const previousById = new Map(spells.map((entry) => [entry.id, JSON.stringify(entry)]));
+        const result = importGeneratedSpellLookupIntoSpells(spells, body.entries);
+
+        for (const spell of spells) {
+          if (previousById.get(spell.id) !== JSON.stringify(spell)) {
+            upsertCompendiumEntry(database, "spells", spell);
+          }
+        }
+
+        return result;
+      });
       response.status(201).json(result);
       return;
     }
 
     if (kind === "classes" && isGeneratedSubclassLookupImport(body.entries)) {
-      const result = await mutateDatabase((database) => importGeneratedSubclassLookupIntoClasses(database.compendium.classes, body.entries));
+      const result = await runStoreTransaction((database) => {
+        const classes = readCompendiumCollection(database, "classes");
+        const previousById = new Map(classes.map((entry) => [entry.id, JSON.stringify(entry)]));
+        const result = importGeneratedSubclassLookupIntoClasses(classes, body.entries);
+
+        for (const entry of classes) {
+          if (previousById.get(entry.id) !== JSON.stringify(entry)) {
+            upsertCompendiumEntry(database, "classes", entry);
+          }
+        }
+
+        return result;
+      });
       response.status(201).json(result);
       return;
     }
 
     const entries = normalizeCompendiumImportEntries(kind, body.entries).map((entry) => sanitizeCompendiumEntry(kind, entry));
 
-    const result = await mutateDatabase((database) => {
-      const collection = database.compendium[kind] as typeof database.compendium[typeof kind];
+    const result = await runStoreTransaction((database) => {
+      const collection = readCompendiumCollection(database, kind);
       const existingIds = new Set(collection.map((entry) => entry.id));
+      const insertedIds = new Set<string>();
       const next = entries.filter((entry) => !existingIds.has(entry.id));
+      const uniqueNext = next.filter((entry) => {
+        if (insertedIds.has(entry.id)) {
+          return false;
+        }
 
-      collection.unshift(...(next as never[]));
+        insertedIds.add(entry.id);
+        return true;
+      });
+
+      insertCompendiumEntriesAtStart(database, kind, uniqueNext as typeof collection);
       return {
-        imported: next.length,
-        skipped: entries.length - next.length
+        imported: uniqueNext.length,
+        skipped: entries.length - uniqueNext.length
       };
     });
 
@@ -259,15 +346,12 @@ export const adminController = {
     const kind = parseWithSchema(compendiumKindSchema, request.params.kind, "Invalid compendium type.");
     const itemId = requireRouteParam(request.params.itemId, "itemId");
 
-    await mutateDatabase((database) => {
-      const collection = database.compendium[kind] as typeof database.compendium[typeof kind];
-      const index = collection.findIndex((entry) => entry.id === itemId);
-
-      if (index < 0) {
+    await runStoreTransaction((database) => {
+      if (!compendiumEntryExists(database, kind, itemId)) {
         throw new HttpError(404, "Compendium entry not found.");
       }
 
-      collection.splice(index, 1);
+      deleteCompendiumEntryRecord(database, kind, itemId);
     });
 
     response.status(204).send();
@@ -277,9 +361,8 @@ export const adminController = {
     requireAdmin(request);
     const kind = parseWithSchema(compendiumKindSchema, request.params.kind, "Invalid compendium type.");
 
-    await mutateDatabase((database) => {
-      const collection = database.compendium[kind] as typeof database.compendium[typeof kind];
-      collection.splice(0, collection.length);
+    await runStoreTransaction((database) => {
+      clearCompendiumCollection(database, kind);
     });
 
     response.status(204).send();

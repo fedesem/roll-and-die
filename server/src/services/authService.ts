@@ -2,8 +2,9 @@ import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 
 import type { UserProfile } from "../../../shared/types.js";
-import { readDatabase, type StoredUser } from "../store.js";
+import { runStoreQuery, type StoredUser } from "../store.js";
 import { HttpError } from "../http/errors.js";
+import { readSession, readUserById } from "../store/models/users.js";
 
 export function createId(prefix: string) {
   return `${prefix}_${randomUUID().slice(0, 8)}`;
@@ -83,9 +84,10 @@ export function createAuthMiddleware() {
     }
 
     const token = authorization.slice("Bearer ".length);
-    const database = await readDatabase();
-    const session = database.sessions.find((entry) => entry.token === token);
-    const user = session ? database.users.find((entry) => entry.id === session.userId) : undefined;
+    const user = await runStoreQuery((database) => {
+      const session = readSession(database, token);
+      return session ? readUserById(database, session.userId) : null;
+    });
 
     if (user) {
       request.user = toUserProfile(user);

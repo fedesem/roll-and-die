@@ -3,14 +3,10 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import { migrations } from "./migrations/index.js";
-import { normalizeStoreState } from "./normalization.js";
-import { clearRelationalTables, readCampaigns, writeCampaigns } from "./models/campaigns.js";
-import { clearCompendiumTables, readCompendium, writeCompendium } from "./models/compendium.js";
-import { readUsersAndSessions, writeUsersAndSessions } from "./models/users.js";
 import { runInTransaction, readAll } from "./helpers.js";
-import { sqlitePath, type Database, type PersistenceAdapter } from "./types.js";
+import { sqlitePath } from "./types.js";
 
-export class SqlitePersistenceAdapter implements PersistenceAdapter {
+export class SqlitePersistenceAdapter {
   private database: DatabaseSync | null = null;
   private initialized = false;
 
@@ -54,36 +50,14 @@ export class SqlitePersistenceAdapter implements PersistenceAdapter {
     this.initialized = true;
   }
 
-  async read() {
-    await this.initialize();
-    const database = this.getDatabase();
-    const { users, sessions } = readUsersAndSessions(database);
-    const campaigns = readCampaigns(database);
-    const compendium = readCompendium(database);
-
-    return normalizeStoreState({
-      users,
-      sessions,
-      campaigns,
-      compendium
-    });
-  }
-
-  async write(state: Database) {
-    await this.initialize();
-    await runInTransaction(this.getDatabase(), () => {
-      const normalized = normalizeStoreState(state);
-      clearCompendiumTables(this.getDatabase());
-      clearRelationalTables(this.getDatabase());
-      writeUsersAndSessions(this.getDatabase(), normalized);
-      writeCampaigns(this.getDatabase(), normalized);
-      writeCompendium(this.getDatabase(), normalized.compendium);
-    });
-  }
-
   async transaction<T>(task: (database: DatabaseSync) => Promise<T> | T) {
     await this.initialize();
     return runInTransaction(this.getDatabase(), () => task(this.getDatabase()));
+  }
+
+  async query<T>(task: (database: DatabaseSync) => T) {
+    await this.initialize();
+    return task(this.getDatabase());
   }
 
   private getDatabase() {

@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 
 import { loginBodySchema, registerBodySchema } from "../../../shared/contracts/auth.js";
-import { mutateDatabase, type StoredUser } from "../store.js";
+import { runStoreTransaction, type StoredUser } from "../store.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema } from "../http/validation.js";
 import {
@@ -14,6 +14,12 @@ import {
   requireUser,
   toUserProfile
 } from "../services/authService.js";
+import {
+  countUsers,
+  insertSession,
+  insertUser,
+  readUserByEmail
+} from "../store/models/users.js";
 
 export const authController = {
   async register(request: Request, response: Response) {
@@ -26,8 +32,8 @@ export const authController = {
       throw new HttpError(400, "Password must be at least 6 characters.");
     }
 
-    const payload = await mutateDatabase((database) => {
-      if (database.users.some((entry) => entry.email === email)) {
+    const payload = await runStoreTransaction((database) => {
+      if (readUserByEmail(database, email)) {
         throw new HttpError(409, "An account already exists for that email.");
       }
 
@@ -35,13 +41,13 @@ export const authController = {
         id: createId("usr"),
         name,
         email,
-        isAdmin: database.users.length === 0,
+        isAdmin: countUsers(database) === 0,
         ...createPassword(password)
       };
       const token = createToken();
 
-      database.users.push(user);
-      database.sessions.push({
+      insertUser(database, user);
+      insertSession(database, {
         token,
         userId: user.id,
         createdAt: now()
@@ -61,8 +67,8 @@ export const authController = {
     const email = body.email.toLowerCase();
     const password = body.password;
 
-    const payload = await mutateDatabase((database) => {
-      const user = database.users.find((entry) => entry.email === email);
+    const payload = await runStoreTransaction((database) => {
+      const user = readUserByEmail(database, email);
       const credentialsMatch = user ? passwordMatches(password, user) : false;
 
       if (user && !hasPasswordCredentials(user)) {
@@ -81,7 +87,7 @@ export const authController = {
       }
 
       const token = createToken();
-      database.sessions.push({
+      insertSession(database, {
         token,
         userId: user.id,
         createdAt: now()

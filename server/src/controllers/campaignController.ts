@@ -8,88 +8,49 @@ import {
   createMonsterActorBodySchema,
   saveActorBodySchema
 } from "../../../shared/contracts/campaigns.js";
-import type { Campaign, CampaignMember, CampaignInvite } from "../../../shared/types.js";
-import { parseWithSchema, requireRouteParam } from "../http/validation.js";
+import type { CampaignInvite } from "../../../shared/types.js";
 import { HttpError } from "../http/errors.js";
+import { parseWithSchema, requireRouteParam } from "../http/validation.js";
 import { broadcastCampaignToRoom } from "../realtime/roomGateway.js";
-import { mutateDatabase, readDatabase } from "../store.js";
-import { createId, now, requireUser } from "../services/authService.js";
+import { runStoreQuery } from "../store.js";
+import { requireUser } from "../services/authService.js";
 import {
-  applyActorPatch,
   buildCampaignSnapshot,
-  canManageActor,
-  createDefaultActor,
-  createDefaultMap,
-  createMonsterActor,
-  createSystemMessage,
-  listCampaignSourceBooks,
-  randomInviteCode,
-  requireCampaignMember,
-  requireDungeonMaster,
-  syncActorTokens,
-  toCampaignSummary,
-  updateExplorationForCampaign
+  toCampaignSummary
 } from "../services/campaignDomain.js";
+import { listCampaignSummariesForUser, readCampaignById } from "../store/models/campaigns.js";
+import { readCampaignCompendium, readCompendiumSourceBooks } from "../store/models/compendium.js";
+import {
+  acceptInviteCommand,
+  createActorCommand,
+  createCampaignCommand,
+  createInviteCommand,
+  createMonsterActorCommand,
+  deleteActorCommand,
+  updateActorCommand
+} from "../services/campaignCommandService.js";
 
 export const campaignController = {
   async list(request: Request, response: Response) {
     const user = requireUser(request);
-    const database = await readDatabase();
-    const summaries = database.campaigns
-      .filter((campaign) => campaign.members.some((member) => member.userId === user.id))
-      .map((campaign) => toCampaignSummary(campaign, user.id));
+    const summaries = await runStoreQuery((database) => listCampaignSummariesForUser(database, user.id));
 
     response.json(summaries);
   },
 
   async sourceBooks(request: Request, response: Response) {
     requireUser(request);
-    const database = await readDatabase();
-
-    response.json(listCampaignSourceBooks(database.compendium));
+    response.json(await runStoreQuery((database) => readCompendiumSourceBooks(database)));
   },
 
   async create(request: Request, response: Response) {
     const user = requireUser(request);
     const body = parseWithSchema(createCampaignBodySchema, request.body);
 
-    const campaign = await mutateDatabase((database) => {
-      const availableBooks = new Set(listCampaignSourceBooks(database.compendium).map((entry) => entry.source));
-      const campaignId = createId("cmp");
-      const initialMap = createDefaultMap("Main Map");
-      const member: CampaignMember = {
-        userId: user.id,
-        name: user.name,
-        email: user.email,
-        role: "dm"
-      };
-
-      const campaign: Campaign = {
-        id: campaignId,
-        name: body.name,
-        createdAt: now(),
-        createdBy: user.id,
-        activeMapId: initialMap.id,
-        allowedSourceBooks: body.allowedSourceBooks.filter((entry) => availableBooks.has(entry)),
-        members: [member],
-        invites: [],
-        actors: [],
-        maps: [initialMap],
-        mapAssignments: [],
-        tokens: [],
-        exploration: {},
-        chat: [
-          createSystemMessage(
-            createId("msg"),
-            user,
-            campaignId,
-            `${user.name} founded the campaign.`
-          )
-        ]
-      };
-
-      database.campaigns.push(campaign);
-      return campaign;
+    const campaign = await createCampaignCommand({
+      user,
+      name: body.name,
+      allowedSourceBooks: body.allowedSourceBooks
     });
 
     response.status(201).json(toCampaignSummary(campaign, user.id));
@@ -99,40 +60,9 @@ export const campaignController = {
     const user = requireUser(request);
     const body = parseWithSchema(acceptInviteBodySchema, request.body);
 
-    const campaign = await mutateDatabase((database) => {
-      const target = database.campaigns.find((entry) =>
-        entry.invites.some((invite) => invite.code === body.code.toUpperCase())
-      );
-
-      if (!target) {
-        throw new HttpError(404, "Invite code not found.");
-      }
-
-      const invite = target.invites.find((entry) => entry.code === body.code.toUpperCase());
-
-      if (!invite) {
-        throw new HttpError(404, "Invite code not found.");
-      }
-
-      if (!target.members.some((member) => member.userId === user.id)) {
-        target.members.push({
-          userId: user.id,
-          name: user.name,
-          email: user.email,
-          role: invite.role
-        });
-        target.invites = target.invites.filter((entry) => entry.code !== body.code.toUpperCase());
-        target.chat.push(
-          createSystemMessage(
-            createId("msg"),
-            user,
-            target.id,
-            `${user.name} joined as ${invite.role.toUpperCase()}.`
-          )
-        );
-      }
-
-      return target;
+    const campaign = await acceptInviteCommand({
+      user,
+      code: body.code
     });
 
     await broadcastCampaignToRoom(campaign.id);
@@ -142,10 +72,24 @@ export const campaignController = {
   async snapshot(request: Request, response: Response) {
     const user = requireUser(request);
     const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
-    const database = await readDatabase();
-    const campaign = requireCampaignMember(database, campaignId, user.id).campaign;
+    const { campaign, compendium } = await runStoreQuery((database) => {
+      const campaign = readCampaignById(database, campaignId);
 
-    response.json(buildCampaignSnapshot(campaign, user, database.compendium));
+      return {
+        campaign,
+        compendium: readCampaignCompendium(database)
+      };
+    });
+
+    if (!campaign) {
+      throw new HttpError(404, "Campaign not found.");
+    }
+
+    if (!campaign.members.some((member) => member.userId === user.id)) {
+      throw new HttpError(403, "You do not have access to that campaign.");
+    }
+
+    response.json(buildCampaignSnapshot(campaign, user, compendium));
   },
 
   async createInvite(request: Request, response: Response) {
@@ -153,21 +97,11 @@ export const campaignController = {
     const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
     const body = parseWithSchema(createInviteBodySchema, request.body);
 
-    const invite = await mutateDatabase((database) => {
-      const { campaign } = requireCampaignMember(database, campaignId, user.id);
-      requireDungeonMaster(campaign, user.id);
-
-      const createdInvite: CampaignInvite = {
-        id: createId("inv"),
-        code: randomInviteCode(),
-        label: body.label,
-        role: body.role,
-        createdAt: now(),
-        createdBy: user.id
-      };
-
-      campaign.invites.unshift(createdInvite);
-      return createdInvite;
+    const invite: CampaignInvite = await createInviteCommand({
+      campaignId,
+      userId: user.id,
+      label: body.label,
+      role: body.role
     });
 
     await broadcastCampaignToRoom(campaignId);
@@ -179,16 +113,11 @@ export const campaignController = {
     const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
     const body = parseWithSchema(createActorBodySchema, request.body);
 
-    const actor = await mutateDatabase((database) => {
-      const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
-
-      if (role !== "dm" && body.kind !== "character") {
-        throw new HttpError(403, "Players can only create characters.");
-      }
-
-      const actor = createDefaultActor(campaignId, user.id, body.name, body.kind, role);
-      campaign.actors.unshift(actor);
-      return actor;
+    const actor = await createActorCommand({
+      campaignId,
+      user,
+      name: body.name,
+      kind: body.kind
     });
 
     await broadcastCampaignToRoom(campaignId);
@@ -201,22 +130,11 @@ export const campaignController = {
     const actorId = requireRouteParam(request.params.actorId, "actorId");
     const patch = parseWithSchema(saveActorBodySchema, request.body);
 
-    const actor = await mutateDatabase((database) => {
-      const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
-      const actor = campaign.actors.find((entry) => entry.id === actorId);
-
-      if (!actor) {
-        throw new HttpError(404, "Actor not found.");
-      }
-
-      if (!canManageActor(role, user.id, actor)) {
-        throw new HttpError(403, "You cannot edit that actor.");
-      }
-
-      applyActorPatch(actor, patch);
-      syncActorTokens(campaign, actor);
-      updateExplorationForCampaign(campaign);
-      return actor;
+    const actor = await updateActorCommand({
+      campaignId,
+      actorId,
+      userId: user.id,
+      patch
     });
 
     await broadcastCampaignToRoom(campaignId);
@@ -228,19 +146,10 @@ export const campaignController = {
     const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
     const body = parseWithSchema(createMonsterActorBodySchema, request.body);
 
-    const actor = await mutateDatabase((database) => {
-      const { campaign } = requireCampaignMember(database, campaignId, user.id);
-      requireDungeonMaster(campaign, user.id);
-
-      const template = database.compendium.monsters.find((entry) => entry.id === body.templateId);
-
-      if (!template) {
-        throw new HttpError(404, "Monster template not found.");
-      }
-
-      const actor = createMonsterActor(campaignId, user.id, template);
-      campaign.actors.unshift(actor);
-      return actor;
+    const actor = await createMonsterActorCommand({
+      campaignId,
+      userId: user.id,
+      templateId: body.templateId
     });
 
     await broadcastCampaignToRoom(campaignId);
@@ -252,31 +161,10 @@ export const campaignController = {
     const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
     const actorId = requireRouteParam(request.params.actorId, "actorId");
 
-    await mutateDatabase((database) => {
-      const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
-
-      if (role !== "dm") {
-        throw new HttpError(403, "Only the DM can delete actors.");
-      }
-
-      const actorIndex = campaign.actors.findIndex((entry) => entry.id === actorId);
-
-      if (actorIndex < 0) {
-        throw new HttpError(404, "Actor not found.");
-      }
-
-      const actor = campaign.actors[actorIndex];
-
-      if (actor.ownerId !== user.id) {
-        throw new HttpError(403, "You can only delete actors you own.");
-      }
-
-      campaign.actors.splice(actorIndex, 1);
-      campaign.mapAssignments = campaign.mapAssignments.filter(
-        (assignment) => assignment.actorId !== actorId
-      );
-      campaign.tokens = campaign.tokens.filter((token) => token.actorId !== actorId);
-      updateExplorationForCampaign(campaign);
+    await deleteActorCommand({
+      campaignId,
+      actorId,
+      userId: user.id
     });
 
     await broadcastCampaignToRoom(campaignId);

@@ -4,13 +4,13 @@ import {
   createChatBodySchema,
   createRollBodySchema
 } from "../../../shared/contracts/campaigns.js";
-import type { ChatMessage } from "../../../shared/types.js";
 import { parseWithSchema, requireRouteParam } from "../http/validation.js";
 import { broadcastCampaignToRoom } from "../realtime/roomGateway.js";
-import { mutateDatabase } from "../store.js";
-import { createId, now, requireUser } from "../services/authService.js";
-import { requireCampaignMember, resolveChatActorContext, trimChat } from "../services/campaignDomain.js";
-import { parseRollCommand, rollDice } from "../dice.js";
+import { requireUser } from "../services/authService.js";
+import {
+  appendChatMessageCommand,
+  appendRollMessageCommand
+} from "../services/campaignCommandService.js";
 
 export const chatController = {
   async createMessage(request: Request, response: Response) {
@@ -18,42 +18,10 @@ export const chatController = {
     const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
     const body = parseWithSchema(createChatBodySchema, request.body);
 
-    const message = await mutateDatabase((database) => {
-      const { campaign } = requireCampaignMember(database, campaignId, user.id);
-      const text = body.text.slice(0, 500);
-      const rollCommand = parseRollCommand(text);
-
-      if (rollCommand) {
-        const roll = rollDice(rollCommand.expression, `${user.name} rolled`);
-        const message: ChatMessage = {
-          id: createId("msg"),
-          campaignId,
-          userId: user.id,
-          userName: user.name,
-          text: `${roll.label}: ${roll.notation}`,
-          createdAt: now(),
-          kind: "roll",
-          roll
-        };
-
-        campaign.chat.push(message);
-        trimChat(campaign);
-        return message;
-      }
-
-      const message: ChatMessage = {
-        id: createId("msg"),
-        campaignId,
-        userId: user.id,
-        userName: user.name,
-        text,
-        createdAt: now(),
-        kind: "message"
-      };
-
-      campaign.chat.push(message);
-      trimChat(campaign);
-      return message;
+    const message = await appendChatMessageCommand({
+      campaignId,
+      user,
+      text: body.text
     });
 
     await broadcastCampaignToRoom(campaignId);
@@ -65,25 +33,12 @@ export const chatController = {
     const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
     const body = parseWithSchema(createRollBodySchema, request.body);
 
-    const message = await mutateDatabase((database) => {
-      const { campaign } = requireCampaignMember(database, campaignId, user.id);
-      const roll = rollDice(body.notation, body.label ?? `${user.name} rolled`);
-      const actor = body.actorId ? resolveChatActorContext(campaign, body.actorId) ?? undefined : undefined;
-      const message: ChatMessage = {
-        id: createId("msg"),
-        campaignId,
-        userId: user.id,
-        userName: user.name,
-        text: `${roll.label}: ${roll.notation}`,
-        createdAt: now(),
-        kind: "roll",
-        actor,
-        roll
-      };
-
-      campaign.chat.push(message);
-      trimChat(campaign);
-      return message;
+    const message = await appendRollMessageCommand({
+      campaignId,
+      user,
+      notation: body.notation,
+      label: body.label ?? `${user.name} rolled`,
+      actorId: body.actorId ?? undefined
     });
 
     await broadcastCampaignToRoom(campaignId);

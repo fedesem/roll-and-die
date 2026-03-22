@@ -17,31 +17,37 @@ import type {
 import { snapPointToGrid, traceMovementPath } from "../../../shared/vision.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema } from "../http/validation.js";
-import { parseRollCommand, rollDice } from "../dice.js";
-import { mutateDatabase, readDatabase, runStoreTransaction } from "../store.js";
+import { runStoreQuery, runStoreTransaction } from "../store.js";
 import {
   insertCampaignExplorationCells,
+  readCampaignById,
   readRealtimeCampaign,
   updateCampaignDoorState,
   upsertCampaignToken
 } from "../store/models/campaigns.js";
+import { readCampaignCompendium } from "../store/models/compendium.js";
+import { readSession, readUserById } from "../store/models/users.js";
 import { createId, now, toUserProfile } from "../services/authService.js";
+import {
+  appendChatMessageCommand,
+  appendRollMessageCommand,
+  clearDrawingsCommand,
+  createDrawingCommand,
+  deleteDrawingsCommand,
+  resetFogCommand,
+  setActiveMapCommand,
+  updateDrawingsCommand
+} from "../services/campaignCommandService.js";
 import {
   buildCampaignSnapshot,
   canManageActor,
-  canManageDrawing,
   canToggleDoor,
   hasMapAssignment,
   normalizeExplorationMemoryForMap,
   requireActiveMap,
-  requireCampaignMember,
   requireCampaignRole,
   requireDungeonMaster,
-  resetFogForMap,
-  resolveChatActorContext,
-  sanitizeDrawings,
   sanitizeMeasurePreview,
-  trimChat,
   updateExplorationForActorMove,
   updateExplorationForMap
 } from "../services/campaignDomain.js";
@@ -67,9 +73,8 @@ export function createRoomGateway(httpServer: Server) {
 
     socket.on("close", () => {
       if (connection.user && connection.campaignId) {
-        void readDatabase()
-          .then((database) => {
-            const campaign = database.campaigns.find((entry) => entry.id === connection.campaignId);
+        void runStoreQuery((database) => readCampaignById(database, connection.campaignId!))
+          .then((campaign) => {
 
             if (!campaign) {
               return;
@@ -93,8 +98,10 @@ export function createRoomGateway(httpServer: Server) {
 }
 
 export async function broadcastCampaignToRoom(campaignId: string) {
-  const database = await readDatabase();
-  const campaign = database.campaigns.find((entry) => entry.id === campaignId);
+  const { campaign, compendium } = await runStoreQuery((database) => ({
+    campaign: readCampaignById(database, campaignId),
+    compendium: readCampaignCompendium(database)
+  }));
 
   if (!campaign) {
     return;
@@ -113,7 +120,7 @@ export async function broadcastCampaignToRoom(campaignId: string) {
 
     sendSocketMessage(connection, {
       type: "room:snapshot",
-      snapshot: buildCampaignSnapshot(campaign, connection.user, database.compendium)
+      snapshot: buildCampaignSnapshot(campaign, connection.user, compendium)
     });
   }
 }
@@ -244,16 +251,32 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     const payload = parseWithSchema(clientRoomMessageSchema, JSON.parse(raw), "Invalid websocket payload.");
 
     if (payload.type === "room:join") {
-      const database = await readDatabase();
-      const session = database.sessions.find((entry) => entry.token === payload.token);
-      const userRecord = session ? database.users.find((entry) => entry.id === session.userId) : undefined;
+      const { session, userRecord, campaign, compendium } = await runStoreQuery((database) => {
+        const session = readSession(database, payload.token);
+        const userRecord = session ? readUserById(database, session.userId) : null;
+        const campaign = readCampaignById(database, payload.campaignId);
 
-      if (!userRecord) {
+        return {
+          session,
+          userRecord,
+          campaign,
+          compendium: readCampaignCompendium(database)
+        };
+      });
+
+      if (!session || !userRecord) {
         throw new HttpError(401, "Authentication required.");
       }
 
       const user = toUserProfile(userRecord);
-      const { campaign } = requireCampaignMember(database, payload.campaignId, user.id);
+
+      if (!campaign) {
+        throw new HttpError(404, "Campaign not found.");
+      }
+
+      if (!campaign.members.some((entry) => entry.userId === user.id)) {
+        throw new HttpError(403, "You do not have access to that campaign.");
+      }
 
       connection.user = user;
       connection.campaignId = campaign.id;
@@ -264,7 +287,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
       });
       sendSocketMessage(connection, {
         type: "room:snapshot",
-        snapshot: buildCampaignSnapshot(campaign, user, database.compendium)
+        snapshot: buildCampaignSnapshot(campaign, user, compendium)
       });
       return;
     }
@@ -272,36 +295,10 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     const { user, campaignId } = requireJoinedConnection(connection);
 
     if (payload.type === "chat:send") {
-      await mutateDatabase((database) => {
-        const { campaign } = requireCampaignMember(database, campaignId, user.id);
-        const text = payload.text.slice(0, 500);
-        const rollCommand = parseRollCommand(text);
-
-        if (rollCommand) {
-          const roll = rollDice(rollCommand.expression, `${user.name} rolled`);
-          campaign.chat.push({
-            id: createId("msg"),
-            campaignId,
-            userId: user.id,
-            userName: user.name,
-            text: `${roll.label}: ${roll.notation}`,
-            createdAt: now(),
-            kind: "roll",
-            roll
-          });
-        } else {
-          campaign.chat.push({
-            id: createId("msg"),
-            campaignId,
-            userId: user.id,
-            userName: user.name,
-            text,
-            createdAt: now(),
-            kind: "message"
-          });
-        }
-
-        trimChat(campaign);
+      await appendChatMessageCommand({
+        campaignId,
+        user,
+        text: payload.text
       });
 
       await broadcastCampaignToRoom(campaignId);
@@ -309,23 +306,12 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "roll:send") {
-      await mutateDatabase((database) => {
-        const { campaign } = requireCampaignMember(database, campaignId, user.id);
-        const roll = rollDice(payload.notation, payload.label);
-        const actor = payload.actorId ? resolveChatActorContext(campaign, payload.actorId) ?? undefined : undefined;
-
-        campaign.chat.push({
-          id: createId("msg"),
-          campaignId,
-          userId: user.id,
-          userName: user.name,
-          text: `${payload.label}: ${roll.notation}`,
-          createdAt: now(),
-          kind: "roll",
-          actor,
-          roll
-        });
-        trimChat(campaign);
+      await appendRollMessageCommand({
+        campaignId,
+        user,
+        notation: payload.notation,
+        label: payload.label,
+        actorId: payload.actorId ?? undefined
       });
 
       await broadcastCampaignToRoom(campaignId);
@@ -413,8 +399,13 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "token:preview") {
-      const database = await readDatabase();
-      const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
+      const campaign = await runStoreQuery((database) => readRealtimeCampaign(database, campaignId));
+
+      if (!campaign) {
+        throw new HttpError(404, "Campaign not found.");
+      }
+
+      const role = requireCampaignRole(campaign, user.id);
       const activeMap = requireActiveMap(campaign);
       const actor = campaign.actors.find((entry) => entry.id === payload.actorId);
 
@@ -466,8 +457,13 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "measure:preview") {
-      const database = await readDatabase();
-      const { campaign } = requireCampaignMember(database, campaignId, user.id);
+      const campaign = await runStoreQuery((database) => readRealtimeCampaign(database, campaignId));
+
+      if (!campaign) {
+        throw new HttpError(404, "Campaign not found.");
+      }
+
+      requireCampaignRole(campaign, user.id);
       const activeMap = requireActiveMap(campaign);
       const preview = payload.preview ? sanitizeMeasurePreview(payload.preview, activeMap) : null;
 
@@ -481,32 +477,11 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "drawing:create") {
-      await mutateDatabase((database) => {
-        const { campaign } = requireCampaignMember(database, campaignId, user.id);
-        const activeMap = requireActiveMap(campaign);
-
-        if (payload.mapId !== activeMap.id) {
-          throw new HttpError(403, "Drawings can only be added to the active map.");
-        }
-
-        const strokes = sanitizeDrawings(
-          [
-            {
-              ...payload.stroke,
-              ownerId: user.id
-            }
-          ],
-          []
-        );
-
-        if (strokes.length === 0) {
-          throw new HttpError(400, "Drawing stroke is empty.");
-        }
-
-        activeMap.drawings = sanitizeDrawings(
-          [...activeMap.drawings, ...strokes],
-          activeMap.drawings
-        );
+      await createDrawingCommand({
+        campaignId,
+        userId: user.id,
+        mapId: payload.mapId,
+        stroke: payload.stroke
       });
 
       await broadcastCampaignToRoom(campaignId);
@@ -514,51 +489,11 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "drawing:update") {
-      await mutateDatabase((database) => {
-        const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
-        const activeMap = requireActiveMap(campaign);
-
-        if (payload.mapId !== activeMap.id) {
-          throw new HttpError(403, "Drawings can only be edited on the active map.");
-        }
-
-        const nextDrawings = [...activeMap.drawings];
-
-        for (const update of payload.drawings.slice(0, 100)) {
-          const drawingIndex = nextDrawings.findIndex((entry) => entry.id === update.id);
-
-          if (drawingIndex < 0) {
-            continue;
-          }
-
-          const existing = nextDrawings[drawingIndex];
-
-          if (!canManageDrawing(role, user.id, existing)) {
-            throw new HttpError(403, "You can only edit your own drawings.");
-          }
-
-          const [sanitized] = sanitizeDrawings(
-            [
-              {
-                ...existing,
-                points: update.points,
-                rotation: update.rotation
-              }
-            ],
-            [existing]
-          );
-
-          if (!sanitized) {
-            throw new HttpError(400, "Drawing update is invalid.");
-          }
-
-          nextDrawings[drawingIndex] = {
-            ...sanitized,
-            ownerId: existing.ownerId
-          };
-        }
-
-        activeMap.drawings = nextDrawings;
+      await updateDrawingsCommand({
+        campaignId,
+        userId: user.id,
+        mapId: payload.mapId,
+        drawings: payload.drawings
       });
 
       await broadcastCampaignToRoom(campaignId);
@@ -566,27 +501,11 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "drawing:delete") {
-      await mutateDatabase((database) => {
-        const { campaign, role } = requireCampaignMember(database, campaignId, user.id);
-        const activeMap = requireActiveMap(campaign);
-
-        if (payload.mapId !== activeMap.id) {
-          throw new HttpError(403, "Drawings can only be removed from the active map.");
-        }
-
-        const drawingIds = new Set(payload.drawingIds.slice(0, 300));
-
-        for (const drawing of activeMap.drawings) {
-          if (!drawingIds.has(drawing.id)) {
-            continue;
-          }
-
-          if (!canManageDrawing(role, user.id, drawing)) {
-            throw new HttpError(403, "You can only delete your own drawings.");
-          }
-        }
-
-        activeMap.drawings = activeMap.drawings.filter((drawing) => !drawingIds.has(drawing.id));
+      await deleteDrawingsCommand({
+        campaignId,
+        userId: user.id,
+        mapId: payload.mapId,
+        drawingIds: payload.drawingIds
       });
 
       await broadcastCampaignToRoom(campaignId);
@@ -594,16 +513,10 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "drawing:clear") {
-      await mutateDatabase((database) => {
-        const { campaign } = requireCampaignMember(database, campaignId, user.id);
-        requireDungeonMaster(campaign, user.id);
-        const activeMap = requireActiveMap(campaign);
-
-        if (payload.mapId !== activeMap.id) {
-          throw new HttpError(403, "Drawings can only be cleared from the active map.");
-        }
-
-        activeMap.drawings = [];
+      await clearDrawingsCommand({
+        campaignId,
+        userId: user.id,
+        mapId: payload.mapId
       });
 
       await broadcastCampaignToRoom(campaignId);
@@ -611,16 +524,10 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "map:set-active") {
-      await mutateDatabase((database) => {
-        const { campaign } = requireCampaignMember(database, campaignId, user.id);
-        requireDungeonMaster(campaign, user.id);
-
-        if (!campaign.maps.some((entry) => entry.id === payload.mapId)) {
-          throw new HttpError(404, "Map not found.");
-        }
-
-        campaign.activeMapId = payload.mapId;
-        updateExplorationForMap(campaign, payload.mapId);
+      await setActiveMapCommand({
+        campaignId,
+        userId: user.id,
+        mapId: payload.mapId
       });
 
       await broadcastCampaignToRoom(campaignId);
@@ -628,8 +535,13 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "map:ping") {
-      const database = await readDatabase();
-      const { campaign } = requireCampaignMember(database, campaignId, user.id);
+      const campaign = await runStoreQuery((database) => readRealtimeCampaign(database, campaignId));
+
+      if (!campaign) {
+        throw new HttpError(404, "Campaign not found.");
+      }
+
+      requireCampaignRole(campaign, user.id);
       const activeMap = requireActiveMap(campaign);
 
       if (payload.mapId !== activeMap.id) {
@@ -653,8 +565,13 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "map:ping-recall") {
-      const database = await readDatabase();
-      const { campaign } = requireCampaignMember(database, campaignId, user.id);
+      const campaign = await runStoreQuery((database) => readRealtimeCampaign(database, campaignId));
+
+      if (!campaign) {
+        throw new HttpError(404, "Campaign not found.");
+      }
+
+      requireCampaignRole(campaign, user.id);
       requireDungeonMaster(campaign, user.id);
       const activeMap = requireActiveMap(campaign);
 
@@ -689,10 +606,10 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
     }
 
     if (payload.type === "fog:reset") {
-      await mutateDatabase((database) => {
-        const { campaign } = requireCampaignMember(database, campaignId, user.id);
-        requireDungeonMaster(campaign, user.id);
-        resetFogForMap(campaign, payload.mapId);
+      await resetFogCommand({
+        campaignId,
+        userId: user.id,
+        mapId: payload.mapId
       });
 
       await broadcastCampaignToRoom(campaignId);

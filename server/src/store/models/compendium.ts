@@ -2,6 +2,7 @@ import type { DatabaseSync } from "node:sqlite";
 
 import type {
   AbilityKey,
+  CampaignSourceBook,
   ClassEntry,
   ClassFeatureEntry,
   ClassSubclassEntry,
@@ -12,13 +13,122 @@ import type {
   MonsterSense,
   MonsterSkillBonus,
   MonsterSpellcastingEntry,
+  MonsterTemplate,
   SpellClassReference,
   SpellEntry,
   SpellLevel
 } from "../../../../shared/types.js";
 import { readAll, toIntegerBoolean } from "../helpers.js";
 
-export function readCompendium(database: DatabaseSync): CompendiumData {
+export type CompendiumCollectionKind = keyof CompendiumData;
+type ReferenceCompendiumKind = Extract<
+  CompendiumCollectionKind,
+  "actions" | "backgrounds" | "items" | "languages" | "races" | "skills"
+>;
+
+export function readCampaignCompendium(
+  database: DatabaseSync
+): Pick<CompendiumData, "spells" | "monsters" | "feats" | "classes"> {
+  return {
+    spells: readSpellEntries(database),
+    monsters: readMonsterEntries(database),
+    feats: readFeatEntries(database),
+    classes: readClassEntries(database)
+  };
+}
+
+export function readCompendiumCollection<K extends CompendiumCollectionKind>(
+  database: DatabaseSync,
+  kind: K
+): CompendiumData[K] {
+  switch (kind) {
+    case "spells":
+      return readSpellEntries(database) as CompendiumData[K];
+    case "monsters":
+      return readMonsterEntries(database) as CompendiumData[K];
+    case "feats":
+      return readFeatEntries(database) as CompendiumData[K];
+    case "classes":
+      return readClassEntries(database) as CompendiumData[K];
+    case "actions":
+    case "backgrounds":
+    case "items":
+    case "languages":
+    case "races":
+    case "skills":
+      return readReferenceEntries(database, kind) as CompendiumData[K];
+  }
+}
+
+export function readCompendiumSourceBooks(database: DatabaseSync): CampaignSourceBook[] {
+  const counts = new Map<string, number>();
+
+  readAll<{ source: string }>(
+    database,
+    `
+      SELECT source FROM compendium_spells
+      UNION ALL SELECT source FROM compendium_monsters
+      UNION ALL SELECT source FROM compendium_feats
+      UNION ALL SELECT source FROM compendium_classes
+      UNION ALL SELECT source FROM compendium_references
+    `
+  ).forEach((row) => {
+    const source = normalizeCompendiumBookSource(row.source);
+
+    if (!source) {
+      return;
+    }
+
+    counts.set(source, (counts.get(source) ?? 0) + 1);
+  });
+
+  return Array.from(counts.entries())
+    .map(([source, entryCount]) => ({ source, entryCount }))
+    .sort((left, right) => left.source.localeCompare(right.source));
+}
+
+export function readMonsterTemplateById(database: DatabaseSync, monsterId: string): MonsterTemplate | null {
+  const entries = readMonsterEntries(database, monsterId);
+  return entries[0] ?? null;
+}
+
+export function compendiumEntryExists(
+  database: DatabaseSync,
+  kind: CompendiumCollectionKind,
+  entryId: string
+) {
+  switch (kind) {
+    case "spells":
+      return Boolean(
+        database.prepare("SELECT 1 FROM compendium_spells WHERE id = ? LIMIT 1").get(entryId)
+      );
+    case "monsters":
+      return Boolean(
+        database.prepare("SELECT 1 FROM compendium_monsters WHERE id = ? LIMIT 1").get(entryId)
+      );
+    case "feats":
+      return Boolean(
+        database.prepare("SELECT 1 FROM compendium_feats WHERE id = ? LIMIT 1").get(entryId)
+      );
+    case "classes":
+      return Boolean(
+        database.prepare("SELECT 1 FROM compendium_classes WHERE id = ? LIMIT 1").get(entryId)
+      );
+    case "actions":
+    case "backgrounds":
+    case "items":
+    case "languages":
+    case "races":
+    case "skills":
+      return Boolean(
+        database
+          .prepare("SELECT 1 FROM compendium_references WHERE kind = ? AND id = ? LIMIT 1")
+          .get(kind, entryId)
+      );
+  }
+}
+
+function readSpellEntries(database: DatabaseSync): SpellEntry[] {
   const spellClassReferencesBySpellId = new Map<string, SpellClassReference[]>();
 
   readAll<{
@@ -58,7 +168,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     spellClassReferencesBySpellId.set(row.spellId, current);
   });
 
-  const spells = readAll<{
+  return readAll<{
     id: string;
     name: string;
     source: string;
@@ -125,7 +235,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
       id: row.id,
       name: row.name,
       source: row.source,
-      level: row.level === "cantrip" ? "cantrip" : Number(row.level) as SpellLevel,
+      level: row.level === "cantrip" ? "cantrip" : (Number(row.level) as SpellLevel),
       school: row.school,
       castingTimeUnit: row.castingTimeUnit,
       castingTimeValue: row.castingTimeValue,
@@ -151,8 +261,10 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
       classReferences
     } satisfies SpellEntry;
   });
+}
 
-  const monsters = readAll<{
+function readMonsterEntries(database: DatabaseSync, monsterId?: string): MonsterTemplate[] {
+  return readAll<{
     id: string;
     name: string;
     source: string;
@@ -242,8 +354,10 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
         image_url as imageUrl,
         color
       FROM compendium_monsters
+      ${monsterId ? "WHERE id = ?" : ""}
       ORDER BY sort_order, name, id
-    `
+    `,
+    ...(monsterId ? [monsterId] : [])
   ).map((row) => ({
     id: row.id,
     name: row.name,
@@ -293,8 +407,10 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     imageUrl: row.imageUrl,
     color: row.color
   }));
+}
 
-  const feats = readAll<{
+function readFeatEntries(database: DatabaseSync): FeatEntry[] {
+  return readAll<{
     id: string;
     name: string;
     source: string;
@@ -317,7 +433,9 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
       ORDER BY sort_order, name, id
     `
   ) as FeatEntry[];
+}
 
+function readClassEntries(database: DatabaseSync): ClassEntry[] {
   const classFeaturesByClassId = new Map<string, ClassFeatureEntry[]>();
 
   readAll<{
@@ -439,7 +557,7 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     classTablesByClassId.set(row.classId, current);
   });
 
-  const classes = readAll<{
+  return readAll<{
     id: string;
     name: string;
     source: string;
@@ -490,18 +608,13 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     subclasses: parseJsonArray<ClassSubclassEntry>(row.subclassesJson),
     tables: classTablesByClassId.get(row.id) ?? parseJsonArray<ClassEntry["tables"][number]>(row.tablesJson)
   }));
+}
 
-  const referencesByKind = new Map<keyof Pick<CompendiumData, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">, CompendiumReferenceEntry[]>([
-    ["actions", []],
-    ["backgrounds", []],
-    ["items", []],
-    ["languages", []],
-    ["races", []],
-    ["skills", []]
-  ]);
-
-  readAll<{
-    kind: keyof typeof referencesByKind extends never ? never : keyof Pick<CompendiumData, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">;
+function readReferenceEntries(
+  database: DatabaseSync,
+  kind: ReferenceCompendiumKind
+): CompendiumReferenceEntry[] {
+  return readAll<{
     id: string;
     name: string;
     source: string;
@@ -512,7 +625,6 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
     database,
     `
       SELECT
-        kind,
         id,
         name,
         source,
@@ -520,105 +632,313 @@ export function readCompendium(database: DatabaseSync): CompendiumData {
         description,
         tags_json as tagsJson
       FROM compendium_references
-      ORDER BY kind, sort_order, name, id
-    `
-  ).forEach((row) => {
-    referencesByKind.get(row.kind)?.push({
-      id: row.id,
-      name: row.name,
-      source: row.source,
-      category: row.category,
-      description: row.description,
-      tags: parseJsonArray<string>(row.tagsJson)
-    });
-  });
-
-  return {
-    spells,
-    monsters,
-    feats,
-    classes,
-    actions: referencesByKind.get("actions") ?? [],
-    backgrounds: referencesByKind.get("backgrounds") ?? [],
-    items: referencesByKind.get("items") ?? [],
-    languages: referencesByKind.get("languages") ?? [],
-    races: referencesByKind.get("races") ?? [],
-    skills: referencesByKind.get("skills") ?? []
-  };
+      WHERE kind = ?
+      ORDER BY sort_order, name, id
+    `,
+    kind
+  ).map((row) => ({
+    id: row.id,
+    name: row.name,
+    source: row.source,
+    category: row.category,
+    description: row.description,
+    tags: parseJsonArray<string>(row.tagsJson)
+  }));
 }
 
-export function writeCompendium(database: DatabaseSync, compendium: CompendiumData) {
-  const insertSpell = database.prepare(`
-    INSERT INTO compendium_spells (
-      id, sort_order, name, source, level, school,
-      casting_time_unit, casting_time_value, range_type, range_value,
-      description, components_verbal, components_somatic, components_material,
-      components_material_text, components_material_value, components_material_consumed,
-      duration_unit, duration_value, concentration, damage_notation, damage_ability,
-      higher_level_description, full_description, classes_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const insertSpellClass = database.prepare(`
-    INSERT INTO compendium_spell_classes (
-      spell_id, sort_order, name, source, kind, class_name, class_source, defined_in_sources_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const insertMonster = database.prepare(`
-    INSERT INTO compendium_monsters (
-      id, sort_order, name, source, challenge_rating, armor_class, hit_points,
-      initiative,
-      speed_walk, speed_fly, speed_burrow, speed_swim, speed_climb,
-      ability_str, ability_dex, ability_con, ability_int, ability_wis, ability_cha,
-      skills_json, senses_json, passive_perception, languages_json, xp, proficiency_bonus,
-      gear_json, resistances_json, vulnerabilities_json, immunities_json,
-      traits_json, actions_json, bonus_actions_json, reactions_json, legendary_actions_json,
-      legendary_actions_use, lair_actions_json, regional_effects_json, spells_json, spellcasting_json,
-      habitat, treasure, image_url, color
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const insertFeat = database.prepare(`
-    INSERT INTO compendium_feats (
-      id, sort_order, name, source, category, ability_score_increase, prerequisites, description
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const insertClass = database.prepare(`
-    INSERT INTO compendium_classes (
-      id, sort_order, name, source, description,
-      hit_die_faces, primary_abilities_json, saving_throw_proficiencies_json,
-      starting_armor_json, starting_weapons_json, starting_tools_json,
-      features_json, subclasses_json, tables_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const insertClassFeature = database.prepare(`
-    INSERT INTO compendium_class_features (
-      class_id, sort_order, level, name, description, source, reference
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-  const insertClassTable = database.prepare(`
-    INSERT INTO compendium_class_tables (
-      class_id, table_index, name
-    ) VALUES (?, ?, ?)
-  `);
-  const insertClassTableColumn = database.prepare(`
-    INSERT INTO compendium_class_table_columns (
-      class_id, table_index, column_index, label
-    ) VALUES (?, ?, ?, ?)
-  `);
-  const insertClassTableCell = database.prepare(`
-    INSERT INTO compendium_class_table_cells (
-      class_id, table_index, row_index, cell_index, value
-    ) VALUES (?, ?, ?, ?, ?)
-  `);
-  const insertReference = database.prepare(`
-    INSERT INTO compendium_references (
-      kind, id, sort_order, name, source, category, description, tags_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+function normalizeCompendiumBookSource(source: string) {
+  return source.split(/\s+p\.\d+/i)[0]?.trim() ?? "";
+}
 
-  compendium.spells.forEach((spell, index) => {
-    insertSpell.run(
+export function insertCompendiumEntriesAtStart<K extends CompendiumCollectionKind>(
+  database: DatabaseSync,
+  kind: K,
+  entries: CompendiumData[K]
+) {
+  const nextEntries = [...entries] as CompendiumData[K];
+
+  if (nextEntries.length === 0) {
+    return;
+  }
+
+  shiftCompendiumSortOrders(database, kind, nextEntries.length);
+
+  nextEntries.forEach((entry, index) => {
+    writeCompendiumEntry(database, kind, entry, index);
+  });
+}
+
+export function insertCompendiumEntryAtStart(
+  database: DatabaseSync,
+  kind: CompendiumCollectionKind,
+  entry: CompendiumData[CompendiumCollectionKind][number]
+) {
+  insertCompendiumEntriesAtStart(database, kind, [entry] as never);
+}
+
+export function upsertCompendiumEntry<K extends CompendiumCollectionKind>(
+  database: DatabaseSync,
+  kind: K,
+  entry: CompendiumData[K][number]
+) {
+  const sortOrder =
+    readExistingCompendiumSortOrder(database, kind, entry.id) ??
+    readNextCompendiumSortOrder(database, kind);
+
+  writeCompendiumEntry(database, kind, entry, sortOrder);
+}
+
+export function deleteCompendiumEntryRecord(
+  database: DatabaseSync,
+  kind: CompendiumCollectionKind,
+  entryId: string
+) {
+  switch (kind) {
+    case "spells":
+      database.prepare("DELETE FROM compendium_spells WHERE id = ?").run(entryId);
+      return;
+    case "monsters":
+      database.prepare("DELETE FROM compendium_monsters WHERE id = ?").run(entryId);
+      return;
+    case "feats":
+      database.prepare("DELETE FROM compendium_feats WHERE id = ?").run(entryId);
+      return;
+    case "classes":
+      database.prepare("DELETE FROM compendium_classes WHERE id = ?").run(entryId);
+      return;
+    case "actions":
+    case "backgrounds":
+    case "items":
+    case "languages":
+    case "races":
+    case "skills":
+      database
+        .prepare("DELETE FROM compendium_references WHERE kind = ? AND id = ?")
+        .run(kind, entryId);
+      return;
+  }
+}
+
+export function clearCompendiumCollection(database: DatabaseSync, kind: CompendiumCollectionKind) {
+  switch (kind) {
+    case "spells":
+      database.prepare("DELETE FROM compendium_spells").run();
+      return;
+    case "monsters":
+      database.prepare("DELETE FROM compendium_monsters").run();
+      return;
+    case "feats":
+      database.prepare("DELETE FROM compendium_feats").run();
+      return;
+    case "classes":
+      database.prepare("DELETE FROM compendium_classes").run();
+      return;
+    case "actions":
+    case "backgrounds":
+    case "items":
+    case "languages":
+    case "races":
+    case "skills":
+      database.prepare("DELETE FROM compendium_references WHERE kind = ?").run(kind);
+      return;
+  }
+}
+
+function shiftCompendiumSortOrders(
+  database: DatabaseSync,
+  kind: CompendiumCollectionKind,
+  amount: number
+) {
+  if (amount <= 0) {
+    return;
+  }
+
+  switch (kind) {
+    case "spells":
+      database.prepare("UPDATE compendium_spells SET sort_order = sort_order + ?").run(amount);
+      return;
+    case "monsters":
+      database.prepare("UPDATE compendium_monsters SET sort_order = sort_order + ?").run(amount);
+      return;
+    case "feats":
+      database.prepare("UPDATE compendium_feats SET sort_order = sort_order + ?").run(amount);
+      return;
+    case "classes":
+      database.prepare("UPDATE compendium_classes SET sort_order = sort_order + ?").run(amount);
+      return;
+    case "actions":
+    case "backgrounds":
+    case "items":
+    case "languages":
+    case "races":
+    case "skills":
+      database
+        .prepare("UPDATE compendium_references SET sort_order = sort_order + ? WHERE kind = ?")
+        .run(amount, kind);
+      return;
+  }
+}
+
+function readExistingCompendiumSortOrder(
+  database: DatabaseSync,
+  kind: CompendiumCollectionKind,
+  entryId: string
+) {
+  switch (kind) {
+    case "spells": {
+      const row = database
+        .prepare("SELECT sort_order as sortOrder FROM compendium_spells WHERE id = ? LIMIT 1")
+        .get(entryId) as { sortOrder: number } | undefined;
+      return row?.sortOrder ?? null;
+    }
+    case "monsters": {
+      const row = database
+        .prepare("SELECT sort_order as sortOrder FROM compendium_monsters WHERE id = ? LIMIT 1")
+        .get(entryId) as { sortOrder: number } | undefined;
+      return row?.sortOrder ?? null;
+    }
+    case "feats": {
+      const row = database
+        .prepare("SELECT sort_order as sortOrder FROM compendium_feats WHERE id = ? LIMIT 1")
+        .get(entryId) as { sortOrder: number } | undefined;
+      return row?.sortOrder ?? null;
+    }
+    case "classes": {
+      const row = database
+        .prepare("SELECT sort_order as sortOrder FROM compendium_classes WHERE id = ? LIMIT 1")
+        .get(entryId) as { sortOrder: number } | undefined;
+      return row?.sortOrder ?? null;
+    }
+    case "actions":
+    case "backgrounds":
+    case "items":
+    case "languages":
+    case "races":
+    case "skills": {
+      const row = database
+        .prepare(
+          "SELECT sort_order as sortOrder FROM compendium_references WHERE kind = ? AND id = ? LIMIT 1"
+        )
+        .get(kind, entryId) as { sortOrder: number } | undefined;
+      return row?.sortOrder ?? null;
+    }
+  }
+}
+
+function readNextCompendiumSortOrder(database: DatabaseSync, kind: CompendiumCollectionKind) {
+  switch (kind) {
+    case "spells": {
+      const row = database
+        .prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 as nextSortOrder FROM compendium_spells")
+        .get() as { nextSortOrder: number };
+      return row.nextSortOrder;
+    }
+    case "monsters": {
+      const row = database
+        .prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 as nextSortOrder FROM compendium_monsters")
+        .get() as { nextSortOrder: number };
+      return row.nextSortOrder;
+    }
+    case "feats": {
+      const row = database
+        .prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 as nextSortOrder FROM compendium_feats")
+        .get() as { nextSortOrder: number };
+      return row.nextSortOrder;
+    }
+    case "classes": {
+      const row = database
+        .prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 as nextSortOrder FROM compendium_classes")
+        .get() as { nextSortOrder: number };
+      return row.nextSortOrder;
+    }
+    case "actions":
+    case "backgrounds":
+    case "items":
+    case "languages":
+    case "races":
+    case "skills": {
+      const row = database
+        .prepare(
+          "SELECT COALESCE(MAX(sort_order), -1) + 1 as nextSortOrder FROM compendium_references WHERE kind = ?"
+        )
+        .get(kind) as { nextSortOrder: number };
+      return row.nextSortOrder;
+    }
+  }
+}
+
+function writeCompendiumEntry<K extends CompendiumCollectionKind>(
+  database: DatabaseSync,
+  kind: K,
+  entry: CompendiumData[K][number],
+  sortOrder: number
+) {
+  switch (kind) {
+    case "spells":
+      upsertSpellEntry(database, entry as SpellEntry, sortOrder);
+      return;
+    case "monsters":
+      upsertMonsterEntry(database, entry as MonsterTemplate, sortOrder);
+      return;
+    case "feats":
+      upsertFeatEntry(database, entry as FeatEntry, sortOrder);
+      return;
+    case "classes":
+      upsertClassEntry(database, entry as ClassEntry, sortOrder);
+      return;
+    case "actions":
+    case "backgrounds":
+    case "items":
+    case "languages":
+    case "races":
+    case "skills":
+      upsertReferenceEntry(database, kind, entry as CompendiumReferenceEntry, sortOrder);
+      return;
+  }
+}
+
+function upsertSpellEntry(database: DatabaseSync, spell: SpellEntry, sortOrder: number) {
+  database
+    .prepare(
+      `
+        INSERT INTO compendium_spells (
+          id, sort_order, name, source, level, school,
+          casting_time_unit, casting_time_value, range_type, range_value,
+          description, components_verbal, components_somatic, components_material,
+          components_material_text, components_material_value, components_material_consumed,
+          duration_unit, duration_value, concentration, damage_notation, damage_ability,
+          higher_level_description, full_description, classes_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          sort_order = excluded.sort_order,
+          name = excluded.name,
+          source = excluded.source,
+          level = excluded.level,
+          school = excluded.school,
+          casting_time_unit = excluded.casting_time_unit,
+          casting_time_value = excluded.casting_time_value,
+          range_type = excluded.range_type,
+          range_value = excluded.range_value,
+          description = excluded.description,
+          components_verbal = excluded.components_verbal,
+          components_somatic = excluded.components_somatic,
+          components_material = excluded.components_material,
+          components_material_text = excluded.components_material_text,
+          components_material_value = excluded.components_material_value,
+          components_material_consumed = excluded.components_material_consumed,
+          duration_unit = excluded.duration_unit,
+          duration_value = excluded.duration_value,
+          concentration = excluded.concentration,
+          damage_notation = excluded.damage_notation,
+          damage_ability = excluded.damage_ability,
+          higher_level_description = excluded.higher_level_description,
+          full_description = excluded.full_description,
+          classes_json = excluded.classes_json
+      `
+    )
+    .run(
       spell.id,
-      index,
+      sortOrder,
       spell.name,
       spell.source,
       String(spell.level),
@@ -644,8 +964,18 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
       JSON.stringify(spell.classes)
     );
 
-    ensureSpellClassReferences(spell).forEach((reference, referenceIndex) => {
-      insertSpellClass.run(
+  database.prepare("DELETE FROM compendium_spell_classes WHERE spell_id = ?").run(spell.id);
+
+  ensureSpellClassReferences(spell).forEach((reference, referenceIndex) => {
+    database
+      .prepare(
+        `
+          INSERT INTO compendium_spell_classes (
+            spell_id, sort_order, name, source, kind, class_name, class_source, defined_in_sources_json
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `
+      )
+      .run(
         spell.id,
         referenceIndex,
         reference.name,
@@ -655,13 +985,72 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
         reference.classSource,
         JSON.stringify(reference.definedInSources)
       );
-    });
   });
+}
 
-  compendium.monsters.forEach((monster, index) => {
-    insertMonster.run(
+function upsertMonsterEntry(database: DatabaseSync, monster: MonsterTemplate, sortOrder: number) {
+  database
+    .prepare(
+      `
+        INSERT INTO compendium_monsters (
+          id, sort_order, name, source, challenge_rating, armor_class, hit_points,
+          initiative,
+          speed_walk, speed_fly, speed_burrow, speed_swim, speed_climb,
+          ability_str, ability_dex, ability_con, ability_int, ability_wis, ability_cha,
+          skills_json, senses_json, passive_perception, languages_json, xp, proficiency_bonus,
+          gear_json, resistances_json, vulnerabilities_json, immunities_json,
+          traits_json, actions_json, bonus_actions_json, reactions_json, legendary_actions_json,
+          legendary_actions_use, lair_actions_json, regional_effects_json, spells_json, spellcasting_json,
+          habitat, treasure, image_url, color
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          sort_order = excluded.sort_order,
+          name = excluded.name,
+          source = excluded.source,
+          challenge_rating = excluded.challenge_rating,
+          armor_class = excluded.armor_class,
+          hit_points = excluded.hit_points,
+          initiative = excluded.initiative,
+          speed_walk = excluded.speed_walk,
+          speed_fly = excluded.speed_fly,
+          speed_burrow = excluded.speed_burrow,
+          speed_swim = excluded.speed_swim,
+          speed_climb = excluded.speed_climb,
+          ability_str = excluded.ability_str,
+          ability_dex = excluded.ability_dex,
+          ability_con = excluded.ability_con,
+          ability_int = excluded.ability_int,
+          ability_wis = excluded.ability_wis,
+          ability_cha = excluded.ability_cha,
+          skills_json = excluded.skills_json,
+          senses_json = excluded.senses_json,
+          passive_perception = excluded.passive_perception,
+          languages_json = excluded.languages_json,
+          xp = excluded.xp,
+          proficiency_bonus = excluded.proficiency_bonus,
+          gear_json = excluded.gear_json,
+          resistances_json = excluded.resistances_json,
+          vulnerabilities_json = excluded.vulnerabilities_json,
+          immunities_json = excluded.immunities_json,
+          traits_json = excluded.traits_json,
+          actions_json = excluded.actions_json,
+          bonus_actions_json = excluded.bonus_actions_json,
+          reactions_json = excluded.reactions_json,
+          legendary_actions_json = excluded.legendary_actions_json,
+          legendary_actions_use = excluded.legendary_actions_use,
+          lair_actions_json = excluded.lair_actions_json,
+          regional_effects_json = excluded.regional_effects_json,
+          spells_json = excluded.spells_json,
+          spellcasting_json = excluded.spellcasting_json,
+          habitat = excluded.habitat,
+          treasure = excluded.treasure,
+          image_url = excluded.image_url,
+          color = excluded.color
+      `
+    )
+    .run(
       monster.id,
-      index,
+      sortOrder,
       monster.name,
       monster.source,
       monster.challengeRating,
@@ -704,12 +1093,28 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
       monster.imageUrl,
       monster.color
     );
-  });
+}
 
-  compendium.feats.forEach((feat, index) => {
-    insertFeat.run(
+function upsertFeatEntry(database: DatabaseSync, feat: FeatEntry, sortOrder: number) {
+  database
+    .prepare(
+      `
+        INSERT INTO compendium_feats (
+          id, sort_order, name, source, category, ability_score_increase, prerequisites, description
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          sort_order = excluded.sort_order,
+          name = excluded.name,
+          source = excluded.source,
+          category = excluded.category,
+          ability_score_increase = excluded.ability_score_increase,
+          prerequisites = excluded.prerequisites,
+          description = excluded.description
+      `
+    )
+    .run(
       feat.id,
-      index,
+      sortOrder,
       feat.name,
       feat.source,
       feat.category,
@@ -717,12 +1122,37 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
       feat.prerequisites,
       feat.description
     );
-  });
+}
 
-  compendium.classes.forEach((entry, index) => {
-    insertClass.run(
+function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: number) {
+  database
+    .prepare(
+      `
+        INSERT INTO compendium_classes (
+          id, sort_order, name, source, description,
+          hit_die_faces, primary_abilities_json, saving_throw_proficiencies_json,
+          starting_armor_json, starting_weapons_json, starting_tools_json,
+          features_json, subclasses_json, tables_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          sort_order = excluded.sort_order,
+          name = excluded.name,
+          source = excluded.source,
+          description = excluded.description,
+          hit_die_faces = excluded.hit_die_faces,
+          primary_abilities_json = excluded.primary_abilities_json,
+          saving_throw_proficiencies_json = excluded.saving_throw_proficiencies_json,
+          starting_armor_json = excluded.starting_armor_json,
+          starting_weapons_json = excluded.starting_weapons_json,
+          starting_tools_json = excluded.starting_tools_json,
+          features_json = excluded.features_json,
+          subclasses_json = excluded.subclasses_json,
+          tables_json = excluded.tables_json
+      `
+    )
+    .run(
       entry.id,
-      index,
+      sortOrder,
       entry.name,
       entry.source,
       entry.description,
@@ -737,8 +1167,19 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
       JSON.stringify(entry.tables)
     );
 
-    entry.features.forEach((feature, featureIndex) => {
-      insertClassFeature.run(
+  database.prepare("DELETE FROM compendium_class_features WHERE class_id = ?").run(entry.id);
+  database.prepare("DELETE FROM compendium_class_tables WHERE class_id = ?").run(entry.id);
+
+  entry.features.forEach((feature, featureIndex) => {
+    database
+      .prepare(
+        `
+          INSERT INTO compendium_class_features (
+            class_id, sort_order, level, name, description, source, reference
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        `
+      )
+      .run(
         entry.id,
         featureIndex,
         feature.level,
@@ -747,52 +1188,75 @@ export function writeCompendium(database: DatabaseSync, compendium: CompendiumDa
         feature.source,
         feature.reference
       );
-    });
-
-    entry.tables.forEach((table, tableIndex) => {
-      insertClassTable.run(entry.id, tableIndex, table.name);
-
-      table.columns.forEach((column, columnIndex) => {
-        insertClassTableColumn.run(entry.id, tableIndex, columnIndex, column);
-      });
-
-      table.rows.forEach((row, rowIndex) => {
-        row.forEach((cell, cellIndex) => {
-          insertClassTableCell.run(entry.id, tableIndex, rowIndex, cellIndex, cell);
-        });
-      });
-    });
   });
 
-  const referenceKinds: Array<keyof Pick<CompendiumData, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">> = [
-    "actions",
-    "backgrounds",
-    "items",
-    "languages",
-    "races",
-    "skills"
-  ];
+  entry.tables.forEach((table, tableIndex) => {
+    database
+      .prepare(
+        `
+          INSERT INTO compendium_class_tables (class_id, table_index, name)
+          VALUES (?, ?, ?)
+        `
+      )
+      .run(entry.id, tableIndex, table.name);
 
-  referenceKinds.forEach((kind) => {
-    compendium[kind].forEach((entry, index) => {
-      insertReference.run(kind, entry.id, index, entry.name, entry.source, entry.category, entry.description, JSON.stringify(entry.tags));
+    table.columns.forEach((column, columnIndex) => {
+      database
+        .prepare(
+          `
+            INSERT INTO compendium_class_table_columns (class_id, table_index, column_index, label)
+            VALUES (?, ?, ?, ?)
+          `
+        )
+        .run(entry.id, tableIndex, columnIndex, column);
+    });
+
+    table.rows.forEach((row, rowIndex) => {
+      row.forEach((cell, cellIndex) => {
+        database
+          .prepare(
+            `
+              INSERT INTO compendium_class_table_cells (class_id, table_index, row_index, cell_index, value)
+              VALUES (?, ?, ?, ?, ?)
+            `
+          )
+          .run(entry.id, tableIndex, rowIndex, cellIndex, cell);
+      });
     });
   });
 }
 
-export function clearCompendiumTables(database: DatabaseSync) {
-  database.exec(`
-    DELETE FROM compendium_references;
-    DELETE FROM compendium_class_table_cells;
-    DELETE FROM compendium_class_table_columns;
-    DELETE FROM compendium_class_tables;
-    DELETE FROM compendium_class_features;
-    DELETE FROM compendium_spell_classes;
-    DELETE FROM compendium_classes;
-    DELETE FROM compendium_feats;
-    DELETE FROM compendium_monsters;
-    DELETE FROM compendium_spells;
-  `);
+function upsertReferenceEntry(
+  database: DatabaseSync,
+  kind: ReferenceCompendiumKind,
+  entry: CompendiumReferenceEntry,
+  sortOrder: number
+) {
+  database
+    .prepare(
+      `
+        INSERT INTO compendium_references (
+          kind, id, sort_order, name, source, category, description, tags_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(kind, id) DO UPDATE SET
+          sort_order = excluded.sort_order,
+          name = excluded.name,
+          source = excluded.source,
+          category = excluded.category,
+          description = excluded.description,
+          tags_json = excluded.tags_json
+      `
+    )
+    .run(
+      kind,
+      entry.id,
+      sortOrder,
+      entry.name,
+      entry.source,
+      entry.category,
+      entry.description,
+      JSON.stringify(entry.tags)
+    );
 }
 
 function ensureSpellClassReferences(spell: SpellEntry): SpellClassReference[] {
