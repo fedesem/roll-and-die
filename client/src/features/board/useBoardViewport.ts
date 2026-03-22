@@ -26,6 +26,7 @@ export function useBoardViewport({
 }: UseBoardViewportOptions) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const initializedMapIdRef = useRef<string | null>(null);
+  const appliedRecallIdRef = useRef<string | null>(null);
   const skipNextPersistRef = useRef(false);
   const [viewportSize, setViewportSize] = useState<ViewportSize>({ width: 0, height: 0 });
   const [viewZoom, setViewZoom] = useState(1);
@@ -131,6 +132,10 @@ export function useBoardViewport({
       return;
     }
 
+    if (appliedRecallIdRef.current === viewRecall.id) {
+      return;
+    }
+
     const nextZoom = clamp(viewRecall.zoom, minViewZoom, maxViewZoom);
     const nextWorldScale = baseScale * nextZoom;
 
@@ -139,6 +144,7 @@ export function useBoardViewport({
       x: viewportSize.width / 2 - viewRecall.center.x * nextWorldScale,
       y: viewportSize.height / 2 - viewRecall.center.y * nextWorldScale
     });
+    appliedRecallIdRef.current = viewRecall.id;
   }, [baseScale, map, role, viewRecall, viewportSize.height, viewportSize.width]);
 
   useEffect(() => {
