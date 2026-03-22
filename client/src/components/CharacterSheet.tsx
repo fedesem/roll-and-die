@@ -5,6 +5,7 @@ import type { ActorSheet, CompendiumData, MemberRole } from "@shared/types";
 
 import { PlayerNpcSheet } from "../features/sheet/PlayerNpcSheet";
 import { cloneActor } from "../features/sheet/sheetUtils";
+import { resolveAssetUrl } from "../lib/assets";
 import { readFileAsDataUrl } from "../lib/media";
 
 interface CharacterSheetProps {
@@ -240,7 +241,7 @@ function SimpleActorSheet({
             <div className="space-y-3">
               <div className="flex aspect-square items-center justify-center border border-amber-700/50 bg-zinc-900 text-2xl font-semibold text-amber-50">
                 {actor.imageUrl ? (
-                  <img src={actor.imageUrl} alt={actor.name} className="h-full w-full object-cover" />
+                  <img src={resolveAssetUrl(actor.imageUrl)} alt={actor.name} className="h-full w-full object-cover" />
                 ) : (
                   <span>{actor.name.slice(0, 2).toUpperCase()}</span>
                 )}

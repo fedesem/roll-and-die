@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { ClassEntry, CompendiumReferenceEntry, FeatEntry, MonsterActionEntry, MonsterTemplate, SpellEntry, UserProfile } from "@shared/types";
+import { resolveAssetUrl } from "../../lib/assets";
 
 interface RulesLookupData {
   spellEntries?: Array<SpellEntry | Omit<SpellEntry, "id">>;
@@ -198,7 +199,7 @@ export function MonsterPreviewCard({
         </div>
         {monster.imageUrl ? (
           <div className="admin-monster-portrait">
-            <img src={monster.imageUrl} alt={monster.name} />
+            <img src={resolveAssetUrl(monster.imageUrl)} alt={monster.name} />
           </div>
         ) : null}
       </div>

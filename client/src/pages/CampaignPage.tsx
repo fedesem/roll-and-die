@@ -22,6 +22,7 @@ import { ChatPanel } from "../components/ChatPanel";
 import { MapConfigurator } from "../components/MapConfigurator";
 import { WorkspaceModal } from "../components/WorkspaceModal";
 import type { ActorTypeFilter, AvailableActorEntry, CurrentMapRosterEntry } from "../features/campaign/types";
+import { resolveAssetUrl } from "../lib/assets";
 import { formatMonsterModifier } from "../lib/drafts";
 
 type ActivePopup = "sheet" | "actors" | "maps" | "room" | null;
@@ -301,7 +302,7 @@ export function CampaignPage({
                         >
                           <span className="overlay-token-dot" style={{ background: color }}>
                             {imageUrl ? (
-                              <img src={imageUrl} alt={label} />
+                              <img src={resolveAssetUrl(imageUrl)} alt={label} />
                             ) : (
                               label
                                 .split(/\s+/)

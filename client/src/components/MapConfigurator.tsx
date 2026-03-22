@@ -12,6 +12,7 @@ import { DoorOpen, MousePointer2, Move, Radio, RotateCcw, Square, Trash2, Waves,
 
 import type { CampaignMap, MapTeleporter, MapWall, MapWallKind, Point } from "@shared/types";
 import { snapPointToGrid, snapPointToGridIntersection } from "@shared/vision";
+import { resolveAssetUrl } from "../lib/assets";
 import { readFileAsDataUrl } from "../lib/media";
 
 interface MapConfiguratorProps {
@@ -130,6 +131,7 @@ export function MapConfigurator({
       viewportSize.width
     ]
   );
+  const backgroundImageUrl = resolveAssetUrl(map.backgroundUrl);
 
   useEffect(() => {
     if (!previewRef.current) {
@@ -887,7 +889,7 @@ export function MapConfigurator({
                   top: backgroundRect.top,
                   width: backgroundRect.width,
                   height: backgroundRect.height,
-                  backgroundImage: `url(${map.backgroundUrl})`
+                  backgroundImage: `url(${backgroundImageUrl})`
                 }}
               />
             )}

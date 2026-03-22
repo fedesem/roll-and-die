@@ -67,6 +67,7 @@ import {
   selectionDragThreshold
 } from "../features/board/constants";
 import { useBoardViewport } from "../features/board/useBoardViewport";
+import { resolveAssetUrl } from "../lib/assets";
 
 type Tool = "select" | "draw" | "measure";
 type SelectedMapItem = `drawing:${string}`;
@@ -269,6 +270,7 @@ export function BoardCanvas({
     role,
     viewRecall
   });
+  const backgroundImageUrl = map ? resolveAssetUrl(map.backgroundUrl) : "";
   const isDungeonMaster = role === "dm";
   const playerUserIdSet = useMemo(() => new Set(fogPlayers.map((member) => member.userId)), [fogPlayers]);
   const fogPreviewActive = isDungeonMaster && typeof fogPreviewUserId === "string" && fogPreviewUserId.length > 0;
@@ -1809,7 +1811,7 @@ export function BoardCanvas({
                 top: backgroundRect.top,
                 width: backgroundRect.width,
                 height: backgroundRect.height,
-                backgroundImage: `linear-gradient(rgba(8, 8, 8, 0.12), rgba(8, 8, 8, 0.38)), url(${map.backgroundUrl})`
+                backgroundImage: `linear-gradient(rgba(8, 8, 8, 0.12), rgba(8, 8, 8, 0.38)), url(${backgroundImageUrl})`
               }}
             />
           )}
@@ -2155,7 +2157,7 @@ export function BoardCanvas({
                   }}
                 >
                   {token.imageUrl ? (
-                    <img className="board-token-image" src={token.imageUrl} alt={token.label} draggable={false} />
+                    <img className="board-token-image" src={resolveAssetUrl(token.imageUrl)} alt={token.label} draggable={false} />
                   ) : (
                     <span>{initials(token.label)}</span>
                   )}

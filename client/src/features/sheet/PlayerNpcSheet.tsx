@@ -32,6 +32,7 @@ import type {
   SpellSlotTrack
 } from "@shared/types";
 
+import { resolveAssetUrl } from "../../lib/assets";
 import { readFileAsDataUrl } from "../../lib/media";
 import { RestDialog } from "./RestDialog";
 import {
@@ -591,7 +592,7 @@ export function PlayerNpcSheet({
           <div className="space-y-3">
             <div className="flex aspect-square items-center justify-center border border-amber-700/50 bg-zinc-900 text-2xl font-semibold text-amber-50">
               {draft.imageUrl ? (
-                <img src={draft.imageUrl} alt={draft.name} className="h-full w-full object-cover" />
+                <img src={resolveAssetUrl(draft.imageUrl)} alt={draft.name} className="h-full w-full object-cover" />
               ) : (
                 actorInitials(draft.name)
               )}

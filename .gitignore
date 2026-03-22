@@ -3,3 +3,5 @@ dist
 .DS_Store
 data/app.sqlite
 data/app.sqlite*
+data/uploads/maps/*
+!data/uploads/maps/.gitkeep

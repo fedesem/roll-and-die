@@ -3,6 +3,7 @@ import { SendHorizontal } from "lucide-react";
 
 import { parseRollCommand, validateRollNotation } from "@shared/dice";
 import type { ChatActorContext, ChatMessage } from "@shared/types";
+import { resolveAssetUrl } from "../lib/assets";
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -273,7 +274,7 @@ function ChatActorBadge({ actor }: { actor: ChatActorContext }) {
       aria-label={actor.actorName}
     >
       {actor.actorImageUrl ? (
-        <img src={actor.actorImageUrl} alt={actor.actorName} className="h-full w-full object-cover" />
+        <img src={resolveAssetUrl(actor.actorImageUrl)} alt={actor.actorName} className="h-full w-full object-cover" />
       ) : (
         actor.actorName
           .split(/\s+/)

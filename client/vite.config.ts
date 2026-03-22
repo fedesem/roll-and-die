@@ -40,6 +40,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": "http://localhost:4000",
+      "/uploads": "http://localhost:4000",
       "/ws": {
         target: "http://localhost:4000",
         ws: true
