@@ -11,6 +11,7 @@ import type {
 
 import { CampaignActorManager } from "../components/CampaignActorManager";
 import { CampaignMapManager } from "../components/CampaignMapManager";
+import { CampaignRoomManager } from "../components/CampaignRoomManager";
 import { CharacterSheet } from "../components/CharacterSheet";
 import { WorkspaceModal } from "../components/WorkspaceModal";
 import type {
@@ -19,7 +20,7 @@ import type {
   CurrentMapRosterEntry
 } from "../features/campaign/types";
 
-type ActivePopup = "sheet" | "actors" | "maps" | "room" | null;
+type ActivePopup = "sheet" | null;
 
 interface CampaignHubPageProps {
   campaign: CampaignSnapshot["campaign"];
@@ -44,6 +45,10 @@ interface CampaignHubPageProps {
   monsterQuery: string;
   filteredCatalog: MonsterTemplate[];
   selectedMonsterTemplate: MonsterTemplate | null;
+  inviteDraft: {
+    label: string;
+    role: MemberRole;
+  };
   canUndoEditingMap: boolean;
   canRedoEditingMap: boolean;
   canPersistEditingMap: boolean;
@@ -65,6 +70,8 @@ interface CampaignHubPageProps {
   onAssignActorToCurrentMap: (actorId: string) => void;
   onRemoveActorFromCurrentMap: (actorId: string) => void;
   onDeleteActor: (actor: ActorSheet) => void;
+  onInviteDraftChange: (draft: { label: string; role: MemberRole }) => void;
+  onCreateInvite: () => void;
   onShowMap: (mapId: string) => void;
   onStartCreateMap: () => void;
   onStartEditMap: (map: CampaignMap) => void;
@@ -101,6 +108,7 @@ export function CampaignHubPage({
   monsterQuery,
   filteredCatalog,
   selectedMonsterTemplate,
+  inviteDraft,
   canUndoEditingMap,
   canRedoEditingMap,
   canPersistEditingMap,
@@ -122,6 +130,8 @@ export function CampaignHubPage({
   onAssignActorToCurrentMap,
   onRemoveActorFromCurrentMap,
   onDeleteActor,
+  onInviteDraftChange,
+  onCreateInvite,
   onShowMap,
   onStartCreateMap,
   onStartEditMap,
@@ -144,7 +154,7 @@ export function CampaignHubPage({
               <h2 className="mt-2 font-serif text-3xl text-amber-50">{campaign.name}</h2>
               <p className="mt-3 text-sm leading-6 text-slate-400">
                 {role === "dm"
-                  ? "Choose which board is active, edit maps, and manage the full roster before opening the live board."
+                  ? "Choose the active board, edit maps, manage the roster, and handle room access before opening the live board."
                   : "Create and manage your actors here, including player-owned monster summons or familiars, then open the live board."}
               </p>
             </div>
@@ -248,6 +258,14 @@ export function CampaignHubPage({
           onAssignActorToCurrentMap={onAssignActorToCurrentMap}
           onRemoveActorFromCurrentMap={onRemoveActorFromCurrentMap}
           onDeleteActor={onDeleteActor}
+        />
+
+        <CampaignRoomManager
+          campaign={campaign}
+          role={role}
+          inviteDraft={inviteDraft}
+          onInviteDraftChange={onInviteDraftChange}
+          onCreateInvite={onCreateInvite}
         />
       </main>
 

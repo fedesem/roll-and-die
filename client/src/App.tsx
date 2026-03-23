@@ -72,7 +72,7 @@ export default function App() {
   const [mapEditorBaseline, setMapEditorBaseline] = useState<CampaignMap | null>(null);
   const [dmFogEnabled, setDmFogEnabled] = useState(false);
   const [dmFogUserId, setDmFogUserId] = useState<string | null>(null);
-  const [activePopup, setActivePopup] = useState<"sheet" | "actors" | "maps" | "room" | null>(null);
+  const [activePopup, setActivePopup] = useState<"sheet" | null>(null);
   const [inviteLinkConsumed, setInviteLinkConsumed] = useState<string | null>(null);
 
   useEffect(() => {
@@ -320,7 +320,6 @@ export default function App() {
     filteredCatalog,
     actorCreatorKind,
     currentUserId: session?.user.id,
-    activePopup,
     setSelectedMapId,
     setSelectedActorId,
     setSelectedMonsterId,
@@ -340,8 +339,6 @@ export default function App() {
   });
 
   const editingMap = mapEditorMode === "create" ? newMapDraft : mapEditorMode === "edit" ? mapDraft : null;
-  const boardMap =
-    mapEditorMode === "edit" && editingMap && activeMap && editingMap.id === activeMap.id ? editingMap : activeMap;
   const canUndoEditingMap = mapEditorPast.length > 0;
   const canRedoEditingMap = mapEditorFuture.length > 0;
   const canPersistEditingMap =
@@ -605,6 +602,7 @@ export default function App() {
           monsterQuery={monsterQuery}
           filteredCatalog={filteredCatalog}
           selectedMonsterTemplate={selectedMonsterTemplate}
+          inviteDraft={inviteDraft}
           canUndoEditingMap={canUndoEditingMap}
           canRedoEditingMap={canRedoEditingMap}
           canPersistEditingMap={canPersistEditingMap}
@@ -626,6 +624,8 @@ export default function App() {
           onAssignActorToCurrentMap={(actorId) => void assignActorToCurrentMap(actorId)}
           onRemoveActorFromCurrentMap={(actorId) => void removeActorFromCurrentMap(actorId)}
           onDeleteActor={(actor) => void deleteActor(actor)}
+          onInviteDraftChange={setInviteDraft}
+          onCreateInvite={() => void createInvite()}
           onShowMap={showMap}
           onStartCreateMap={openMapEditorForCreate}
           onStartEditMap={openMapEditorForEdit}
@@ -644,14 +644,9 @@ export default function App() {
           compendium={snapshot.compendium}
           role={role}
           currentUserId={session.user.id}
-          roomStatus={roomStatus}
           activeMap={activeMap}
-          boardMap={boardMap}
-          selectedMap={selectedMap ?? undefined}
           selectedActor={selectedActor}
           activePopup={activePopup}
-          editingMap={editingMap}
-          mapEditorMode={mapEditorMode}
           boardSeenCells={boardSeenCells}
           fogPreviewUserId={fogPreviewUserId}
           playerMembers={playerMembers}
@@ -662,18 +657,6 @@ export default function App() {
           mapPings={mapPings}
           viewRecall={viewportRecall}
           filteredCurrentMapRoster={filteredCurrentMapRoster}
-          availableActors={availableActors}
-          actorSearch={actorSearch}
-          mapActorSearch={mapActorSearch}
-          actorTypeFilter={actorTypeFilter}
-          mapActorTypeFilter={mapActorTypeFilter}
-          actorCreatorKind={actorCreatorKind}
-          actorCreatorOpen={actorCreatorOpen}
-          actorDraft={actorDraft}
-          monsterQuery={monsterQuery}
-          filteredCatalog={filteredCatalog}
-          selectedMonsterTemplate={selectedMonsterTemplate}
-          inviteDraft={inviteDraft}
           onSetActivePopup={setActivePopup}
           onOpenCampaignHome={openCampaignHome}
           onSelectActor={setSelectedActorId}
@@ -694,36 +677,7 @@ export default function App() {
           onSendChat={sendChat}
           onSaveActor={saveActor}
           onRoll={rollFromSheet}
-          onActorSearchChange={setActorSearch}
-          onMapActorSearchChange={setMapActorSearch}
-          onActorTypeFilterChange={setActorTypeFilter}
-          onMapActorTypeFilterChange={setMapActorTypeFilter}
-          onActorCreatorOpenChange={setActorCreatorOpen}
-          onActorCreatorKindChange={setActorCreatorKind}
-          onCreateActor={createActor}
-          onMonsterQueryChange={setMonsterQuery}
-          onSelectMonster={setSelectedMonsterId}
-          onCreateMonsterActor={(monster) => void createMonsterActor(monster)}
-          onAssignActorToCurrentMap={(actorId) => void assignActorToCurrentMap(actorId)}
-          onRemoveActorFromCurrentMap={(actorId) => void removeActorFromCurrentMap(actorId)}
           onUpdateToken={updateToken}
-          onDeleteActor={(actor) => void deleteActor(actor)}
-          onShowMap={showMap}
-          onStartCreateMap={openMapEditorForCreate}
-          onStartEditMap={openMapEditorForEdit}
-          onChangeEditingMap={changeEditingMap}
-          onSaveEditingMap={saveEditingMap}
-          onReloadEditingMap={reloadEditingMap}
-          onUndoEditingMap={undoEditingMap}
-          onRedoEditingMap={redoEditingMap}
-          canUndoEditingMap={canUndoEditingMap}
-          canRedoEditingMap={canRedoEditingMap}
-          canPersistEditingMap={canPersistEditingMap}
-          onSetEditingMapActive={setEditingMapActive}
-          onBackToMapsList={() => setMapEditorMode(null)}
-          onMapUploadError={(message) => setBanner({ tone: "error", text: message })}
-          onInviteDraftChange={setInviteDraft}
-          onCreateInvite={() => void createInvite()}
         />
       )}
 

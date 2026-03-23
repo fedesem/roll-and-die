@@ -16,7 +16,6 @@ interface UseCampaignUiEffectsOptions {
   filteredCatalog: MonsterTemplate[];
   actorCreatorKind: ActorKind;
   currentUserId?: string;
-  activePopup: "sheet" | "actors" | "maps" | "room" | null;
   setSelectedMapId: (value: string | null) => void;
   setSelectedActorId: (value: string | null) => void;
   setSelectedMonsterId: (value: string | null) => void;
@@ -32,7 +31,7 @@ interface UseCampaignUiEffectsOptions {
   setMapEditorMode: (value: "create" | "edit" | null) => void;
   setDmFogEnabled: (value: boolean) => void;
   setDmFogUserId: (value: string | null) => void;
-  setActivePopup: (value: "sheet" | "actors" | "maps" | "room" | null) => void;
+  setActivePopup: (value: "sheet" | null) => void;
 }
 
 export function useCampaignUiEffects({
@@ -47,7 +46,6 @@ export function useCampaignUiEffects({
   filteredCatalog,
   actorCreatorKind,
   currentUserId,
-  activePopup,
   setSelectedMapId,
   setSelectedActorId,
   setSelectedMonsterId,
@@ -152,10 +150,4 @@ export function useCampaignUiEffects({
   useEffect(() => {
     setActorDraft(createClientActorDraft(actorCreatorKind, currentUserId));
   }, [actorCreatorKind, currentUserId, setActorDraft]);
-
-  useEffect(() => {
-    if (activePopup === "maps") {
-      setMapEditorMode(null);
-    }
-  }, [activePopup, setMapEditorMode]);
 }
