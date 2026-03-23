@@ -183,7 +183,8 @@ export default function App() {
     campaigns,
     campaignSourceBooks,
     isLoading: isCampaignsLoading,
-    refreshCampaigns
+    refreshCampaigns,
+    refreshCampaignSourceBooks
   } = useCampaignSummariesQuery({
     token: session?.token,
     onError: (message) => setBannerStatus("error", message)
@@ -551,6 +552,7 @@ export default function App() {
           token={session.token}
           currentUserId={session.user.id}
           onStatus={setBannerStatus}
+          onRefreshSourceBooks={() => refreshCampaignSourceBooks().then(() => undefined)}
         />
       ) : route.name === "campaignCreate" ? (
         <CampaignCreatePage

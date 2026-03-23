@@ -1,5 +1,6 @@
 import type {
   AbilityKey,
+  CampaignSourceBook,
   ClassEntry,
   ClassFeatureEntry,
   ClassSubclassEntry,
@@ -35,6 +36,8 @@ export function sanitizeCompendiumEntry(kind: CompendiumKind, input: unknown) {
       return sanitizeFeatEntry(input);
     case "classes":
       return sanitizeClassEntry(input);
+    case "books":
+      return sanitizeBookEntry(input);
     case "optionalFeatures":
     case "actions":
     case "backgrounds":
@@ -87,6 +90,10 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
       __classFeatureLookup: Object.fromEntries(classFeatureLookup),
       __subclassEntries: subclassEntries.filter((subclassEntry) => isSubclassForClassEntry(subclassEntry, entry))
     }));
+  }
+
+  if (kind === "books" && Array.isArray(object.book)) {
+    return object.book;
   }
 
   if (kind === "actions" && Array.isArray(object.action)) {
@@ -284,6 +291,7 @@ function sanitizeMonsterEntry(input: unknown): MonsterTemplate {
     name: requireString(object.name, "Monster name"),
     source: requireString(object.source, "Monster source"),
     challengeRating: requireString(object.challengeRating, "Monster CR"),
+    creatureType: readString(object.creatureType),
     armorClass: clampNumber(object.armorClass, 0, 50, 10),
     hitPoints: clampNumber(object.hitPoints, 1, 5000, 1),
     initiative: clampNumber(object.initiative, -20, 50, 0),
@@ -366,6 +374,7 @@ function sanitizeExternalMonsterEntry(object: Record<string, unknown>): MonsterT
     name: requireString(object.name, "Monster name"),
     source: formatMonsterSource(object),
     challengeRating: parseExternalChallengeRating(object.cr ?? object.challengeRating),
+    creatureType: formatMonsterTypeValue(object.type),
     armorClass: parseArmorClass(object.ac ?? object.armorClass),
     hitPoints: clampNumber(hp.average ?? object.hitPoints, 1, 5000, 1),
     initiative: parseExternalInitiative(object.initiative, object.dex, object.proficiencyBonus, object.cr),
@@ -491,6 +500,19 @@ function sanitizeReferenceEntry(
     category: readReferenceCategory(kind, object),
     description: readReferenceDescription(kind, object),
     tags: readReferenceTags(kind, object)
+  };
+}
+
+function sanitizeBookEntry(input: unknown): CampaignSourceBook {
+  const object = asObject(input, "book entry");
+  const source = requireString(object.id ?? object.source, "Book id");
+
+  return {
+    source,
+    name: requireString(object.name, "Book name"),
+    group: readString(object.group) || "supplement",
+    published: readString(object.published),
+    author: readString(object.author)
   };
 }
 

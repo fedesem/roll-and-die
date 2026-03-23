@@ -17,6 +17,8 @@ import { mapTeleportersMigration } from "./117_map_teleporters.js";
 import { externalizeInlineImagesMigration } from "./118_externalize_inline_images.js";
 import { hotPathIndexesMigration } from "./119_hot_path_indexes.js";
 import { tokenStatusMarkerMigration } from "./120_token_status_marker.js";
+import { compendiumBooksMigration } from "./121_compendium_books.js";
+import { monsterCreatureTypeMigration } from "./122_monster_creature_type.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -37,5 +39,7 @@ export const migrations = [
   mapTeleportersMigration,
   externalizeInlineImagesMigration,
   hotPathIndexesMigration,
-  tokenStatusMarkerMigration
+  tokenStatusMarkerMigration,
+  compendiumBooksMigration,
+  monsterCreatureTypeMigration
 ];

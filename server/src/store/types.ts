@@ -46,6 +46,7 @@ export const defaultDatabase: Database = {
     monsters: [],
     feats: [],
     classes: [],
+    books: [],
     optionalFeatures: [],
     actions: [],
     backgrounds: [],

@@ -10,6 +10,7 @@ export type AdminTab =
   | "monsters"
   | "feats"
   | "classes"
+  | "books"
   | "optionalFeatures"
   | "actions"
   | "backgrounds"
@@ -30,6 +31,7 @@ export const tabIcons = {
   monsters: Skull,
   feats: ShieldPlus,
   classes: GraduationCap,
+  books: BookText,
   optionalFeatures: BookText,
   actions: Swords,
   backgrounds: BookText,
@@ -96,6 +98,8 @@ export function labelForTab(tab: AdminTab) {
       return "Feats";
     case "classes":
       return "Classes";
+    case "books":
+      return "Books";
     case "optionalFeatures":
       return "Optional Features";
     case "actions":
@@ -127,6 +131,8 @@ export function singularLabel(tab: AdminTab) {
       return "Feat";
     case "classes":
       return "Class";
+    case "books":
+      return "Book";
     case "optionalFeatures":
       return "Optional Feature";
     case "actions":
@@ -333,6 +339,18 @@ export function getImportExample(tab: CompendiumTab) {
             source: "XPHB",
             level: 2,
             entries: ["You gain an uncanny sense of when things aren't as they should be."]
+          }
+        ]
+      }, null, 2);
+    case "books":
+      return JSON.stringify({
+        book: [
+          {
+            name: "Player's Handbook (2014)",
+            id: "PHB",
+            group: "core",
+            published: "2014-08-19",
+            author: "Wizards RPG Team"
           }
         ]
       }, null, 2);

@@ -99,32 +99,7 @@ export function buildCampaignSnapshot(
 }
 
 export function listCampaignSourceBooks(compendium: CompendiumData): CampaignSourceBook[] {
-  const counts = new Map<string, number>();
-
-  [
-    ...compendium.spells,
-    ...compendium.monsters,
-    ...compendium.feats,
-    ...compendium.classes,
-    ...compendium.actions,
-    ...compendium.backgrounds,
-    ...compendium.items,
-    ...compendium.languages,
-    ...compendium.races,
-    ...compendium.skills
-  ].forEach((entry) => {
-    const source = getCompendiumBookSource(entry.source);
-
-    if (!source) {
-      return;
-    }
-
-    counts.set(source, (counts.get(source) ?? 0) + 1);
-  });
-
-  return Array.from(counts.entries())
-    .map(([source, entryCount]) => ({ source, entryCount }))
-    .sort((left, right) => left.source.localeCompare(right.source));
+  return [...compendium.books].sort((left, right) => left.source.localeCompare(right.source));
 }
 
 export function normalizeExplorationMemory(campaign: Campaign, userId: string) {

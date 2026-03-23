@@ -73,16 +73,26 @@ export function CampaignCreatePage({
                 </button>
               </div>
             </div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
               {campaignSourceBooks.map((entry) => {
                 const checked = createCampaignAllowedSourceBooks.includes(entry.source);
 
                 return (
-                  <label key={entry.source} className="flex items-center justify-between gap-3 border border-white/10 bg-slate-950/50 px-3 py-2 text-sm text-slate-200">
-                    <span className="flex items-center gap-3">
+                  <label
+                    key={entry.source}
+                    title={`${entry.name}${entry.author ? ` • ${entry.author}` : ""}${entry.published ? ` • ${entry.published}` : ""}`}
+                    className={`flex items-center justify-center gap-2 border px-2 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                      checked
+                        ? "border-amber-300/40 bg-amber-300/16 text-amber-50"
+                        : "border-white/10 bg-slate-950/50 text-slate-200 hover:border-white/20 hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    <span className="sr-only">{entry.name}</span>
+                    <span className="flex items-center gap-2">
                       <input
                         type="checkbox"
                         checked={checked}
+                        className="h-3.5 w-3.5"
                         onChange={() =>
                           onCreateCampaignAllowedSourceBooksChange(
                             checked
@@ -93,7 +103,6 @@ export function CampaignCreatePage({
                       />
                       <span>{entry.source}</span>
                     </span>
-                    <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{entry.entryCount}</span>
                   </label>
                 );
               })}

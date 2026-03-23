@@ -197,6 +197,7 @@ export interface MonsterTemplate {
   name: string;
   source: string;
   challengeRating: string;
+  creatureType: string;
   armorClass: number;
   hitPoints: number;
   initiative: number;
@@ -354,6 +355,7 @@ export interface CompendiumData {
   monsters: MonsterTemplate[];
   feats: FeatEntry[];
   classes: ClassEntry[];
+  books: CampaignSourceBook[];
   optionalFeatures: CompendiumReferenceEntry[];
   actions: CompendiumReferenceEntry[];
   backgrounds: CompendiumReferenceEntry[];
@@ -381,7 +383,10 @@ export interface CampaignInvite {
 
 export interface CampaignSourceBook {
   source: string;
-  entryCount: number;
+  name: string;
+  group: string;
+  published: string;
+  author: string;
 }
 
 export interface Point {

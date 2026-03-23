@@ -40,6 +40,7 @@ export interface MonsterFormState {
   name: string;
   source: string;
   challengeRating: string;
+  creatureType: string;
   armorClass: string;
   hitPoints: string;
   initiative: string;
@@ -129,6 +130,7 @@ export function createMonsterForm(): MonsterFormState {
     name: "",
     source: "",
     challengeRating: "1",
+    creatureType: "",
     armorClass: "10",
     hitPoints: "1",
     initiative: "0",
@@ -234,6 +236,7 @@ export function monsterFormToEntry(form: MonsterFormState): Omit<MonsterTemplate
     name: form.name.trim(),
     source: form.source.trim(),
     challengeRating: form.challengeRating.trim(),
+    creatureType: form.creatureType.trim(),
     armorClass: Number(form.armorClass) || 10,
     hitPoints: Number(form.hitPoints) || 1,
     initiative: Number(form.initiative) || 0,

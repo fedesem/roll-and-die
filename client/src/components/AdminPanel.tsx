@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { ArrowDownToLine, FilePlus2, List, RefreshCw } from "lucide-react";
 
-import type { CompendiumReferenceEntry, SpellEntry } from "@shared/types";
-import { ClassPreviewCard, FeatPreviewCard, MonsterPreviewCard, PreviewPlaceholder, ReferencePreviewCard, SpellPreviewCard, UserPreviewCard } from "./admin/AdminPreview";
+import type { CampaignSourceBook, CompendiumReferenceEntry, SpellEntry } from "@shared/types";
+import { BookPreviewCard, ClassPreviewCard, FeatPreviewCard, MonsterPreviewCard, PreviewPlaceholder, ReferencePreviewCard, SpellPreviewCard, UserPreviewCard } from "./admin/AdminPreview";
 import styles from "./AdminPanel.module.css";
 import { useAdminOverviewQuery } from "../features/admin/useAdminOverviewQuery";
 import {
@@ -46,15 +46,36 @@ import {
 } from "./admin/adminPanelUtils";
 
 type AdminMode = "list" | "add" | "import";
+type ListSort =
+  | "name-asc"
+  | "name-desc"
+  | "source-asc"
+  | "source-desc"
+  | "category-asc"
+  | "category-desc"
+  | "published-desc"
+  | "published-asc"
+  | "level-asc"
+  | "level-desc"
+  | "cr-asc"
+  | "cr-desc";
+interface ListControlsState {
+  source: string;
+  type: string;
+  secondaryType: string;
+  sort: ListSort;
+}
+
 const cx = (...values: Array<string | false | null | undefined>) => values.filter(Boolean).join(" ");
 
 interface AdminPanelProps {
   token: string;
   currentUserId: string;
   onStatus: (tone: "info" | "error", text: string) => void;
+  onRefreshSourceBooks?: () => Promise<void>;
 }
 
-export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) {
+export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBooks }: AdminPanelProps) {
   const [tab, setTab] = useState<AdminTab>("users");
   const [mode, setMode] = useState<AdminMode>("list");
   const [search, setSearch] = useState<Record<AdminTab, string>>({
@@ -63,6 +84,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     monsters: "",
     feats: "",
     classes: "",
+    books: "",
     optionalFeatures: "",
     actions: "",
     backgrounds: "",
@@ -77,6 +99,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     monsters: null,
     feats: null,
     classes: null,
+    books: null,
     optionalFeatures: null,
     actions: null,
     backgrounds: null,
@@ -85,11 +108,27 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     races: null,
     skills: null
   });
+  const [listControls, setListControls] = useState<Record<AdminTab, ListControlsState>>({
+    users: { source: "", type: "", secondaryType: "", sort: "name-asc" },
+    spells: { source: "", type: "", secondaryType: "", sort: "name-asc" },
+    monsters: { source: "", type: "", secondaryType: "", sort: "name-asc" },
+    feats: { source: "", type: "", secondaryType: "", sort: "name-asc" },
+    classes: { source: "", type: "", secondaryType: "", sort: "name-asc" },
+    books: { source: "", type: "", secondaryType: "", sort: "published-desc" },
+    optionalFeatures: { source: "", type: "", secondaryType: "", sort: "name-asc" },
+    actions: { source: "", type: "", secondaryType: "", sort: "name-asc" },
+    backgrounds: { source: "", type: "", secondaryType: "", sort: "name-asc" },
+    items: { source: "", type: "", secondaryType: "", sort: "name-asc" },
+    languages: { source: "", type: "", secondaryType: "", sort: "name-asc" },
+    races: { source: "", type: "", secondaryType: "", sort: "name-asc" },
+    skills: { source: "", type: "", secondaryType: "", sort: "name-asc" }
+  });
   const [importFiles, setImportFiles] = useState<Record<CompendiumTab, { name: string; content: string } | null>>({
     spells: null,
     monsters: null,
     feats: null,
     classes: null,
+    books: null,
     optionalFeatures: null,
     actions: null,
     backgrounds: null,
@@ -122,6 +161,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
       monsters: overview?.compendium.monsters.length ?? 0,
       feats: overview?.compendium.feats.length ?? 0,
       classes: overview?.compendium.classes.length ?? 0,
+      books: overview?.compendium.books.length ?? 0,
       optionalFeatures: overview?.compendium.optionalFeatures.length ?? 0,
       actions: overview?.compendium.actions.length ?? 0,
       backgrounds: overview?.compendium.backgrounds.length ?? 0,
@@ -153,6 +193,10 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     () => filterEntries(overview?.compendium.classes ?? [], search.classes, (entry) => [entry.name, entry.source]),
     [overview?.compendium.classes, search.classes]
   );
+  const books = useMemo(
+    () => filterEntries(overview?.compendium.books ?? [], search.books, (entry) => [entry.name, entry.source, entry.group, entry.author, entry.published]),
+    [overview?.compendium.books, search.books]
+  );
   const optionalFeatures = useMemo(
     () => filterEntries(overview?.compendium.optionalFeatures ?? [], search.optionalFeatures, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
     [overview?.compendium.optionalFeatures, search.optionalFeatures]
@@ -181,24 +225,77 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     () => filterEntries(overview?.compendium.skills ?? [], search.skills, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
     [overview?.compendium.skills, search.skills]
   );
+  const displayedSpells = useMemo(
+    () => filterAndSortSpells(spells, listControls.spells),
+    [listControls.spells, spells]
+  );
+  const displayedMonsters = useMemo(
+    () => filterAndSortMonsters(monsters, listControls.monsters),
+    [listControls.monsters, monsters]
+  );
+  const displayedFeats = useMemo(
+    () => filterAndSortReferences(feats, listControls.feats),
+    [feats, listControls.feats]
+  );
+  const displayedClasses = useMemo(
+    () => filterAndSortClasses(classes, listControls.classes),
+    [classes, listControls.classes]
+  );
+  const displayedBooks = useMemo(
+    () => filterAndSortBooks(books, listControls.books),
+    [books, listControls.books]
+  );
+  const displayedOptionalFeatures = useMemo(
+    () => filterAndSortReferences(optionalFeatures, listControls.optionalFeatures),
+    [listControls.optionalFeatures, optionalFeatures]
+  );
+  const displayedActions = useMemo(
+    () => filterAndSortReferences(actions, listControls.actions),
+    [actions, listControls.actions]
+  );
+  const displayedBackgrounds = useMemo(
+    () => filterAndSortReferences(backgrounds, listControls.backgrounds),
+    [backgrounds, listControls.backgrounds]
+  );
+  const displayedItems = useMemo(
+    () => filterAndSortReferences(items, listControls.items),
+    [items, listControls.items]
+  );
+  const displayedLanguages = useMemo(
+    () => filterAndSortReferences(languages, listControls.languages),
+    [languages, listControls.languages]
+  );
+  const displayedRaces = useMemo(
+    () => filterAndSortReferences(races, listControls.races),
+    [listControls.races, races]
+  );
+  const displayedSkills = useMemo(
+    () => filterAndSortReferences(skills, listControls.skills),
+    [listControls.skills, skills]
+  );
 
   const selectedUser = resolveSelected(users, selectedIds.users);
-  const selectedSpell = resolveSelected(spells, selectedIds.spells);
-  const selectedMonster = resolveSelected(monsters, selectedIds.monsters);
-  const selectedFeat = resolveSelected(feats, selectedIds.feats);
-  const selectedClass = resolveSelected(classes, selectedIds.classes);
-  const selectedOptionalFeature = resolveSelected(optionalFeatures, selectedIds.optionalFeatures);
-  const selectedAction = resolveSelected(actions, selectedIds.actions);
-  const selectedBackground = resolveSelected(backgrounds, selectedIds.backgrounds);
-  const selectedItem = resolveSelected(items, selectedIds.items);
-  const selectedLanguage = resolveSelected(languages, selectedIds.languages);
-  const selectedRace = resolveSelected(races, selectedIds.races);
-  const selectedSkill = resolveSelected(skills, selectedIds.skills);
+  const selectedSpell = resolveSelected(displayedSpells, selectedIds.spells);
+  const selectedMonster = resolveSelected(displayedMonsters, selectedIds.monsters);
+  const selectedFeat = resolveSelected(displayedFeats, selectedIds.feats);
+  const selectedClass = resolveSelected(displayedClasses, selectedIds.classes);
+  const selectedBook = resolveSelectedByKey(displayedBooks, selectedIds.books, (entry) => entry.source);
+  const selectedOptionalFeature = resolveSelected(displayedOptionalFeatures, selectedIds.optionalFeatures);
+  const selectedAction = resolveSelected(displayedActions, selectedIds.actions);
+  const selectedBackground = resolveSelected(displayedBackgrounds, selectedIds.backgrounds);
+  const selectedItem = resolveSelected(displayedItems, selectedIds.items);
+  const selectedLanguage = resolveSelected(displayedLanguages, selectedIds.languages);
+  const selectedRace = resolveSelected(displayedRaces, selectedIds.races);
+  const selectedSkill = resolveSelected(displayedSkills, selectedIds.skills);
 
   const _spellPreview = useMemo(() => buildPreview(() => spellFormToEntry(spellForm)), [spellForm]);
   const _monsterPreview = useMemo(() => buildPreview(() => monsterFormToEntry(monsterForm)), [monsterForm]);
   const _featPreview = useMemo(() => buildPreview(() => featFormToEntry(featForm)), [featForm]);
   const _classPreview = useMemo(() => buildPreview(() => classFormToEntry(classForm)), [classForm]);
+  const sourceBookNameById = useMemo(
+    () => new Map((overview?.compendium.books ?? []).map((entry) => [entry.source, entry.name] as const)),
+    [overview?.compendium.books]
+  );
 
   const _importSummary = useMemo(() => {
     if (!activeCompendiumTab) {
@@ -233,6 +330,49 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     () => (activeCompendiumTab ? getImportExample(activeCompendiumTab) : ""),
     [activeCompendiumTab]
   );
+  const activeListControls = listControls[tab];
+  const currentSourceOptions = useMemo(
+    () => getAdminTabSourceOptions(tab, {
+      spells,
+      monsters,
+      feats,
+      classes,
+      books,
+      optionalFeatures,
+      actions,
+      backgrounds,
+      items,
+      languages,
+      races,
+      skills
+    }),
+    [actions, backgrounds, books, classes, feats, items, languages, monsters, optionalFeatures, races, skills, spells, tab]
+  );
+  const currentTypeOptions = useMemo(
+    () => getAdminTabTypeOptions(tab, {
+      spells,
+      monsters,
+      feats,
+      classes,
+      books,
+      optionalFeatures,
+      actions,
+      backgrounds,
+      items,
+      languages,
+      races,
+      skills
+    }),
+    [actions, backgrounds, books, classes, feats, items, languages, monsters, optionalFeatures, races, skills, spells, tab]
+  );
+  const currentSecondaryTypeOptions = useMemo(
+    () => getAdminTabSecondaryTypeOptions(tab, {
+      spells,
+      monsters
+    }),
+    [monsters, spells, tab]
+  );
+  const currentSortOptions = getSortOptionsForTab(tab);
 
   async function promoteUser(userId: string) {
     try {
@@ -273,6 +413,9 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
       setSelectedIds((current) => ({ ...current, [kind]: created.id }));
       setMode("list");
       onStatus("info", `${singularLabel(kind)} added.`);
+      if (kind === "books") {
+        await onRefreshSourceBooks?.();
+      }
       await refreshOverview();
     } catch (error) {
       onStatus("error", toErrorMessage(error));
@@ -293,6 +436,9 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
       setImportFiles((current) => ({ ...current, [kind]: null }));
       setMode("list");
       onStatus("info", `${labelForTab(kind)} import completed.`);
+      if (kind === "books") {
+        await onRefreshSourceBooks?.();
+      }
       await refreshOverview();
     } catch (error) {
       onStatus("error", toErrorMessage(error));
@@ -304,6 +450,9 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
       await deleteCompendiumItem(token, kind, itemId);
       setSelectedIds((current) => ({ ...current, [kind]: null }));
       onStatus("info", `${singularLabel(kind)} deleted.`);
+      if (kind === "books") {
+        await onRefreshSourceBooks?.();
+      }
       await refreshOverview();
     } catch (error) {
       onStatus("error", toErrorMessage(error));
@@ -319,6 +468,9 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
       await clearCompendiumItems(token, kind);
       setSelectedIds((current) => ({ ...current, [kind]: null }));
       onStatus("info", `${labelForTab(kind)} cleared.`);
+      if (kind === "books") {
+        await onRefreshSourceBooks?.();
+      }
       await refreshOverview();
     } catch (error) {
       onStatus("error", toErrorMessage(error));
@@ -460,6 +612,99 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                   onChange={(event) => setSearch((current) => ({ ...current, [tab]: event.target.value }))}
                 />
               </label>
+              {tab !== "users" ? (
+                <div className={`grid gap-3 ${currentSecondaryTypeOptions.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
+                  <label className="admin-search-field">
+                    <span>Source</span>
+                    <select
+                      value={activeListControls.source}
+                      onChange={(event) =>
+                        setListControls((current) => ({
+                          ...current,
+                          [tab]: {
+                            ...current[tab],
+                            source: event.target.value
+                          }
+                        }))
+                      }
+                    >
+                      <option value="">All sources</option>
+                      {currentSourceOptions.map((option) => (
+                        <option key={option.value} value={option.value} title={option.label}>
+                          {option.value}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="admin-search-field">
+                    <span>{getPrimaryFilterLabel(tab)}</span>
+                    <select
+                      value={activeListControls.type}
+                      onChange={(event) =>
+                        setListControls((current) => ({
+                          ...current,
+                          [tab]: {
+                            ...current[tab],
+                            type: event.target.value
+                          }
+                        }))
+                      }
+                    >
+                      <option value="">{getPrimaryFilterEmptyLabel(tab)}</option>
+                      {currentTypeOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {currentSecondaryTypeOptions.length > 0 ? (
+                    <label className="admin-search-field">
+                      <span>{getSecondaryFilterLabel(tab)}</span>
+                      <select
+                        value={activeListControls.secondaryType}
+                        onChange={(event) =>
+                          setListControls((current) => ({
+                            ...current,
+                            [tab]: {
+                              ...current[tab],
+                              secondaryType: event.target.value
+                            }
+                          }))
+                        }
+                      >
+                        <option value="">{getSecondaryFilterEmptyLabel(tab)}</option>
+                        {currentSecondaryTypeOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
+                  <label className="admin-search-field">
+                    <span>Sort</span>
+                    <select
+                      value={activeListControls.sort}
+                      onChange={(event) =>
+                        setListControls((current) => ({
+                          ...current,
+                          [tab]: {
+                            ...current[tab],
+                            sort: event.target.value as ListSort
+                          }
+                        }))
+                      }
+                    >
+                      {currentSortOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : null}
               <div className="admin-list-scroll">
                 {tab === "users" &&
                   users.map((user) => (
@@ -481,7 +726,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                   ))}
 
                 {tab === "spells" &&
-                  spells.map((entry) => (
+                  displayedSpells.map((entry) => (
                     <button
                       key={entry.id}
                       type="button"
@@ -494,13 +739,13 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                       </div>
                       <div className="admin-list-badges">
                         <span className="badge subtle">{entry.level === "cantrip" ? "Cantrip" : `Lvl ${entry.level}`}</span>
-                        <span className="badge subtle">{entry.source}</span>
+                        <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>{entry.source}</span>
                       </div>
                     </button>
                   ))}
 
                 {tab === "monsters" &&
-                  monsters.map((entry) => (
+                  displayedMonsters.map((entry) => (
                     <button
                       key={entry.id}
                       type="button"
@@ -513,12 +758,13 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                       </div>
                       <div className="admin-list-badges">
                         <span className="badge subtle">CR {entry.challengeRating}</span>
+                        <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>{entry.source}</span>
                       </div>
                     </button>
                   ))}
 
                 {tab === "feats" &&
-                  feats.map((entry) => (
+                  displayedFeats.map((entry) => (
                     <button
                       key={entry.id}
                       type="button"
@@ -530,13 +776,13 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         <small>{entry.category}</small>
                       </div>
                       <div className="admin-list-badges">
-                        <span className="badge subtle">{entry.source}</span>
+                        <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>{entry.source}</span>
                       </div>
                     </button>
                   ))}
 
                 {tab === "classes" &&
-                  classes.map((entry) => (
+                  displayedClasses.map((entry) => (
                     <button
                       key={entry.id}
                       type="button"
@@ -548,18 +794,19 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         <small>{entry.features.length} features</small>
                       </div>
                       <div className="admin-list-badges">
-                        <span className="badge subtle">{entry.source}</span>
+                        <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>{entry.source}</span>
                       </div>
                     </button>
                   ))}
 
-                {tab === "optionalFeatures" && renderReferenceRows(optionalFeatures, selectedOptionalFeature, "optionalFeatures", setSelectedIds)}
-                {tab === "actions" && renderReferenceRows(actions, selectedAction, "actions", setSelectedIds)}
-                {tab === "backgrounds" && renderReferenceRows(backgrounds, selectedBackground, "backgrounds", setSelectedIds)}
-                {tab === "items" && renderReferenceRows(items, selectedItem, "items", setSelectedIds)}
-                {tab === "languages" && renderReferenceRows(languages, selectedLanguage, "languages", setSelectedIds)}
-                {tab === "races" && renderReferenceRows(races, selectedRace, "races", setSelectedIds)}
-                {tab === "skills" && renderReferenceRows(skills, selectedSkill, "skills", setSelectedIds)}
+                {tab === "books" && renderBookRows(displayedBooks, selectedBook, setSelectedIds)}
+                {tab === "optionalFeatures" && renderReferenceRows(displayedOptionalFeatures, selectedOptionalFeature, "optionalFeatures", setSelectedIds, sourceBookNameById)}
+                {tab === "actions" && renderReferenceRows(displayedActions, selectedAction, "actions", setSelectedIds, sourceBookNameById)}
+                {tab === "backgrounds" && renderReferenceRows(displayedBackgrounds, selectedBackground, "backgrounds", setSelectedIds, sourceBookNameById)}
+                {tab === "items" && renderReferenceRows(displayedItems, selectedItem, "items", setSelectedIds, sourceBookNameById)}
+                {tab === "languages" && renderReferenceRows(displayedLanguages, selectedLanguage, "languages", setSelectedIds, sourceBookNameById)}
+                {tab === "races" && renderReferenceRows(displayedRaces, selectedRace, "races", setSelectedIds, sourceBookNameById)}
+                {tab === "skills" && renderReferenceRows(displayedSkills, selectedSkill, "skills", setSelectedIds, sourceBookNameById)}
 
                 {countForTab(tab, {
                   users: users.length,
@@ -567,6 +814,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                   monsters: monsters.length,
                   feats: feats.length,
                   classes: classes.length,
+                  books: books.length,
                   optionalFeatures: optionalFeatures.length,
                   actions: actions.length,
                   backgrounds: backgrounds.length,
@@ -797,6 +1045,8 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                             <small>Accepted spell files: raw 5etools `spell` JSON or `gendata-spell-source-lookup.json` to enrich imported spells with class references.</small>
                           ) : tab === "classes" ? (
                             <small>Accepted class files: raw 5etools `class` JSON, including `subclass` and `subclassFeature`, or `gendata-subclass-lookup.json` to enrich imported classes with subclass stubs.</small>
+                          ) : tab === "books" ? (
+                            <small>Accepted book files: 5etools `books.json` with `book` entries. Only id, name, group, published, and author are imported.</small>
                           ) : tab === "optionalFeatures" ? (
                             <small>Accepted optional feature files: 5etools `optionalfeatures.json` with `optionalfeature` entries.</small>
                           ) : tab === "items" ? (
@@ -872,6 +1122,11 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         Delete
                       </button>
                     ) : null}
+                    {tab === "books" && selectedBook ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("books", selectedBook.source)}>
+                        Delete
+                      </button>
+                    ) : null}
                     {tab === "optionalFeatures" && selectedOptionalFeature ? (
                       <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("optionalFeatures", selectedOptionalFeature.id)}>
                         Delete
@@ -912,17 +1167,18 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
               </div>
 
               {tab === "users" && (selectedUser ? <UserPreviewCard user={selectedUser} /> : <PreviewPlaceholder title="Users" message="Select a user to inspect details and manage access." />)}
-              {tab === "spells" && (selectedSpell ? <SpellPreviewCard spell={selectedSpell} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Spells" message="Select a spell to preview it here." />)}
-              {tab === "monsters" && (selectedMonster ? <MonsterPreviewCard monster={selectedMonster} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Monsters" message="Select a monster to preview it here." />)}
-              {tab === "feats" && (selectedFeat ? <FeatPreviewCard feat={selectedFeat} spellEntries={overview?.compendium.spells ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Feats" message="Select a feat to preview it here." />)}
-              {tab === "classes" && (selectedClass ? <ClassPreviewCard entry={selectedClass} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} /> : <PreviewPlaceholder title="Classes" message="Select a class to preview it here." />)}
-              {tab === "optionalFeatures" && (selectedOptionalFeature ? <ReferencePreviewCard title="Optional Feature" eyebrow="Optional Feature" entry={selectedOptionalFeature} /> : <PreviewPlaceholder title="Optional Features" message="Select an optional feature to preview it here." />)}
-              {tab === "actions" && (selectedAction ? <ReferencePreviewCard title="Action" eyebrow="Action" entry={selectedAction} /> : <PreviewPlaceholder title="Actions" message="Select an action to preview it here." />)}
-              {tab === "backgrounds" && (selectedBackground ? <ReferencePreviewCard title="Background" eyebrow="Background" entry={selectedBackground} /> : <PreviewPlaceholder title="Backgrounds" message="Select a background to preview it here." />)}
-              {tab === "items" && (selectedItem ? <ReferencePreviewCard title="Item" eyebrow="Item" entry={selectedItem} /> : <PreviewPlaceholder title="Items" message="Select an item to preview it here." />)}
-              {tab === "languages" && (selectedLanguage ? <ReferencePreviewCard title="Language" eyebrow="Language" entry={selectedLanguage} /> : <PreviewPlaceholder title="Languages" message="Select a language to preview it here." />)}
-              {tab === "races" && (selectedRace ? <ReferencePreviewCard title="Race" eyebrow="Race" entry={selectedRace} /> : <PreviewPlaceholder title="Races" message="Select a race to preview it here." />)}
-              {tab === "skills" && (selectedSkill ? <ReferencePreviewCard title="Skill" eyebrow="Skill" entry={selectedSkill} /> : <PreviewPlaceholder title="Skills" message="Select a skill to preview it here." />)}
+              {tab === "spells" && (selectedSpell ? <SpellPreviewCard spell={selectedSpell} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} sourceTitle={sourceBookNameById.get(selectedSpell.source)} /> : <PreviewPlaceholder title="Spells" message="Select a spell to preview it here." />)}
+              {tab === "monsters" && (selectedMonster ? <MonsterPreviewCard monster={selectedMonster} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} sourceTitle={sourceBookNameById.get(selectedMonster.source)} /> : <PreviewPlaceholder title="Monsters" message="Select a monster to preview it here." />)}
+              {tab === "feats" && (selectedFeat ? <FeatPreviewCard feat={selectedFeat} spellEntries={overview?.compendium.spells ?? []} classEntries={overview?.compendium.classes ?? []} sourceTitle={sourceBookNameById.get(selectedFeat.source)} /> : <PreviewPlaceholder title="Feats" message="Select a feat to preview it here." />)}
+              {tab === "classes" && (selectedClass ? <ClassPreviewCard entry={selectedClass} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} sourceTitle={sourceBookNameById.get(selectedClass.source)} /> : <PreviewPlaceholder title="Classes" message="Select a class to preview it here." />)}
+              {tab === "books" && (selectedBook ? <BookPreviewCard entry={selectedBook} /> : <PreviewPlaceholder title="Books" message="Select a book to preview it here." />)}
+              {tab === "optionalFeatures" && (selectedOptionalFeature ? <ReferencePreviewCard title="Optional Feature" eyebrow="Optional Feature" entry={selectedOptionalFeature} sourceTitle={sourceBookNameById.get(selectedOptionalFeature.source)} /> : <PreviewPlaceholder title="Optional Features" message="Select an optional feature to preview it here." />)}
+              {tab === "actions" && (selectedAction ? <ReferencePreviewCard title="Action" eyebrow="Action" entry={selectedAction} sourceTitle={sourceBookNameById.get(selectedAction.source)} /> : <PreviewPlaceholder title="Actions" message="Select an action to preview it here." />)}
+              {tab === "backgrounds" && (selectedBackground ? <ReferencePreviewCard title="Background" eyebrow="Background" entry={selectedBackground} sourceTitle={sourceBookNameById.get(selectedBackground.source)} /> : <PreviewPlaceholder title="Backgrounds" message="Select a background to preview it here." />)}
+              {tab === "items" && (selectedItem ? <ReferencePreviewCard title="Item" eyebrow="Item" entry={selectedItem} sourceTitle={sourceBookNameById.get(selectedItem.source)} /> : <PreviewPlaceholder title="Items" message="Select an item to preview it here." />)}
+              {tab === "languages" && (selectedLanguage ? <ReferencePreviewCard title="Language" eyebrow="Language" entry={selectedLanguage} sourceTitle={sourceBookNameById.get(selectedLanguage.source)} /> : <PreviewPlaceholder title="Languages" message="Select a language to preview it here." />)}
+              {tab === "races" && (selectedRace ? <ReferencePreviewCard title="Race" eyebrow="Race" entry={selectedRace} sourceTitle={sourceBookNameById.get(selectedRace.source)} /> : <PreviewPlaceholder title="Races" message="Select a race to preview it here." />)}
+              {tab === "skills" && (selectedSkill ? <ReferencePreviewCard title="Skill" eyebrow="Skill" entry={selectedSkill} sourceTitle={sourceBookNameById.get(selectedSkill.source)} /> : <PreviewPlaceholder title="Skills" message="Select a skill to preview it here." />)}
             </section>
           </div>
         </div>
@@ -963,6 +1219,10 @@ function resolveImportEntryCount(kind: CompendiumTab, parsed: unknown) {
 
     if (kind === "classes" && isGeneratedSubclassLookupPayload(record)) {
       return countGeneratedSubclassLookupEntries(record);
+    }
+
+    if (kind === "books" && Array.isArray(record.book)) {
+      return record.book.length;
     }
 
     if (kind === "optionalFeatures" && Array.isArray(record.optionalfeature)) {
@@ -1095,7 +1355,8 @@ function renderReferenceRows(
   entries: CompendiumReferenceEntry[],
   selected: CompendiumReferenceEntry | null,
   kind: Extract<CompendiumTab, "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
-  setSelectedIds: Dispatch<SetStateAction<Record<AdminTab, string | null>>>
+  setSelectedIds: Dispatch<SetStateAction<Record<AdminTab, string | null>>>,
+  sourceBookNameById: Map<string, string>
 ) {
   return entries.map((entry) => (
     <button
@@ -1109,8 +1370,349 @@ function renderReferenceRows(
         <small>{entry.category}</small>
       </div>
       <div className="admin-list-badges">
-        <span className="badge subtle">{entry.source}</span>
+        <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>{entry.source}</span>
       </div>
     </button>
   ));
+}
+
+function renderBookRows(
+  entries: CampaignSourceBook[],
+  selected: CampaignSourceBook | null,
+  setSelectedIds: Dispatch<SetStateAction<Record<AdminTab, string | null>>>
+) {
+  return entries.map((entry) => (
+    <button
+      key={entry.source}
+      type="button"
+      className={`admin-list-row ${selected?.source === entry.source ? "is-selected" : ""}`}
+      onClick={() => setSelectedIds((current) => ({ ...current, books: entry.source }))}
+    >
+      <div className="admin-list-main">
+        <strong>{entry.name}</strong>
+        <small>{entry.group}</small>
+      </div>
+      <div className="admin-list-badges">
+        <span className="badge subtle" title={entry.name}>{entry.source}</span>
+        <span className="badge subtle">{entry.published || "Unknown"}</span>
+      </div>
+    </button>
+  ));
+}
+
+function getAdminTabSourceOptions(
+  tab: AdminTab,
+  entries: {
+    spells: SpellEntry[];
+    monsters: Array<{ source: string }>;
+    feats: Array<{ source: string }>;
+    classes: Array<{ source: string }>;
+    books: CampaignSourceBook[];
+    optionalFeatures: CompendiumReferenceEntry[];
+    actions: CompendiumReferenceEntry[];
+    backgrounds: CompendiumReferenceEntry[];
+    items: CompendiumReferenceEntry[];
+    languages: CompendiumReferenceEntry[];
+    races: CompendiumReferenceEntry[];
+    skills: CompendiumReferenceEntry[];
+  }
+) {
+  switch (tab) {
+    case "users":
+      return [];
+    case "books":
+      return entries.books.map((entry) => ({ value: entry.source, label: entry.name }));
+    case "spells":
+      return uniqueOptionObjects(entries.spells.map((entry) => ({ value: normalizeSourceId(entry.source), label: entry.source })));
+    case "monsters":
+      return uniqueOptionObjects(entries.monsters.map((entry) => ({ value: normalizeSourceId(entry.source), label: entry.source })));
+    case "feats":
+      return uniqueOptionObjects(entries.feats.map((entry) => ({ value: normalizeSourceId(entry.source), label: entry.source })));
+    case "classes":
+      return uniqueOptionObjects(entries.classes.map((entry) => ({ value: normalizeSourceId(entry.source), label: entry.source })));
+    case "optionalFeatures":
+    case "actions":
+    case "backgrounds":
+    case "items":
+    case "languages":
+    case "races":
+    case "skills":
+      return uniqueOptionObjects(entries[tab].map((entry) => ({ value: normalizeSourceId(entry.source), label: entry.source })));
+  }
+}
+
+function getAdminTabTypeOptions(
+  tab: AdminTab,
+  entries: {
+    spells: SpellEntry[];
+    monsters: Array<{ challengeRating: string }>;
+    feats: Array<{ category: string }>;
+    classes: Array<unknown>;
+    books: CampaignSourceBook[];
+    optionalFeatures: CompendiumReferenceEntry[];
+    actions: CompendiumReferenceEntry[];
+    backgrounds: CompendiumReferenceEntry[];
+    items: CompendiumReferenceEntry[];
+    languages: CompendiumReferenceEntry[];
+    races: CompendiumReferenceEntry[];
+    skills: CompendiumReferenceEntry[];
+  }
+) {
+  switch (tab) {
+    case "users":
+    case "classes":
+      return [];
+    case "spells":
+      return uniqueStrings(entries.spells.map((entry) => entry.school));
+    case "monsters":
+      return uniqueStrings(entries.monsters.map((entry) => entry.challengeRating));
+    case "feats":
+      return uniqueStrings(entries.feats.map((entry) => entry.category));
+    case "books":
+      return uniqueStrings(entries.books.map((entry) => entry.group));
+    case "optionalFeatures":
+    case "actions":
+    case "backgrounds":
+    case "items":
+    case "languages":
+    case "races":
+    case "skills":
+      return uniqueStrings(entries[tab].map((entry) => entry.category));
+  }
+}
+
+function getAdminTabSecondaryTypeOptions(
+  tab: AdminTab,
+  entries: {
+    spells: SpellEntry[];
+    monsters: Array<{ creatureType: string }>;
+  }
+) {
+  switch (tab) {
+    case "spells":
+      return uniqueStrings(entries.spells.map((entry) => String(entry.level)));
+    case "monsters":
+      return uniqueStrings(entries.monsters.map((entry) => entry.creatureType));
+    default:
+      return [];
+  }
+}
+
+function getSortOptionsForTab(tab: AdminTab): Array<{ value: ListSort; label: string }> {
+  switch (tab) {
+    case "users":
+      return [{ value: "name-asc", label: "Name A-Z" }];
+    case "spells":
+      return [
+        { value: "name-asc", label: "Name A-Z" },
+        { value: "source-asc", label: "Source A-Z" },
+        { value: "level-asc", label: "Level Low-High" },
+        { value: "level-desc", label: "Level High-Low" }
+      ];
+    case "monsters":
+      return [
+        { value: "name-asc", label: "Name A-Z" },
+        { value: "source-asc", label: "Source A-Z" },
+        { value: "cr-asc", label: "CR Low-High" },
+        { value: "cr-desc", label: "CR High-Low" }
+      ];
+    case "books":
+      return [
+        { value: "published-desc", label: "Published New-Old" },
+        { value: "published-asc", label: "Published Old-New" },
+        { value: "name-asc", label: "Name A-Z" },
+        { value: "source-asc", label: "ID A-Z" }
+      ];
+    case "classes":
+      return [
+        { value: "name-asc", label: "Name A-Z" },
+        { value: "source-asc", label: "Source A-Z" }
+      ];
+    default:
+      return [
+        { value: "name-asc", label: "Name A-Z" },
+        { value: "source-asc", label: "Source A-Z" },
+        { value: "category-asc", label: "Category A-Z" }
+      ];
+  }
+}
+
+function filterAndSortSpells(entries: SpellEntry[], controls: ListControlsState) {
+  return [...entries]
+    .filter((entry) => !controls.source || normalizeSourceId(entry.source) === controls.source)
+    .filter((entry) => !controls.type || entry.school === controls.type)
+    .filter((entry) => !controls.secondaryType || String(entry.level) === controls.secondaryType)
+    .sort((left, right) => compareValues(left, right, controls.sort, {
+      categoryLeft: left.school,
+      categoryRight: right.school,
+      levelLeft: left.level === "cantrip" ? 0 : left.level,
+      levelRight: right.level === "cantrip" ? 0 : right.level
+    }));
+}
+
+function filterAndSortMonsters<T extends { id: string; name: string; source: string; challengeRating: string; creatureType: string }>(entries: T[], controls: ListControlsState) {
+  return [...entries]
+    .filter((entry) => !controls.source || normalizeSourceId(entry.source) === controls.source)
+    .filter((entry) => !controls.type || entry.challengeRating === controls.type)
+    .filter((entry) => !controls.secondaryType || entry.creatureType === controls.secondaryType)
+    .sort((left, right) => compareValues(left, right, controls.sort, {
+      categoryLeft: left.challengeRating,
+      categoryRight: right.challengeRating,
+      crLeft: parseChallengeRating(left.challengeRating),
+      crRight: parseChallengeRating(right.challengeRating)
+    }));
+}
+
+function filterAndSortClasses<T extends { name: string; source: string }>(entries: T[], controls: ListControlsState) {
+  return [...entries]
+    .filter((entry) => !controls.source || normalizeSourceId(entry.source) === controls.source)
+    .sort((left, right) => compareValues(left, right, controls.sort));
+}
+
+function filterAndSortReferences<T extends { name: string; source: string; category: string }>(entries: T[], controls: ListControlsState) {
+  return [...entries]
+    .filter((entry) => !controls.source || normalizeSourceId(entry.source) === controls.source)
+    .filter((entry) => !controls.type || entry.category === controls.type)
+    .sort((left, right) => compareValues(left, right, controls.sort, {
+      categoryLeft: left.category,
+      categoryRight: right.category
+    }));
+}
+
+function filterAndSortBooks(entries: CampaignSourceBook[], controls: ListControlsState) {
+  return [...entries]
+    .filter((entry) => !controls.source || entry.source === controls.source)
+    .filter((entry) => !controls.type || entry.group === controls.type)
+    .sort((left, right) => compareValues(left, right, controls.sort, {
+      categoryLeft: left.group,
+      categoryRight: right.group,
+      publishedLeft: left.published,
+      publishedRight: right.published
+    }));
+}
+
+function compareValues(
+  left: { name: string; source: string },
+  right: { name: string; source: string },
+  sort: ListSort,
+  extra?: {
+    categoryLeft?: string;
+    categoryRight?: string;
+    publishedLeft?: string;
+    publishedRight?: string;
+    levelLeft?: number;
+    levelRight?: number;
+    crLeft?: number;
+    crRight?: number;
+  }
+) {
+  switch (sort) {
+    case "name-desc":
+      return right.name.localeCompare(left.name);
+    case "source-asc":
+      return left.source.localeCompare(right.source) || left.name.localeCompare(right.name);
+    case "source-desc":
+      return right.source.localeCompare(left.source) || left.name.localeCompare(right.name);
+    case "category-asc":
+      return (extra?.categoryLeft ?? "").localeCompare(extra?.categoryRight ?? "") || left.name.localeCompare(right.name);
+    case "category-desc":
+      return (extra?.categoryRight ?? "").localeCompare(extra?.categoryLeft ?? "") || left.name.localeCompare(right.name);
+    case "published-asc":
+      return (extra?.publishedLeft ?? "").localeCompare(extra?.publishedRight ?? "") || left.name.localeCompare(right.name);
+    case "published-desc":
+      return (extra?.publishedRight ?? "").localeCompare(extra?.publishedLeft ?? "") || left.name.localeCompare(right.name);
+    case "level-asc":
+      return (extra?.levelLeft ?? 0) - (extra?.levelRight ?? 0) || left.name.localeCompare(right.name);
+    case "level-desc":
+      return (extra?.levelRight ?? 0) - (extra?.levelLeft ?? 0) || left.name.localeCompare(right.name);
+    case "cr-asc":
+      return (extra?.crLeft ?? 0) - (extra?.crRight ?? 0) || left.name.localeCompare(right.name);
+    case "cr-desc":
+      return (extra?.crRight ?? 0) - (extra?.crLeft ?? 0) || left.name.localeCompare(right.name);
+    case "name-asc":
+    default:
+      return left.name.localeCompare(right.name);
+  }
+}
+
+function parseChallengeRating(value: string) {
+  if (value.includes("/")) {
+    const [numerator, denominator] = value.split("/").map((entry) => Number(entry));
+    return denominator ? numerator / denominator : 0;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getPrimaryFilterLabel(tab: AdminTab) {
+  switch (tab) {
+    case "books":
+      return "Group";
+    case "spells":
+      return "School";
+    case "monsters":
+      return "CR";
+    default:
+      return "Category";
+  }
+}
+
+function getPrimaryFilterEmptyLabel(tab: AdminTab) {
+  switch (tab) {
+    case "books":
+      return "All groups";
+    case "spells":
+      return "All schools";
+    case "monsters":
+      return "All CR";
+    default:
+      return "All categories";
+  }
+}
+
+function getSecondaryFilterLabel(tab: AdminTab) {
+  switch (tab) {
+    case "spells":
+      return "Level";
+    case "monsters":
+      return "Type";
+    default:
+      return "Type";
+  }
+}
+
+function getSecondaryFilterEmptyLabel(tab: AdminTab) {
+  switch (tab) {
+    case "spells":
+      return "All levels";
+    case "monsters":
+      return "All monster types";
+    default:
+      return "All types";
+  }
+}
+
+function normalizeSourceId(source: string) {
+  return source.split(/\s+p\.\d+/i)[0]?.trim() ?? source.trim();
+}
+
+function uniqueOptionObjects(values: Array<{ value: string; label: string }>) {
+  const seen = new Set<string>();
+  return values.filter((entry) => {
+    if (!entry.value || seen.has(entry.value)) {
+      return false;
+    }
+
+    seen.add(entry.value);
+    return true;
+  }).sort((left, right) => left.value.localeCompare(right.value));
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean))).sort((left, right) => left.localeCompare(right));
+}
+
+function resolveSelectedByKey<T>(entries: T[], selectedKey: string | null, readKey: (entry: T) => string) {
+  return entries.find((entry) => readKey(entry) === selectedKey) ?? entries[0] ?? null;
 }

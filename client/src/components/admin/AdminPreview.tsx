@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { ClassEntry, CompendiumReferenceEntry, FeatEntry, MonsterActionEntry, MonsterTemplate, SpellEntry, UserProfile } from "@shared/types";
+import type { CampaignSourceBook, ClassEntry, CompendiumReferenceEntry, FeatEntry, MonsterActionEntry, MonsterTemplate, SpellEntry, UserProfile } from "@shared/types";
 import { resolveAssetUrl } from "../../lib/assets";
 
 interface RulesLookupData {
@@ -13,6 +13,7 @@ interface PreviewFrameProps {
   eyebrow: string;
   title: string;
   source?: string;
+  sourceTitle?: string;
   subtitle?: string;
   children: ReactNode;
 }
@@ -77,11 +78,13 @@ export function UserPreviewCard({ user }: { user: UserProfile }) {
 export function SpellPreviewCard({
   spell,
   featEntries = [],
-  classEntries = []
+  classEntries = [],
+  sourceTitle
 }: {
   spell: SpellEntry | Omit<SpellEntry, "id">;
   featEntries?: FeatEntry[];
   classEntries?: ClassEntry[];
+  sourceTitle?: string;
 }) {
   const subtitle =
     spell.level === "cantrip" ? `${spell.school} Cantrip` : `${spell.school} Level ${spell.level}`;
@@ -96,7 +99,7 @@ export function SpellPreviewCard({
   const referencingClasses = getReferencingClassesForSpell(spell.name, classEntries);
 
   return (
-    <PreviewFrame eyebrow="Spell" title={spell.name} source={spell.source} subtitle={subtitle}>
+    <PreviewFrame eyebrow="Spell" title={spell.name} source={spell.source} sourceTitle={sourceTitle} subtitle={subtitle}>
       <div className="admin-preview-stack">
         <div className="admin-preview-rules">
           <div><strong>Casting Time:</strong> {formatSpellTime(spell)}</div>
@@ -136,18 +139,20 @@ export function SpellPreviewCard({
 export function FeatPreviewCard({
   feat,
   spellEntries = [],
-  classEntries = []
+  classEntries = [],
+  sourceTitle
 }: {
   feat: FeatEntry | Omit<FeatEntry, "id">;
   spellEntries?: SpellEntry[];
   classEntries?: ClassEntry[];
+  sourceTitle?: string;
 }) {
   const subtitle = feat.prerequisites
     ? `${feat.category} (Prerequisites: ${feat.prerequisites})`
     : feat.category;
 
   return (
-    <PreviewFrame eyebrow="Feat" title={feat.name} source={feat.source} subtitle={subtitle}>
+    <PreviewFrame eyebrow="Feat" title={feat.name} source={feat.source} sourceTitle={sourceTitle} subtitle={subtitle}>
       <div className="admin-preview-stack">
         {feat.abilityScoreIncrease && (
           <p className="admin-preview-body">
@@ -164,12 +169,14 @@ export function MonsterPreviewCard({
   monster,
   spellEntries = [],
   featEntries = [],
-  classEntries = []
+  classEntries = [],
+  sourceTitle
 }: {
   monster: MonsterTemplate | Omit<MonsterTemplate, "id">;
   spellEntries?: SpellEntry[];
   featEntries?: FeatEntry[];
   classEntries?: ClassEntry[];
+  sourceTitle?: string;
 }) {
   const speedModes = [
     monster.speedModes.walk ? `${monster.speedModes.walk} ft.` : null,
@@ -186,6 +193,7 @@ export function MonsterPreviewCard({
       eyebrow="Monster"
       title={monster.name}
       source={monster.source}
+      sourceTitle={sourceTitle}
       subtitle={`CR ${monster.challengeRating}${monster.xp ? ` (${monster.xp.toLocaleString()} XP)` : ""}`}
     >
       <div className="admin-monster-preview-head">
@@ -273,17 +281,19 @@ export function MonsterPreviewCard({
 export function ClassPreviewCard({
   entry,
   spellEntries = [],
-  featEntries = []
+  featEntries = [],
+  sourceTitle
 }: {
   entry: ClassEntry | Omit<ClassEntry, "id">;
   spellEntries?: SpellEntry[];
   featEntries?: FeatEntry[];
+  sourceTitle?: string;
 }) {
   const normalizedDescription = normalizeClassPreviewDescription(entry);
   const referencedSpells = getReferencedSpellsForClass(entry, spellEntries);
 
   return (
-    <PreviewFrame eyebrow="Class" title={entry.name} source={entry.source}>
+    <PreviewFrame eyebrow="Class" title={entry.name} source={entry.source} sourceTitle={sourceTitle}>
       <div className="admin-preview-stack">
         <div className="admin-preview-rules">
           {entry.hitDieFaces > 0 && <div><strong>Hit Die:</strong> d{entry.hitDieFaces}</div>}
@@ -379,14 +389,16 @@ export function ClassPreviewCard({
 export function ReferencePreviewCard({
   title,
   eyebrow,
-  entry
+  entry,
+  sourceTitle
 }: {
   title: string;
   eyebrow: string;
   entry: CompendiumReferenceEntry;
+  sourceTitle?: string;
 }) {
   return (
-    <PreviewFrame eyebrow={eyebrow} title={entry.name} source={entry.source} subtitle={entry.category}>
+    <PreviewFrame eyebrow={eyebrow} title={entry.name} source={entry.source} sourceTitle={sourceTitle} subtitle={entry.category}>
       <div className="admin-preview-stack">
         <p className="admin-preview-body">
           <RulesText text={entry.description} />
@@ -401,7 +413,24 @@ export function ReferencePreviewCard({
   );
 }
 
-function PreviewFrame({ eyebrow, title, source, subtitle, children }: PreviewFrameProps) {
+export function BookPreviewCard({ entry }: { entry: CampaignSourceBook }) {
+  return (
+    <PreviewFrame eyebrow="Book" title={entry.name} source={entry.source} sourceTitle={entry.name} subtitle={entry.group}>
+      <div className="admin-preview-stack">
+        <div className="admin-preview-keyvalue">
+          <span>Published</span>
+          <strong>{entry.published || "Unknown"}</strong>
+        </div>
+        <div className="admin-preview-keyvalue">
+          <span>Author</span>
+          <strong>{entry.author || "Unknown"}</strong>
+        </div>
+      </div>
+    </PreviewFrame>
+  );
+}
+
+function PreviewFrame({ eyebrow, title, source, sourceTitle, subtitle, children }: PreviewFrameProps) {
   return (
     <section className="admin-preview-card">
       <header className="admin-preview-header">
@@ -410,7 +439,7 @@ function PreviewFrame({ eyebrow, title, source, subtitle, children }: PreviewFra
           <h3 className="admin-preview-title">{title}</h3>
           {subtitle ? <p className="admin-preview-subtitle">{subtitle}</p> : null}
         </div>
-        {source ? <span className="admin-preview-source">{source}</span> : null}
+        {source ? <span className="admin-preview-source" title={sourceTitle ?? source}>{source}</span> : null}
       </header>
       <div className="admin-preview-divider" />
       {children}

@@ -50,6 +50,8 @@ export function readCompendiumCollection<K extends CompendiumCollectionKind>(
       return readFeatEntries(database) as CompendiumData[K];
     case "classes":
       return readClassEntries(database) as CompendiumData[K];
+    case "books":
+      return readBookEntries(database) as CompendiumData[K];
     case "optionalFeatures":
     case "actions":
     case "backgrounds":
@@ -62,30 +64,7 @@ export function readCompendiumCollection<K extends CompendiumCollectionKind>(
 }
 
 export function readCompendiumSourceBooks(database: DatabaseSync): CampaignSourceBook[] {
-  const counts = new Map<string, number>();
-
-  readAll<{ source: string }>(
-    database,
-    `
-      SELECT source FROM compendium_spells
-      UNION ALL SELECT source FROM compendium_monsters
-      UNION ALL SELECT source FROM compendium_feats
-      UNION ALL SELECT source FROM compendium_classes
-      UNION ALL SELECT source FROM compendium_references
-    `
-  ).forEach((row) => {
-    const source = normalizeCompendiumBookSource(row.source);
-
-    if (!source) {
-      return;
-    }
-
-    counts.set(source, (counts.get(source) ?? 0) + 1);
-  });
-
-  return Array.from(counts.entries())
-    .map(([source, entryCount]) => ({ source, entryCount }))
-    .sort((left, right) => left.source.localeCompare(right.source));
+  return readBookEntries(database);
 }
 
 export function readMonsterTemplateById(database: DatabaseSync, monsterId: string): MonsterTemplate | null {
@@ -114,6 +93,10 @@ export function compendiumEntryExists(
     case "classes":
       return Boolean(
         database.prepare("SELECT 1 FROM compendium_classes WHERE id = ? LIMIT 1").get(entryId)
+      );
+    case "books":
+      return Boolean(
+        database.prepare("SELECT 1 FROM compendium_books WHERE source = ? LIMIT 1").get(entryId)
       );
     case "optionalFeatures":
     case "actions":
@@ -271,6 +254,7 @@ function readMonsterEntries(database: DatabaseSync, monsterId?: string): Monster
     name: string;
     source: string;
     challengeRating: string;
+    creatureType: string;
     armorClass: number;
     hitPoints: number;
     initiative: number;
@@ -317,6 +301,7 @@ function readMonsterEntries(database: DatabaseSync, monsterId?: string): Monster
         name,
         source,
         challenge_rating as challengeRating,
+        creature_type as creatureType,
         armor_class as armorClass,
         hit_points as hitPoints,
         initiative,
@@ -365,6 +350,7 @@ function readMonsterEntries(database: DatabaseSync, monsterId?: string): Monster
     name: row.name,
     source: row.source,
     challengeRating: row.challengeRating,
+    creatureType: row.creatureType,
     armorClass: row.armorClass,
     hitPoints: row.hitPoints,
     initiative: row.initiative,
@@ -648,8 +634,32 @@ function readReferenceEntries(
   }));
 }
 
-function normalizeCompendiumBookSource(source: string) {
-  return source.split(/\s+p\.\d+/i)[0]?.trim() ?? "";
+function readBookEntries(database: DatabaseSync): CampaignSourceBook[] {
+  return readAll<{
+    source: string;
+    name: string;
+    groupName: string;
+    published: string;
+    author: string;
+  }>(
+    database,
+    `
+      SELECT
+        source,
+        name,
+        group_name as groupName,
+        published,
+        author
+      FROM compendium_books
+      ORDER BY sort_order, name, source
+    `
+  ).map((row) => ({
+    source: row.source,
+    name: row.name,
+    group: row.groupName,
+    published: row.published,
+    author: row.author
+  }));
 }
 
 export function insertCompendiumEntriesAtStart<K extends CompendiumCollectionKind>(
@@ -684,7 +694,7 @@ export function upsertCompendiumEntry<K extends CompendiumCollectionKind>(
   entry: CompendiumData[K][number]
 ) {
   const sortOrder =
-    readExistingCompendiumSortOrder(database, kind, entry.id) ??
+    readExistingCompendiumSortOrder(database, kind, getCompendiumEntryKey(entry)) ??
     readNextCompendiumSortOrder(database, kind);
 
   writeCompendiumEntry(database, kind, entry, sortOrder);
@@ -707,6 +717,9 @@ export function deleteCompendiumEntryRecord(
       return;
     case "classes":
       database.prepare("DELETE FROM compendium_classes WHERE id = ?").run(entryId);
+      return;
+    case "books":
+      database.prepare("DELETE FROM compendium_books WHERE source = ?").run(entryId);
       return;
     case "optionalFeatures":
     case "actions":
@@ -735,6 +748,9 @@ export function clearCompendiumCollection(database: DatabaseSync, kind: Compendi
       return;
     case "classes":
       database.prepare("DELETE FROM compendium_classes").run();
+      return;
+    case "books":
+      database.prepare("DELETE FROM compendium_books").run();
       return;
     case "optionalFeatures":
     case "actions":
@@ -769,6 +785,9 @@ function shiftCompendiumSortOrders(
       return;
     case "classes":
       database.prepare("UPDATE compendium_classes SET sort_order = sort_order + ?").run(amount);
+      return;
+    case "books":
+      database.prepare("UPDATE compendium_books SET sort_order = sort_order + ?").run(amount);
       return;
     case "optionalFeatures":
     case "actions":
@@ -811,6 +830,12 @@ function readExistingCompendiumSortOrder(
     case "classes": {
       const row = database
         .prepare("SELECT sort_order as sortOrder FROM compendium_classes WHERE id = ? LIMIT 1")
+        .get(entryId) as { sortOrder: number } | undefined;
+      return row?.sortOrder ?? null;
+    }
+    case "books": {
+      const row = database
+        .prepare("SELECT sort_order as sortOrder FROM compendium_books WHERE source = ? LIMIT 1")
         .get(entryId) as { sortOrder: number } | undefined;
       return row?.sortOrder ?? null;
     }
@@ -857,6 +882,12 @@ function readNextCompendiumSortOrder(database: DatabaseSync, kind: CompendiumCol
         .get() as { nextSortOrder: number };
       return row.nextSortOrder;
     }
+    case "books": {
+      const row = database
+        .prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 as nextSortOrder FROM compendium_books")
+        .get() as { nextSortOrder: number };
+      return row.nextSortOrder;
+    }
     case "optionalFeatures":
     case "actions":
     case "backgrounds":
@@ -892,6 +923,9 @@ function writeCompendiumEntry<K extends CompendiumCollectionKind>(
       return;
     case "classes":
       upsertClassEntry(database, entry as ClassEntry, sortOrder);
+      return;
+    case "books":
+      upsertBookEntry(database, entry as CampaignSourceBook, sortOrder);
       return;
     case "optionalFeatures":
     case "actions":
@@ -1001,7 +1035,7 @@ function upsertMonsterEntry(database: DatabaseSync, monster: MonsterTemplate, so
     .prepare(
       `
         INSERT INTO compendium_monsters (
-          id, sort_order, name, source, challenge_rating, armor_class, hit_points,
+          id, sort_order, name, source, challenge_rating, creature_type, armor_class, hit_points,
           initiative,
           speed_walk, speed_fly, speed_burrow, speed_swim, speed_climb,
           ability_str, ability_dex, ability_con, ability_int, ability_wis, ability_cha,
@@ -1010,12 +1044,13 @@ function upsertMonsterEntry(database: DatabaseSync, monster: MonsterTemplate, so
           traits_json, actions_json, bonus_actions_json, reactions_json, legendary_actions_json,
           legendary_actions_use, lair_actions_json, regional_effects_json, spells_json, spellcasting_json,
           habitat, treasure, image_url, color
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           sort_order = excluded.sort_order,
           name = excluded.name,
           source = excluded.source,
           challenge_rating = excluded.challenge_rating,
+          creature_type = excluded.creature_type,
           armor_class = excluded.armor_class,
           hit_points = excluded.hit_points,
           initiative = excluded.initiative,
@@ -1062,6 +1097,7 @@ function upsertMonsterEntry(database: DatabaseSync, monster: MonsterTemplate, so
       monster.name,
       monster.source,
       monster.challengeRating,
+      monster.creatureType,
       monster.armorClass,
       monster.hitPoints,
       monster.initiative,
@@ -1265,6 +1301,41 @@ function upsertReferenceEntry(
       entry.description,
       JSON.stringify(entry.tags)
     );
+}
+
+function upsertBookEntry(
+  database: DatabaseSync,
+  entry: CampaignSourceBook,
+  sortOrder: number
+) {
+  database
+    .prepare(
+      `
+        INSERT INTO compendium_books (
+          source, sort_order, name, group_name, published, author
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(source) DO UPDATE SET
+          sort_order = excluded.sort_order,
+          name = excluded.name,
+          group_name = excluded.group_name,
+          published = excluded.published,
+          author = excluded.author
+      `
+    )
+    .run(
+      entry.source,
+      sortOrder,
+      entry.name,
+      entry.group,
+      entry.published,
+      entry.author
+    );
+}
+
+function getCompendiumEntryKey(
+  entry: CompendiumData[CompendiumCollectionKind][number]
+) {
+  return "id" in entry ? entry.id : entry.source;
 }
 
 function ensureSpellClassReferences(spell: SpellEntry): SpellClassReference[] {

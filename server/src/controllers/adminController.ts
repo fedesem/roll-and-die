@@ -6,6 +6,7 @@ import {
   createClassBodySchema,
   createActionBodySchema,
   createBackgroundBodySchema,
+  createBookBodySchema,
   createFeatBodySchema,
   createItemBodySchema,
   createLanguageBodySchema,
@@ -16,6 +17,7 @@ import {
   createSpellBodySchema,
   importActionsBodySchema,
   importBackgroundsBodySchema,
+  importBooksBodySchema,
   importClassesBodySchema,
   importFeatsBodySchema,
   importItemsBodySchema,
@@ -81,6 +83,8 @@ function parseCompendiumCreateBody(kind: CompendiumKind, value: unknown) {
       return parseWithSchema(createFeatBodySchema, value);
     case "classes":
       return parseWithSchema(createClassBodySchema, value);
+    case "books":
+      return parseWithSchema(createBookBodySchema, value);
     case "optionalFeatures":
       return parseWithSchema(createOptionalFeatureBodySchema, value);
     case "actions":
@@ -108,6 +112,8 @@ function parseCompendiumImportBody(kind: CompendiumKind, value: unknown) {
       return parseWithSchema(importFeatsBodySchema, value);
     case "classes":
       return parseWithSchema(importClassesBodySchema, value);
+    case "books":
+      return parseWithSchema(importBooksBodySchema, value);
     case "optionalFeatures":
       return parseWithSchema(importOptionalFeaturesBodySchema, value);
     case "actions":
@@ -131,6 +137,7 @@ function readAdminCompendium(database: DatabaseSync) {
     monsters: readCompendiumCollection(database, "monsters"),
     feats: readCompendiumCollection(database, "feats"),
     classes: readCompendiumCollection(database, "classes"),
+    books: readCompendiumCollection(database, "books"),
     optionalFeatures: readCompendiumCollection(database, "optionalFeatures"),
     actions: readCompendiumCollection(database, "actions"),
     backgrounds: readCompendiumCollection(database, "backgrounds"),
@@ -271,9 +278,10 @@ export const adminController = {
     requireAdmin(request);
     const kind = parseWithSchema(compendiumKindSchema, request.params.kind, "Invalid compendium type.");
     const entry = sanitizeCompendiumEntry(kind, parseCompendiumCreateBody(kind, request.body));
+    const entryKey = "id" in entry ? entry.id : entry.source;
 
     const created = await runStoreTransaction((database) => {
-      if (compendiumEntryExists(database, kind, entry.id)) {
+      if (compendiumEntryExists(database, kind, entryKey)) {
         throw new HttpError(409, "An entry with that id already exists.");
       }
 
@@ -333,15 +341,16 @@ export const adminController = {
 
     const result = await runStoreTransaction((database) => {
       const collection = readCompendiumCollection(database, kind);
-      const existingIds = new Set(collection.map((entry) => entry.id));
+      const existingIds = new Set(collection.map((entry) => ("id" in entry ? entry.id : entry.source)));
       const insertedIds = new Set<string>();
-      const next = entries.filter((entry) => !existingIds.has(entry.id));
+      const next = entries.filter((entry) => !existingIds.has("id" in entry ? entry.id : entry.source));
       const uniqueNext = next.filter((entry) => {
-        if (insertedIds.has(entry.id)) {
+        const entryKey = "id" in entry ? entry.id : entry.source;
+        if (insertedIds.has(entryKey)) {
           return false;
         }
 
-        insertedIds.add(entry.id);
+        insertedIds.add(entryKey);
         return true;
       });
 

@@ -311,6 +311,7 @@ export const monsterTemplateSchema: z.ZodType<MonsterTemplate> = z.object({
   name: trimmedString,
   source: trimmedString,
   challengeRating: trimmedString,
+  creatureType: trimmedString,
   armorClass: finiteNumber,
   hitPoints: finiteNumber,
   initiative: finiteNumber,
@@ -511,6 +512,15 @@ export const compendiumDataSchema: z.ZodType<CompendiumData> = z.object({
   monsters: z.array(monsterTemplateSchema),
   feats: z.array(featEntrySchema),
   classes: z.array(classEntrySchema),
+  books: z.array(
+    z.object({
+      source: trimmedString,
+      name: trimmedString,
+      group: trimmedString,
+      published: trimmedString,
+      author: trimmedString
+    })
+  ),
   optionalFeatures: z.array(compendiumReferenceEntrySchema),
   actions: z.array(compendiumReferenceEntrySchema),
   backgrounds: z.array(compendiumReferenceEntrySchema),
@@ -538,7 +548,10 @@ export const campaignInviteSchema: z.ZodType<CampaignInvite> = z.object({
 
 export const campaignSourceBookSchema: z.ZodType<CampaignSourceBook> = z.object({
   source: trimmedString,
-  entryCount: finiteNumber
+  name: trimmedString,
+  group: trimmedString,
+  published: trimmedString,
+  author: trimmedString
 });
 
 export const pointSchema: z.ZodType<Point> = z.object({
