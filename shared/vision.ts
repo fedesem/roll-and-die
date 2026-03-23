@@ -128,7 +128,7 @@ export function computeVisibleCellsForUser({
   const actorById = new Map(actors.map((actor) => [actor.id, actor]));
   const controlledEntries = tokens.flatMap<VisibleActorTokenEntry>((token) => {
     const actor = actorById.get(token.actorId);
-    return token.mapId === map.id && actor?.kind === "character" && actor.ownerId === userId ? [{ actor, token }] : [];
+    return token.mapId === map.id && actor?.ownerId === userId ? [{ actor, token }] : [];
   });
 
   return computeVisibleCellsForActorTokens(map, controlledEntries);

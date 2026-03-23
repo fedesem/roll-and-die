@@ -207,7 +207,7 @@ function buildVisibleActorForConnection(connection: RoomConnection, actor: Actor
     return null;
   }
 
-  if (connection.role === "dm" || (actor.kind === "character" && actor.ownerId === connection.user.id)) {
+  if (connection.role === "dm" || actor.ownerId === connection.user.id) {
     return {
       ...actor,
       sheetAccess: "full"
@@ -872,7 +872,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         }
 
         if (!canToggleDoor(role, user.id, campaign, activeMap, door)) {
-          throw new HttpError(403, "Move a controlled character next to the door first.");
+          throw new HttpError(403, "Move a controlled actor next to the door first.");
         }
 
         const previousExploration = captureExplorationForMap(campaign, activeMap.id);

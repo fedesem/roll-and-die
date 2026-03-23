@@ -235,8 +235,8 @@ export async function createActorCommand(params: {
   return runCampaignTransaction(params.campaignId, (database) => {
     const role = requireCampaignMemberRole(database, params.campaignId, params.user.id);
 
-    if (role !== "dm" && params.kind !== "character") {
-      throw new HttpError(403, "Players can only create characters.");
+    if (role !== "dm" && params.kind !== "character" && params.kind !== "monster") {
+      throw new HttpError(403, "Players can only create characters or player-owned monsters.");
     }
 
     const actor = createDefaultActor(params.campaignId, params.user.id, params.name, params.kind, role);
@@ -331,7 +331,7 @@ export async function createMonsterActorCommand(params: {
   const imageUrl = await externalizeImageUrl(template.imageUrl, "actors");
 
   return runCampaignTransaction(params.campaignId, (database) => {
-    requireDungeonMasterForCampaign(database, params.campaignId, params.userId);
+    requireCampaignMemberRole(database, params.campaignId, params.userId);
 
     const actor = createMonsterActor(params.campaignId, params.userId, template);
     actor.imageUrl = imageUrl;
@@ -346,15 +346,15 @@ export async function deleteActorCommand(params: {
   userId: string;
 }) {
   return runCampaignTransaction(params.campaignId, (database) => {
-    requireDungeonMasterForCampaign(database, params.campaignId, params.userId);
+    const role = requireCampaignMemberRole(database, params.campaignId, params.userId);
     const actor = readActorById(database, params.campaignId, params.actorId);
 
     if (!actor) {
       throw new HttpError(404, "Actor not found.");
     }
 
-    if (actor.ownerId !== params.userId) {
-      throw new HttpError(403, "You can only delete actors you own.");
+    if (!canManageActor(role, params.userId, actor)) {
+      throw new HttpError(403, "You cannot delete that actor.");
     }
 
     const removedAssignments = readMapAssignmentsForActor(database, params.campaignId, params.actorId);
@@ -463,14 +463,24 @@ export async function assignActorToMapCommand(params: {
   userId: string;
 }) {
   return runCampaignTransaction(params.campaignId, (database) => {
-    requireDungeonMasterForCampaign(database, params.campaignId, params.userId);
+    const role = requireCampaignMemberRole(database, params.campaignId, params.userId);
+    const campaignCore = requireCampaignCore(database, params.campaignId);
+    const actor = readActorById(database, params.campaignId, params.actorId);
 
     if (!readMapExists(database, params.campaignId, params.mapId)) {
       throw new HttpError(404, "Map not found.");
     }
 
-    if (!readChatActorContextById(database, params.campaignId, params.actorId)) {
+    if (!actor) {
       throw new HttpError(404, "Actor not found.");
+    }
+
+    if (!canManageActor(role, params.userId, actor)) {
+      throw new HttpError(403, "You cannot assign that actor.");
+    }
+
+    if (role !== "dm" && params.mapId !== campaignCore.activeMapId) {
+      throw new HttpError(403, "Players can only assign owned actors to the active map.");
     }
 
     if (!readMapAssignment(database, params.campaignId, params.mapId, params.actorId)) {
@@ -501,14 +511,24 @@ export async function removeActorFromMapCommand(params: {
   userId: string;
 }) {
   return runCampaignTransaction(params.campaignId, (database) => {
-    requireDungeonMasterForCampaign(database, params.campaignId, params.userId);
+    const role = requireCampaignMemberRole(database, params.campaignId, params.userId);
+    const campaignCore = requireCampaignCore(database, params.campaignId);
+    const actor = readActorById(database, params.campaignId, params.actorId);
 
     if (!readMapExists(database, params.campaignId, params.mapId)) {
       throw new HttpError(404, "Map not found.");
     }
 
-    if (!readChatActorContextById(database, params.campaignId, params.actorId)) {
+    if (!actor) {
       throw new HttpError(404, "Actor not found.");
+    }
+
+    if (!canManageActor(role, params.userId, actor)) {
+      throw new HttpError(403, "You cannot remove that actor from the map.");
+    }
+
+    if (role !== "dm" && params.mapId !== campaignCore.activeMapId) {
+      throw new HttpError(403, "Players can only remove owned actors from the active map.");
     }
 
     if (!readMapAssignment(database, params.campaignId, params.mapId, params.actorId)) {

@@ -188,7 +188,7 @@ export function updateExplorationForActorMove(campaign: Campaign, mapId: string,
   const map = campaign.maps.find((entry) => entry.id === mapId);
   const actor = campaign.actors.find((entry) => entry.id === actorId);
 
-  if (!map || !actor || actor.kind !== "character" || !actor.ownerId) {
+  if (!map || !actor || !actor.ownerId) {
     return;
   }
 
@@ -336,7 +336,7 @@ export function createDefaultActor(
   const actor: ActorSheet = {
     id: createId("act"),
     campaignId,
-    ownerId: kind === "character" ? userId : role === "dm" ? userId : undefined,
+    ownerId: role === "dm" || kind === "character" || kind === "monster" ? userId : undefined,
     name,
     kind,
     imageUrl: "",
@@ -537,7 +537,7 @@ export function canManageActor(role: MemberRole, userId: string, actor: ActorShe
     return true;
   }
 
-  return actor.kind === "character" && actor.ownerId === userId;
+  return actor.ownerId === userId;
 }
 
 export function canManageDrawing(role: MemberRole, userId: string, drawing: DrawingStroke) {
@@ -724,7 +724,7 @@ export function applyMapPatch(map: CampaignMap, patch: Record<string, unknown> |
 }
 
 function buildActorSnapshot(actor: ActorSheet, role: MemberRole, userId: string): ActorSheet | null {
-  if (role === "dm" || (actor.kind === "character" && actor.ownerId === userId)) {
+  if (role === "dm" || actor.ownerId === userId) {
     return {
       ...actor,
       sheetAccess: "full"

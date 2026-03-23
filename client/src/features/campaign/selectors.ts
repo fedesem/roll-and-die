@@ -152,7 +152,7 @@ export function buildCurrentMapRoster({
       ];
     }
 
-    if (actor && actor.kind === "character" && actor.ownerId === currentUserId) {
+    if (actor && actor.ownerId === currentUserId) {
       return [
         {
           actor,
@@ -209,23 +209,26 @@ export function filterCurrentMapRoster(
 export function selectAvailableActors({
   campaign,
   role,
+  currentUserId,
   activeMap,
   typeFilter,
   query
 }: {
   campaign: Campaign | null;
   role: "dm" | "player";
+  currentUserId?: string;
   activeMap: CampaignMap | undefined;
   typeFilter: ActorTypeFilter;
   query: string;
 }): AvailableActorEntry[] {
-  if (role !== "dm" || !campaign) {
+  if (!campaign) {
     return [];
   }
 
   const normalizedQuery = query.trim().toLowerCase();
 
   return campaign.actors
+    .filter((actor) => role === "dm" || actor.ownerId === currentUserId)
     .filter((actor) => {
       if (typeFilter !== "all" && actor.kind !== typeFilter) {
         return false;

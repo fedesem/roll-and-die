@@ -1238,7 +1238,7 @@ export function BoardCanvas({
   }, [map, onDeleteDrawings, selectedMapItems]);
 
   function canControlActor(actor: ActorSheet) {
-    return role === "dm" || (actor.kind === "character" && actor.ownerId === currentUserId);
+    return role === "dm" || actor.ownerId === currentUserId;
   }
 
   function canEditDrawing(drawing: DrawingStroke) {

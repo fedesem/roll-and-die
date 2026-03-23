@@ -121,7 +121,7 @@ export function PlayerNpcSheet({
     setImageError(null);
   }, [actor]);
 
-  const canEdit = role === "dm" || (actor.kind === "character" && actor.ownerId === currentUserId);
+  const canEdit = role === "dm" || actor.ownerId === currentUserId;
   const canRoll = role === "dm" || actor.ownerId === currentUserId;
 
   const normalizedLayout = useMemo(() => ensureLayout(draft.layout), [draft.layout]);

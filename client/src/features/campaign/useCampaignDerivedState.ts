@@ -107,11 +107,12 @@ export function useCampaignDerivedState({
       selectAvailableActors({
         campaign,
         role,
+        currentUserId,
         activeMap,
         typeFilter: actorTypeFilter,
         query: actorSearch
       }),
-    [activeMap, actorSearch, actorTypeFilter, campaign, role]
+    [activeMap, actorSearch, actorTypeFilter, campaign, currentUserId, role]
   );
   const playerMembers = useMemo(() => selectPlayerMembers(campaign), [campaign]);
   const filteredCatalog = useMemo(() => filterMonsterCatalog(snapshot, deferredMonsterQuery), [deferredMonsterQuery, snapshot]);

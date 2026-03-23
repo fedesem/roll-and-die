@@ -5,7 +5,8 @@ export type AppRoute =
   | { name: "campaignCreate" }
   | { name: "campaignJoin"; code?: string }
   | { name: "admin" }
-  | { name: "campaign"; campaignId: string };
+  | { name: "campaign"; campaignId: string }
+  | { name: "campaignBoard"; campaignId: string };
 
 function parseRoute(pathname: string): AppRoute {
   if (pathname === "/" || pathname === "/campaigns") {
@@ -30,6 +31,12 @@ function parseRoute(pathname: string): AppRoute {
     return { name: "admin" };
   }
 
+  const boardMatch = pathname.match(/^\/campaign\/([^/]+)\/board$/);
+
+  if (boardMatch?.[1]) {
+    return { name: "campaignBoard", campaignId: decodeURIComponent(boardMatch[1]) };
+  }
+
   const match = pathname.match(/^\/campaign\/([^/]+)$/);
 
   if (match?.[1]) {
@@ -41,6 +48,10 @@ function parseRoute(pathname: string): AppRoute {
 function routeToPath(route: AppRoute) {
   if (route.name === "campaign") {
     return `/campaign/${encodeURIComponent(route.campaignId)}`;
+  }
+
+  if (route.name === "campaignBoard") {
+    return `/campaign/${encodeURIComponent(route.campaignId)}/board`;
   }
 
   if (route.name === "campaignCreate") {

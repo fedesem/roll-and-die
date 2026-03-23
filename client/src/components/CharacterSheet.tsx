@@ -40,11 +40,7 @@ export function CharacterSheet({
       return false;
     }
 
-    return (
-      role === "dm" ||
-      actor.sheetAccess === "full" ||
-      (actor.kind === "character" && actor.ownerId === currentUserId)
-    );
+    return role === "dm" || actor.sheetAccess === "full" || actor.ownerId === currentUserId;
   }, [actor, currentUserId, role]);
 
   const canEdit = useMemo(() => {
@@ -52,7 +48,7 @@ export function CharacterSheet({
       return false;
     }
 
-    return role === "dm" || (actor.kind === "character" && actor.ownerId === currentUserId);
+    return role === "dm" || actor.ownerId === currentUserId;
   }, [actor, currentUserId, role]);
 
   if (!actor || !draft) {
@@ -71,7 +67,7 @@ export function CharacterSheet({
       <section className="border border-amber-800/40 bg-zinc-950 px-6 py-8 text-zinc-200">
         <h2 className="text-2xl font-semibold text-amber-50">Sheet Locked</h2>
         <p className="mt-3 text-sm text-zinc-400">
-          Players can only open sheets for their own characters. The DM can open every sheet in
+          Players can only open sheets for actors they own. The DM can open every sheet in
           the campaign.
         </p>
       </section>
