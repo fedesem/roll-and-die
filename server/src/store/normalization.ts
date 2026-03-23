@@ -18,6 +18,7 @@ export function normalizeStoreState(database: Database): Database {
             monsters: Array.isArray(database.compendium.monsters) ? database.compendium.monsters : [],
             feats: Array.isArray(database.compendium.feats) ? database.compendium.feats : [],
             classes: Array.isArray(database.compendium.classes) ? database.compendium.classes : [],
+            optionalFeatures: Array.isArray(database.compendium.optionalFeatures) ? database.compendium.optionalFeatures : [],
             actions: Array.isArray(database.compendium.actions) ? database.compendium.actions : [],
             backgrounds: Array.isArray(database.compendium.backgrounds) ? database.compendium.backgrounds : [],
             items: Array.isArray(database.compendium.items) ? database.compendium.items : [],

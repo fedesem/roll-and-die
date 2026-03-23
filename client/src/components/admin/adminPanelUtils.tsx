@@ -10,6 +10,7 @@ export type AdminTab =
   | "monsters"
   | "feats"
   | "classes"
+  | "optionalFeatures"
   | "actions"
   | "backgrounds"
   | "items"
@@ -29,6 +30,7 @@ export const tabIcons = {
   monsters: Skull,
   feats: ShieldPlus,
   classes: GraduationCap,
+  optionalFeatures: BookText,
   actions: Swords,
   backgrounds: BookText,
   items: BookText,
@@ -94,6 +96,8 @@ export function labelForTab(tab: AdminTab) {
       return "Feats";
     case "classes":
       return "Classes";
+    case "optionalFeatures":
+      return "Optional Features";
     case "actions":
       return "Actions";
     case "backgrounds":
@@ -123,6 +127,8 @@ export function singularLabel(tab: AdminTab) {
       return "Feat";
     case "classes":
       return "Class";
+    case "optionalFeatures":
+      return "Optional Feature";
     case "actions":
       return "Action";
     case "backgrounds":
@@ -327,6 +333,31 @@ export function getImportExample(tab: CompendiumTab) {
             source: "XPHB",
             level: 2,
             entries: ["You gain an uncanny sense of when things aren't as they should be."]
+          }
+        ]
+      }, null, 2);
+    case "optionalFeatures":
+      return JSON.stringify({
+        optionalfeature: [
+          {
+            name: "Agonizing Blast",
+            source: "XPHB",
+            page: 155,
+            featureType: ["EI"],
+            prerequisite: [
+              {
+                level: {
+                  level: 2,
+                  class: {
+                    name: "Warlock",
+                    source: "XPHB"
+                  }
+                }
+              }
+            ],
+            entries: [
+              "Choose one of your known warlock cantrips that deals damage. You can add your Charisma modifier to that spell's damage rolls."
+            ]
           }
         ]
       }, null, 2);

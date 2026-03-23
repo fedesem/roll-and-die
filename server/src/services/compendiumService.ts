@@ -35,6 +35,7 @@ export function sanitizeCompendiumEntry(kind: CompendiumKind, input: unknown) {
       return sanitizeFeatEntry(input);
     case "classes":
       return sanitizeClassEntry(input);
+    case "optionalFeatures":
     case "actions":
     case "backgrounds":
     case "items":
@@ -68,7 +69,7 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
     return object.feat;
   }
 
-  if (kind === "feats" && Array.isArray(object.optionalfeature)) {
+  if (kind === "optionalFeatures" && Array.isArray(object.optionalfeature)) {
     return object.optionalfeature;
   }
 
@@ -478,7 +479,7 @@ function sanitizeClassEntry(input: unknown): ClassEntry {
 }
 
 function sanitizeReferenceEntry(
-  kind: Extract<CompendiumKind, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<CompendiumKind, "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
   input: unknown
 ): CompendiumReferenceEntry {
   const object = asObject(input, `${kind} entry`);
@@ -1619,10 +1620,12 @@ function getCompendiumEntityKey(entry: Record<string, unknown>) {
 }
 
 function readReferenceCategory(
-  kind: Extract<CompendiumKind, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<CompendiumKind, "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
   object: Record<string, unknown>
 ) {
   switch (kind) {
+    case "optionalFeatures":
+      return formatOptionalFeatureTypeCategory(object.featureType);
     case "actions":
       return readObjectArray(object.time)
         .map((entry) => {
@@ -1646,12 +1649,13 @@ function readReferenceCategory(
 }
 
 function readReferenceDescription(
-  kind: Extract<CompendiumKind, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<CompendiumKind, "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
   object: Record<string, unknown>
 ) {
   const entries = joinEntries(object.entries) || joinEntries(object.additionalEntries);
 
   switch (kind) {
+    case "optionalFeatures":
     case "actions":
     case "backgrounds":
     case "items":
@@ -1674,10 +1678,12 @@ function readReferenceDescription(
 }
 
 function readReferenceTags(
-  kind: Extract<CompendiumKind, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<CompendiumKind, "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
   object: Record<string, unknown>
 ) {
   switch (kind) {
+    case "optionalFeatures":
+      return readOptionalFeatureTypeTags(object.featureType);
     case "actions":
       return uniqueStrings(readObjectArray(object.time).map((entry) => readString(entry.unit)));
     case "backgrounds":
@@ -1714,6 +1720,33 @@ function extractPipeDisplayName(value: string) {
   const cleaned = value.replace(/^\{@[^ ]+\s*|\}$/g, "");
   const [name] = cleaned.split("|");
   return name.trim();
+}
+
+function formatOptionalFeatureTypeCategory(value: unknown) {
+  const labels = readOptionalFeatureTypeLabels(value);
+  return labels.join(" • ") || "Optional Feature";
+}
+
+function readOptionalFeatureTypeTags(value: unknown) {
+  const codes = readStringArray(value);
+  return uniqueStrings([...codes, ...readOptionalFeatureTypeLabels(value)]);
+}
+
+function readOptionalFeatureTypeLabels(value: unknown) {
+  const mapping: Record<string, string> = {
+    "MV:B": "Maneuver: Battle Master",
+    RP: "Renown Perk",
+    RN: "Rune Knight Rune",
+    MM: "Metamagic",
+    "FS:F": "Fighting Style: Fighter",
+    EI: "Eldritch Invocation",
+    AS: "Arcane Shot",
+    AI: "Artificer Infusion"
+  };
+
+  return uniqueStrings(
+    readStringArray(value).map((entry) => mapping[entry] ?? entry)
+  );
 }
 
 function asOptionalObject(value: unknown) {

@@ -23,7 +23,7 @@ import { readAll, toIntegerBoolean } from "../helpers.js";
 export type CompendiumCollectionKind = keyof CompendiumData;
 type ReferenceCompendiumKind = Extract<
   CompendiumCollectionKind,
-  "actions" | "backgrounds" | "items" | "languages" | "races" | "skills"
+  "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills"
 >;
 
 export function readCampaignCompendium(
@@ -50,6 +50,7 @@ export function readCompendiumCollection<K extends CompendiumCollectionKind>(
       return readFeatEntries(database) as CompendiumData[K];
     case "classes":
       return readClassEntries(database) as CompendiumData[K];
+    case "optionalFeatures":
     case "actions":
     case "backgrounds":
     case "items":
@@ -114,6 +115,7 @@ export function compendiumEntryExists(
       return Boolean(
         database.prepare("SELECT 1 FROM compendium_classes WHERE id = ? LIMIT 1").get(entryId)
       );
+    case "optionalFeatures":
     case "actions":
     case "backgrounds":
     case "items":
@@ -706,6 +708,7 @@ export function deleteCompendiumEntryRecord(
     case "classes":
       database.prepare("DELETE FROM compendium_classes WHERE id = ?").run(entryId);
       return;
+    case "optionalFeatures":
     case "actions":
     case "backgrounds":
     case "items":
@@ -733,6 +736,7 @@ export function clearCompendiumCollection(database: DatabaseSync, kind: Compendi
     case "classes":
       database.prepare("DELETE FROM compendium_classes").run();
       return;
+    case "optionalFeatures":
     case "actions":
     case "backgrounds":
     case "items":
@@ -766,6 +770,7 @@ function shiftCompendiumSortOrders(
     case "classes":
       database.prepare("UPDATE compendium_classes SET sort_order = sort_order + ?").run(amount);
       return;
+    case "optionalFeatures":
     case "actions":
     case "backgrounds":
     case "items":
@@ -809,6 +814,7 @@ function readExistingCompendiumSortOrder(
         .get(entryId) as { sortOrder: number } | undefined;
       return row?.sortOrder ?? null;
     }
+    case "optionalFeatures":
     case "actions":
     case "backgrounds":
     case "items":
@@ -851,6 +857,7 @@ function readNextCompendiumSortOrder(database: DatabaseSync, kind: CompendiumCol
         .get() as { nextSortOrder: number };
       return row.nextSortOrder;
     }
+    case "optionalFeatures":
     case "actions":
     case "backgrounds":
     case "items":
@@ -886,6 +893,7 @@ function writeCompendiumEntry<K extends CompendiumCollectionKind>(
     case "classes":
       upsertClassEntry(database, entry as ClassEntry, sortOrder);
       return;
+    case "optionalFeatures":
     case "actions":
     case "backgrounds":
     case "items":

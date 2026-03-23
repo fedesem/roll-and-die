@@ -10,6 +10,7 @@ export const compendiumKindSchema = z.enum([
   "monsters",
   "feats",
   "classes",
+  "optionalFeatures",
   "actions",
   "backgrounds",
   "items",
@@ -30,6 +31,7 @@ export const createSpellBodySchema = z.unknown();
 export const createMonsterBodySchema = z.unknown();
 export const createFeatBodySchema = z.unknown();
 export const createClassBodySchema = z.unknown();
+export const createOptionalFeatureBodySchema = z.unknown();
 export const createActionBodySchema = z.unknown();
 export const createBackgroundBodySchema = z.unknown();
 export const createItemBodySchema = z.unknown();
@@ -58,6 +60,9 @@ export const importFeatsBodySchema = z.object({
   entries: z.union([z.unknown(), z.array(z.unknown())])
 });
 export const importClassesBodySchema = z.object({
+  entries: z.union([z.unknown(), z.array(z.unknown())])
+});
+export const importOptionalFeaturesBodySchema = z.object({
   entries: z.union([z.unknown(), z.array(z.unknown())])
 });
 export const importActionsBodySchema = z.object({

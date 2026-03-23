@@ -354,6 +354,7 @@ export interface CompendiumData {
   monsters: MonsterTemplate[];
   feats: FeatEntry[];
   classes: ClassEntry[];
+  optionalFeatures: CompendiumReferenceEntry[];
   actions: CompendiumReferenceEntry[];
   backgrounds: CompendiumReferenceEntry[];
   items: CompendiumReferenceEntry[];

@@ -10,6 +10,7 @@ import {
   createItemBodySchema,
   createLanguageBodySchema,
   createMonsterBodySchema,
+  createOptionalFeatureBodySchema,
   createRaceBodySchema,
   createSkillBodySchema,
   createSpellBodySchema,
@@ -20,6 +21,7 @@ import {
   importItemsBodySchema,
   importLanguagesBodySchema,
   importMonstersBodySchema,
+  importOptionalFeaturesBodySchema,
   importRacesBodySchema,
   importSkillsBodySchema,
   importSpellsBodySchema
@@ -79,6 +81,8 @@ function parseCompendiumCreateBody(kind: CompendiumKind, value: unknown) {
       return parseWithSchema(createFeatBodySchema, value);
     case "classes":
       return parseWithSchema(createClassBodySchema, value);
+    case "optionalFeatures":
+      return parseWithSchema(createOptionalFeatureBodySchema, value);
     case "actions":
       return parseWithSchema(createActionBodySchema, value);
     case "backgrounds":
@@ -104,6 +108,8 @@ function parseCompendiumImportBody(kind: CompendiumKind, value: unknown) {
       return parseWithSchema(importFeatsBodySchema, value);
     case "classes":
       return parseWithSchema(importClassesBodySchema, value);
+    case "optionalFeatures":
+      return parseWithSchema(importOptionalFeaturesBodySchema, value);
     case "actions":
       return parseWithSchema(importActionsBodySchema, value);
     case "backgrounds":
@@ -125,6 +131,7 @@ function readAdminCompendium(database: DatabaseSync) {
     monsters: readCompendiumCollection(database, "monsters"),
     feats: readCompendiumCollection(database, "feats"),
     classes: readCompendiumCollection(database, "classes"),
+    optionalFeatures: readCompendiumCollection(database, "optionalFeatures"),
     actions: readCompendiumCollection(database, "actions"),
     backgrounds: readCompendiumCollection(database, "backgrounds"),
     items: readCompendiumCollection(database, "items"),

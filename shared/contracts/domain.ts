@@ -511,6 +511,7 @@ export const compendiumDataSchema: z.ZodType<CompendiumData> = z.object({
   monsters: z.array(monsterTemplateSchema),
   feats: z.array(featEntrySchema),
   classes: z.array(classEntrySchema),
+  optionalFeatures: z.array(compendiumReferenceEntrySchema),
   actions: z.array(compendiumReferenceEntrySchema),
   backgrounds: z.array(compendiumReferenceEntrySchema),
   items: z.array(compendiumReferenceEntrySchema),

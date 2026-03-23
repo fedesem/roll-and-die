@@ -63,6 +63,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     monsters: "",
     feats: "",
     classes: "",
+    optionalFeatures: "",
     actions: "",
     backgrounds: "",
     items: "",
@@ -76,6 +77,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     monsters: null,
     feats: null,
     classes: null,
+    optionalFeatures: null,
     actions: null,
     backgrounds: null,
     items: null,
@@ -88,6 +90,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
     monsters: null,
     feats: null,
     classes: null,
+    optionalFeatures: null,
     actions: null,
     backgrounds: null,
     items: null,
@@ -119,6 +122,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
       monsters: overview?.compendium.monsters.length ?? 0,
       feats: overview?.compendium.feats.length ?? 0,
       classes: overview?.compendium.classes.length ?? 0,
+      optionalFeatures: overview?.compendium.optionalFeatures.length ?? 0,
       actions: overview?.compendium.actions.length ?? 0,
       backgrounds: overview?.compendium.backgrounds.length ?? 0,
       items: overview?.compendium.items.length ?? 0,
@@ -148,6 +152,10 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
   const classes = useMemo(
     () => filterEntries(overview?.compendium.classes ?? [], search.classes, (entry) => [entry.name, entry.source]),
     [overview?.compendium.classes, search.classes]
+  );
+  const optionalFeatures = useMemo(
+    () => filterEntries(overview?.compendium.optionalFeatures ?? [], search.optionalFeatures, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    [overview?.compendium.optionalFeatures, search.optionalFeatures]
   );
   const actions = useMemo(
     () => filterEntries(overview?.compendium.actions ?? [], search.actions, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
@@ -179,6 +187,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
   const selectedMonster = resolveSelected(monsters, selectedIds.monsters);
   const selectedFeat = resolveSelected(feats, selectedIds.feats);
   const selectedClass = resolveSelected(classes, selectedIds.classes);
+  const selectedOptionalFeature = resolveSelected(optionalFeatures, selectedIds.optionalFeatures);
   const selectedAction = resolveSelected(actions, selectedIds.actions);
   const selectedBackground = resolveSelected(backgrounds, selectedIds.backgrounds);
   const selectedItem = resolveSelected(items, selectedIds.items);
@@ -544,6 +553,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                     </button>
                   ))}
 
+                {tab === "optionalFeatures" && renderReferenceRows(optionalFeatures, selectedOptionalFeature, "optionalFeatures", setSelectedIds)}
                 {tab === "actions" && renderReferenceRows(actions, selectedAction, "actions", setSelectedIds)}
                 {tab === "backgrounds" && renderReferenceRows(backgrounds, selectedBackground, "backgrounds", setSelectedIds)}
                 {tab === "items" && renderReferenceRows(items, selectedItem, "items", setSelectedIds)}
@@ -557,6 +567,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                   monsters: monsters.length,
                   feats: feats.length,
                   classes: classes.length,
+                  optionalFeatures: optionalFeatures.length,
                   actions: actions.length,
                   backgrounds: backgrounds.length,
                   items: items.length,
@@ -752,7 +763,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         <button className="accent-button" type="submit">Add class</button>
                       </form>
                     )}
-                    {["actions", "backgrounds", "items", "languages", "races", "skills"].includes(tab) && (
+                    {["optionalFeatures", "actions", "backgrounds", "items", "languages", "races", "skills"].includes(tab) && (
                       <PreviewPlaceholder
                         title={`${singularLabel(tab)} add`}
                         message="Use Import mode for these reference libraries. The backend now supports direct imports for the matching 5etools JSON files."
@@ -786,6 +797,8 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                             <small>Accepted spell files: raw 5etools `spell` JSON or `gendata-spell-source-lookup.json` to enrich imported spells with class references.</small>
                           ) : tab === "classes" ? (
                             <small>Accepted class files: raw 5etools `class` JSON, including `subclass` and `subclassFeature`, or `gendata-subclass-lookup.json` to enrich imported classes with subclass stubs.</small>
+                          ) : tab === "optionalFeatures" ? (
+                            <small>Accepted optional feature files: 5etools `optionalfeatures.json` with `optionalfeature` entries.</small>
                           ) : tab === "items" ? (
                             <small>Accepted item files: 5etools `items.json` and `items-base.json`.</small>
                           ) : null}
@@ -859,6 +872,11 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
                         Delete
                       </button>
                     ) : null}
+                    {tab === "optionalFeatures" && selectedOptionalFeature ? (
+                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("optionalFeatures", selectedOptionalFeature.id)}>
+                        Delete
+                      </button>
+                    ) : null}
                     {tab === "actions" && selectedAction ? (
                       <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("actions", selectedAction.id)}>
                         Delete
@@ -898,6 +916,7 @@ export function AdminPanel({ token, currentUserId, onStatus }: AdminPanelProps) 
               {tab === "monsters" && (selectedMonster ? <MonsterPreviewCard monster={selectedMonster} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Monsters" message="Select a monster to preview it here." />)}
               {tab === "feats" && (selectedFeat ? <FeatPreviewCard feat={selectedFeat} spellEntries={overview?.compendium.spells ?? []} classEntries={overview?.compendium.classes ?? []} /> : <PreviewPlaceholder title="Feats" message="Select a feat to preview it here." />)}
               {tab === "classes" && (selectedClass ? <ClassPreviewCard entry={selectedClass} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} /> : <PreviewPlaceholder title="Classes" message="Select a class to preview it here." />)}
+              {tab === "optionalFeatures" && (selectedOptionalFeature ? <ReferencePreviewCard title="Optional Feature" eyebrow="Optional Feature" entry={selectedOptionalFeature} /> : <PreviewPlaceholder title="Optional Features" message="Select an optional feature to preview it here." />)}
               {tab === "actions" && (selectedAction ? <ReferencePreviewCard title="Action" eyebrow="Action" entry={selectedAction} /> : <PreviewPlaceholder title="Actions" message="Select an action to preview it here." />)}
               {tab === "backgrounds" && (selectedBackground ? <ReferencePreviewCard title="Background" eyebrow="Background" entry={selectedBackground} /> : <PreviewPlaceholder title="Backgrounds" message="Select a background to preview it here." />)}
               {tab === "items" && (selectedItem ? <ReferencePreviewCard title="Item" eyebrow="Item" entry={selectedItem} /> : <PreviewPlaceholder title="Items" message="Select an item to preview it here." />)}
@@ -944,6 +963,10 @@ function resolveImportEntryCount(kind: CompendiumTab, parsed: unknown) {
 
     if (kind === "classes" && isGeneratedSubclassLookupPayload(record)) {
       return countGeneratedSubclassLookupEntries(record);
+    }
+
+    if (kind === "optionalFeatures" && Array.isArray(record.optionalfeature)) {
+      return record.optionalfeature.length;
     }
 
     if (kind === "actions" && Array.isArray(record.action)) {
@@ -1071,7 +1094,7 @@ function readObjectArray(value: unknown) {
 function renderReferenceRows(
   entries: CompendiumReferenceEntry[],
   selected: CompendiumReferenceEntry | null,
-  kind: Extract<CompendiumTab, "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<CompendiumTab, "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
   setSelectedIds: Dispatch<SetStateAction<Record<AdminTab, string | null>>>
 ) {
   return entries.map((entry) => (
