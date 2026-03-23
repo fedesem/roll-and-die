@@ -1,13 +1,11 @@
 import { addColumnIfMissing, tableExists } from "../helpers.js";
 import type { Migration } from "../types.js";
-
 export const adminCompendiumMigration: Migration = {
-  version: 107,
-  name: "admin_compendium",
-  up(database) {
-    addColumnIfMissing(database, "users", "is_admin", "INTEGER NOT NULL DEFAULT 0");
-
-    database.exec(`
+    version: 107,
+    name: "admin_compendium",
+    async up(database) {
+        await addColumnIfMissing(database, "users", "is_admin", "INTEGER NOT NULL DEFAULT 0");
+        await database.exec(`
       CREATE TABLE IF NOT EXISTS compendium_spells (
         id TEXT PRIMARY KEY,
         sort_order INTEGER NOT NULL,
@@ -102,14 +100,11 @@ export const adminCompendiumMigration: Migration = {
         tables_json TEXT NOT NULL
       );
     `);
-
-    if (tableExists(database, "users")) {
-      const adminCount = database.prepare("SELECT COUNT(*) as count FROM users WHERE is_admin = 1").get() as { count: number };
-
-      if (adminCount.count === 0) {
-        database.prepare("UPDATE users SET is_admin = 1 WHERE id = (SELECT id FROM users ORDER BY rowid LIMIT 1)").run();
-      }
+        if (await tableExists(database, "users")) {
+            const adminCount = await database.prepare("SELECT COUNT(*) as count FROM users WHERE is_admin = 1").get<{ count: number }>();
+            if ((adminCount?.count ?? 0) === 0) {
+                await database.prepare("UPDATE users SET is_admin = 1 WHERE id = (SELECT id FROM users ORDER BY rowid LIMIT 1)").run();
+            }
+        }
     }
-
-  }
 };

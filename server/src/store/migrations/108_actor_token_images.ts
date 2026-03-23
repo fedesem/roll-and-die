@@ -1,15 +1,13 @@
 import { addColumnIfMissing, tableExists } from "../helpers.js";
 import type { Migration } from "../types.js";
-
 export const actorTokenImagesMigration: Migration = {
-  version: 108,
-  name: "actor_token_images",
-  up(database) {
-    addColumnIfMissing(database, "actors", "image_url", "TEXT NOT NULL DEFAULT ''");
-    addColumnIfMissing(database, "tokens", "image_url", "TEXT NOT NULL DEFAULT ''");
-
-    if (tableExists(database, "compendium_monsters")) {
-      database.exec(`
+    version: 108,
+    name: "actor_token_images",
+    async up(database) {
+        await addColumnIfMissing(database, "actors", "image_url", "TEXT NOT NULL DEFAULT ''");
+        await addColumnIfMissing(database, "tokens", "image_url", "TEXT NOT NULL DEFAULT ''");
+        if (await tableExists(database, "compendium_monsters")) {
+            await database.exec(`
         UPDATE actors
         SET image_url = COALESCE(
           (
@@ -23,9 +21,8 @@ export const actorTokenImagesMigration: Migration = {
           AND template_id IS NOT NULL
           AND image_url = '';
       `);
-    }
-
-    database.exec(`
+        }
+        await database.exec(`
       UPDATE tokens
       SET image_url = COALESCE(
         (
@@ -37,5 +34,5 @@ export const actorTokenImagesMigration: Migration = {
       )
       WHERE image_url = '';
     `);
-  }
+    }
 };
