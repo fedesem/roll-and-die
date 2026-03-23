@@ -178,6 +178,7 @@ export const currentSchemaMigration: Migration = {
         grid_offset_x REAL NOT NULL,
         grid_offset_y REAL NOT NULL,
         grid_color TEXT NOT NULL,
+        fog_enabled INTEGER NOT NULL DEFAULT 1,
         visibility_version INTEGER NOT NULL DEFAULT 1
       );
 

@@ -25,6 +25,7 @@ import type {
   TokenMovementPreview
 } from "@shared/types";
 import {
+  allMapCells,
   computeVisibleCellsForUser,
   snapPointToGrid,
   tokenCellKey,
@@ -307,9 +308,11 @@ export function BoardCanvas({
   });
   const backgroundImageUrl = map ? resolveAssetUrl(map.backgroundUrl) : "";
   const isDungeonMaster = role === "dm";
+  const mapFogEnabled = map?.fogEnabled ?? true;
   const playerUserIdSet = useMemo(() => new Set(fogPlayers.map((member) => member.userId)), [fogPlayers]);
-  const fogPreviewActive = isDungeonMaster && typeof fogPreviewUserId === "string" && fogPreviewUserId.length > 0;
-  const usesRestrictedVision = role !== "dm" || fogPreviewActive;
+  const fogPreviewActive =
+    isDungeonMaster && mapFogEnabled && typeof fogPreviewUserId === "string" && fogPreviewUserId.length > 0;
+  const usesRestrictedVision = mapFogEnabled && (role !== "dm" || fogPreviewActive);
   const visionUserId = fogPreviewUserId ?? currentUserId;
   const discoveryViewerKey = usesRestrictedVision ? visionUserId : "__dm_full__";
 
@@ -345,6 +348,10 @@ export function BoardCanvas({
       return new Set<string>();
     }
 
+    if (!mapFogEnabled) {
+      return new Set(allMapCells(map));
+    }
+
     return computeVisibleCellsForUser({
       map,
       actors,
@@ -352,9 +359,15 @@ export function BoardCanvas({
       userId: visionUserId,
       role: usesRestrictedVision ? "player" : "dm"
     });
-  }, [actors, map, usesRestrictedVision, visionUserId, visibleTokens]);
+  }, [actors, map, mapFogEnabled, usesRestrictedVision, visionUserId, visibleTokens]);
 
-  const seenCells = useMemo(() => new Set(playerSeenCells), [playerSeenCells]);
+  const seenCells = useMemo(() => {
+    if (!map) {
+      return new Set<string>();
+    }
+
+    return mapFogEnabled ? new Set(playerSeenCells) : new Set(allMapCells(map));
+  }, [map, mapFogEnabled, playerSeenCells]);
 
   const filteredTokens = useMemo(() => {
     if (!map || !usesRestrictedVision) {
@@ -1837,6 +1850,7 @@ export function BoardCanvas({
         onToolChange={setTool}
         viewZoom={viewZoom}
         isDungeonMaster={isDungeonMaster}
+        fogEnabled={mapFogEnabled}
         fogPlayers={fogPlayers}
         dmFogEnabled={dmFogEnabled}
         dmFogUserId={dmFogUserId}

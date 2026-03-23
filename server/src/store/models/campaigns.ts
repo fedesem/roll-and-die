@@ -120,6 +120,7 @@ export async function readRealtimeCampaign(database: DatabaseSync, campaignId: s
           grid_offset_x as gridOffsetX,
           grid_offset_y as gridOffsetY,
           grid_color as gridColor,
+          fog_enabled as fogEnabled,
           visibility_version as visibilityVersion
         FROM maps
         WHERE id = ?
@@ -140,6 +141,7 @@ export async function readRealtimeCampaign(database: DatabaseSync, campaignId: s
         gridOffsetX: number;
         gridOffsetY: number;
         gridColor: string;
+        fogEnabled: number;
         visibilityVersion: number;
     } | undefined;
     if (!activeMap) {
@@ -165,6 +167,7 @@ export async function readRealtimeCampaign(database: DatabaseSync, campaignId: s
         walls: [],
         teleporters: [],
         drawings: [],
+        fogEnabled: toBoolean(activeMap.fogEnabled),
         fog: [],
         visibilityVersion: activeMap.visibilityVersion ?? 1
     };
@@ -303,6 +306,7 @@ export async function readMapEditorMap(database: DatabaseSync, campaignId: strin
           grid_offset_x as gridOffsetX,
           grid_offset_y as gridOffsetY,
           grid_color as gridColor,
+          fog_enabled as fogEnabled,
           visibility_version as visibilityVersion
         FROM maps
         WHERE id = ? AND campaign_id = ?
@@ -323,6 +327,7 @@ export async function readMapEditorMap(database: DatabaseSync, campaignId: strin
         gridOffsetX: number;
         gridOffsetY: number;
         gridColor: string;
+        fogEnabled: number;
         visibilityVersion: number;
     } | undefined;
     if (!row) {
@@ -348,6 +353,7 @@ export async function readMapEditorMap(database: DatabaseSync, campaignId: strin
         walls: [],
         teleporters: [],
         drawings: [],
+        fogEnabled: toBoolean(row.fogEnabled),
         fog: [],
         visibilityVersion: row.visibilityVersion ?? 1
     };
@@ -1219,6 +1225,7 @@ export async function readCampaignBoardState(database: DatabaseSync, campaignId:
         gridOffsetX: number;
         gridOffsetY: number;
         gridColor: string;
+        fogEnabled: number;
         visibilityVersion: number;
     }>(database, `
       SELECT
@@ -1236,6 +1243,7 @@ export async function readCampaignBoardState(database: DatabaseSync, campaignId:
         grid_offset_x as gridOffsetX,
         grid_offset_y as gridOffsetY,
         grid_color as gridColor,
+        fog_enabled as fogEnabled,
         visibility_version as visibilityVersion
       FROM maps
       WHERE campaign_id = ? AND id IN (${mapPlaceholders})
@@ -1260,6 +1268,7 @@ export async function readCampaignBoardState(database: DatabaseSync, campaignId:
         walls: [],
         teleporters: [],
         drawings: [],
+        fogEnabled: toBoolean(row.fogEnabled),
         fog: [],
         visibilityVersion: row.visibilityVersion ?? 1
     }));
@@ -1542,8 +1551,8 @@ function prepareCampaignWriteStatements(database: DatabaseSync): CampaignWriteSt
         insertMap: database.prepare(`
       INSERT INTO maps (
         id, campaign_id, sort_order, name, background_url, background_offset_x, background_offset_y, background_scale,
-        width, height, grid_show, grid_cell_size, grid_scale, grid_offset_x, grid_offset_y, grid_color, visibility_version
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        width, height, grid_show, grid_cell_size, grid_scale, grid_offset_x, grid_offset_y, grid_color, fog_enabled, visibility_version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
         insertMapWall: database.prepare(`
       INSERT INTO map_walls (id, map_id, sort_order, start_x, start_y, end_x, end_y, kind, is_open)
@@ -1630,7 +1639,7 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
         });
     });
     campaign.maps.forEach((map, mapOrder) => {
-        statements.insertMap.run(map.id, campaign.id, mapOrder, map.name, map.backgroundUrl, map.backgroundOffsetX, map.backgroundOffsetY, map.backgroundScale, map.width, map.height, toIntegerBoolean(map.grid.show), map.grid.cellSize, map.grid.scale, map.grid.offsetX, map.grid.offsetY, map.grid.color, map.visibilityVersion ?? 1);
+        statements.insertMap.run(map.id, campaign.id, mapOrder, map.name, map.backgroundUrl, map.backgroundOffsetX, map.backgroundOffsetY, map.backgroundScale, map.width, map.height, toIntegerBoolean(map.grid.show), map.grid.cellSize, map.grid.scale, map.grid.offsetX, map.grid.offsetY, map.grid.color, toIntegerBoolean(map.fogEnabled), map.visibilityVersion ?? 1);
         map.walls.forEach((wall, wallOrder) => {
             statements.insertMapWall.run(wall.id, map.id, wallOrder, wall.start.x, wall.start.y, wall.end.x, wall.end.y, wall.kind ?? "wall", toIntegerBoolean(wall.kind === "door" ? wall.isOpen : false));
         });
@@ -2210,6 +2219,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         gridOffsetX: number;
         gridOffsetY: number;
         gridColor: string;
+        fogEnabled: number;
         visibilityVersion: number;
     }>(database, `
       SELECT
@@ -2227,6 +2237,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         grid_offset_x as gridOffsetX,
         grid_offset_y as gridOffsetY,
         grid_color as gridColor,
+        fog_enabled as fogEnabled,
         visibility_version as visibilityVersion
       FROM maps
       WHERE campaign_id = ?
@@ -2252,6 +2263,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
             walls: [],
             teleporters: [],
             drawings: [],
+            fogEnabled: toBoolean(row.fogEnabled),
             fog: [],
             visibilityVersion: row.visibilityVersion ?? 1
         };
@@ -2775,9 +2787,9 @@ export async function upsertMapRecord(database: DatabaseSync, campaignId: string
         .prepare(`
         INSERT INTO maps (
           id, campaign_id, sort_order, name, background_url, background_offset_x, background_offset_y, background_scale,
-          width, height, grid_show, grid_cell_size, grid_scale, grid_offset_x, grid_offset_y, grid_color, visibility_version
+          width, height, grid_show, grid_cell_size, grid_scale, grid_offset_x, grid_offset_y, grid_color, fog_enabled, visibility_version
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           campaign_id = excluded.campaign_id,
           sort_order = excluded.sort_order,
@@ -2794,9 +2806,10 @@ export async function upsertMapRecord(database: DatabaseSync, campaignId: string
           grid_offset_x = excluded.grid_offset_x,
           grid_offset_y = excluded.grid_offset_y,
           grid_color = excluded.grid_color,
+          fog_enabled = excluded.fog_enabled,
           visibility_version = excluded.visibility_version
       `)
-        .run(map.id, campaignId, sortOrder, map.name, map.backgroundUrl, map.backgroundOffsetX, map.backgroundOffsetY, map.backgroundScale, map.width, map.height, toIntegerBoolean(map.grid.show), map.grid.cellSize, map.grid.scale, map.grid.offsetX, map.grid.offsetY, map.grid.color, map.visibilityVersion ?? 1);
+        .run(map.id, campaignId, sortOrder, map.name, map.backgroundUrl, map.backgroundOffsetX, map.backgroundOffsetY, map.backgroundScale, map.width, map.height, toIntegerBoolean(map.grid.show), map.grid.cellSize, map.grid.scale, map.grid.offsetX, map.grid.offsetY, map.grid.color, toIntegerBoolean(map.fogEnabled), map.visibilityVersion ?? 1);
     database.prepare("DELETE FROM map_walls WHERE map_id = ?").run(map.id);
     database.prepare("DELETE FROM map_teleporters WHERE map_id = ?").run(map.id);
     database.prepare("DELETE FROM map_drawings WHERE map_id = ?").run(map.id);

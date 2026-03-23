@@ -24,6 +24,7 @@ interface BoardToolbarProps {
   onToolChange: (tool: "select" | "draw" | "measure") => void;
   viewZoom: number;
   isDungeonMaster: boolean;
+  fogEnabled: boolean;
   fogPlayers: Array<{ userId: string; name: string }>;
   dmFogEnabled: boolean;
   dmFogUserId: string | null;
@@ -60,6 +61,7 @@ export function BoardToolbar({
   onToolChange,
   viewZoom,
   isDungeonMaster,
+  fogEnabled,
   fogPlayers,
   dmFogEnabled,
   dmFogUserId,
@@ -124,7 +126,7 @@ export function BoardToolbar({
         </div>
         <div className="tool-meta">
           <span className="board-zoom-chip">Zoom {Math.round(viewZoom * 100)}%</span>
-          {isDungeonMaster && fogPlayers.length > 0 && (
+          {isDungeonMaster && fogEnabled && fogPlayers.length > 0 && (
             <>
               <select value={dmFogUserId ?? ""} onChange={(event) => onSetDmFogUserId(event.target.value || null)}>
                 {fogPlayers.map((member) => (

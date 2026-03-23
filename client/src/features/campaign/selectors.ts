@@ -7,7 +7,7 @@ import type {
   MapActorAssignment,
   MonsterTemplate
 } from "@shared/types";
-import { computeVisibleCellsForUser, tokenCellKey } from "@shared/vision";
+import { allMapCells, computeVisibleCellsForUser, tokenCellKey } from "@shared/vision";
 
 import type { ActorTypeFilter, AvailableActorEntry, CurrentMapRosterEntry } from "./types";
 
@@ -44,6 +44,10 @@ export function selectBoardSeenCells({
     return [];
   }
 
+  if (!activeMap.fogEnabled) {
+    return allMapCells(activeMap);
+  }
+
   if (role === "dm") {
     return fogPreviewUserId ? campaign?.exploration[fogPreviewUserId]?.[activeMap.id] ?? [] : [];
   }
@@ -70,6 +74,10 @@ export function selectBoardVisibleCells({
     return new Set<string>();
   }
 
+  if (!activeMap.fogEnabled) {
+    return new Set(allMapCells(activeMap));
+  }
+
   return computeVisibleCellsForUser({
     map: activeMap,
     actors: campaign.actors,
@@ -94,6 +102,10 @@ export function selectVisibleMapTokens({
 }) {
   if (!activeMap) {
     return [];
+  }
+
+  if (!activeMap.fogEnabled) {
+    return activeMapTokens;
   }
 
   if (role === "dm") {

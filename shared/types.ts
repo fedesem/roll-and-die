@@ -456,6 +456,7 @@ export interface CampaignMap {
   walls: MapWall[];
   teleporters: MapTeleporter[];
   drawings: DrawingStroke[];
+  fogEnabled: boolean;
   fog: FogRect[];
   visibilityVersion: number;
 }

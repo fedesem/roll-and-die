@@ -76,6 +76,7 @@ function normalizeCampaign(campaign: Campaign): Campaign {
               rotation: typeof drawing.rotation === "number" ? drawing.rotation : 0
             }))
           : [],
+        fogEnabled: map.fogEnabled ?? true,
         fog: [],
         visibilityVersion: map.visibilityVersion ?? 1,
         walls: Array.isArray(map.walls)

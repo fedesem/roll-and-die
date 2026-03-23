@@ -138,6 +138,14 @@ export function updateExplorationForMap(campaign: Campaign, mapId: string) {
       continue;
     }
 
+    if (!map.fogEnabled) {
+      campaign.exploration[member.userId] = {
+        ...(campaign.exploration[member.userId] ?? {}),
+        [map.id]: []
+      };
+      continue;
+    }
+
     const normalizedMemory = normalizeExplorationMemory(campaign, member.userId);
     const nextMemory = { ...(campaign.exploration[member.userId] ?? {}) };
 
@@ -171,6 +179,14 @@ export function updateExplorationForActorMove(campaign: Campaign, mapId: string,
   const token = campaign.tokens.find((entry) => entry.actorId === actorId && entry.mapId === mapId && entry.visible);
 
   if (!token || member?.role !== "player") {
+    return;
+  }
+
+  if (!map.fogEnabled) {
+    campaign.exploration[actor.ownerId] = {
+      ...(campaign.exploration[actor.ownerId] ?? {}),
+      [mapId]: []
+    };
     return;
   }
 
@@ -290,6 +306,7 @@ export function createDefaultMap(name: string): CampaignMap {
     walls: [],
     teleporters: [],
     drawings: [],
+    fogEnabled: true,
     fog: [],
     visibilityVersion: 1
   };
@@ -637,6 +654,7 @@ export function applyMapPatch(map: CampaignMap, patch: Record<string, unknown> |
   map.backgroundScale = getOptionalNumber(patch.backgroundScale, map.backgroundScale, 0.05, 8);
   map.width = getOptionalNumber(patch.width, map.width, 100, 12000);
   map.height = getOptionalNumber(patch.height, map.height, 100, 12000);
+  map.fogEnabled = typeof patch.fogEnabled === "boolean" ? patch.fogEnabled : map.fogEnabled;
   map.grid = {
     show:
       typeof patch.grid === "object" &&

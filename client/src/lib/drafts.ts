@@ -30,6 +30,7 @@ export function createClientMapDraft(name = "Encounter Map"): CampaignMap {
     walls: [],
     teleporters: [],
     drawings: [],
+    fogEnabled: true,
     fog: [],
     visibilityVersion: 1
   };

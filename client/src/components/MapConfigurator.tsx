@@ -1142,6 +1142,15 @@ export function MapConfigurator({
                 <input type="checkbox" checked={map.grid.show} disabled={disabled} onChange={(event) => updateGrid("show", event.target.checked)} />
                 Show grid
               </label>
+              <label className="checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={map.fogEnabled}
+                  disabled={disabled}
+                  onChange={(event) => onChange({ ...map, fogEnabled: event.target.checked })}
+                />
+                Enable fog
+              </label>
             </div>
           </div>
         </div>

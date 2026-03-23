@@ -630,6 +630,7 @@ export const campaignMapSchema: z.ZodType<CampaignMap> = z.object({
   walls: z.array(mapWallSchema),
   teleporters: z.array(mapTeleporterSchema),
   drawings: z.array(drawingStrokeSchema),
+  fogEnabled: z.boolean(),
   fog: z.array(fogRectSchema),
   visibilityVersion: finiteNumber
 });
