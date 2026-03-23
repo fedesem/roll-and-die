@@ -491,7 +491,7 @@ export interface BoardToken {
   label: string;
   imageUrl: string;
   visible: boolean;
-  statusMarker: TokenStatusMarker | null;
+  statusMarkers: TokenStatusMarker[];
 }
 
 export interface MapActorAssignment {

@@ -36,8 +36,35 @@ import { parseCellKey, readAll, toBoolean, toIntegerBoolean } from "../helpers.j
 
 const tokenStatusMarkerSet = new Set<string>(TOKEN_STATUS_MARKERS);
 
-function parseTokenStatusMarker(value: string | null | undefined): TokenStatusMarker | null {
-  return typeof value === "string" && tokenStatusMarkerSet.has(value) ? (value as TokenStatusMarker) : null;
+function parseTokenStatusMarkers(value: string | null | undefined): TokenStatusMarker[] {
+  if (typeof value !== "string" || value.length === 0) {
+    return [];
+  }
+
+  if (tokenStatusMarkerSet.has(value)) {
+    return [value as TokenStatusMarker];
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return Array.from(
+      new Set(
+        parsed.filter(
+          (entry): entry is TokenStatusMarker => typeof entry === "string" && tokenStatusMarkerSet.has(entry)
+        )
+      )
+    );
+  } catch {
+    return [];
+  }
+}
+
+function serializeTokenStatusMarkers(markers: TokenStatusMarker[]): string | null {
+  return markers.length > 0 ? JSON.stringify(Array.from(new Set(markers))) : null;
 }
 
 export function readRealtimeCampaign(database: DatabaseSync, campaignId: string): Campaign | null {
@@ -321,7 +348,7 @@ export function readRealtimeCampaign(database: DatabaseSync, campaignId: string)
     label: row.label,
     imageUrl: row.imageUrl,
     visible: toBoolean(row.visible),
-    statusMarker: parseTokenStatusMarker(row.statusMarker)
+    statusMarkers: parseTokenStatusMarkers(row.statusMarker)
   }));
 
   for (const row of readAll<{ userId: string; columnIndex: number; rowIndex: number }>(
@@ -873,7 +900,7 @@ export function readTokenById(database: DatabaseSync, campaignId: string, tokenI
         label: row.label,
         imageUrl: row.imageUrl,
         visible: toBoolean(row.visible),
-        statusMarker: parseTokenStatusMarker(row.statusMarker)
+        statusMarkers: parseTokenStatusMarkers(row.statusMarker)
       }
     : null;
 }
@@ -926,7 +953,7 @@ export function readTokensForActor(database: DatabaseSync, campaignId: string, a
     label: row.label,
     imageUrl: row.imageUrl,
     visible: toBoolean(row.visible),
-    statusMarker: parseTokenStatusMarker(row.statusMarker)
+    statusMarkers: parseTokenStatusMarkers(row.statusMarker)
   }));
 }
 
@@ -1602,7 +1629,7 @@ export function readCampaignBoardState(database: DatabaseSync, campaignId: strin
     label: row.label,
     imageUrl: row.imageUrl,
     visible: toBoolean(row.visible),
-    statusMarker: parseTokenStatusMarker(row.statusMarker)
+    statusMarkers: parseTokenStatusMarkers(row.statusMarker)
   }));
 
   for (const row of readAll<{ userId: string; mapId: string; columnIndex: number; rowIndex: number }>(
@@ -1661,7 +1688,7 @@ export function upsertCampaignToken(database: DatabaseSync, campaignId: string, 
       token.label,
       token.imageUrl,
       toIntegerBoolean(token.visible),
-      token.statusMarker
+      serializeTokenStatusMarkers(token.statusMarkers)
     );
 }
 
@@ -2127,7 +2154,7 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
       token.label,
       token.imageUrl,
       toIntegerBoolean(token.visible),
-      token.statusMarker
+      serializeTokenStatusMarkers(token.statusMarkers)
     );
   });
 
@@ -3012,7 +3039,7 @@ function readCampaignAggregateById(database: DatabaseSync, campaignId: string) {
     label: row.label,
     imageUrl: row.imageUrl,
     visible: toBoolean(row.visible),
-    statusMarker: parseTokenStatusMarker(row.statusMarker)
+    statusMarkers: parseTokenStatusMarkers(row.statusMarker)
   }));
 
   for (const row of readAll<{

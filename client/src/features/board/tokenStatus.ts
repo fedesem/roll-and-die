@@ -59,7 +59,7 @@ const tokenStatusOptionsByValue = new Map<TokenStatusMarker, TokenStatusOption>(
   TOKEN_STATUS_OPTIONS.map((option) => [option.value, option])
 );
 
-export function getTokenStatusOption(statusMarker: TokenStatusMarker | null) {
+export function getTokenStatusOption(statusMarker: TokenStatusMarker | null | undefined) {
   return statusMarker ? tokenStatusOptionsByValue.get(statusMarker) ?? null : null;
 }
 

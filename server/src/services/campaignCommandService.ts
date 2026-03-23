@@ -615,7 +615,7 @@ export async function createTokenCommand(params: {
         label: actor.name,
         imageUrl: actor.imageUrl,
         visible: true,
-        statusMarker: null
+        statusMarkers: []
       };
 
     if (existing) {
@@ -647,7 +647,7 @@ export async function updateTokenCommand(params: {
     color?: string;
     label?: string;
     visible?: boolean;
-    statusMarker?: BoardToken["statusMarker"];
+    statusMarkers?: BoardToken["statusMarkers"];
   };
 }) {
   return runCampaignTransaction(params.campaignId, (database) => {
@@ -713,7 +713,8 @@ export async function updateTokenCommand(params: {
     storedToken.color = params.patch.color ?? storedToken.color;
     storedToken.label = params.patch.label ?? storedToken.label;
     storedToken.visible = params.patch.visible ?? storedToken.visible;
-    storedToken.statusMarker = params.patch.statusMarker === undefined ? storedToken.statusMarker : params.patch.statusMarker;
+    storedToken.statusMarkers =
+      params.patch.statusMarkers === undefined ? storedToken.statusMarkers : Array.from(new Set(params.patch.statusMarkers));
 
     updateExplorationForMap(campaign, previousMapId);
 

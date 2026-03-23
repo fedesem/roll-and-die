@@ -30,6 +30,22 @@ export function normalizeStoreState(database: Database): Database {
 }
 
 function normalizeCampaign(campaign: Campaign): Campaign {
+  const tokenStatusMarkerSet = new Set<string>(TOKEN_STATUS_MARKERS);
+  const normalizeStatusMarkers = (value: unknown) => {
+    if (Array.isArray(value)) {
+      return Array.from(
+        new Set(
+          value.filter(
+            (entry): entry is (typeof TOKEN_STATUS_MARKERS)[number] =>
+              typeof entry === "string" && tokenStatusMarkerSet.has(entry)
+          )
+        )
+      );
+    }
+
+    return typeof value === "string" && tokenStatusMarkerSet.has(value) ? [value as (typeof TOKEN_STATUS_MARKERS)[number]] : [];
+  };
+
   const maps: CampaignMap[] = Array.isArray(campaign.maps)
     ? campaign.maps.map((map) => ({
         ...map,
@@ -141,10 +157,7 @@ function normalizeCampaign(campaign: Campaign): Campaign {
             typeof token.imageUrl === "string"
               ? token.imageUrl
               : campaign.actors.find((actor) => actor.id === token.actorId)?.imageUrl ?? "",
-          statusMarker:
-            typeof token.statusMarker === "string" && TOKEN_STATUS_MARKERS.includes(token.statusMarker as typeof TOKEN_STATUS_MARKERS[number])
-              ? token.statusMarker
-              : null
+          statusMarkers: normalizeStatusMarkers((token as Campaign["tokens"][number] & { statusMarker?: unknown }).statusMarkers ?? (token as Campaign["tokens"][number] & { statusMarker?: unknown }).statusMarker)
         }))
       : [],
     chat: Array.isArray(campaign.chat) ? campaign.chat : [],

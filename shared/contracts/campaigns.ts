@@ -78,7 +78,7 @@ export const updateTokenBodySchema = z.object({
   color: z.string().optional(),
   label: z.string().optional(),
   visible: z.boolean().optional(),
-  statusMarker: tokenStatusMarkerSchema.nullable().optional()
+  statusMarkers: z.array(tokenStatusMarkerSchema).optional()
 });
 export const tokenResponseSchema = boardTokenSchema;
 

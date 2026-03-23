@@ -52,5 +52,5 @@ export interface TokenUpdatePatch {
   color?: string;
   label?: string;
   visible?: boolean;
-  statusMarker?: TokenStatusMarker | null;
+  statusMarkers?: TokenStatusMarker[];
 }

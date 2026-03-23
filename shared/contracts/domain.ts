@@ -634,7 +634,7 @@ export const boardTokenSchema: z.ZodType<BoardToken> = z.object({
   label: trimmedString,
   imageUrl: trimmedString,
   visible: z.boolean(),
-  statusMarker: tokenStatusMarkerSchema.nullable()
+  statusMarkers: z.array(tokenStatusMarkerSchema)
 });
 
 export const mapActorAssignmentSchema: z.ZodType<MapActorAssignment> = z.object({

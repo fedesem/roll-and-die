@@ -194,6 +194,20 @@ type ContextMenuState =
       tokenId: string;
     };
 
+function getTokenStatusBadgeStyle(index: number, count: number, tokenSize: number, badgeSize: number): CSSProperties {
+  const slotCount = Math.max(count, 10);
+  const angle = -Math.PI / 2 + index * ((Math.PI * 2) / slotCount);
+  const orbitRadius = tokenSize / 2 + badgeSize * 0.58;
+
+  return {
+    width: badgeSize,
+    height: badgeSize,
+    left: "50%",
+    top: "50%",
+    transform: `translate(calc(-50% + ${Math.cos(angle) * orbitRadius}px), calc(-50% + ${Math.sin(angle) * orbitRadius}px))`
+  };
+}
+
 const localMeasurePalette = {
   stroke: "rgba(242, 187, 63, 0.96)",
   fill: "rgba(242, 187, 63, 0.16)",
@@ -1718,9 +1732,16 @@ export function BoardCanvas({
     });
   }
 
-  async function handleTokenStatusChange(tokenId: string, statusMarker: BoardToken["statusMarker"]) {
-    setContextMenu(null);
-    await onUpdateToken(tokenId, { statusMarker });
+  async function handleTokenStatusChange(tokenId: string, statusMarkers: BoardToken["statusMarkers"]) {
+    await onUpdateToken(tokenId, { statusMarkers });
+  }
+
+  function toggleTokenStatusMarker(token: BoardToken, statusMarker: BoardToken["statusMarkers"][number]) {
+    const statusMarkers = token.statusMarkers.includes(statusMarker)
+      ? token.statusMarkers.filter((entry) => entry !== statusMarker)
+      : [...token.statusMarkers, statusMarker];
+
+    void handleTokenStatusChange(token.id, statusMarkers);
   }
 
   function handleDoorClick(doorId: string, event: ReactMouseEvent<SVGLineElement>) {
@@ -2214,9 +2235,10 @@ export function BoardCanvas({
             {orderedTokens.map((token) => {
               const hasImage = token.imageUrl.length > 0;
               const size = map.grid.cellSize * token.size * (hasImage ? 0.88 : 0.72);
-              const statusOption = getTokenStatusOption(token.statusMarker);
-              const badgeSize = Math.max(18, size * 0.34);
-              const StatusIcon = statusOption?.Icon;
+              const statusOptions = token.statusMarkers
+                .map((statusMarker) => getTokenStatusOption(statusMarker))
+                .filter((option): option is NonNullable<ReturnType<typeof getTokenStatusOption>> => option !== null);
+              const badgeSize = Math.max(16, Math.min(24, size * 0.3));
 
               return (
                 <button
@@ -2229,8 +2251,7 @@ export function BoardCanvas({
                     top: token.y,
                     width: size,
                     height: size,
-                    fontSize: Math.max(12, size * 0.34),
-                    background: token.color
+                    fontSize: Math.max(12, size * 0.34)
                   }}
                   data-board-token-id={token.id}
                   onPointerDown={(event) => handleTokenPointerDown(token, event)}
@@ -2238,30 +2259,30 @@ export function BoardCanvas({
                     event.stopPropagation();
                   }}
                 >
-                  {token.imageUrl ? (
-                    <img className="board-token-image" src={resolveAssetUrl(token.imageUrl)} alt={token.label} draggable={false} />
-                  ) : (
-                    <span className="board-token-initials">{initials(token.label)}</span>
-                  )}
-                  {statusOption && (
+                  <span className="board-token-body" style={{ background: token.color }}>
+                    {token.imageUrl ? (
+                      <img className="board-token-image" src={resolveAssetUrl(token.imageUrl)} alt={token.label} draggable={false} />
+                    ) : (
+                      <span className="board-token-initials">{initials(token.label)}</span>
+                    )}
+                    {token.statusMarkers.includes("cross") && (
+                      <span className="board-token-cross-overlay" aria-hidden="true">
+                        <span />
+                        <span />
+                      </span>
+                    )}
+                  </span>
+                  {statusOptions.map((statusOption, index) => (
                     <span
+                      key={statusOption.value}
                       className="board-token-status-badge"
                       data-tone={statusOption.tone}
-                      style={{
-                        width: badgeSize,
-                        height: badgeSize
-                      }}
+                      style={getTokenStatusBadgeStyle(index, statusOptions.length, size, badgeSize)}
                       title={statusOption.label}
                     >
-                      {StatusIcon && <StatusIcon className="board-token-status-icon" strokeWidth={2.2} aria-hidden="true" />}
+                      <statusOption.Icon className="board-token-status-icon" strokeWidth={2.2} aria-hidden="true" />
                     </span>
-                  )}
-                  {token.statusMarker === "cross" && (
-                    <span className="board-token-cross-overlay" aria-hidden="true">
-                      <span />
-                      <span />
-                    </span>
-                  )}
+                  ))}
                 </button>
               );
             })}
@@ -2330,24 +2351,25 @@ export function BoardCanvas({
                   <div className="board-context-menu-heading">{contextMenuToken.label}</div>
                   <button
                     type="button"
-                    disabled={!contextMenuToken.statusMarker}
+                    disabled={contextMenuToken.statusMarkers.length === 0}
                     onPointerDown={(event) => event.stopPropagation()}
                     onClick={() => {
-                      void handleTokenStatusChange(contextMenuToken.id, null);
+                      void handleTokenStatusChange(contextMenuToken.id, []);
                     }}
                   >
-                    Clear marker
+                    Clear markers
                   </button>
                   <div className="board-token-status-menu">
                     {TOKEN_STATUS_OPTIONS.map((option) => (
                       <button
                         key={option.value}
                         type="button"
-                        className={`board-token-status-option ${contextMenuToken.statusMarker === option.value ? "is-active" : ""}`}
+                        className={`board-token-status-option ${contextMenuToken.statusMarkers.includes(option.value) ? "is-active" : ""}`}
                         title={option.label}
+                        aria-pressed={contextMenuToken.statusMarkers.includes(option.value)}
                         onPointerDown={(event) => event.stopPropagation()}
                         onClick={() => {
-                          void handleTokenStatusChange(contextMenuToken.id, option.value);
+                          toggleTokenStatusMarker(contextMenuToken, option.value);
                         }}
                       >
                         <span className="board-token-status-swatch" data-tone={option.tone}>
