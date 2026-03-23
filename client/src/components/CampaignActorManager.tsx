@@ -1,4 +1,4 @@
-import { Minus, Plus, ScrollText, Trash2 } from "lucide-react";
+import { ScrollText, Trash2 } from "lucide-react";
 
 import type {
   ActorKind,
@@ -11,8 +11,7 @@ import type {
 import { CharacterSheet } from "./CharacterSheet";
 import type {
   ActorTypeFilter,
-  AvailableActorEntry,
-  CurrentMapRosterEntry
+  AvailableActorEntry
 } from "../features/campaign/types";
 import { formatMonsterModifier } from "../lib/drafts";
 
@@ -21,12 +20,9 @@ interface CampaignActorManagerProps {
   currentUserId: string;
   compendium: CampaignSnapshot["compendium"];
   selectedActor: ActorSheet | null;
-  filteredCurrentMapRoster: CurrentMapRosterEntry[];
   availableActors: AvailableActorEntry[];
   actorSearch: string;
-  mapActorSearch: string;
   actorTypeFilter: ActorTypeFilter;
-  mapActorTypeFilter: ActorTypeFilter;
   actorCreatorKind: ActorKind;
   actorCreatorOpen: boolean;
   actorDraft: ActorSheet | null;
@@ -36,17 +32,13 @@ interface CampaignActorManagerProps {
   onOpenSheet: (actorId: string) => void;
   onRoll: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
   onActorSearchChange: (value: string) => void;
-  onMapActorSearchChange: (value: string) => void;
   onActorTypeFilterChange: (value: ActorTypeFilter) => void;
-  onMapActorTypeFilterChange: (value: ActorTypeFilter) => void;
   onActorCreatorOpenChange: (open: boolean) => void;
   onActorCreatorKindChange: (kind: ActorKind) => void;
   onCreateActor: (draft: ActorSheet) => Promise<void>;
   onMonsterQueryChange: (value: string) => void;
   onSelectMonster: (monsterId: string) => void;
   onCreateMonsterActor: (monster: MonsterTemplate) => void;
-  onAssignActorToCurrentMap: (actorId: string) => void;
-  onRemoveActorFromCurrentMap: (actorId: string) => void;
   onDeleteActor: (actor: ActorSheet) => void;
 }
 
@@ -55,12 +47,9 @@ export function CampaignActorManager({
   currentUserId,
   compendium,
   selectedActor,
-  filteredCurrentMapRoster,
   availableActors,
   actorSearch,
-  mapActorSearch,
   actorTypeFilter,
-  mapActorTypeFilter,
   actorCreatorKind,
   actorCreatorOpen,
   actorDraft,
@@ -70,17 +59,13 @@ export function CampaignActorManager({
   onOpenSheet,
   onRoll,
   onActorSearchChange,
-  onMapActorSearchChange,
   onActorTypeFilterChange,
-  onMapActorTypeFilterChange,
   onActorCreatorOpenChange,
   onActorCreatorKindChange,
   onCreateActor,
   onMonsterQueryChange,
   onSelectMonster,
   onCreateMonsterActor,
-  onAssignActorToCurrentMap,
-  onRemoveActorFromCurrentMap,
   onDeleteActor
 }: CampaignActorManagerProps) {
   const canManageActor = (actor: ActorSheet) => role === "dm" || actor.ownerId === currentUserId;
@@ -90,7 +75,7 @@ export function CampaignActorManager({
   const monsterActionLabel = role === "dm" ? "Add to roster" : "Create summon / familiar";
 
   return (
-    <div className="popup-grid actor-manager-grid">
+    <div className="popup-grid">
       <section className="dark-card popup-card actor-list-card">
         <div className="panel-head">
           <div>
@@ -147,26 +132,6 @@ export function CampaignActorManager({
                     >
                       <ScrollText size={15} />
                     </button>
-                    {canManage && !onCurrentMap && (
-                      <button
-                        className="icon-action-button"
-                        type="button"
-                        title="Add actor to board"
-                        onClick={() => onAssignActorToCurrentMap(actor.id)}
-                      >
-                        <Plus size={15} />
-                      </button>
-                    )}
-                    {canManage && onCurrentMap && (
-                      <button
-                        className="icon-action-button"
-                        type="button"
-                        title="Remove actor from board"
-                        onClick={() => onRemoveActorFromCurrentMap(actor.id)}
-                      >
-                        <Minus size={15} />
-                      </button>
-                    )}
                     {canManage && (
                       <button
                         type="button"
@@ -185,87 +150,6 @@ export function CampaignActorManager({
               <p className="empty-state">
                 {role === "dm" ? "No actors match that search." : "You do not have any actors yet."}
               </p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <section className="dark-card popup-card actor-list-card">
-        <div className="panel-head">
-          <div>
-            <p className="panel-label">Board</p>
-            <h2>Actors on map</h2>
-          </div>
-          <span className="badge subtle">{filteredCurrentMapRoster.length}</span>
-        </div>
-        <div className="actor-filter-row">
-          <input
-            placeholder="Search current map actors"
-            value={mapActorSearch}
-            onChange={(event) => onMapActorSearchChange(event.target.value)}
-          />
-          <select
-            value={mapActorTypeFilter}
-            onChange={(event) => onMapActorTypeFilterChange(event.target.value as ActorTypeFilter)}
-          >
-            <option value="all">All types</option>
-            <option value="character">Characters</option>
-            <option value="npc">NPCs</option>
-            <option value="monster">Monsters</option>
-            <option value="static">Static</option>
-          </select>
-        </div>
-        <div className="actor-list-scroll">
-          <div className="list-stack">
-            {filteredCurrentMapRoster.map(({ actor, token, actorKind, assignment, label }) => {
-              const canRemoveFromMap = Boolean(actor && canManageActor(actor));
-
-              return (
-                <div key={`${assignment.mapId}:${assignment.actorId}`} className="popup-row actor-popup-row">
-                  <div className={`list-row actor-list-row-static ${actor && selectedActor?.id === actor.id ? "is-selected" : ""}`}>
-                    <div className="actor-row-main">
-                      <span className="actor-row-name">{label}</span>
-                      <div className="actor-row-meta">
-                        <span className="badge subtle">{actorKind}</span>
-                        {token && <span className="badge subtle">On board</span>}
-                        {actor ? (
-                          <span className="badge subtle">
-                            {role === "dm" ? "Sheet" : actor.ownerId === currentUserId ? "Yours" : "Seen"}
-                          </span>
-                        ) : (
-                          <span className="badge subtle">Seen</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="actor-list-actions">
-                    {actor && (
-                      <button
-                        className="icon-action-button"
-                        type="button"
-                        title="Open sheet"
-                        disabled={!canOpenSheet(actor)}
-                        onClick={() => onOpenSheet(actor.id)}
-                      >
-                        <ScrollText size={15} />
-                      </button>
-                    )}
-                    {canRemoveFromMap && actor && (
-                      <button
-                        className="icon-action-button"
-                        type="button"
-                        title="Remove actor from board"
-                        onClick={() => onRemoveActorFromCurrentMap(actor.id)}
-                      >
-                        <Minus size={15} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            {filteredCurrentMapRoster.length === 0 && (
-              <p className="empty-state">No actors are assigned to this map.</p>
             )}
           </div>
         </div>

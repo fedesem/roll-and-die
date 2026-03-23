@@ -40,6 +40,7 @@ const selectedCampaignStorageKey = "dnd-board-selected-campaign";
 export default function App() {
   const { route, navigate } = useAppRouter();
   const isCampaignRoute = route.name === "campaign" || route.name === "campaignBoard";
+  const isCampaignBoardRoute = route.name === "campaignBoard";
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [authForm, setAuthForm] = useState({ name: "", email: "", password: "" });
   const [authError, setAuthError] = useState<string | null>(null);
@@ -529,7 +530,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app-shell workspace-shell${selectedCampaignId && snapshot ? " is-room-active" : ""}`}>
+    <div className={`app-shell workspace-shell${selectedCampaignId && snapshot && isCampaignBoardRoute ? " is-room-active" : ""}`}>
       <AppTopbar
         userName={session.user.name}
         isAdmin={session.user.isAdmin}

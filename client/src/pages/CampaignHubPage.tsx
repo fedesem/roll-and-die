@@ -1,4 +1,6 @@
-import { ArrowRight, Map as MapIcon, Swords, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { ArrowRight, Castle, Map as MapIcon, Swords, Users } from "lucide-react";
 
 import type {
   ActorKind,
@@ -10,6 +12,7 @@ import type {
 } from "@shared/types";
 
 import { CampaignActorManager } from "../components/CampaignActorManager";
+import { CampaignMapAssignments } from "../components/CampaignMapAssignments";
 import { CampaignMapManager } from "../components/CampaignMapManager";
 import { CampaignRoomManager } from "../components/CampaignRoomManager";
 import { CharacterSheet } from "../components/CharacterSheet";
@@ -21,6 +24,7 @@ import type {
 } from "../features/campaign/types";
 
 type ActivePopup = "sheet" | null;
+type DashboardSection = "room" | "actors" | "maps";
 
 interface CampaignHubPageProps {
   campaign: CampaignSnapshot["campaign"];
@@ -144,6 +148,14 @@ export function CampaignHubPage({
   onBackToMapsList,
   onMapUploadError
 }: CampaignHubPageProps) {
+  const [section, setSection] = useState<DashboardSection>("room");
+
+  useEffect(() => {
+    if (role !== "dm" && section === "maps") {
+      setSection("room");
+    }
+  }, [role, section]);
+
   return (
     <>
       <main className="grid gap-5 px-4 py-6 lg:px-8">
@@ -154,8 +166,8 @@ export function CampaignHubPage({
               <h2 className="mt-2 font-serif text-3xl text-amber-50">{campaign.name}</h2>
               <p className="mt-3 text-sm leading-6 text-slate-400">
                 {role === "dm"
-                  ? "Choose the active board, edit maps, manage the roster, and handle room access before opening the live board."
-                  : "Create and manage your actors here, including player-owned monster summons or familiars, then open the live board."}
+                  ? "Manage members, actors, and maps here before opening the live board."
+                  : "Manage your roster and review the active board setup here before opening the live board."}
               </p>
             </div>
             <div className="flex flex-col items-stretch gap-3 sm:min-w-64">
@@ -198,75 +210,121 @@ export function CampaignHubPage({
           </div>
         </section>
 
-        {role === "dm" && (
-          <CampaignMapManager
-            campaignMaps={campaign.maps}
-            role={role}
-            activeMap={activeMap}
-            selectedMap={selectedMap}
-            editingMap={editingMap}
-            mapEditorMode={mapEditorMode}
-            onShowMap={onShowMap}
-            onStartCreateMap={onStartCreateMap}
-            onStartEditMap={onStartEditMap}
-            onChangeEditingMap={onChangeEditingMap}
-            onSaveEditingMap={onSaveEditingMap}
-            onReloadEditingMap={onReloadEditingMap}
-            onUndoEditingMap={onUndoEditingMap}
-            onRedoEditingMap={onRedoEditingMap}
-            canUndoEditingMap={canUndoEditingMap}
-            canRedoEditingMap={canRedoEditingMap}
-            canPersistEditingMap={canPersistEditingMap}
-            onSetEditingMapActive={onSetEditingMapActive}
-            onBackToMapsList={onBackToMapsList}
-            onMapUploadError={onMapUploadError}
-          />
-        )}
+        <section className="dark-card campaign-dashboard-shell">
+          <div className="admin-page-toolbar">
+            <div className="segmented admin-tabbar">
+              <button type="button" className={section === "room" ? "is-active" : ""} onClick={() => setSection("room")}>
+                <Castle size={15} />
+                <span>Members and access</span>
+                <span className="badge subtle">{campaign.members.length}</span>
+              </button>
+              <button type="button" className={section === "actors" ? "is-active" : ""} onClick={() => setSection("actors")}>
+                <Users size={15} />
+                <span>Actors</span>
+                <span className="badge subtle">{availableActors.length}</span>
+              </button>
+              {role === "dm" && (
+                <button type="button" className={section === "maps" ? "is-active" : ""} onClick={() => setSection("maps")}>
+                  <MapIcon size={15} />
+                  <span>Maps</span>
+                  <span className="badge subtle">{campaign.maps.length}</span>
+                </button>
+              )}
+            </div>
+          </div>
 
-        <CampaignActorManager
-          role={role}
-          currentUserId={currentUserId}
-          compendium={compendium}
-          selectedActor={selectedActor}
-          filteredCurrentMapRoster={filteredCurrentMapRoster}
-          availableActors={availableActors}
-          actorSearch={actorSearch}
-          mapActorSearch={mapActorSearch}
-          actorTypeFilter={actorTypeFilter}
-          mapActorTypeFilter={mapActorTypeFilter}
-          actorCreatorKind={actorCreatorKind}
-          actorCreatorOpen={actorCreatorOpen}
-          actorDraft={actorDraft}
-          monsterQuery={monsterQuery}
-          filteredCatalog={filteredCatalog}
-          selectedMonsterTemplate={selectedMonsterTemplate}
-          onOpenSheet={(actorId) => {
-            onSelectActor(actorId);
-            onSetActivePopup("sheet");
-          }}
-          onRoll={onRoll}
-          onActorSearchChange={onActorSearchChange}
-          onMapActorSearchChange={onMapActorSearchChange}
-          onActorTypeFilterChange={onActorTypeFilterChange}
-          onMapActorTypeFilterChange={onMapActorTypeFilterChange}
-          onActorCreatorOpenChange={onActorCreatorOpenChange}
-          onActorCreatorKindChange={onActorCreatorKindChange}
-          onCreateActor={onCreateActor}
-          onMonsterQueryChange={onMonsterQueryChange}
-          onSelectMonster={onSelectMonster}
-          onCreateMonsterActor={onCreateMonsterActor}
-          onAssignActorToCurrentMap={onAssignActorToCurrentMap}
-          onRemoveActorFromCurrentMap={onRemoveActorFromCurrentMap}
-          onDeleteActor={onDeleteActor}
-        />
+          {section === "room" && (
+            <CampaignRoomManager
+              campaign={campaign}
+              role={role}
+              inviteDraft={inviteDraft}
+              onInviteDraftChange={onInviteDraftChange}
+              onCreateInvite={onCreateInvite}
+            />
+          )}
 
-        <CampaignRoomManager
-          campaign={campaign}
-          role={role}
-          inviteDraft={inviteDraft}
-          onInviteDraftChange={onInviteDraftChange}
-          onCreateInvite={onCreateInvite}
-        />
+          {section === "actors" && (
+            <CampaignActorManager
+              role={role}
+              currentUserId={currentUserId}
+              compendium={compendium}
+              selectedActor={selectedActor}
+              availableActors={availableActors}
+              actorSearch={actorSearch}
+              actorTypeFilter={actorTypeFilter}
+              actorCreatorKind={actorCreatorKind}
+              actorCreatorOpen={actorCreatorOpen}
+              actorDraft={actorDraft}
+              monsterQuery={monsterQuery}
+              filteredCatalog={filteredCatalog}
+              selectedMonsterTemplate={selectedMonsterTemplate}
+              onOpenSheet={(actorId) => {
+                onSelectActor(actorId);
+                onSetActivePopup("sheet");
+              }}
+              onRoll={onRoll}
+              onActorSearchChange={onActorSearchChange}
+              onActorTypeFilterChange={onActorTypeFilterChange}
+              onActorCreatorOpenChange={onActorCreatorOpenChange}
+              onActorCreatorKindChange={onActorCreatorKindChange}
+              onCreateActor={onCreateActor}
+              onMonsterQueryChange={onMonsterQueryChange}
+              onSelectMonster={onSelectMonster}
+              onCreateMonsterActor={onCreateMonsterActor}
+              onDeleteActor={onDeleteActor}
+            />
+          )}
+
+          {role === "dm" && section === "maps" && (
+            <div className={`campaign-maps-grid${editingMap ? " is-editing" : ""}`}>
+              <CampaignMapManager
+                campaignMaps={campaign.maps}
+                role={role}
+                activeMap={activeMap}
+                selectedMap={selectedMap}
+                editingMap={editingMap}
+                mapEditorMode={mapEditorMode}
+                onShowMap={onShowMap}
+                onStartCreateMap={onStartCreateMap}
+                onStartEditMap={onStartEditMap}
+                onChangeEditingMap={onChangeEditingMap}
+                onSaveEditingMap={onSaveEditingMap}
+                onReloadEditingMap={onReloadEditingMap}
+                onUndoEditingMap={onUndoEditingMap}
+                onRedoEditingMap={onRedoEditingMap}
+                canUndoEditingMap={canUndoEditingMap}
+                canRedoEditingMap={canRedoEditingMap}
+                canPersistEditingMap={canPersistEditingMap}
+                onSetEditingMapActive={onSetEditingMapActive}
+                onBackToMapsList={onBackToMapsList}
+                onMapUploadError={onMapUploadError}
+              />
+
+              <CampaignMapAssignments
+                role={role}
+                currentUserId={currentUserId}
+                activeMap={activeMap}
+                selectedActor={selectedActor}
+                filteredCurrentMapRoster={filteredCurrentMapRoster}
+                availableActors={availableActors}
+                actorSearch={actorSearch}
+                mapActorSearch={mapActorSearch}
+                actorTypeFilter={actorTypeFilter}
+                mapActorTypeFilter={mapActorTypeFilter}
+                onOpenSheet={(actorId) => {
+                  onSelectActor(actorId);
+                  onSetActivePopup("sheet");
+                }}
+                onActorSearchChange={onActorSearchChange}
+                onMapActorSearchChange={onMapActorSearchChange}
+                onActorTypeFilterChange={onActorTypeFilterChange}
+                onMapActorTypeFilterChange={onMapActorTypeFilterChange}
+                onAssignActorToCurrentMap={onAssignActorToCurrentMap}
+                onRemoveActorFromCurrentMap={onRemoveActorFromCurrentMap}
+              />
+            </div>
+          )}
+        </section>
       </main>
 
       {activePopup === "sheet" && (
