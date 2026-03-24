@@ -807,3 +807,32 @@ export async function resetFogCommand(params: {
         incrementMapVisibilityVersion(database, params.mapId);
     });
 }
+export async function clearFogCommand(params: {
+    campaignId: string;
+    userId: string;
+    mapId: string;
+}) {
+    return await runCampaignTransaction(params.campaignId, async (database) => {
+        requireDungeonMasterForCampaign(database, params.campaignId, params.userId);
+        const activeMapId = (await requireCampaignCore(database, params.campaignId)).activeMapId;
+        if (params.mapId !== activeMapId) {
+            throw new HttpError(403, "Fog can only be cleared on the active map.");
+        }
+        const map = await readMapEditorMap(database, params.campaignId, activeMapId);
+        if (!map) {
+            throw new HttpError(404, "Map not found.");
+        }
+        if (!map.fogEnabled) {
+            return;
+        }
+        map.fogEnabled = false;
+        await upsertMapRecord(database, params.campaignId, map);
+        const campaign = await readBoardStateForMapIds(database, params.campaignId, [map.id]);
+        const mapIndex = campaign.maps.findIndex((entry) => entry.id === map.id);
+        if (mapIndex >= 0) {
+            campaign.maps[mapIndex] = map;
+            updateExplorationForMap(campaign, map.id);
+            persistExplorationForMapIds(database, campaign, [map.id]);
+        }
+    });
+}

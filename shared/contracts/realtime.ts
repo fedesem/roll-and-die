@@ -91,6 +91,10 @@ export const clientRoomMessageSchema = z.discriminatedUnion("type", [
     mapId: z.string().trim().min(1)
   }),
   z.object({
+    type: z.literal("fog:clear"),
+    mapId: z.string().trim().min(1)
+  }),
+  z.object({
     type: z.literal("door:toggle"),
     doorId: z.string().trim().min(1)
   })

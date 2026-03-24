@@ -31,6 +31,7 @@ interface BoardToolbarProps {
   onSetDmFogEnabled: (value: boolean) => void;
   onSetDmFogUserId: (value: string | null) => void;
   onResetFog: () => void;
+  onClearFog: () => void;
   measureKind: MeasureKind;
   onMeasureKindChange: (kind: MeasureKind) => void;
   measureSnapMode: MeasureSnapMode;
@@ -68,6 +69,7 @@ export function BoardToolbar({
   onSetDmFogEnabled,
   onSetDmFogUserId,
   onResetFog,
+  onClearFog,
   measureKind,
   onMeasureKindChange,
   measureSnapMode,
@@ -126,26 +128,43 @@ export function BoardToolbar({
         </div>
         <div className="tool-meta">
           <span className="board-zoom-chip">Zoom {Math.round(viewZoom * 100)}%</span>
-          {isDungeonMaster && fogEnabled && fogPlayers.length > 0 && (
+          {isDungeonMaster && fogEnabled && (
             <>
-              <select value={dmFogUserId ?? ""} onChange={(event) => onSetDmFogUserId(event.target.value || null)}>
-                {fogPlayers.map((member) => (
-                  <option key={member.userId} value={member.userId}>
-                    {member.name}
-                  </option>
-                ))}
-              </select>
+              {fogPlayers.length > 0 && (
+                <>
+                  <select value={dmFogUserId ?? ""} onChange={(event) => onSetDmFogUserId(event.target.value || null)}>
+                    {fogPlayers.map((member) => (
+                      <option key={member.userId} value={member.userId}>
+                        {member.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={`icon-action-button ${dmFogEnabled ? "is-active" : ""}`}
+                    title={dmFogEnabled ? "Hide player fog" : "View player fog"}
+                    disabled={!dmFogUserId}
+                    onClick={() => onSetDmFogEnabled(!dmFogEnabled)}
+                  >
+                    {dmFogEnabled ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-action-button"
+                    title="Reset remembered fog"
+                    onClick={onResetFog}
+                  >
+                    <RotateCcw size={15} />
+                  </button>
+                </>
+              )}
               <button
                 type="button"
-                className={`icon-action-button ${dmFogEnabled ? "is-active" : ""}`}
-                title={dmFogEnabled ? "Hide player fog" : "View player fog"}
-                disabled={!dmFogUserId}
-                onClick={() => onSetDmFogEnabled(!dmFogEnabled)}
+                className="board-toolbar-action danger-button"
+                title="Clear fog for all users"
+                onClick={onClearFog}
               >
-                {dmFogEnabled ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-              <button type="button" className="icon-action-button" title="Reset fog" onClick={onResetFog}>
-                <RotateCcw size={15} />
+                Clear Fog
               </button>
             </>
           )}

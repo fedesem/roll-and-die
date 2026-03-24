@@ -300,6 +300,26 @@ export function useRoomActions({
     }
   }, [activeMap, onStatus, selectedCampaignId, sendRoomMessage]);
 
+  const clearFog = useCallback(async () => {
+    if (!selectedCampaignId || !activeMap) {
+      return;
+    }
+
+    if (!window.confirm(`Clear fog for everyone on ${activeMap.name}?`)) {
+      return;
+    }
+
+    try {
+      await sendRoomMessage({
+        type: "fog:clear",
+        mapId: activeMap.id
+      });
+      onStatus("info", "Fog cleared for the active map.");
+    } catch (error) {
+      onStatus("error", toErrorMessage(error));
+    }
+  }, [activeMap, onStatus, selectedCampaignId, sendRoomMessage]);
+
   const setEditingMapActive = useCallback(() => {
     if (!editingMap) {
       return;
@@ -333,6 +353,7 @@ export function useRoomActions({
     pingAndRecallMap,
     toggleDoor,
     resetFog,
+    clearFog,
     setEditingMapActive,
     showMap
   };

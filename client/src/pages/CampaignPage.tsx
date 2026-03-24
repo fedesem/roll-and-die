@@ -47,6 +47,7 @@ interface CampaignPageProps {
   onSetDmFogEnabled: (enabled: boolean) => void;
   onSetDmFogUserId: (userId: string | null) => void;
   onResetFog: () => Promise<void>;
+  onClearFog: () => Promise<void>;
   onSelectedMapItemCountChange: (count: number) => void;
   onMoveActor: (actorId: string, x: number, y: number) => Promise<void>;
   onBroadcastMovePreview: (actorId: string, target: Point | null) => Promise<void>;
@@ -91,6 +92,7 @@ export function CampaignPage({
   onSetDmFogEnabled,
   onSetDmFogUserId,
   onResetFog,
+  onClearFog,
   onSelectedMapItemCountChange,
   onMoveActor,
   onBroadcastMovePreview,
@@ -126,6 +128,7 @@ export function CampaignPage({
             onSetDmFogEnabled={onSetDmFogEnabled}
             onSetDmFogUserId={onSetDmFogUserId}
             onResetFog={onResetFog}
+            onClearFog={onClearFog}
             onSelectActor={onSelectActor}
             onSelectedMapItemCountChange={onSelectedMapItemCountChange}
             movementPreviews={movementPreviews}

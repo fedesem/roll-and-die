@@ -90,6 +90,7 @@ interface BoardCanvasProps {
   onSetDmFogEnabled: (value: boolean) => void;
   onSetDmFogUserId: (value: string | null) => void;
   onResetFog: () => Promise<void>;
+  onClearFog: () => Promise<void>;
   onSelectActor: (actorId: string | null) => void;
   onSelectedMapItemCountChange: (count: number) => void;
   movementPreviews: Array<{ actorId: string; mapId: string; preview: TokenMovementPreview }>;
@@ -229,6 +230,7 @@ export function BoardCanvas({
   onSetDmFogEnabled,
   onSetDmFogUserId,
   onResetFog,
+  onClearFog,
   onSelectActor,
   onSelectedMapItemCountChange,
   movementPreviews,
@@ -1857,6 +1859,7 @@ export function BoardCanvas({
         onSetDmFogEnabled={onSetDmFogEnabled}
         onSetDmFogUserId={onSetDmFogUserId}
         onResetFog={() => void onResetFog()}
+        onClearFog={() => void onClearFog()}
         measureKind={measureKind}
         onMeasureKindChange={setMeasureKind}
         measureSnapMode={measureSnapMode}

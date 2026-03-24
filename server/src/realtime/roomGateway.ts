@@ -9,7 +9,7 @@ import { runStoreQuery, runStoreTransaction } from "../store.js";
 import { insertCampaignExplorationCells, readActiveBoardCampaign, readCampaignActiveMapId, readCampaignSnapshotById, readMapEditorMap, updateCampaignDoorState, upsertCampaignToken } from "../store/models/campaigns.js";
 import { readSession, readUserById } from "../store/models/users.js";
 import { createId, now, toUserProfile } from "../services/authService.js";
-import { appendChatMessageCommand, appendRollMessageCommand, clearDrawingsCommand, createDrawingCommand, deleteDrawingsCommand, resetFogCommand, setActiveMapCommand, updateDrawingsCommand } from "../services/campaignCommandService.js";
+import { appendChatMessageCommand, appendRollMessageCommand, clearDrawingsCommand, clearFogCommand, createDrawingCommand, deleteDrawingsCommand, resetFogCommand, setActiveMapCommand, updateDrawingsCommand } from "../services/campaignCommandService.js";
 import { buildCampaignSnapshot, canManageActor, canToggleDoor, hasMapAssignment, normalizeExplorationMemoryForMap, requireActiveMap, requireCampaignRole, requireDungeonMaster, sanitizeMeasurePreview, updateExplorationForActorMove, updateExplorationForMap } from "../services/campaignDomain.js";
 import { readRoomCompendiumCache } from "../services/roomCompendiumCache.js";
 interface RoomConnection {
@@ -602,6 +602,27 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         }
         if (payload.type === "fog:reset") {
             await resetFogCommand({
+                campaignId,
+                userId: user.id,
+                mapId: payload.mapId
+            });
+            const campaign = await runStoreQuery(async (database) => await readActiveBoardCampaign(database, campaignId), {
+                queueKey: `campaign:${campaignId}`
+            });
+            if (!campaign) {
+                throw new HttpError(404, "Campaign not found.");
+            }
+            const map = requireActiveMap(campaign);
+            broadcastCampaignPatchToRoom(campaignId, (connection) => ({
+                mapsUpsert: [map],
+                playerVision: connection.user && connection.role
+                    ? buildPlayerVisionUpdateForMap(campaign, connection.user.id, map.id)
+                    : undefined
+            }));
+            return;
+        }
+        if (payload.type === "fog:clear") {
+            await clearFogCommand({
                 campaignId,
                 userId: user.id,
                 mapId: payload.mapId

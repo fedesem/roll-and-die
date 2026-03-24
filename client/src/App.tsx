@@ -413,6 +413,7 @@ export default function App() {
     pingAndRecallMap,
     toggleDoor,
     resetFog,
+    clearFog,
     setEditingMapActive,
     showMap
   } = useRoomActions({
@@ -664,6 +665,7 @@ export default function App() {
           onSetDmFogEnabled={setDmFogEnabled}
           onSetDmFogUserId={setDmFogUserId}
           onResetFog={resetFog}
+          onClearFog={clearFog}
           onSelectedMapItemCountChange={setSelectedBoardItemCount}
           onMoveActor={moveActor}
           onBroadcastMovePreview={broadcastMovePreview}

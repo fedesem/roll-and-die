@@ -736,6 +736,10 @@ export type ClientRoomMessage =
       mapId: string;
     }
   | {
+      type: "fog:clear";
+      mapId: string;
+    }
+  | {
       type: "door:toggle";
       doorId: string;
     };

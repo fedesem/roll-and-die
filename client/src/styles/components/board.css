@@ -78,6 +78,12 @@
   white-space: nowrap;
 }
 
+.board-toolbar-action {
+  min-height: 2.35rem;
+  padding: 0.45rem 0.8rem;
+  white-space: nowrap;
+}
+
 .board-draw-controls,
 .board-measure-controls {
   position: absolute;
