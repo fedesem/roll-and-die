@@ -1,4 +1,6 @@
 import { createServer } from "node:http";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
@@ -19,6 +21,8 @@ import { createAuthMiddleware } from "./services/authService.js";
 const app = express();
 const httpServer = createServer(app);
 const port = Number(process.env.PORT || 4000);
+const clientDistPath = resolve(process.cwd(), "client", "dist");
+const hasClientDist = existsSync(clientDistPath);
 
 createRoomGateway(httpServer);
 
@@ -32,6 +36,9 @@ app.use(requestLogger);
 app.use(express.json({ limit: "20mb" }));
 app.use("/uploads", express.static(uploadsRootPath));
 app.use(wrap(createAuthMiddleware()));
+if (hasClientDist) {
+  app.use(express.static(clientDistPath));
+}
 
 app.get("/api/health", (_request, response) => {
   response.json({ ok: true });
@@ -44,6 +51,11 @@ app.use("/api/campaigns", createCampaignRouter());
 app.use("/api/campaigns/:campaignId/maps", createMapRouter());
 app.use("/api/campaigns/:campaignId/tokens", createTokenRouter());
 app.use("/api/campaigns", createChatRouter());
+if (hasClientDist) {
+  app.get(/^\/(?!api(?:\/|$)|uploads(?:\/|$)|ws(?:\/|$)).*/, (_request, response) => {
+    response.sendFile(resolve(clientDistPath, "index.html"));
+  });
+}
 
 app.use((error: unknown, request: Request, response: Response, _next: NextFunction) => {
   if (error instanceof HttpError) {
@@ -69,5 +81,11 @@ app.use((error: unknown, request: Request, response: Response, _next: NextFuncti
 });
 
 httpServer.listen(port, () => {
-  logger.info({ port }, "DnD board API listening");
+  logger.info(
+    {
+      port,
+      startedAt: new Date().toISOString()
+    },
+    "DnD board API listening"
+  );
 });
