@@ -10,6 +10,8 @@ services:
     user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     environment:
       CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
+      HOME: /tmp/app-home
+      NPM_CONFIG_CACHE: /tmp/app-home/.npm
       PORT: ${SERVER_PORT:-4000}
     ports:
       - "${SERVER_PORT:-4000}:4000"

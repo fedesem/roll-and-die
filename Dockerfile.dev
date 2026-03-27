@@ -12,4 +12,4 @@ RUN apt-get update \
 
 EXPOSE 4000 5174
 
-CMD ["sh", "-lc", "npm ci && npx concurrently -k -n server,client -c blue,magenta \"npm run dev --workspace server\" \"npm run dev --workspace client -- --host 0.0.0.0\""]
+CMD ["sh", "-lc", "if [ ! -x ./node_modules/.bin/concurrently ]; then echo \"dependencies missing; run scripts/app.sh dev npm install\" >&2; exit 1; fi; exec ./node_modules/.bin/concurrently -k -n server,client -c blue,magenta \"npm run dev --workspace server\" \"npm run dev --workspace client -- --host 0.0.0.0\""]

@@ -24,9 +24,10 @@ fi
 
 MODE="${1:-}"
 ACTION="${2:-up}"
+NPM_ARGS=("${@:3}")
 
 if [[ -z "$MODE" ]]; then
-  echo "usage: scripts/app.sh <dev|prod> [up|down|build|logs|ps|restart]"
+  echo "usage: scripts/app.sh <dev|prod> [up|down|build|logs|ps|restart|npm]"
   exit 1
 fi
 
@@ -41,10 +42,23 @@ case "$MODE" in
     ;;
   *)
     echo "invalid mode: $MODE"
-    echo "usage: scripts/app.sh <dev|prod> [up|down|build|logs|ps|restart]"
+    echo "usage: scripts/app.sh <dev|prod> [up|down|build|logs|ps|restart|npm]"
     exit 1
     ;;
 esac
+
+run_dev_npm() {
+  if [[ "$MODE" != "dev" ]]; then
+    echo "npm is only supported for dev mode"
+    exit 1
+  fi
+
+  if [[ ${#NPM_ARGS[@]} -eq 0 ]]; then
+    NPM_ARGS=(install)
+  fi
+
+  exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" run --rm --no-deps "$SERVICE" npm "${NPM_ARGS[@]}"
+}
 
 case "$ACTION" in
   up)
@@ -65,9 +79,12 @@ case "$ACTION" in
   restart)
     exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" restart "$SERVICE"
     ;;
+  npm)
+    run_dev_npm
+    ;;
   *)
     echo "invalid action: $ACTION"
-    echo "usage: scripts/app.sh <dev|prod> [up|down|build|logs|ps|restart]"
+    echo "usage: scripts/app.sh <dev|prod> [up|down|build|logs|ps|restart|npm]"
     exit 1
     ;;
 esac
