@@ -60,9 +60,14 @@ run_dev_npm() {
   exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" run --rm --no-deps "$SERVICE" npm "${NPM_ARGS[@]}"
 }
 
+run_service_logs() {
+  exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" logs -f "$SERVICE"
+}
+
 case "$ACTION" in
   up)
-    exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" up --build "$SERVICE"
+    "${COMPOSE_CMD[@]}" --profile "$PROFILE" up -d --build "$SERVICE"
+    run_service_logs
     ;;
   down)
     exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" down
@@ -71,13 +76,14 @@ case "$ACTION" in
     exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" build "$SERVICE"
     ;;
   logs)
-    exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" logs -f "$SERVICE"
+    run_service_logs
     ;;
   ps)
     exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" ps
     ;;
   restart)
-    exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" restart "$SERVICE"
+    "${COMPOSE_CMD[@]}" --profile "$PROFILE" restart "$SERVICE"
+    run_service_logs
     ;;
   npm)
     run_dev_npm
