@@ -350,6 +350,7 @@ function sanitizeExternalMonsterEntry(object: Record<string, unknown>): MonsterT
   const hp = asObject(object.hp ?? {}, "Monster hit points");
   const savingThrows = asObject(object.save ?? {}, "Monster saves");
   const skills = asObject(object.skill ?? {}, "Monster skills");
+  const challengeRating = parseExternalChallengeRating(object.cr ?? object.challengeRating);
   const actionEntries = readObjectArray(object.action).map(sanitizeExternalMonsterAction);
   const bonusActionEntries = readObjectArray((object.bonus as unknown) ?? object.bonusActions).map(sanitizeExternalMonsterAction);
   const reactionEntries = readObjectArray((object.reaction as unknown) ?? object.reactions).map(sanitizeExternalMonsterAction);
@@ -373,11 +374,11 @@ function sanitizeExternalMonsterEntry(object: Record<string, unknown>): MonsterT
     id: readString(object.id) || createId("mon"),
     name: requireString(object.name, "Monster name"),
     source: formatMonsterSource(object),
-    challengeRating: parseExternalChallengeRating(object.cr ?? object.challengeRating),
+    challengeRating,
     creatureType: formatMonsterTypeValue(object.type),
     armorClass: parseArmorClass(object.ac ?? object.armorClass),
     hitPoints: clampNumber(hp.average ?? object.hitPoints, 1, 5000, 1),
-    initiative: parseExternalInitiative(object.initiative, object.dex, object.proficiencyBonus, object.cr),
+    initiative: parseExternalInitiative(object.initiative, object.dex, object.proficiencyBonus, challengeRating),
     speed: clampNumber(speed.walk, 0, 1000, 30),
     speedModes: {
       walk: clampNumber(speed.walk, 0, 1000, 30),
@@ -403,8 +404,8 @@ function sanitizeExternalMonsterEntry(object: Record<string, unknown>): MonsterT
     senses: parseExternalSenses(object.senses),
     passivePerception: clampNumber(object.passive ?? object.passivePerception, 0, 50, 10),
     languages: readStringArray(object.languages),
-    xp: parseMonsterXp(object.xp, object.cr),
-    proficiencyBonus: parseMonsterProficiencyBonus(object.proficiencyBonus, object.cr),
+    xp: parseMonsterXp(object.xp, challengeRating),
+    proficiencyBonus: parseMonsterProficiencyBonus(object.proficiencyBonus, challengeRating),
     gear: readStringArray(object.gear),
     resistances: normalizeExternalDescriptorArray(object.resist ?? object.resistances),
     vulnerabilities: normalizeExternalDescriptorArray(object.vulnerable ?? object.vulnerabilities),
@@ -2008,7 +2009,7 @@ function parseExternalChallengeRating(value: unknown) {
     }
   }
 
-  throw new HttpError(400, "Monster CR is required.");
+  return "Special";
 }
 
 function readChallengeRatingValue(value: unknown) {

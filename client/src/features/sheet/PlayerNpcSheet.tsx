@@ -35,7 +35,7 @@ import type {
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 
 import { resolveAssetUrl } from "../../lib/assets";
-import { readFileAsDataUrl } from "../../lib/media";
+import { uploadImageAsset } from "../../services/assetService";
 import { RestDialog } from "./RestDialog";
 import {
   abilityModifier,
@@ -67,6 +67,7 @@ import {
 } from "./sheetUtils";
 
 interface PlayerNpcSheetProps {
+  token: string;
   actor: ActorSheet;
   compendium: Pick<CompendiumData, "spells" | "feats" | "classes">;
   role: MemberRole;
@@ -99,6 +100,7 @@ const sectionDefaults: Record<SheetSectionId, { column: number; order: number }>
 const resetOptions = ["", "Short Rest", "Long Rest"] as const;
 
 export function PlayerNpcSheet({
+  token,
   actor,
   compendium,
   role,
@@ -355,7 +357,7 @@ export function PlayerNpcSheet({
     }
 
     try {
-      const imageUrl = await readFileAsDataUrl(file);
+      const { url: imageUrl } = await uploadImageAsset(token, "actors", file);
       setImageError(null);
       updateField("imageUrl", imageUrl);
     } catch (error) {

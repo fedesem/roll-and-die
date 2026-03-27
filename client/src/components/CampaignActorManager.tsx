@@ -16,6 +16,7 @@ import type {
 import { formatMonsterModifier } from "../lib/drafts";
 
 interface CampaignActorManagerProps {
+  token: string;
   role: MemberRole;
   currentUserId: string;
   compendium: CampaignSnapshot["compendium"];
@@ -43,6 +44,7 @@ interface CampaignActorManagerProps {
 }
 
 export function CampaignActorManager({
+  token,
   role,
   currentUserId,
   compendium,
@@ -263,6 +265,7 @@ export function CampaignActorManager({
             ) : (
               actorDraft && (
                 <CharacterSheet
+                  token={token}
                   actor={actorDraft}
                   compendium={compendium}
                   role={role}

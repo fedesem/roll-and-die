@@ -582,6 +582,7 @@ export default function App() {
         <CampaignLoadingPage roomStatus={roomStatus} />
       ) : route.name === "campaign" ? (
         <CampaignHubPage
+          token={session.token}
           campaign={snapshot.campaign}
           compendium={snapshot.compendium}
           role={role}
@@ -642,6 +643,7 @@ export default function App() {
         />
       ) : (
         <CampaignPage
+          token={session.token}
           campaign={snapshot.campaign}
           compendium={snapshot.compendium}
           role={role}

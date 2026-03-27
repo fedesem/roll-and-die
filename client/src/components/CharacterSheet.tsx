@@ -7,9 +7,10 @@ import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 import { PlayerNpcSheet } from "../features/sheet/PlayerNpcSheet";
 import { cloneActor } from "../features/sheet/sheetUtils";
 import { resolveAssetUrl } from "../lib/assets";
-import { readFileAsDataUrl } from "../lib/media";
+import { uploadImageAsset } from "../services/assetService";
 
 interface CharacterSheetProps {
+  token: string;
   actor?: ActorSheet | null;
   compendium: Pick<CompendiumData, "spells" | "feats" | "classes">;
   role: MemberRole;
@@ -19,6 +20,7 @@ interface CharacterSheetProps {
 }
 
 export function CharacterSheet({
+  token,
   actor,
   compendium,
   role,
@@ -78,6 +80,7 @@ export function CharacterSheet({
   if (draft.kind === "character" || draft.kind === "npc") {
     return (
       <PlayerNpcSheet
+        token={token}
         actor={draft}
         compendium={compendium}
         role={role}
@@ -90,6 +93,7 @@ export function CharacterSheet({
 
   return (
     <SimpleActorSheet
+      token={token}
       actor={draft}
       canEdit={canEdit}
       saving={saving}
@@ -110,6 +114,7 @@ export function CharacterSheet({
 }
 
 interface SimpleActorSheetProps {
+  token: string;
   actor: ActorSheet;
   canEdit: boolean;
   saving: boolean;
@@ -120,6 +125,7 @@ interface SimpleActorSheetProps {
 }
 
 function SimpleActorSheet({
+  token,
   actor,
   canEdit,
   saving,
@@ -156,7 +162,7 @@ function SimpleActorSheet({
     }
 
     try {
-      const imageUrl = await readFileAsDataUrl(file);
+      const { url: imageUrl } = await uploadImageAsset(token, "actors", file);
       onImageError(null);
       updateField("imageUrl", imageUrl);
     } catch (error) {

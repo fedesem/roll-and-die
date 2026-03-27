@@ -18,3 +18,25 @@ export function readFileAsDataUrl(file: File) {
     reader.readAsDataURL(file);
   });
 }
+
+export function readImageDimensionsFromFile(file: File) {
+  return new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.addEventListener("load", () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({
+        width: image.naturalWidth,
+        height: image.naturalHeight
+      });
+    });
+
+    image.addEventListener("error", () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Unable to load image."));
+    });
+
+    image.src = objectUrl;
+  });
+}

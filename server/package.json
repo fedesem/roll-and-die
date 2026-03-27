@@ -11,6 +11,8 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "fflate": "^0.8.2",
+    "sharp": "^0.34.5",
     "sqlite": "^5.1.1",
     "sqlite3": "^6.0.1",
     "ws": "^8.19.0"

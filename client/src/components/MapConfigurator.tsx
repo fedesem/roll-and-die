@@ -13,9 +13,11 @@ import { DoorOpen, EyeOff, MousePointer2, Move, Radio, RotateCcw, Square, Trash2
 import type { CampaignMap, MapTeleporter, MapWall, MapWallKind, Point } from "@shared/types";
 import { snapPointToGrid, snapPointToGridIntersection } from "@shared/vision";
 import { resolveAssetUrl } from "../lib/assets";
-import { readFileAsDataUrl } from "../lib/media";
+import { readImageDimensionsFromFile } from "../lib/media";
+import { uploadImageAsset } from "../services/assetService";
 
 interface MapConfiguratorProps {
+  token: string;
   map: CampaignMap;
   disabled?: boolean;
   onChange: (nextMap: CampaignMap) => void;
@@ -65,6 +67,7 @@ const maxAlignScaleStep = 10;
 const selectionDragThreshold = 4;
 
 export function MapConfigurator({
+  token,
   map,
   disabled = false,
   onChange,
@@ -342,12 +345,14 @@ export function MapConfigurator({
     }
 
     try {
-      const backgroundUrl = await readFileAsDataUrl(file);
-      const dimensions = await readImageDimensions(backgroundUrl);
+      const [uploadedAsset, dimensions] = await Promise.all([
+        uploadImageAsset(token, "maps", file),
+        readImageDimensionsFromFile(file)
+      ]);
 
       onChange({
         ...map,
-        backgroundUrl,
+        backgroundUrl: uploadedAsset.url,
         width: dimensions.width,
         height: dimensions.height,
         backgroundScale: 1
@@ -1188,25 +1193,6 @@ function resolvePreviewScale(map: CampaignMap, viewportSize: ViewportSize) {
     0.18,
     2.6
   );
-}
-
-function readImageDimensions(source: string) {
-  return new Promise<{ width: number; height: number }>((resolve, reject) => {
-    const image = new Image();
-
-    image.addEventListener("load", () => {
-      resolve({
-        width: image.naturalWidth,
-        height: image.naturalHeight
-      });
-    });
-
-    image.addEventListener("error", () => {
-      reject(new Error("Unable to load image."));
-    });
-
-    image.src = source;
-  });
 }
 
 function obstacleLabel(kind: EditorMode) {

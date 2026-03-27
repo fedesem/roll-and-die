@@ -27,6 +27,7 @@ type ActivePopup = "sheet" | null;
 type DashboardSection = "room" | "actors" | "maps";
 
 interface CampaignHubPageProps {
+  token: string;
   campaign: CampaignSnapshot["campaign"];
   compendium: CampaignSnapshot["compendium"];
   role: MemberRole;
@@ -90,6 +91,7 @@ interface CampaignHubPageProps {
 }
 
 export function CampaignHubPage({
+  token,
   campaign,
   compendium,
   role,
@@ -244,9 +246,10 @@ export function CampaignHubPage({
           )}
 
           {section === "actors" && (
-            <CampaignActorManager
-              role={role}
-              currentUserId={currentUserId}
+              <CampaignActorManager
+                token={token}
+                role={role}
+                currentUserId={currentUserId}
               compendium={compendium}
               selectedActor={selectedActor}
               availableActors={availableActors}
@@ -278,6 +281,7 @@ export function CampaignHubPage({
           {role === "dm" && section === "maps" && (
             <div className={`campaign-maps-grid${editingMap ? " is-editing" : ""}`}>
               <CampaignMapManager
+                token={token}
                 campaignMaps={campaign.maps}
                 role={role}
                 activeMap={activeMap}
@@ -334,6 +338,7 @@ export function CampaignHubPage({
           onClose={() => onSetActivePopup(null)}
         >
           <CharacterSheet
+            token={token}
             actor={selectedActor ?? undefined}
             compendium={compendium}
             role={role}

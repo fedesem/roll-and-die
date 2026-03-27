@@ -26,6 +26,7 @@ import {
   importItemsBodySchema,
   importLanguagesBodySchema,
   importMonstersBodySchema,
+  importMonsterTokenArchiveResponseSchema,
   importOptionalFeaturesBodySchema,
   importRacesBodySchema,
   importSkillsBodySchema,
@@ -116,6 +117,19 @@ export function importCompendiumItems(token: string, kind: CompendiumTab, entrie
     body: { entries },
     bodySchema: importBodySchemaByKind[kind],
     responseSchema: importCompendiumResultResponseSchema
+  });
+}
+
+export function importMonsterTokenArchive(token: string, archive: File) {
+  return apiRequest(`/admin/compendium/monsters/token-images/import`, {
+    method: "POST",
+    token,
+    body: archive,
+    contentType: "application/zip",
+    headers: {
+      "X-Upload-Filename": encodeURIComponent(archive.name)
+    },
+    responseSchema: importMonsterTokenArchiveResponseSchema
   });
 }
 

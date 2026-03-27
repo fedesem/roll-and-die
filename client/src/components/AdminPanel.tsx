@@ -2,7 +2,16 @@ import { useEffect, useMemo, useState, type ChangeEvent, type Dispatch, type For
 import { ArrowDownToLine, FilePlus2, List, RefreshCw } from "lucide-react";
 
 import type { CampaignSourceBook, CompendiumReferenceEntry, SpellEntry } from "@shared/types";
-import { BookPreviewCard, ClassPreviewCard, FeatPreviewCard, MonsterPreviewCard, PreviewPlaceholder, ReferencePreviewCard, SpellPreviewCard, UserPreviewCard } from "./admin/AdminPreview";
+import {
+  BookPreviewCard,
+  ClassPreviewCard,
+  FeatPreviewCard,
+  MonsterPreviewCard,
+  PreviewPlaceholder,
+  ReferencePreviewCard,
+  SpellPreviewCard,
+  UserPreviewCard
+} from "./admin/AdminPreview";
 import styles from "./AdminPanel.module.css";
 import { useAdminOverviewQuery } from "../features/admin/useAdminOverviewQuery";
 import {
@@ -11,6 +20,7 @@ import {
   deleteAdminUser,
   deleteCompendiumItem,
   demoteAdminUser,
+  importMonsterTokenArchive,
   importCompendiumItems,
   promoteAdminUser
 } from "../features/admin/adminService";
@@ -30,7 +40,7 @@ import {
   type SpellFormState
 } from "../lib/adminDrafts";
 import { toErrorMessage } from "../lib/errors";
-import { readFileAsDataUrl } from "../lib/media";
+import { uploadImageAsset } from "../services/assetService";
 import {
   AdminField,
   buildPreview,
@@ -141,9 +151,14 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
   const [monsterForm, setMonsterForm] = useState<MonsterFormState>(createMonsterForm());
   const [featForm, setFeatForm] = useState<FeatFormState>(createFeatForm());
   const [classForm, setClassForm] = useState<ClassFormState>(createClassForm());
+  const [monsterTokenArchiveUploading, setMonsterTokenArchiveUploading] = useState(false);
   const activeCompendiumTab: CompendiumTab | null = tab === "users" ? null : tab;
 
-  const { overview, isLoading: loading, refreshOverview } = useAdminOverviewQuery({
+  const {
+    overview,
+    isLoading: loading,
+    refreshOverview
+  } = useAdminOverviewQuery({
     token,
     onError: (message) => onStatus("error", message)
   });
@@ -178,7 +193,13 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
     [overview?.users, search.users]
   );
   const spells = useMemo(
-    () => filterEntries(overview?.compendium.spells ?? [], search.spells, (entry) => [entry.name, entry.source, String(entry.level), entry.school]),
+    () =>
+      filterEntries(overview?.compendium.spells ?? [], search.spells, (entry) => [
+        entry.name,
+        entry.source,
+        String(entry.level),
+        entry.school
+      ]),
     [overview?.compendium.spells, search.spells]
   );
   const monsters = useMemo(
@@ -194,85 +215,89 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
     [overview?.compendium.classes, search.classes]
   );
   const books = useMemo(
-    () => filterEntries(overview?.compendium.books ?? [], search.books, (entry) => [entry.name, entry.source, entry.group, entry.author, entry.published]),
+    () =>
+      filterEntries(overview?.compendium.books ?? [], search.books, (entry) => [
+        entry.name,
+        entry.source,
+        entry.group,
+        entry.author,
+        entry.published
+      ]),
     [overview?.compendium.books, search.books]
   );
   const optionalFeatures = useMemo(
-    () => filterEntries(overview?.compendium.optionalFeatures ?? [], search.optionalFeatures, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    () =>
+      filterEntries(overview?.compendium.optionalFeatures ?? [], search.optionalFeatures, (entry) => [
+        entry.name,
+        entry.source,
+        entry.category,
+        ...entry.tags
+      ]),
     [overview?.compendium.optionalFeatures, search.optionalFeatures]
   );
   const actions = useMemo(
-    () => filterEntries(overview?.compendium.actions ?? [], search.actions, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    () =>
+      filterEntries(overview?.compendium.actions ?? [], search.actions, (entry) => [
+        entry.name,
+        entry.source,
+        entry.category,
+        ...entry.tags
+      ]),
     [overview?.compendium.actions, search.actions]
   );
   const backgrounds = useMemo(
-    () => filterEntries(overview?.compendium.backgrounds ?? [], search.backgrounds, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    () =>
+      filterEntries(overview?.compendium.backgrounds ?? [], search.backgrounds, (entry) => [
+        entry.name,
+        entry.source,
+        entry.category,
+        ...entry.tags
+      ]),
     [overview?.compendium.backgrounds, search.backgrounds]
   );
   const items = useMemo(
-    () => filterEntries(overview?.compendium.items ?? [], search.items, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    () =>
+      filterEntries(overview?.compendium.items ?? [], search.items, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
     [overview?.compendium.items, search.items]
   );
   const languages = useMemo(
-    () => filterEntries(overview?.compendium.languages ?? [], search.languages, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    () =>
+      filterEntries(overview?.compendium.languages ?? [], search.languages, (entry) => [
+        entry.name,
+        entry.source,
+        entry.category,
+        ...entry.tags
+      ]),
     [overview?.compendium.languages, search.languages]
   );
   const races = useMemo(
-    () => filterEntries(overview?.compendium.races ?? [], search.races, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    () =>
+      filterEntries(overview?.compendium.races ?? [], search.races, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
     [overview?.compendium.races, search.races]
   );
   const skills = useMemo(
-    () => filterEntries(overview?.compendium.skills ?? [], search.skills, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
+    () =>
+      filterEntries(overview?.compendium.skills ?? [], search.skills, (entry) => [entry.name, entry.source, entry.category, ...entry.tags]),
     [overview?.compendium.skills, search.skills]
   );
-  const displayedSpells = useMemo(
-    () => filterAndSortSpells(spells, listControls.spells),
-    [listControls.spells, spells]
-  );
-  const displayedMonsters = useMemo(
-    () => filterAndSortMonsters(monsters, listControls.monsters),
-    [listControls.monsters, monsters]
-  );
-  const displayedFeats = useMemo(
-    () => filterAndSortReferences(feats, listControls.feats),
-    [feats, listControls.feats]
-  );
-  const displayedClasses = useMemo(
-    () => filterAndSortClasses(classes, listControls.classes),
-    [classes, listControls.classes]
-  );
-  const displayedBooks = useMemo(
-    () => filterAndSortBooks(books, listControls.books),
-    [books, listControls.books]
-  );
+  const displayedSpells = useMemo(() => filterAndSortSpells(spells, listControls.spells), [listControls.spells, spells]);
+  const displayedMonsters = useMemo(() => filterAndSortMonsters(monsters, listControls.monsters), [listControls.monsters, monsters]);
+  const displayedFeats = useMemo(() => filterAndSortReferences(feats, listControls.feats), [feats, listControls.feats]);
+  const displayedClasses = useMemo(() => filterAndSortClasses(classes, listControls.classes), [classes, listControls.classes]);
+  const displayedBooks = useMemo(() => filterAndSortBooks(books, listControls.books), [books, listControls.books]);
   const displayedOptionalFeatures = useMemo(
     () => filterAndSortReferences(optionalFeatures, listControls.optionalFeatures),
     [listControls.optionalFeatures, optionalFeatures]
   );
-  const displayedActions = useMemo(
-    () => filterAndSortReferences(actions, listControls.actions),
-    [actions, listControls.actions]
-  );
+  const displayedActions = useMemo(() => filterAndSortReferences(actions, listControls.actions), [actions, listControls.actions]);
   const displayedBackgrounds = useMemo(
     () => filterAndSortReferences(backgrounds, listControls.backgrounds),
     [backgrounds, listControls.backgrounds]
   );
-  const displayedItems = useMemo(
-    () => filterAndSortReferences(items, listControls.items),
-    [items, listControls.items]
-  );
-  const displayedLanguages = useMemo(
-    () => filterAndSortReferences(languages, listControls.languages),
-    [languages, listControls.languages]
-  );
-  const displayedRaces = useMemo(
-    () => filterAndSortReferences(races, listControls.races),
-    [listControls.races, races]
-  );
-  const displayedSkills = useMemo(
-    () => filterAndSortReferences(skills, listControls.skills),
-    [listControls.skills, skills]
-  );
+  const displayedItems = useMemo(() => filterAndSortReferences(items, listControls.items), [items, listControls.items]);
+  const displayedLanguages = useMemo(() => filterAndSortReferences(languages, listControls.languages), [languages, listControls.languages]);
+  const displayedRaces = useMemo(() => filterAndSortReferences(races, listControls.races), [listControls.races, races]);
+  const displayedSkills = useMemo(() => filterAndSortReferences(skills, listControls.skills), [listControls.skills, skills]);
 
   const selectedUser = resolveSelected(users, selectedIds.users);
   const selectedSpell = resolveSelected(displayedSpells, selectedIds.spells);
@@ -326,50 +351,50 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
       return { valid: false, message: toErrorMessage(error) };
     }
   }, [activeCompendiumTab, importFiles]);
-  const importExample = useMemo(
-    () => (activeCompendiumTab ? getImportExample(activeCompendiumTab) : ""),
-    [activeCompendiumTab]
-  );
+  const importExample = useMemo(() => (activeCompendiumTab ? getImportExample(activeCompendiumTab) : ""), [activeCompendiumTab]);
   const activeListControls = listControls[tab];
   const currentSourceOptions = useMemo(
-    () => getAdminTabSourceOptions(tab, {
-      spells,
-      monsters,
-      feats,
-      classes,
-      books,
-      optionalFeatures,
-      actions,
-      backgrounds,
-      items,
-      languages,
-      races,
-      skills
-    }),
+    () =>
+      getAdminTabSourceOptions(tab, {
+        spells,
+        monsters,
+        feats,
+        classes,
+        books,
+        optionalFeatures,
+        actions,
+        backgrounds,
+        items,
+        languages,
+        races,
+        skills
+      }),
     [actions, backgrounds, books, classes, feats, items, languages, monsters, optionalFeatures, races, skills, spells, tab]
   );
   const currentTypeOptions = useMemo(
-    () => getAdminTabTypeOptions(tab, {
-      spells,
-      monsters,
-      feats,
-      classes,
-      books,
-      optionalFeatures,
-      actions,
-      backgrounds,
-      items,
-      languages,
-      races,
-      skills
-    }),
+    () =>
+      getAdminTabTypeOptions(tab, {
+        spells,
+        monsters,
+        feats,
+        classes,
+        books,
+        optionalFeatures,
+        actions,
+        backgrounds,
+        items,
+        languages,
+        races,
+        skills
+      }),
     [actions, backgrounds, books, classes, feats, items, languages, monsters, optionalFeatures, races, skills, spells, tab]
   );
   const currentSecondaryTypeOptions = useMemo(
-    () => getAdminTabSecondaryTypeOptions(tab, {
-      spells,
-      monsters
-    }),
+    () =>
+      getAdminTabSecondaryTypeOptions(tab, {
+        spells,
+        monsters
+      }),
     [monsters, spells, tab]
   );
   const currentSortOptions = getSortOptionsForTab(tab);
@@ -496,8 +521,8 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
     }
 
     try {
-      const imageUrl = await readFileAsDataUrl(file);
-      setMonsterForm((current) => ({ ...current, imageUrl }));
+      const { url } = await uploadImageAsset(token, "tokens", file);
+      setMonsterForm((current) => ({ ...current, imageUrl: url }));
     } catch (error) {
       onStatus("error", toErrorMessage(error));
     }
@@ -522,6 +547,26 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
       }));
     } catch (error) {
       onStatus("error", toErrorMessage(error));
+    }
+  }
+
+  async function handleMonsterTokenArchiveUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      setMonsterTokenArchiveUploading(true);
+      const result = await importMonsterTokenArchive(token, file);
+      onStatus("info", formatMonsterTokenArchiveSummary(file.name, result));
+      await refreshOverview();
+    } catch (error) {
+      onStatus("error", toErrorMessage(error));
+    } finally {
+      setMonsterTokenArchiveUploading(false);
     }
   }
 
@@ -566,7 +611,11 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
 
             {tab !== "users" ? (
               <div className={styles.modeTabs}>
-                <button type="button" className={cx(styles.modeTab, mode === "list" && styles.modeTabActive)} onClick={() => setMode("list")}>
+                <button
+                  type="button"
+                  className={cx(styles.modeTab, mode === "list" && styles.modeTabActive)}
+                  onClick={() => setMode("list")}
+                >
                   <List size={15} />
                   <span>List</span>
                 </button>
@@ -574,7 +623,11 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                   <FilePlus2 size={15} />
                   <span>Add</span>
                 </button>
-                <button type="button" className={cx(styles.modeTab, mode === "import" && styles.modeTabActive)} onClick={() => setMode("import")}>
+                <button
+                  type="button"
+                  className={cx(styles.modeTab, mode === "import" && styles.modeTabActive)}
+                  onClick={() => setMode("import")}
+                >
                   <ArrowDownToLine size={15} />
                   <span>Import</span>
                 </button>
@@ -585,245 +638,263 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
           <div className={styles.upperGrid}>
             {mode === "list" || tab === "users" ? (
               <section className="admin-pane admin-list-pane">
-              <div className="panel-head">
-                <div>
-                  <p className="panel-label">Library</p>
-                  <h3>{labelForTab(tab)}</h3>
+                <div className="panel-head">
+                  <div>
+                    <p className="panel-label">Library</p>
+                    <h3>{labelForTab(tab)}</h3>
+                  </div>
+                  <div className="admin-row-actions">
+                    <span className="badge subtle">{countForTab(tab, counts)}</span>
+                    {tab !== "users" ? (
+                      <button
+                        type="button"
+                        className="danger-button"
+                        disabled={countForTab(tab, counts) === 0}
+                        onClick={() => void clearCompendium(tab)}
+                      >
+                        Clear all
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="admin-row-actions">
-                  <span className="badge subtle">{countForTab(tab, counts)}</span>
-                  {tab !== "users" ? (
-                    <button
-                      type="button"
-                      className="danger-button"
-                      disabled={countForTab(tab, counts) === 0}
-                      onClick={() => void clearCompendium(tab)}
-                    >
-                      Clear all
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-              <label className="admin-search-field">
-                <span>Search</span>
-                <input
-                  placeholder={`Search ${labelForTab(tab).toLowerCase()}`}
-                  value={search[tab]}
-                  onChange={(event) => setSearch((current) => ({ ...current, [tab]: event.target.value }))}
-                />
-              </label>
-              {tab !== "users" ? (
-                <div className={`grid gap-3 ${currentSecondaryTypeOptions.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
-                  <label className="admin-search-field">
-                    <span>Source</span>
-                    <select
-                      value={activeListControls.source}
-                      onChange={(event) =>
-                        setListControls((current) => ({
-                          ...current,
-                          [tab]: {
-                            ...current[tab],
-                            source: event.target.value
-                          }
-                        }))
-                      }
-                    >
-                      <option value="">All sources</option>
-                      {currentSourceOptions.map((option) => (
-                        <option key={option.value} value={option.value} title={option.label}>
-                          {option.value}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="admin-search-field">
-                    <span>{getPrimaryFilterLabel(tab)}</span>
-                    <select
-                      value={activeListControls.type}
-                      onChange={(event) =>
-                        setListControls((current) => ({
-                          ...current,
-                          [tab]: {
-                            ...current[tab],
-                            type: event.target.value
-                          }
-                        }))
-                      }
-                    >
-                      <option value="">{getPrimaryFilterEmptyLabel(tab)}</option>
-                      {currentTypeOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {currentSecondaryTypeOptions.length > 0 ? (
+                <label className="admin-search-field">
+                  <span>Search</span>
+                  <input
+                    placeholder={`Search ${labelForTab(tab).toLowerCase()}`}
+                    value={search[tab]}
+                    onChange={(event) => setSearch((current) => ({ ...current, [tab]: event.target.value }))}
+                  />
+                </label>
+                {tab !== "users" ? (
+                  <div className={`grid gap-3 ${currentSecondaryTypeOptions.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
                     <label className="admin-search-field">
-                      <span>{getSecondaryFilterLabel(tab)}</span>
+                      <span>Source</span>
                       <select
-                        value={activeListControls.secondaryType}
+                        value={activeListControls.source}
                         onChange={(event) =>
                           setListControls((current) => ({
                             ...current,
                             [tab]: {
                               ...current[tab],
-                              secondaryType: event.target.value
+                              source: event.target.value
                             }
                           }))
                         }
                       >
-                        <option value="">{getSecondaryFilterEmptyLabel(tab)}</option>
-                        {currentSecondaryTypeOptions.map((option) => (
+                        <option value="">All sources</option>
+                        {currentSourceOptions.map((option) => (
+                          <option key={option.value} value={option.value} title={option.label}>
+                            {option.value}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="admin-search-field">
+                      <span>{getPrimaryFilterLabel(tab)}</span>
+                      <select
+                        value={activeListControls.type}
+                        onChange={(event) =>
+                          setListControls((current) => ({
+                            ...current,
+                            [tab]: {
+                              ...current[tab],
+                              type: event.target.value
+                            }
+                          }))
+                        }
+                      >
+                        <option value="">{getPrimaryFilterEmptyLabel(tab)}</option>
+                        {currentTypeOptions.map((option) => (
                           <option key={option} value={option}>
                             {option}
                           </option>
                         ))}
                       </select>
                     </label>
-                  ) : null}
-                  <label className="admin-search-field">
-                    <span>Sort</span>
-                    <select
-                      value={activeListControls.sort}
-                      onChange={(event) =>
-                        setListControls((current) => ({
-                          ...current,
-                          [tab]: {
-                            ...current[tab],
-                            sort: event.target.value as ListSort
+                    {currentSecondaryTypeOptions.length > 0 ? (
+                      <label className="admin-search-field">
+                        <span>{getSecondaryFilterLabel(tab)}</span>
+                        <select
+                          value={activeListControls.secondaryType}
+                          onChange={(event) =>
+                            setListControls((current) => ({
+                              ...current,
+                              [tab]: {
+                                ...current[tab],
+                                secondaryType: event.target.value
+                              }
+                            }))
                           }
-                        }))
-                      }
-                    >
-                      {currentSortOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                        >
+                          <option value="">{getSecondaryFilterEmptyLabel(tab)}</option>
+                          {currentSecondaryTypeOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                    <label className="admin-search-field">
+                      <span>Sort</span>
+                      <select
+                        value={activeListControls.sort}
+                        onChange={(event) =>
+                          setListControls((current) => ({
+                            ...current,
+                            [tab]: {
+                              ...current[tab],
+                              sort: event.target.value as ListSort
+                            }
+                          }))
+                        }
+                      >
+                        {currentSortOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ) : null}
+                <div className="admin-list-scroll">
+                  {tab === "users" &&
+                    users.map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        className={`admin-list-row ${selectedUser?.id === user.id ? "is-selected" : ""}`}
+                        onClick={() => setSelectedIds((current) => ({ ...current, users: user.id }))}
+                      >
+                        <div className="admin-list-main">
+                          <strong>{user.name}</strong>
+                          <small>{user.email}</small>
+                        </div>
+                        <div className="admin-list-badges">
+                          <span className={`badge ${user.isAdmin ? "" : "subtle"}`}>{user.isAdmin ? "Admin" : "User"}</span>
+                          {user.id === currentUserId ? <span className="badge subtle">You</span> : null}
+                        </div>
+                      </button>
+                    ))}
+
+                  {tab === "spells" &&
+                    displayedSpells.map((entry) => (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        className={`admin-list-row ${selectedSpell?.id === entry.id ? "is-selected" : ""}`}
+                        onClick={() => setSelectedIds((current) => ({ ...current, spells: entry.id }))}
+                      >
+                        <div className="admin-list-main">
+                          <strong>{entry.name}</strong>
+                          <small>{entry.school}</small>
+                        </div>
+                        <div className="admin-list-badges">
+                          <span className="badge subtle">{entry.level === "cantrip" ? "Cantrip" : `Lvl ${entry.level}`}</span>
+                          <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>
+                            {entry.source}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+
+                  {tab === "monsters" &&
+                    displayedMonsters.map((entry) => (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        className={`admin-list-row ${selectedMonster?.id === entry.id ? "is-selected" : ""}`}
+                        onClick={() => setSelectedIds((current) => ({ ...current, monsters: entry.id }))}
+                      >
+                        <div className="admin-list-main">
+                          <strong>{entry.name}</strong>
+                          <small>{entry.source}</small>
+                        </div>
+                        <div className="admin-list-badges">
+                          <span className="badge subtle">CR {entry.challengeRating}</span>
+                          <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>
+                            {entry.source}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+
+                  {tab === "feats" &&
+                    displayedFeats.map((entry) => (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        className={`admin-list-row ${selectedFeat?.id === entry.id ? "is-selected" : ""}`}
+                        onClick={() => setSelectedIds((current) => ({ ...current, feats: entry.id }))}
+                      >
+                        <div className="admin-list-main">
+                          <strong>{entry.name}</strong>
+                          <small>{entry.category}</small>
+                        </div>
+                        <div className="admin-list-badges">
+                          <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>
+                            {entry.source}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+
+                  {tab === "classes" &&
+                    displayedClasses.map((entry) => (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        className={`admin-list-row ${selectedClass?.id === entry.id ? "is-selected" : ""}`}
+                        onClick={() => setSelectedIds((current) => ({ ...current, classes: entry.id }))}
+                      >
+                        <div className="admin-list-main">
+                          <strong>{entry.name}</strong>
+                          <small>{entry.features.length} features</small>
+                        </div>
+                        <div className="admin-list-badges">
+                          <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>
+                            {entry.source}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+
+                  {tab === "books" && renderBookRows(displayedBooks, selectedBook, setSelectedIds)}
+                  {tab === "optionalFeatures" &&
+                    renderReferenceRows(
+                      displayedOptionalFeatures,
+                      selectedOptionalFeature,
+                      "optionalFeatures",
+                      setSelectedIds,
+                      sourceBookNameById
+                    )}
+                  {tab === "actions" &&
+                    renderReferenceRows(displayedActions, selectedAction, "actions", setSelectedIds, sourceBookNameById)}
+                  {tab === "backgrounds" &&
+                    renderReferenceRows(displayedBackgrounds, selectedBackground, "backgrounds", setSelectedIds, sourceBookNameById)}
+                  {tab === "items" && renderReferenceRows(displayedItems, selectedItem, "items", setSelectedIds, sourceBookNameById)}
+                  {tab === "languages" &&
+                    renderReferenceRows(displayedLanguages, selectedLanguage, "languages", setSelectedIds, sourceBookNameById)}
+                  {tab === "races" && renderReferenceRows(displayedRaces, selectedRace, "races", setSelectedIds, sourceBookNameById)}
+                  {tab === "skills" && renderReferenceRows(displayedSkills, selectedSkill, "skills", setSelectedIds, sourceBookNameById)}
+
+                  {countForTab(tab, {
+                    users: users.length,
+                    spells: spells.length,
+                    monsters: monsters.length,
+                    feats: feats.length,
+                    classes: classes.length,
+                    books: books.length,
+                    optionalFeatures: optionalFeatures.length,
+                    actions: actions.length,
+                    backgrounds: backgrounds.length,
+                    items: items.length,
+                    languages: languages.length,
+                    races: races.length,
+                    skills: skills.length
+                  }) === 0 && <p className="empty-state">No entries found.</p>}
                 </div>
-              ) : null}
-              <div className="admin-list-scroll">
-                {tab === "users" &&
-                  users.map((user) => (
-                    <button
-                      key={user.id}
-                      type="button"
-                      className={`admin-list-row ${selectedUser?.id === user.id ? "is-selected" : ""}`}
-                      onClick={() => setSelectedIds((current) => ({ ...current, users: user.id }))}
-                    >
-                      <div className="admin-list-main">
-                        <strong>{user.name}</strong>
-                        <small>{user.email}</small>
-                      </div>
-                      <div className="admin-list-badges">
-                        <span className={`badge ${user.isAdmin ? "" : "subtle"}`}>{user.isAdmin ? "Admin" : "User"}</span>
-                        {user.id === currentUserId ? <span className="badge subtle">You</span> : null}
-                      </div>
-                    </button>
-                  ))}
-
-                {tab === "spells" &&
-                  displayedSpells.map((entry) => (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      className={`admin-list-row ${selectedSpell?.id === entry.id ? "is-selected" : ""}`}
-                      onClick={() => setSelectedIds((current) => ({ ...current, spells: entry.id }))}
-                    >
-                      <div className="admin-list-main">
-                        <strong>{entry.name}</strong>
-                        <small>{entry.school}</small>
-                      </div>
-                      <div className="admin-list-badges">
-                        <span className="badge subtle">{entry.level === "cantrip" ? "Cantrip" : `Lvl ${entry.level}`}</span>
-                        <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>{entry.source}</span>
-                      </div>
-                    </button>
-                  ))}
-
-                {tab === "monsters" &&
-                  displayedMonsters.map((entry) => (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      className={`admin-list-row ${selectedMonster?.id === entry.id ? "is-selected" : ""}`}
-                      onClick={() => setSelectedIds((current) => ({ ...current, monsters: entry.id }))}
-                    >
-                      <div className="admin-list-main">
-                        <strong>{entry.name}</strong>
-                        <small>{entry.source}</small>
-                      </div>
-                      <div className="admin-list-badges">
-                        <span className="badge subtle">CR {entry.challengeRating}</span>
-                        <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>{entry.source}</span>
-                      </div>
-                    </button>
-                  ))}
-
-                {tab === "feats" &&
-                  displayedFeats.map((entry) => (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      className={`admin-list-row ${selectedFeat?.id === entry.id ? "is-selected" : ""}`}
-                      onClick={() => setSelectedIds((current) => ({ ...current, feats: entry.id }))}
-                    >
-                      <div className="admin-list-main">
-                        <strong>{entry.name}</strong>
-                        <small>{entry.category}</small>
-                      </div>
-                      <div className="admin-list-badges">
-                        <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>{entry.source}</span>
-                      </div>
-                    </button>
-                  ))}
-
-                {tab === "classes" &&
-                  displayedClasses.map((entry) => (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      className={`admin-list-row ${selectedClass?.id === entry.id ? "is-selected" : ""}`}
-                      onClick={() => setSelectedIds((current) => ({ ...current, classes: entry.id }))}
-                    >
-                      <div className="admin-list-main">
-                        <strong>{entry.name}</strong>
-                        <small>{entry.features.length} features</small>
-                      </div>
-                      <div className="admin-list-badges">
-                        <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>{entry.source}</span>
-                      </div>
-                    </button>
-                  ))}
-
-                {tab === "books" && renderBookRows(displayedBooks, selectedBook, setSelectedIds)}
-                {tab === "optionalFeatures" && renderReferenceRows(displayedOptionalFeatures, selectedOptionalFeature, "optionalFeatures", setSelectedIds, sourceBookNameById)}
-                {tab === "actions" && renderReferenceRows(displayedActions, selectedAction, "actions", setSelectedIds, sourceBookNameById)}
-                {tab === "backgrounds" && renderReferenceRows(displayedBackgrounds, selectedBackground, "backgrounds", setSelectedIds, sourceBookNameById)}
-                {tab === "items" && renderReferenceRows(displayedItems, selectedItem, "items", setSelectedIds, sourceBookNameById)}
-                {tab === "languages" && renderReferenceRows(displayedLanguages, selectedLanguage, "languages", setSelectedIds, sourceBookNameById)}
-                {tab === "races" && renderReferenceRows(displayedRaces, selectedRace, "races", setSelectedIds, sourceBookNameById)}
-                {tab === "skills" && renderReferenceRows(displayedSkills, selectedSkill, "skills", setSelectedIds, sourceBookNameById)}
-
-                {countForTab(tab, {
-                  users: users.length,
-                  spells: spells.length,
-                  monsters: monsters.length,
-                  feats: feats.length,
-                  classes: classes.length,
-                  books: books.length,
-                  optionalFeatures: optionalFeatures.length,
-                  actions: actions.length,
-                  backgrounds: backgrounds.length,
-                  items: items.length,
-                  languages: languages.length,
-                  races: races.length,
-                  skills: skills.length
-                }) === 0 && <p className="empty-state">No entries found.</p>}
-              </div>
               </section>
             ) : (
               <section className="admin-pane admin-form-pane">
@@ -852,8 +923,15 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                   <>
                     {tab === "spells" && (
                       <form className="admin-form-grid" onSubmit={handleSpellSubmit}>
-                        <AdminField label="Name"><input value={spellForm.name} onChange={(event) => setSpellForm({ ...spellForm, name: event.target.value })} /></AdminField>
-                        <AdminField label="Source"><input value={spellForm.source} onChange={(event) => setSpellForm({ ...spellForm, source: event.target.value })} /></AdminField>
+                        <AdminField label="Name">
+                          <input value={spellForm.name} onChange={(event) => setSpellForm({ ...spellForm, name: event.target.value })} />
+                        </AdminField>
+                        <AdminField label="Source">
+                          <input
+                            value={spellForm.source}
+                            onChange={(event) => setSpellForm({ ...spellForm, source: event.target.value })}
+                          />
+                        </AdminField>
                         <AdminField label="Level">
                           <select value={spellForm.level} onChange={(event) => setSpellForm({ ...spellForm, level: event.target.value })}>
                             <option value="cantrip">Cantrip</option>
@@ -865,8 +943,20 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                           </select>
                         </AdminField>
                         <AdminField label="School">
-                          <select value={spellForm.school} onChange={(event) => setSpellForm({ ...spellForm, school: event.target.value as SpellEntry["school"] })}>
-                            {["Abjuration", "Conjuration", "Divination", "Enchantment", "Evocation", "Illusion", "Necromancy", "Transmutation"].map((school) => (
+                          <select
+                            value={spellForm.school}
+                            onChange={(event) => setSpellForm({ ...spellForm, school: event.target.value as SpellEntry["school"] })}
+                          >
+                            {[
+                              "Abjuration",
+                              "Conjuration",
+                              "Divination",
+                              "Enchantment",
+                              "Evocation",
+                              "Illusion",
+                              "Necromancy",
+                              "Transmutation"
+                            ].map((school) => (
                               <option key={school} value={school}>
                                 {school}
                               </option>
@@ -874,7 +964,12 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                           </select>
                         </AdminField>
                         <AdminField label="Casting time unit">
-                          <select value={spellForm.castingTimeUnit} onChange={(event) => setSpellForm({ ...spellForm, castingTimeUnit: event.target.value as SpellEntry["castingTimeUnit"] })}>
+                          <select
+                            value={spellForm.castingTimeUnit}
+                            onChange={(event) =>
+                              setSpellForm({ ...spellForm, castingTimeUnit: event.target.value as SpellEntry["castingTimeUnit"] })
+                            }
+                          >
                             {["action", "bonus action", "minute", "hour"].map((unit) => (
                               <option key={unit} value={unit}>
                                 {unit}
@@ -882,9 +977,17 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                             ))}
                           </select>
                         </AdminField>
-                        <AdminField label="Casting time value"><input value={spellForm.castingTimeValue} onChange={(event) => setSpellForm({ ...spellForm, castingTimeValue: event.target.value })} /></AdminField>
+                        <AdminField label="Casting time value">
+                          <input
+                            value={spellForm.castingTimeValue}
+                            onChange={(event) => setSpellForm({ ...spellForm, castingTimeValue: event.target.value })}
+                          />
+                        </AdminField>
                         <AdminField label="Range type">
-                          <select value={spellForm.rangeType} onChange={(event) => setSpellForm({ ...spellForm, rangeType: event.target.value as SpellEntry["rangeType"] })}>
+                          <select
+                            value={spellForm.rangeType}
+                            onChange={(event) => setSpellForm({ ...spellForm, rangeType: event.target.value as SpellEntry["rangeType"] })}
+                          >
                             {["feet", "self", "self emanation", "touch"].map((unit) => (
                               <option key={unit} value={unit}>
                                 {unit}
@@ -892,9 +995,19 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                             ))}
                           </select>
                         </AdminField>
-                        <AdminField label="Range value"><input value={spellForm.rangeValue} onChange={(event) => setSpellForm({ ...spellForm, rangeValue: event.target.value })} /></AdminField>
+                        <AdminField label="Range value">
+                          <input
+                            value={spellForm.rangeValue}
+                            onChange={(event) => setSpellForm({ ...spellForm, rangeValue: event.target.value })}
+                          />
+                        </AdminField>
                         <AdminField label="Duration unit">
-                          <select value={spellForm.durationUnit} onChange={(event) => setSpellForm({ ...spellForm, durationUnit: event.target.value as SpellEntry["durationUnit"] })}>
+                          <select
+                            value={spellForm.durationUnit}
+                            onChange={(event) =>
+                              setSpellForm({ ...spellForm, durationUnit: event.target.value as SpellEntry["durationUnit"] })
+                            }
+                          >
                             {["instant", "minute", "hour"].map((unit) => (
                               <option key={unit} value={unit}>
                                 {unit}
@@ -902,10 +1015,25 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                             ))}
                           </select>
                         </AdminField>
-                        <AdminField label="Duration value"><input value={spellForm.durationValue} onChange={(event) => setSpellForm({ ...spellForm, durationValue: event.target.value })} /></AdminField>
-                        <AdminField label="Damage notation"><input value={spellForm.damageNotation} onChange={(event) => setSpellForm({ ...spellForm, damageNotation: event.target.value })} /></AdminField>
+                        <AdminField label="Duration value">
+                          <input
+                            value={spellForm.durationValue}
+                            onChange={(event) => setSpellForm({ ...spellForm, durationValue: event.target.value })}
+                          />
+                        </AdminField>
+                        <AdminField label="Damage notation">
+                          <input
+                            value={spellForm.damageNotation}
+                            onChange={(event) => setSpellForm({ ...spellForm, damageNotation: event.target.value })}
+                          />
+                        </AdminField>
                         <AdminField label="Damage ability">
-                          <select value={spellForm.damageAbility} onChange={(event) => setSpellForm({ ...spellForm, damageAbility: event.target.value as SpellFormState["damageAbility"] })}>
+                          <select
+                            value={spellForm.damageAbility}
+                            onChange={(event) =>
+                              setSpellForm({ ...spellForm, damageAbility: event.target.value as SpellFormState["damageAbility"] })
+                            }
+                          >
                             <option value="">None</option>
                             {["str", "dex", "con", "int", "wis", "cha"].map((ability) => (
                               <option key={ability} value={ability}>
@@ -914,101 +1042,419 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                             ))}
                           </select>
                         </AdminField>
-                        <AdminField label="Classes" wide><input value={spellForm.classesText} onChange={(event) => setSpellForm({ ...spellForm, classesText: event.target.value })} placeholder="Wizard, Sorcerer" /></AdminField>
-                        <AdminField label="Short description" wide><textarea value={spellForm.description} onChange={(event) => setSpellForm({ ...spellForm, description: event.target.value })} /></AdminField>
-                        <AdminField label="Full description" wide><textarea value={spellForm.fullDescription} onChange={(event) => setSpellForm({ ...spellForm, fullDescription: event.target.value })} /></AdminField>
+                        <AdminField label="Classes" wide>
+                          <input
+                            value={spellForm.classesText}
+                            onChange={(event) => setSpellForm({ ...spellForm, classesText: event.target.value })}
+                            placeholder="Wizard, Sorcerer"
+                          />
+                        </AdminField>
+                        <AdminField label="Short description" wide>
+                          <textarea
+                            value={spellForm.description}
+                            onChange={(event) => setSpellForm({ ...spellForm, description: event.target.value })}
+                          />
+                        </AdminField>
+                        <AdminField label="Full description" wide>
+                          <textarea
+                            value={spellForm.fullDescription}
+                            onChange={(event) => setSpellForm({ ...spellForm, fullDescription: event.target.value })}
+                          />
+                        </AdminField>
                         <fieldset className="admin-checks">
                           <legend>Components and flags</legend>
-                          <label><input type="checkbox" checked={spellForm.verbal} onChange={(event) => setSpellForm({ ...spellForm, verbal: event.target.checked })} /> Verbal</label>
-                          <label><input type="checkbox" checked={spellForm.somatic} onChange={(event) => setSpellForm({ ...spellForm, somatic: event.target.checked })} /> Somatic</label>
-                          <label><input type="checkbox" checked={spellForm.material} onChange={(event) => setSpellForm({ ...spellForm, material: event.target.checked })} /> Material</label>
-                          <label><input type="checkbox" checked={spellForm.materialConsumed} onChange={(event) => setSpellForm({ ...spellForm, materialConsumed: event.target.checked })} /> Material consumed</label>
-                          <label><input type="checkbox" checked={spellForm.concentration} onChange={(event) => setSpellForm({ ...spellForm, concentration: event.target.checked })} /> Concentration</label>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={spellForm.verbal}
+                              onChange={(event) => setSpellForm({ ...spellForm, verbal: event.target.checked })}
+                            />{" "}
+                            Verbal
+                          </label>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={spellForm.somatic}
+                              onChange={(event) => setSpellForm({ ...spellForm, somatic: event.target.checked })}
+                            />{" "}
+                            Somatic
+                          </label>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={spellForm.material}
+                              onChange={(event) => setSpellForm({ ...spellForm, material: event.target.checked })}
+                            />{" "}
+                            Material
+                          </label>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={spellForm.materialConsumed}
+                              onChange={(event) => setSpellForm({ ...spellForm, materialConsumed: event.target.checked })}
+                            />{" "}
+                            Material consumed
+                          </label>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={spellForm.concentration}
+                              onChange={(event) => setSpellForm({ ...spellForm, concentration: event.target.checked })}
+                            />{" "}
+                            Concentration
+                          </label>
                         </fieldset>
-                        <AdminField label="Material text"><input value={spellForm.materialText} onChange={(event) => setSpellForm({ ...spellForm, materialText: event.target.value })} /></AdminField>
-                        <AdminField label="Material value"><input value={spellForm.materialValue} onChange={(event) => setSpellForm({ ...spellForm, materialValue: event.target.value })} /></AdminField>
-                        <button className="accent-button" type="submit">Add spell</button>
+                        <AdminField label="Material text">
+                          <input
+                            value={spellForm.materialText}
+                            onChange={(event) => setSpellForm({ ...spellForm, materialText: event.target.value })}
+                          />
+                        </AdminField>
+                        <AdminField label="Material value">
+                          <input
+                            value={spellForm.materialValue}
+                            onChange={(event) => setSpellForm({ ...spellForm, materialValue: event.target.value })}
+                          />
+                        </AdminField>
+                        <button className="accent-button" type="submit">
+                          Add spell
+                        </button>
                       </form>
                     )}
                     {tab === "monsters" && (
                       <form className="admin-form-grid admin-form-grid-wide" onSubmit={handleMonsterSubmit}>
-                        <AdminField label="Name"><input value={monsterForm.name} onChange={(event) => setMonsterForm({ ...monsterForm, name: event.target.value })} /></AdminField>
-                        <Field label="Source"><input value={monsterForm.source} onChange={(event) => setMonsterForm({ ...monsterForm, source: event.target.value })} /></Field>
-                        <Field label="Challenge rating"><input value={monsterForm.challengeRating} onChange={(event) => setMonsterForm({ ...monsterForm, challengeRating: event.target.value })} /></Field>
-                        <Field label="Armor class"><input value={monsterForm.armorClass} onChange={(event) => setMonsterForm({ ...monsterForm, armorClass: event.target.value })} /></Field>
-                        <Field label="Hit points"><input value={monsterForm.hitPoints} onChange={(event) => setMonsterForm({ ...monsterForm, hitPoints: event.target.value })} /></Field>
-                        <Field label="Initiative"><input value={monsterForm.initiative} onChange={(event) => setMonsterForm({ ...monsterForm, initiative: event.target.value })} /></Field>
-                        <Field label="Experience"><input value={monsterForm.xp} onChange={(event) => setMonsterForm({ ...monsterForm, xp: event.target.value })} /></Field>
-                        <Field label="Proficiency bonus"><input value={monsterForm.proficiencyBonus} onChange={(event) => setMonsterForm({ ...monsterForm, proficiencyBonus: event.target.value })} /></Field>
-                        <Field label="Passive perception"><input value={monsterForm.passivePerception} onChange={(event) => setMonsterForm({ ...monsterForm, passivePerception: event.target.value })} /></Field>
-                        <Field label="Walk speed"><input value={monsterForm.walk} onChange={(event) => setMonsterForm({ ...monsterForm, walk: event.target.value })} /></Field>
-                        <Field label="Fly speed"><input value={monsterForm.fly} onChange={(event) => setMonsterForm({ ...monsterForm, fly: event.target.value })} /></Field>
-                        <Field label="Burrow speed"><input value={monsterForm.burrow} onChange={(event) => setMonsterForm({ ...monsterForm, burrow: event.target.value })} /></Field>
-                        <Field label="Swim speed"><input value={monsterForm.swim} onChange={(event) => setMonsterForm({ ...monsterForm, swim: event.target.value })} /></Field>
-                        <Field label="Climb speed"><input value={monsterForm.climb} onChange={(event) => setMonsterForm({ ...monsterForm, climb: event.target.value })} /></Field>
-                        <Field label="Strength"><input value={monsterForm.str} onChange={(event) => setMonsterForm({ ...monsterForm, str: event.target.value })} /></Field>
-                        <Field label="Dexterity"><input value={monsterForm.dex} onChange={(event) => setMonsterForm({ ...monsterForm, dex: event.target.value })} /></Field>
-                        <Field label="Constitution"><input value={monsterForm.con} onChange={(event) => setMonsterForm({ ...monsterForm, con: event.target.value })} /></Field>
-                        <Field label="Intelligence"><input value={monsterForm.int} onChange={(event) => setMonsterForm({ ...monsterForm, int: event.target.value })} /></Field>
-                        <Field label="Wisdom"><input value={monsterForm.wis} onChange={(event) => setMonsterForm({ ...monsterForm, wis: event.target.value })} /></Field>
-                        <Field label="Charisma"><input value={monsterForm.cha} onChange={(event) => setMonsterForm({ ...monsterForm, cha: event.target.value })} /></Field>
-                        <Field label="Skills" wide><input value={monsterForm.skillsText} onChange={(event) => setMonsterForm({ ...monsterForm, skillsText: event.target.value })} placeholder="Perception:13, Stealth:6" /></Field>
-                        <Field label="Senses" wide><input value={monsterForm.sensesText} onChange={(event) => setMonsterForm({ ...monsterForm, sensesText: event.target.value })} placeholder="Darkvision:120, Blindsight:60" /></Field>
-                        <Field label="Languages" wide><input value={monsterForm.languagesText} onChange={(event) => setMonsterForm({ ...monsterForm, languagesText: event.target.value })} placeholder="Common, Draconic" /></Field>
-                        <Field label="Gear" wide><input value={monsterForm.gearText} onChange={(event) => setMonsterForm({ ...monsterForm, gearText: event.target.value })} /></Field>
-                        <Field label="Resistances" wide><input value={monsterForm.resistancesText} onChange={(event) => setMonsterForm({ ...monsterForm, resistancesText: event.target.value })} /></Field>
-                        <Field label="Vulnerabilities" wide><input value={monsterForm.vulnerabilitiesText} onChange={(event) => setMonsterForm({ ...monsterForm, vulnerabilitiesText: event.target.value })} /></Field>
-                        <Field label="Immunities" wide><input value={monsterForm.immunitiesText} onChange={(event) => setMonsterForm({ ...monsterForm, immunitiesText: event.target.value })} /></Field>
-                        <Field label="Traits" wide><textarea value={monsterForm.traitsText} onChange={(event) => setMonsterForm({ ...monsterForm, traitsText: event.target.value })} placeholder="One trait per line" /></Field>
-                        <Field label="Spells" wide><input value={monsterForm.spellsText} onChange={(event) => setMonsterForm({ ...monsterForm, spellsText: event.target.value })} /></Field>
-                        <Field label="Actions JSON" wide><textarea value={monsterForm.actionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, actionsJson: event.target.value })} placeholder={JSON.stringify([monsterActionTemplate], null, 2)} /></Field>
-                        <Field label="Bonus actions JSON" wide><textarea value={monsterForm.bonusActionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, bonusActionsJson: event.target.value })} /></Field>
-                        <Field label="Reactions JSON" wide><textarea value={monsterForm.reactionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, reactionsJson: event.target.value })} /></Field>
-                        <Field label="Legendary actions JSON" wide><textarea value={monsterForm.legendaryActionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, legendaryActionsJson: event.target.value })} /></Field>
-                        <Field label="Legendary action uses"><input value={monsterForm.legendaryActionsUse} onChange={(event) => setMonsterForm({ ...monsterForm, legendaryActionsUse: event.target.value })} /></Field>
-                        <Field label="Lair actions JSON" wide><textarea value={monsterForm.lairActionsJson} onChange={(event) => setMonsterForm({ ...monsterForm, lairActionsJson: event.target.value })} /></Field>
-                        <Field label="Regional effects JSON" wide><textarea value={monsterForm.regionalEffectsJson} onChange={(event) => setMonsterForm({ ...monsterForm, regionalEffectsJson: event.target.value })} /></Field>
-                        <Field label="Habitat"><input value={monsterForm.habitat} onChange={(event) => setMonsterForm({ ...monsterForm, habitat: event.target.value })} /></Field>
-                        <Field label="Treasure"><input value={monsterForm.treasure} onChange={(event) => setMonsterForm({ ...monsterForm, treasure: event.target.value })} /></Field>
+                        <AdminField label="Name">
+                          <input
+                            value={monsterForm.name}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, name: event.target.value })}
+                          />
+                        </AdminField>
+                        <Field label="Source">
+                          <input
+                            value={monsterForm.source}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, source: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Challenge rating">
+                          <input
+                            value={monsterForm.challengeRating}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, challengeRating: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Armor class">
+                          <input
+                            value={monsterForm.armorClass}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, armorClass: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Hit points">
+                          <input
+                            value={monsterForm.hitPoints}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, hitPoints: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Initiative">
+                          <input
+                            value={monsterForm.initiative}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, initiative: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Experience">
+                          <input value={monsterForm.xp} onChange={(event) => setMonsterForm({ ...monsterForm, xp: event.target.value })} />
+                        </Field>
+                        <Field label="Proficiency bonus">
+                          <input
+                            value={monsterForm.proficiencyBonus}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, proficiencyBonus: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Passive perception">
+                          <input
+                            value={monsterForm.passivePerception}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, passivePerception: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Walk speed">
+                          <input
+                            value={monsterForm.walk}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, walk: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Fly speed">
+                          <input
+                            value={monsterForm.fly}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, fly: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Burrow speed">
+                          <input
+                            value={monsterForm.burrow}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, burrow: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Swim speed">
+                          <input
+                            value={monsterForm.swim}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, swim: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Climb speed">
+                          <input
+                            value={monsterForm.climb}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, climb: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Strength">
+                          <input
+                            value={monsterForm.str}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, str: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Dexterity">
+                          <input
+                            value={monsterForm.dex}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, dex: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Constitution">
+                          <input
+                            value={monsterForm.con}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, con: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Intelligence">
+                          <input
+                            value={monsterForm.int}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, int: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Wisdom">
+                          <input
+                            value={monsterForm.wis}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, wis: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Charisma">
+                          <input
+                            value={monsterForm.cha}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, cha: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Skills" wide>
+                          <input
+                            value={monsterForm.skillsText}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, skillsText: event.target.value })}
+                            placeholder="Perception:13, Stealth:6"
+                          />
+                        </Field>
+                        <Field label="Senses" wide>
+                          <input
+                            value={monsterForm.sensesText}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, sensesText: event.target.value })}
+                            placeholder="Darkvision:120, Blindsight:60"
+                          />
+                        </Field>
+                        <Field label="Languages" wide>
+                          <input
+                            value={monsterForm.languagesText}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, languagesText: event.target.value })}
+                            placeholder="Common, Draconic"
+                          />
+                        </Field>
+                        <Field label="Gear" wide>
+                          <input
+                            value={monsterForm.gearText}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, gearText: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Resistances" wide>
+                          <input
+                            value={monsterForm.resistancesText}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, resistancesText: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Vulnerabilities" wide>
+                          <input
+                            value={monsterForm.vulnerabilitiesText}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, vulnerabilitiesText: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Immunities" wide>
+                          <input
+                            value={monsterForm.immunitiesText}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, immunitiesText: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Traits" wide>
+                          <textarea
+                            value={monsterForm.traitsText}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, traitsText: event.target.value })}
+                            placeholder="One trait per line"
+                          />
+                        </Field>
+                        <Field label="Spells" wide>
+                          <input
+                            value={monsterForm.spellsText}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, spellsText: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Actions JSON" wide>
+                          <textarea
+                            value={monsterForm.actionsJson}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, actionsJson: event.target.value })}
+                            placeholder={JSON.stringify([monsterActionTemplate], null, 2)}
+                          />
+                        </Field>
+                        <Field label="Bonus actions JSON" wide>
+                          <textarea
+                            value={monsterForm.bonusActionsJson}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, bonusActionsJson: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Reactions JSON" wide>
+                          <textarea
+                            value={monsterForm.reactionsJson}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, reactionsJson: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Legendary actions JSON" wide>
+                          <textarea
+                            value={monsterForm.legendaryActionsJson}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, legendaryActionsJson: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Legendary action uses">
+                          <input
+                            value={monsterForm.legendaryActionsUse}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, legendaryActionsUse: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Lair actions JSON" wide>
+                          <textarea
+                            value={monsterForm.lairActionsJson}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, lairActionsJson: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Regional effects JSON" wide>
+                          <textarea
+                            value={monsterForm.regionalEffectsJson}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, regionalEffectsJson: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Habitat">
+                          <input
+                            value={monsterForm.habitat}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, habitat: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Treasure">
+                          <input
+                            value={monsterForm.treasure}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, treasure: event.target.value })}
+                          />
+                        </Field>
                         <Field label="Image URL">
-                          <input value={monsterForm.imageUrl} onChange={(event) => setMonsterForm({ ...monsterForm, imageUrl: event.target.value })} />
+                          <input
+                            value={monsterForm.imageUrl}
+                            onChange={(event) => setMonsterForm({ ...monsterForm, imageUrl: event.target.value })}
+                          />
                         </Field>
                         <Field label="Upload image">
                           <div className="admin-image-controls">
                             <input type="file" accept="image/*" onChange={(event) => void handleMonsterImageUpload(event)} />
-                            <button type="button" onClick={() => setMonsterForm({ ...monsterForm, imageUrl: "" })} disabled={!monsterForm.imageUrl}>
+                            <button
+                              type="button"
+                              onClick={() => setMonsterForm({ ...monsterForm, imageUrl: "" })}
+                              disabled={!monsterForm.imageUrl}
+                            >
                               Clear image
                             </button>
                           </div>
                         </Field>
                         <Field label="Color" wide>
                           <div className="color-field">
-                            <input type="color" value={monsterForm.color} onChange={(event) => setMonsterForm({ ...monsterForm, color: event.target.value })} />
+                            <input
+                              type="color"
+                              value={monsterForm.color}
+                              onChange={(event) => setMonsterForm({ ...monsterForm, color: event.target.value })}
+                            />
                             <span>{monsterForm.color}</span>
                           </div>
                         </Field>
-                        <button className="accent-button" type="submit">Add monster</button>
+                        <button className="accent-button" type="submit">
+                          Add monster
+                        </button>
                       </form>
                     )}
                     {tab === "feats" && (
                       <form className="admin-form-grid" onSubmit={handleFeatSubmit}>
-                        <AdminField label="Name"><input value={featForm.name} onChange={(event) => setFeatForm({ ...featForm, name: event.target.value })} /></AdminField>
-                        <Field label="Source"><input value={featForm.source} onChange={(event) => setFeatForm({ ...featForm, source: event.target.value })} /></Field>
-                        <Field label="Category"><input value={featForm.category} onChange={(event) => setFeatForm({ ...featForm, category: event.target.value })} /></Field>
-                        <Field label="Ability score increase"><input value={featForm.abilityScoreIncrease} onChange={(event) => setFeatForm({ ...featForm, abilityScoreIncrease: event.target.value })} /></Field>
-                        <Field label="Prerequisites" wide><input value={featForm.prerequisites} onChange={(event) => setFeatForm({ ...featForm, prerequisites: event.target.value })} /></Field>
-                        <Field label="Description" wide><textarea value={featForm.description} onChange={(event) => setFeatForm({ ...featForm, description: event.target.value })} /></Field>
-                        <button className="accent-button" type="submit">Add feat</button>
+                        <AdminField label="Name">
+                          <input value={featForm.name} onChange={(event) => setFeatForm({ ...featForm, name: event.target.value })} />
+                        </AdminField>
+                        <Field label="Source">
+                          <input value={featForm.source} onChange={(event) => setFeatForm({ ...featForm, source: event.target.value })} />
+                        </Field>
+                        <Field label="Category">
+                          <input
+                            value={featForm.category}
+                            onChange={(event) => setFeatForm({ ...featForm, category: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Ability score increase">
+                          <input
+                            value={featForm.abilityScoreIncrease}
+                            onChange={(event) => setFeatForm({ ...featForm, abilityScoreIncrease: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Prerequisites" wide>
+                          <input
+                            value={featForm.prerequisites}
+                            onChange={(event) => setFeatForm({ ...featForm, prerequisites: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Description" wide>
+                          <textarea
+                            value={featForm.description}
+                            onChange={(event) => setFeatForm({ ...featForm, description: event.target.value })}
+                          />
+                        </Field>
+                        <button className="accent-button" type="submit">
+                          Add feat
+                        </button>
                       </form>
                     )}
                     {tab === "classes" && (
                       <form className="admin-form-grid" onSubmit={handleClassSubmit}>
-                        <AdminField label="Name"><input value={classForm.name} onChange={(event) => setClassForm({ ...classForm, name: event.target.value })} /></AdminField>
-                        <Field label="Source"><input value={classForm.source} onChange={(event) => setClassForm({ ...classForm, source: event.target.value })} /></Field>
-                        <Field label="Description" wide><textarea value={classForm.description} onChange={(event) => setClassForm({ ...classForm, description: event.target.value })} /></Field>
-                        <Field label="Features JSON" wide><textarea value={classForm.featuresJson} onChange={(event) => setClassForm({ ...classForm, featuresJson: event.target.value })} /></Field>
-                        <Field label="Tables JSON" wide><textarea value={classForm.tablesJson} onChange={(event) => setClassForm({ ...classForm, tablesJson: event.target.value })} /></Field>
-                        <button className="accent-button" type="submit">Add class</button>
+                        <AdminField label="Name">
+                          <input value={classForm.name} onChange={(event) => setClassForm({ ...classForm, name: event.target.value })} />
+                        </AdminField>
+                        <Field label="Source">
+                          <input
+                            value={classForm.source}
+                            onChange={(event) => setClassForm({ ...classForm, source: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Description" wide>
+                          <textarea
+                            value={classForm.description}
+                            onChange={(event) => setClassForm({ ...classForm, description: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Features JSON" wide>
+                          <textarea
+                            value={classForm.featuresJson}
+                            onChange={(event) => setClassForm({ ...classForm, featuresJson: event.target.value })}
+                          />
+                        </Field>
+                        <Field label="Tables JSON" wide>
+                          <textarea
+                            value={classForm.tablesJson}
+                            onChange={(event) => setClassForm({ ...classForm, tablesJson: event.target.value })}
+                          />
+                        </Field>
+                        <button className="accent-button" type="submit">
+                          Add class
+                        </button>
                       </form>
                     )}
                     {["optionalFeatures", "actions", "backgrounds", "items", "languages", "races", "skills"].includes(tab) && (
@@ -1035,18 +1481,29 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                           }}
                         />
                         <div className="admin-import-file-meta">
-                          <strong>{activeCompendiumTab ? importFiles[activeCompendiumTab]?.name ?? "No file selected" : "No file selected"}</strong>
+                          <strong>
+                            {activeCompendiumTab ? (importFiles[activeCompendiumTab]?.name ?? "No file selected") : "No file selected"}
+                          </strong>
                           <small>
                             {activeCompendiumTab && importFiles[activeCompendiumTab]?.content
                               ? `${importFiles[activeCompendiumTab]?.content.length.toLocaleString()} characters loaded`
                               : `Upload one ${singularLabel(tab).toLowerCase()} object or an array of ${labelForTab(tab).toLowerCase()}.`}
                           </small>
                           {tab === "spells" ? (
-                            <small>Accepted spell files: raw 5etools `spell` JSON or `gendata-spell-source-lookup.json` to enrich imported spells with class references.</small>
+                            <small>
+                              Accepted spell files: raw 5etools `spell` JSON or `gendata-spell-source-lookup.json` to enrich imported spells
+                              with class references.
+                            </small>
                           ) : tab === "classes" ? (
-                            <small>Accepted class files: raw 5etools `class` JSON, including `subclass` and `subclassFeature`, or `gendata-subclass-lookup.json` to enrich imported classes with subclass stubs.</small>
+                            <small>
+                              Accepted class files: raw 5etools `class` JSON, including `subclass` and `subclassFeature`, or
+                              `gendata-subclass-lookup.json` to enrich imported classes with subclass stubs.
+                            </small>
                           ) : tab === "books" ? (
-                            <small>Accepted book files: 5etools `books.json` with `book` entries. Only id, name, group, published, and author are imported.</small>
+                            <small>
+                              Accepted book files: 5etools `books.json` with `book` entries. Only id, name, group, published, and author are
+                              imported.
+                            </small>
                           ) : tab === "optionalFeatures" ? (
                             <small>Accepted optional feature files: 5etools `optionalfeatures.json` with `optionalfeature` entries.</small>
                           ) : tab === "items" ? (
@@ -1068,6 +1525,24 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                         </button>
                       </div>
                     </label>
+                    {tab === "monsters" && (
+                      <label className="admin-search-field">
+                        <span>Token Image ZIP</span>
+                        <div className="admin-import-upload">
+                          <input
+                            type="file"
+                            accept=".zip,application/zip,application/x-zip-compressed"
+                            disabled={monsterTokenArchiveUploading}
+                            onChange={(event) => void handleMonsterTokenArchiveUpload(event)}
+                          />
+                          <div className="admin-import-file-meta">
+                            <strong>{monsterTokenArchiveUploading ? "Uploading archive…" : "Upload a monster token archive"}</strong>
+                            <small>Archive image names are matched against monster names. Example: `Goblin.png` updates Goblin.</small>
+                            <small>Uploaded images are converted to optimized WebP, and token images are downscaled when needed.</small>
+                          </div>
+                        </div>
+                      </label>
+                    )}
                     <label className="admin-search-field">
                       <span>Example JSON</span>
                       <textarea className="admin-json admin-json-example" value={importExample} readOnly />
@@ -1103,12 +1578,20 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                 ) : tab !== "users" ? (
                   <div className="admin-row-actions">
                     {tab === "spells" && selectedSpell ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("spells", selectedSpell.id)}>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() => void removeCompendiumEntry("spells", selectedSpell.id)}
+                      >
                         Delete
                       </button>
                     ) : null}
                     {tab === "monsters" && selectedMonster ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("monsters", selectedMonster.id)}>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() => void removeCompendiumEntry("monsters", selectedMonster.id)}
+                      >
                         Delete
                       </button>
                     ) : null}
@@ -1118,27 +1601,47 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                       </button>
                     ) : null}
                     {tab === "classes" && selectedClass ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("classes", selectedClass.id)}>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() => void removeCompendiumEntry("classes", selectedClass.id)}
+                      >
                         Delete
                       </button>
                     ) : null}
                     {tab === "books" && selectedBook ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("books", selectedBook.source)}>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() => void removeCompendiumEntry("books", selectedBook.source)}
+                      >
                         Delete
                       </button>
                     ) : null}
                     {tab === "optionalFeatures" && selectedOptionalFeature ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("optionalFeatures", selectedOptionalFeature.id)}>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() => void removeCompendiumEntry("optionalFeatures", selectedOptionalFeature.id)}
+                      >
                         Delete
                       </button>
                     ) : null}
                     {tab === "actions" && selectedAction ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("actions", selectedAction.id)}>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() => void removeCompendiumEntry("actions", selectedAction.id)}
+                      >
                         Delete
                       </button>
                     ) : null}
                     {tab === "backgrounds" && selectedBackground ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("backgrounds", selectedBackground.id)}>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() => void removeCompendiumEntry("backgrounds", selectedBackground.id)}
+                      >
                         Delete
                       </button>
                     ) : null}
@@ -1148,7 +1651,11 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                       </button>
                     ) : null}
                     {tab === "languages" && selectedLanguage ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("languages", selectedLanguage.id)}>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() => void removeCompendiumEntry("languages", selectedLanguage.id)}
+                      >
                         Delete
                       </button>
                     ) : null}
@@ -1158,7 +1665,11 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                       </button>
                     ) : null}
                     {tab === "skills" && selectedSkill ? (
-                      <button type="button" className="danger-button" onClick={() => void removeCompendiumEntry("skills", selectedSkill.id)}>
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() => void removeCompendiumEntry("skills", selectedSkill.id)}
+                      >
                         Delete
                       </button>
                     ) : null}
@@ -1166,19 +1677,140 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                 ) : null}
               </div>
 
-              {tab === "users" && (selectedUser ? <UserPreviewCard user={selectedUser} /> : <PreviewPlaceholder title="Users" message="Select a user to inspect details and manage access." />)}
-              {tab === "spells" && (selectedSpell ? <SpellPreviewCard spell={selectedSpell} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} sourceTitle={sourceBookNameById.get(selectedSpell.source)} /> : <PreviewPlaceholder title="Spells" message="Select a spell to preview it here." />)}
-              {tab === "monsters" && (selectedMonster ? <MonsterPreviewCard monster={selectedMonster} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} classEntries={overview?.compendium.classes ?? []} sourceTitle={sourceBookNameById.get(selectedMonster.source)} /> : <PreviewPlaceholder title="Monsters" message="Select a monster to preview it here." />)}
-              {tab === "feats" && (selectedFeat ? <FeatPreviewCard feat={selectedFeat} spellEntries={overview?.compendium.spells ?? []} classEntries={overview?.compendium.classes ?? []} sourceTitle={sourceBookNameById.get(selectedFeat.source)} /> : <PreviewPlaceholder title="Feats" message="Select a feat to preview it here." />)}
-              {tab === "classes" && (selectedClass ? <ClassPreviewCard entry={selectedClass} spellEntries={overview?.compendium.spells ?? []} featEntries={overview?.compendium.feats ?? []} sourceTitle={sourceBookNameById.get(selectedClass.source)} /> : <PreviewPlaceholder title="Classes" message="Select a class to preview it here." />)}
-              {tab === "books" && (selectedBook ? <BookPreviewCard entry={selectedBook} /> : <PreviewPlaceholder title="Books" message="Select a book to preview it here." />)}
-              {tab === "optionalFeatures" && (selectedOptionalFeature ? <ReferencePreviewCard title="Optional Feature" eyebrow="Optional Feature" entry={selectedOptionalFeature} sourceTitle={sourceBookNameById.get(selectedOptionalFeature.source)} /> : <PreviewPlaceholder title="Optional Features" message="Select an optional feature to preview it here." />)}
-              {tab === "actions" && (selectedAction ? <ReferencePreviewCard title="Action" eyebrow="Action" entry={selectedAction} sourceTitle={sourceBookNameById.get(selectedAction.source)} /> : <PreviewPlaceholder title="Actions" message="Select an action to preview it here." />)}
-              {tab === "backgrounds" && (selectedBackground ? <ReferencePreviewCard title="Background" eyebrow="Background" entry={selectedBackground} sourceTitle={sourceBookNameById.get(selectedBackground.source)} /> : <PreviewPlaceholder title="Backgrounds" message="Select a background to preview it here." />)}
-              {tab === "items" && (selectedItem ? <ReferencePreviewCard title="Item" eyebrow="Item" entry={selectedItem} sourceTitle={sourceBookNameById.get(selectedItem.source)} /> : <PreviewPlaceholder title="Items" message="Select an item to preview it here." />)}
-              {tab === "languages" && (selectedLanguage ? <ReferencePreviewCard title="Language" eyebrow="Language" entry={selectedLanguage} sourceTitle={sourceBookNameById.get(selectedLanguage.source)} /> : <PreviewPlaceholder title="Languages" message="Select a language to preview it here." />)}
-              {tab === "races" && (selectedRace ? <ReferencePreviewCard title="Race" eyebrow="Race" entry={selectedRace} sourceTitle={sourceBookNameById.get(selectedRace.source)} /> : <PreviewPlaceholder title="Races" message="Select a race to preview it here." />)}
-              {tab === "skills" && (selectedSkill ? <ReferencePreviewCard title="Skill" eyebrow="Skill" entry={selectedSkill} sourceTitle={sourceBookNameById.get(selectedSkill.source)} /> : <PreviewPlaceholder title="Skills" message="Select a skill to preview it here." />)}
+              {tab === "users" &&
+                (selectedUser ? (
+                  <UserPreviewCard user={selectedUser} />
+                ) : (
+                  <PreviewPlaceholder title="Users" message="Select a user to inspect details and manage access." />
+                ))}
+              {tab === "spells" &&
+                (selectedSpell ? (
+                  <SpellPreviewCard
+                    spell={selectedSpell}
+                    featEntries={overview?.compendium.feats ?? []}
+                    classEntries={overview?.compendium.classes ?? []}
+                    sourceTitle={sourceBookNameById.get(selectedSpell.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Spells" message="Select a spell to preview it here." />
+                ))}
+              {tab === "monsters" &&
+                (selectedMonster ? (
+                  <MonsterPreviewCard
+                    monster={selectedMonster}
+                    spellEntries={overview?.compendium.spells ?? []}
+                    featEntries={overview?.compendium.feats ?? []}
+                    classEntries={overview?.compendium.classes ?? []}
+                    sourceTitle={sourceBookNameById.get(selectedMonster.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Monsters" message="Select a monster to preview it here." />
+                ))}
+              {tab === "feats" &&
+                (selectedFeat ? (
+                  <FeatPreviewCard
+                    feat={selectedFeat}
+                    spellEntries={overview?.compendium.spells ?? []}
+                    classEntries={overview?.compendium.classes ?? []}
+                    sourceTitle={sourceBookNameById.get(selectedFeat.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Feats" message="Select a feat to preview it here." />
+                ))}
+              {tab === "classes" &&
+                (selectedClass ? (
+                  <ClassPreviewCard
+                    entry={selectedClass}
+                    spellEntries={overview?.compendium.spells ?? []}
+                    featEntries={overview?.compendium.feats ?? []}
+                    sourceTitle={sourceBookNameById.get(selectedClass.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Classes" message="Select a class to preview it here." />
+                ))}
+              {tab === "books" &&
+                (selectedBook ? (
+                  <BookPreviewCard entry={selectedBook} />
+                ) : (
+                  <PreviewPlaceholder title="Books" message="Select a book to preview it here." />
+                ))}
+              {tab === "optionalFeatures" &&
+                (selectedOptionalFeature ? (
+                  <ReferencePreviewCard
+                    title="Optional Feature"
+                    eyebrow="Optional Feature"
+                    entry={selectedOptionalFeature}
+                    sourceTitle={sourceBookNameById.get(selectedOptionalFeature.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Optional Features" message="Select an optional feature to preview it here." />
+                ))}
+              {tab === "actions" &&
+                (selectedAction ? (
+                  <ReferencePreviewCard
+                    title="Action"
+                    eyebrow="Action"
+                    entry={selectedAction}
+                    sourceTitle={sourceBookNameById.get(selectedAction.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Actions" message="Select an action to preview it here." />
+                ))}
+              {tab === "backgrounds" &&
+                (selectedBackground ? (
+                  <ReferencePreviewCard
+                    title="Background"
+                    eyebrow="Background"
+                    entry={selectedBackground}
+                    sourceTitle={sourceBookNameById.get(selectedBackground.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Backgrounds" message="Select a background to preview it here." />
+                ))}
+              {tab === "items" &&
+                (selectedItem ? (
+                  <ReferencePreviewCard
+                    title="Item"
+                    eyebrow="Item"
+                    entry={selectedItem}
+                    sourceTitle={sourceBookNameById.get(selectedItem.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Items" message="Select an item to preview it here." />
+                ))}
+              {tab === "languages" &&
+                (selectedLanguage ? (
+                  <ReferencePreviewCard
+                    title="Language"
+                    eyebrow="Language"
+                    entry={selectedLanguage}
+                    sourceTitle={sourceBookNameById.get(selectedLanguage.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Languages" message="Select a language to preview it here." />
+                ))}
+              {tab === "races" &&
+                (selectedRace ? (
+                  <ReferencePreviewCard
+                    title="Race"
+                    eyebrow="Race"
+                    entry={selectedRace}
+                    sourceTitle={sourceBookNameById.get(selectedRace.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Races" message="Select a race to preview it here." />
+                ))}
+              {tab === "skills" &&
+                (selectedSkill ? (
+                  <ReferencePreviewCard
+                    title="Skill"
+                    eyebrow="Skill"
+                    entry={selectedSkill}
+                    sourceTitle={sourceBookNameById.get(selectedSkill.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Skills" message="Select a skill to preview it here." />
+                ))}
             </section>
           </div>
         </div>
@@ -1346,9 +1978,7 @@ function countGeneratedSubclassLookupEntries(value: Record<string, unknown>) {
 }
 
 function readObjectArray(value: unknown) {
-  return Array.isArray(value)
-    ? value.filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null)
-    : [];
+  return Array.isArray(value) ? value.filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null) : [];
 }
 
 function renderReferenceRows(
@@ -1370,7 +2000,9 @@ function renderReferenceRows(
         <small>{entry.category}</small>
       </div>
       <div className="admin-list-badges">
-        <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>{entry.source}</span>
+        <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>
+          {entry.source}
+        </span>
       </div>
     </button>
   ));
@@ -1393,7 +2025,9 @@ function renderBookRows(
         <small>{entry.group}</small>
       </div>
       <div className="admin-list-badges">
-        <span className="badge subtle" title={entry.name}>{entry.source}</span>
+        <span className="badge subtle" title={entry.name}>
+          {entry.source}
+        </span>
         <span className="badge subtle">{entry.published || "Unknown"}</span>
       </div>
     </button>
@@ -1542,25 +2176,32 @@ function filterAndSortSpells(entries: SpellEntry[], controls: ListControlsState)
     .filter((entry) => !controls.source || normalizeSourceId(entry.source) === controls.source)
     .filter((entry) => !controls.type || entry.school === controls.type)
     .filter((entry) => !controls.secondaryType || String(entry.level) === controls.secondaryType)
-    .sort((left, right) => compareValues(left, right, controls.sort, {
-      categoryLeft: left.school,
-      categoryRight: right.school,
-      levelLeft: left.level === "cantrip" ? 0 : left.level,
-      levelRight: right.level === "cantrip" ? 0 : right.level
-    }));
+    .sort((left, right) =>
+      compareValues(left, right, controls.sort, {
+        categoryLeft: left.school,
+        categoryRight: right.school,
+        levelLeft: left.level === "cantrip" ? 0 : left.level,
+        levelRight: right.level === "cantrip" ? 0 : right.level
+      })
+    );
 }
 
-function filterAndSortMonsters<T extends { id: string; name: string; source: string; challengeRating: string; creatureType: string }>(entries: T[], controls: ListControlsState) {
+function filterAndSortMonsters<T extends { id: string; name: string; source: string; challengeRating: string; creatureType: string }>(
+  entries: T[],
+  controls: ListControlsState
+) {
   return [...entries]
     .filter((entry) => !controls.source || normalizeSourceId(entry.source) === controls.source)
     .filter((entry) => !controls.type || entry.challengeRating === controls.type)
     .filter((entry) => !controls.secondaryType || entry.creatureType === controls.secondaryType)
-    .sort((left, right) => compareValues(left, right, controls.sort, {
-      categoryLeft: left.challengeRating,
-      categoryRight: right.challengeRating,
-      crLeft: parseChallengeRating(left.challengeRating),
-      crRight: parseChallengeRating(right.challengeRating)
-    }));
+    .sort((left, right) =>
+      compareValues(left, right, controls.sort, {
+        categoryLeft: left.challengeRating,
+        categoryRight: right.challengeRating,
+        crLeft: parseChallengeRating(left.challengeRating),
+        crRight: parseChallengeRating(right.challengeRating)
+      })
+    );
 }
 
 function filterAndSortClasses<T extends { name: string; source: string }>(entries: T[], controls: ListControlsState) {
@@ -1573,22 +2214,26 @@ function filterAndSortReferences<T extends { name: string; source: string; categ
   return [...entries]
     .filter((entry) => !controls.source || normalizeSourceId(entry.source) === controls.source)
     .filter((entry) => !controls.type || entry.category === controls.type)
-    .sort((left, right) => compareValues(left, right, controls.sort, {
-      categoryLeft: left.category,
-      categoryRight: right.category
-    }));
+    .sort((left, right) =>
+      compareValues(left, right, controls.sort, {
+        categoryLeft: left.category,
+        categoryRight: right.category
+      })
+    );
 }
 
 function filterAndSortBooks(entries: CampaignSourceBook[], controls: ListControlsState) {
   return [...entries]
     .filter((entry) => !controls.source || entry.source === controls.source)
     .filter((entry) => !controls.type || entry.group === controls.type)
-    .sort((left, right) => compareValues(left, right, controls.sort, {
-      categoryLeft: left.group,
-      categoryRight: right.group,
-      publishedLeft: left.published,
-      publishedRight: right.published
-    }));
+    .sort((left, right) =>
+      compareValues(left, right, controls.sort, {
+        categoryLeft: left.group,
+        categoryRight: right.group,
+        publishedLeft: left.published,
+        publishedRight: right.published
+      })
+    );
 }
 
 function compareValues(
@@ -1699,18 +2344,45 @@ function normalizeSourceId(source: string) {
 
 function uniqueOptionObjects(values: Array<{ value: string; label: string }>) {
   const seen = new Set<string>();
-  return values.filter((entry) => {
-    if (!entry.value || seen.has(entry.value)) {
-      return false;
-    }
+  return values
+    .filter((entry) => {
+      if (!entry.value || seen.has(entry.value)) {
+        return false;
+      }
 
-    seen.add(entry.value);
-    return true;
-  }).sort((left, right) => left.value.localeCompare(right.value));
+      seen.add(entry.value);
+      return true;
+    })
+    .sort((left, right) => left.value.localeCompare(right.value));
 }
 
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.filter(Boolean))).sort((left, right) => left.localeCompare(right));
+}
+
+function formatMonsterTokenArchiveSummary(
+  fileName: string,
+  result: {
+    processedFiles: number;
+    matchedFiles: number;
+    updatedMonsters: number;
+    ignoredEntries: number;
+    unmatchedFiles: string[];
+  }
+) {
+  const details = [
+    `${fileName}: updated ${result.updatedMonsters} monsters from ${result.matchedFiles}/${result.processedFiles} image files`
+  ];
+
+  if (result.unmatchedFiles.length > 0) {
+    details.push(`${result.unmatchedFiles.length} files did not match a monster name`);
+  }
+
+  if (result.ignoredEntries > 0) {
+    details.push(`${result.ignoredEntries} archive entries were ignored`);
+  }
+
+  return `${details.join(". ")}.`;
 }
 
 function resolveSelectedByKey<T>(entries: T[], selectedKey: string | null, readKey: (entry: T) => string) {

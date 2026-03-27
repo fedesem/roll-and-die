@@ -24,6 +24,7 @@ import { resolveAssetUrl } from "../lib/assets";
 type ActivePopup = "sheet" | null;
 
 interface CampaignPageProps {
+  token: string;
   campaign: CampaignSnapshot["campaign"];
   compendium: CampaignSnapshot["compendium"];
   role: MemberRole;
@@ -69,6 +70,7 @@ interface CampaignPageProps {
 }
 
 export function CampaignPage({
+  token,
   campaign,
   compendium,
   role,
@@ -256,6 +258,7 @@ export function CampaignPage({
           onClose={() => onSetActivePopup(null)}
         >
           <CharacterSheet
+            token={token}
             actor={selectedActor ?? undefined}
             compendium={compendium}
             role={role}

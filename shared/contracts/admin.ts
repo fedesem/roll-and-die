@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-import {
-  adminOverviewSchema,
-  userProfileSchema
-} from "./domain.js";
+import { adminOverviewSchema, userProfileSchema } from "./domain.js";
 
 export const compendiumKindSchema = z.enum([
   "spells",
@@ -50,6 +47,14 @@ export const emptyAdminResponseSchema = z.null();
 export const importCompendiumResultResponseSchema = z.object({
   imported: z.number().int().nonnegative(),
   skipped: z.number().int().nonnegative()
+});
+
+export const importMonsterTokenArchiveResponseSchema = z.object({
+  processedFiles: z.number().int().nonnegative(),
+  matchedFiles: z.number().int().nonnegative(),
+  updatedMonsters: z.number().int().nonnegative(),
+  ignoredEntries: z.number().int().nonnegative(),
+  unmatchedFiles: z.array(z.string())
 });
 
 export const importSpellsBodySchema = z.object({

@@ -8,20 +8,31 @@ interface RequestOptions<TResponse> {
   body?: unknown;
   bodySchema?: ZodType;
   responseSchema?: ZodType<TResponse>;
+  contentType?: string;
+  headers?: Record<string, string>;
 }
 
-export async function apiRequest<TResponse = unknown>(
-  path: string,
-  options: RequestOptions<TResponse> = {}
-): Promise<TResponse> {
+function isBinaryRequestBody(value: unknown): value is BodyInit {
+  return value instanceof FormData || value instanceof Blob || value instanceof ArrayBuffer || ArrayBuffer.isView(value);
+}
+
+export async function apiRequest<TResponse = unknown>(path: string, options: RequestOptions<TResponse> = {}): Promise<TResponse> {
   const requestBody = options.bodySchema ? options.bodySchema.parse(options.body) : options.body;
+  const binaryRequestBody = isBinaryRequestBody(requestBody);
+  const requestHeaders =
+    requestBody instanceof FormData
+      ? options.headers ?? {}
+      : {
+          ...(options.contentType ? { "Content-Type": options.contentType } : binaryRequestBody ? {} : { "Content-Type": "application/json" }),
+          ...(options.headers ?? {})
+        };
   const response = await fetch(`${apiBase}${path}`, {
     method: options.method ?? "GET",
     headers: {
-      "Content-Type": "application/json",
-      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {})
+      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      ...requestHeaders
     },
-    body: requestBody === undefined ? undefined : JSON.stringify(requestBody)
+    body: requestBody === undefined ? undefined : binaryRequestBody ? requestBody : JSON.stringify(requestBody)
   });
 
   const raw = await response.text();
@@ -29,10 +40,7 @@ export async function apiRequest<TResponse = unknown>(
 
   if (!response.ok) {
     const message =
-      typeof payload === "object" &&
-      payload !== null &&
-      "error" in payload &&
-      typeof payload.error === "string"
+      typeof payload === "object" && payload !== null && "error" in payload && typeof payload.error === "string"
         ? payload.error
         : `Request failed with status ${response.status}`;
 

@@ -15,6 +15,7 @@ import { createCampaignRouter, createInviteRouter } from "./routes/campaignRoute
 import { createChatRouter } from "./routes/chatRoutes.js";
 import { createMapRouter } from "./routes/mapRoutes.js";
 import { createTokenRouter } from "./routes/tokenRoutes.js";
+import { createAssetRouter } from "./routes/assetRoutes.js";
 import { uploadsRootPath } from "./services/assetStorage.js";
 import { createAuthMiddleware } from "./services/authService.js";
 
@@ -33,7 +34,7 @@ app.use(
   })
 );
 app.use(requestLogger);
-app.use(express.json({ limit: "20mb" }));
+app.use(express.json({ limit: "100mb" }));
 app.use("/uploads", express.static(uploadsRootPath));
 app.use(wrap(createAuthMiddleware()));
 if (hasClientDist) {
@@ -45,6 +46,7 @@ app.get("/api/health", (_request, response) => {
 });
 
 app.use("/api/auth", createAuthRouter());
+app.use("/api/assets", createAssetRouter());
 app.use("/api/admin", createAdminRouter());
 app.use("/api/invites", createInviteRouter());
 app.use("/api/campaigns", createCampaignRouter());

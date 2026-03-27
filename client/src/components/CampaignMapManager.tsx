@@ -5,6 +5,7 @@ import type { CampaignMap, MemberRole } from "@shared/types";
 import { MapConfigurator } from "./MapConfigurator";
 
 interface CampaignMapManagerProps {
+  token: string;
   campaignMaps: CampaignMap[];
   role: MemberRole;
   activeMap?: CampaignMap;
@@ -28,6 +29,7 @@ interface CampaignMapManagerProps {
 }
 
 export function CampaignMapManager({
+  token,
   campaignMaps,
   role,
   activeMap,
@@ -147,6 +149,7 @@ export function CampaignMapManager({
             </div>
           )}
           <MapConfigurator
+            token={token}
             map={editingMap}
             disabled={role !== "dm"}
             onChange={onChangeEditingMap}
