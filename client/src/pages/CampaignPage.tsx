@@ -234,7 +234,7 @@ export function CampaignPage({
                             onSelectActor(actor.id);
                           }}
                         >
-                          <span className="overlay-token-dot" style={{ background: color }}>
+                          <span className={`overlay-token-dot ${imageUrl ? "has-image" : ""}`} style={{ background: imageUrl ? "transparent" : color }}>
                             {imageUrl ? (
                               <img src={resolveAssetUrl(imageUrl)} alt={label} />
                             ) : (

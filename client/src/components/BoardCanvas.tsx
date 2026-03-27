@@ -2348,7 +2348,7 @@ export function BoardCanvas({
                   <span
                     className="board-token-body"
                     style={{
-                      background: token.color,
+                      background: hasImage ? "transparent" : token.color,
                       position: token.actorKind === "static" ? "absolute" : undefined,
                       width: token.actorKind === "static" ? bodyWidth : undefined,
                       height: token.actorKind === "static" ? bodyHeight : undefined,
