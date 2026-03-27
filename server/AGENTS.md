@@ -28,6 +28,7 @@ It should compose middleware, routers, websocket gateway setup, and the error ha
 - keep read/write details in `server/src/store/models/*`
 - schema/default normalization belongs in `server/src/store/normalization.ts`
 - each schema change gets its own migration file
+- never modify old migration files; treat them as append-only and create a new migration for fixes, corrections, or backfills
 
 6. Use structured request logging.
 - log through `request.log` inside controllers/middleware

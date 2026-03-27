@@ -107,6 +107,7 @@ When a contract already exists in `@shared/types`, reuse it directly or derive f
 3. Persistence access must go through store models under `server/src/store/models`.
 4. Database-specific behavior must stay behind the store adapter/model boundary.
 5. Each schema change gets its own migration file under `server/src/store/migrations`.
+Never modify old migration files. Treat existing migrations as append-only and create a new migration for follow-up fixes or data backfills.
 6. `server/src/index.ts` stays as app composition only. Do not move route logic or websocket business logic back into it.
 7. Realtime room behavior belongs in `server/src/realtime/roomGateway.ts` and related services, not inside HTTP controllers.
 8. Request validation should use shared zod contracts plus `server/src/http/validation.ts`, not ad hoc object parsing.
