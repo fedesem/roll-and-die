@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { ArrowRight, Castle, Map as MapIcon, Swords, Users } from "lucide-react";
 
@@ -153,12 +153,6 @@ export function CampaignHubPage({
 }: CampaignHubPageProps) {
   const [section, setSection] = useState<DashboardSection>("room");
 
-  useEffect(() => {
-    if (role !== "dm" && section === "maps") {
-      setSection("room");
-    }
-  }, [role, section]);
-
   return (
     <>
       <main className="grid gap-5 px-4 py-6 lg:px-8">
@@ -226,13 +220,11 @@ export function CampaignHubPage({
                 <span>Actors</span>
                 <span className="badge subtle">{availableActors.length}</span>
               </button>
-              {role === "dm" && (
-                <button type="button" className={section === "maps" ? "is-active" : ""} onClick={() => setSection("maps")}>
-                  <MapIcon size={15} />
-                  <span>Maps</span>
-                  <span className="badge subtle">{campaign.maps.length}</span>
-                </button>
-              )}
+              <button type="button" className={section === "maps" ? "is-active" : ""} onClick={() => setSection("maps")}>
+                <MapIcon size={15} />
+                <span>{role === "dm" ? "Maps" : "Current map"}</span>
+                <span className="badge subtle">{role === "dm" ? campaign.maps.length : filteredCurrentMapRoster.length}</span>
+              </button>
             </div>
           </div>
 
@@ -280,32 +272,57 @@ export function CampaignHubPage({
             />
           )}
 
-          {role === "dm" && section === "maps" && (
-            <div className={`campaign-maps-grid${editingMap ? " is-editing" : ""}`}>
-              <CampaignMapManager
-                token={token}
-                campaignMaps={campaign.maps}
-                role={role}
-                activeMap={activeMap}
-                selectedMap={selectedMap}
-                editingMap={editingMap}
-                mapEditorMode={mapEditorMode}
-                onShowMap={onShowMap}
-                onStartCreateMap={onStartCreateMap}
-                onStartEditMap={onStartEditMap}
-                onChangeEditingMap={onChangeEditingMap}
-                onSaveEditingMap={onSaveEditingMap}
-                onReloadEditingMap={onReloadEditingMap}
-                onUndoEditingMap={onUndoEditingMap}
-                onRedoEditingMap={onRedoEditingMap}
-                canUndoEditingMap={canUndoEditingMap}
-                canRedoEditingMap={canRedoEditingMap}
-                canPersistEditingMap={canPersistEditingMap}
-                onSetEditingMapActive={onSetEditingMapActive}
-                onBackToMapsList={onBackToMapsList}
-                onMapUploadError={onMapUploadError}
-              />
+          {section === "maps" &&
+            (role === "dm" ? (
+              <div className={`campaign-maps-grid${editingMap ? " is-editing" : ""}`}>
+                <CampaignMapManager
+                  token={token}
+                  campaignMaps={campaign.maps}
+                  role={role}
+                  activeMap={activeMap}
+                  selectedMap={selectedMap}
+                  editingMap={editingMap}
+                  mapEditorMode={mapEditorMode}
+                  onShowMap={onShowMap}
+                  onStartCreateMap={onStartCreateMap}
+                  onStartEditMap={onStartEditMap}
+                  onChangeEditingMap={onChangeEditingMap}
+                  onSaveEditingMap={onSaveEditingMap}
+                  onReloadEditingMap={onReloadEditingMap}
+                  onUndoEditingMap={onUndoEditingMap}
+                  onRedoEditingMap={onRedoEditingMap}
+                  canUndoEditingMap={canUndoEditingMap}
+                  canRedoEditingMap={canRedoEditingMap}
+                  canPersistEditingMap={canPersistEditingMap}
+                  onSetEditingMapActive={onSetEditingMapActive}
+                  onBackToMapsList={onBackToMapsList}
+                  onMapUploadError={onMapUploadError}
+                />
 
+                <CampaignMapAssignments
+                  role={role}
+                  currentUserId={currentUserId}
+                  activeMap={activeMap}
+                  selectedActor={selectedActor}
+                  filteredCurrentMapRoster={filteredCurrentMapRoster}
+                  availableActors={availableActors}
+                  actorSearch={actorSearch}
+                  mapActorSearch={mapActorSearch}
+                  actorTypeFilter={actorTypeFilter}
+                  mapActorTypeFilter={mapActorTypeFilter}
+                  onOpenSheet={(actorId) => {
+                    onSelectActor(actorId);
+                    onSetActivePopup("sheet");
+                  }}
+                  onActorSearchChange={onActorSearchChange}
+                  onMapActorSearchChange={onMapActorSearchChange}
+                  onActorTypeFilterChange={onActorTypeFilterChange}
+                  onMapActorTypeFilterChange={onMapActorTypeFilterChange}
+                  onAssignActorToCurrentMap={onAssignActorToCurrentMap}
+                  onRemoveActorFromCurrentMap={onRemoveActorFromCurrentMap}
+                />
+              </div>
+            ) : (
               <CampaignMapAssignments
                 role={role}
                 currentUserId={currentUserId}
@@ -328,8 +345,7 @@ export function CampaignHubPage({
                 onAssignActorToCurrentMap={onAssignActorToCurrentMap}
                 onRemoveActorFromCurrentMap={onRemoveActorFromCurrentMap}
               />
-            </div>
-          )}
+            ))}
         </section>
       </main>
 
