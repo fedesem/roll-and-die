@@ -9,7 +9,7 @@ import { requireUser } from "../services/authService.js";
 import { buildCampaignSnapshot, toCampaignSummary } from "../services/campaignDomain.js";
 import { listCampaignSummariesForUser, readCampaignMembersAndInvites, readCampaignSnapshotById } from "../store/models/campaigns.js";
 import { readCompendiumSourceBooks } from "../store/models/compendium.js";
-import { acceptInviteCommand, createActorCommand, createCampaignCommand, createInviteCommand, createMonsterActorCommand, deleteActorCommand, updateActorCommand } from "../services/campaignCommandService.js";
+import { acceptInviteCommand, createActorCommand, createCampaignCommand, createInviteCommand, createMonsterActorCommand, deleteActorCommand, deleteInviteCommand, updateActorCommand } from "../services/campaignCommandService.js";
 import { readRoomCompendiumCache } from "../services/roomCompendiumCache.js";
 export const campaignController = {
     async list(request: Request, response: Response) {
@@ -75,6 +75,19 @@ export const campaignController = {
         const membership = await runStoreQuery(async (database) => await readCampaignMembersAndInvites(database, campaignId), { queueKey: `campaign:${campaignId}` });
         broadcastCampaignMembershipToRoom(campaignId, membership.members, membership.invites);
         response.status(201).json(invite);
+    },
+    async deleteInvite(request: Request, response: Response) {
+        const user = requireUser(request);
+        const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
+        const inviteId = requireRouteParam(request.params.inviteId, "inviteId");
+        await deleteInviteCommand({
+            campaignId,
+            userId: user.id,
+            inviteId
+        });
+        const membership = await runStoreQuery(async (database) => await readCampaignMembersAndInvites(database, campaignId), { queueKey: `campaign:${campaignId}` });
+        broadcastCampaignMembershipToRoom(campaignId, membership.members, membership.invites);
+        response.status(204).send();
     },
     async createActor(request: Request, response: Response) {
         const user = requireUser(request);

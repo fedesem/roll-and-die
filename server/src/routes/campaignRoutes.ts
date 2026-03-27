@@ -11,6 +11,7 @@ export function createCampaignRouter() {
   router.post("/", wrap(campaignController.create));
   router.get("/:campaignId/snapshot", wrap(campaignController.snapshot));
   router.post("/:campaignId/invites", wrap(campaignController.createInvite));
+  router.delete("/:campaignId/invites/:inviteId", wrap(campaignController.deleteInvite));
   router.post("/:campaignId/actors", wrap(campaignController.createActor));
   router.put("/:campaignId/actors/:actorId", wrap(campaignController.updateActor));
   router.delete("/:campaignId/actors/:actorId", wrap(campaignController.deleteActor));

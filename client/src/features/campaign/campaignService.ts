@@ -89,8 +89,8 @@ export function createInviteRecord(
   token: string,
   campaignId: string,
   invite: {
-    label: string;
     role: MemberRole;
+    label?: string;
   }
 ) {
   return apiRequest(`/campaigns/${campaignId}/invites`, {
@@ -99,6 +99,14 @@ export function createInviteRecord(
     body: invite,
     bodySchema: createInviteBodySchema,
     responseSchema: campaignInviteResponseSchema
+  });
+}
+
+export function removeInviteRecord(token: string, campaignId: string, inviteId: string) {
+  return apiRequest(`/campaigns/${campaignId}/invites/${inviteId}`, {
+    method: "DELETE",
+    token,
+    responseSchema: emptyResponseSchema
   });
 }
 

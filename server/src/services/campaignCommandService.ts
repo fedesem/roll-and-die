@@ -10,7 +10,7 @@ import { parseRollCommand, rollDice } from "../dice.js";
 import { HttpError } from "../http/errors.js";
 import { runStoreQuery, runStoreTransaction } from "../store.js";
 import { deleteReplacedStoredUpload, externalizeImageUrl } from "./assetStorage.js";
-import { clearMapDrawingRecords, clearMapExploration, deleteActorRecord, deleteCampaignInviteByCode, deleteDrawingRecords, deleteMapAssignmentRecord, deleteTokenRecord, deleteTokensForActorOnMap, incrementMapVisibilityVersion, insertCampaignInviteRecord, insertCampaignMemberRecord, insertCampaignRecord, insertChatMessageRecord, insertDrawingRecord, insertMapAssignmentRecord, readActorById, readCampaignBoardState, readCampaignCoreById, readCampaignInviteByCodeRecord, readCampaignRoleForUser, readCampaignSummaryForUser, readChatActorContextById, readMapAssignment, readMapAssignmentsForActor, readMapEditorMap, readMapExists, readTokenById, readTokensForActor, replaceMapExploration, trimCampaignChatRecords, updateCampaignActiveMap, upsertActorRecord, upsertCampaignToken, upsertMapRecord, updateDrawingRecord } from "../store/models/campaigns.js";
+import { clearMapDrawingRecords, clearMapExploration, deleteActorRecord, deleteCampaignInviteByCode, deleteCampaignInviteById, deleteDrawingRecords, deleteMapAssignmentRecord, deleteTokenRecord, deleteTokensForActorOnMap, incrementMapVisibilityVersion, insertCampaignInviteRecord, insertCampaignMemberRecord, insertCampaignRecord, insertChatMessageRecord, insertDrawingRecord, insertMapAssignmentRecord, readActorById, readCampaignBoardState, readCampaignCoreById, readCampaignInviteByCodeRecord, readCampaignInviteByIdRecord, readCampaignRoleForUser, readCampaignSummaryForUser, readChatActorContextById, readMapAssignment, readMapAssignmentsForActor, readMapEditorMap, readMapExists, readTokenById, readTokensForActor, replaceMapExploration, trimCampaignChatRecords, updateCampaignActiveMap, upsertActorRecord, upsertCampaignToken, upsertMapRecord, updateDrawingRecord } from "../store/models/campaigns.js";
 import { readCompendiumSourceBooks, readMonsterTemplateById } from "../store/models/compendium.js";
 import { createId, now } from "./authService.js";
 import { applyActorPatch, applyMapPatch, canManageActor, canManageDrawing, createDefaultActor, createDefaultMap, createMonsterActor, createSystemMessage, randomInviteCode, sanitizeDrawings, syncActorTokens, updateExplorationForMap } from "./campaignDomain.js";
@@ -158,20 +158,36 @@ export async function acceptInviteCommand(params: {
 export async function createInviteCommand(params: {
     campaignId: string;
     userId: string;
-    label: string;
+    label?: string;
     role: CampaignInvite["role"];
 }) {
     return await runCampaignTransaction(params.campaignId, async (database) => {
         requireDungeonMasterForCampaign(database, params.campaignId, params.userId);
+        const label = params.label?.trim() || (params.role === "dm" ? "Dungeon Master invite" : "Player invite");
         const invite: CampaignInvite = {
             id: createId("inv"),
             code: randomInviteCode(),
-            label: params.label,
+            label,
             role: params.role,
             createdAt: now(),
             createdBy: params.userId
         };
         await insertCampaignInviteRecord(database, params.campaignId, invite);
+        return invite;
+    });
+}
+export async function deleteInviteCommand(params: {
+    campaignId: string;
+    userId: string;
+    inviteId: string;
+}) {
+    return await runCampaignTransaction(params.campaignId, async (database) => {
+        requireDungeonMasterForCampaign(database, params.campaignId, params.userId);
+        const invite = await readCampaignInviteByIdRecord(database, params.campaignId, params.inviteId);
+        if (!invite) {
+            throw new HttpError(404, "Invite not found.");
+        }
+        deleteCampaignInviteById(database, params.campaignId, params.inviteId);
         return invite;
     });
 }

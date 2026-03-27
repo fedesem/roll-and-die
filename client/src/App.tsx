@@ -62,7 +62,7 @@ export default function App() {
   const [actorCreatorKind, setActorCreatorKind] = useState<ActorKind>("character");
   const [actorCreatorOpen, setActorCreatorOpen] = useState(false);
   const [actorDraft, setActorDraft] = useState<ActorSheet | null>(() => createClientActorDraft("character", session?.user.id));
-  const [inviteDraft, setInviteDraft] = useState({ label: "Open seat", role: "player" as MemberRole });
+  const [inviteDraft, setInviteDraft] = useState({ role: "player" as MemberRole });
   const [monsterQuery, setMonsterQuery] = useState("");
   const [selectedMonsterId, setSelectedMonsterId] = useState<string | null>(null);
   const [mapDraft, setMapDraft] = useState<CampaignMap | null>(null);
@@ -239,6 +239,7 @@ export default function App() {
     acceptInvite,
     createActor,
     createInvite,
+    removeInvite,
     createMonsterActor,
     assignActorToCurrentMap,
     removeActorFromCurrentMap,
@@ -629,6 +630,7 @@ export default function App() {
           onDeleteActor={(actor) => void deleteActor(actor)}
           onInviteDraftChange={setInviteDraft}
           onCreateInvite={() => void createInvite()}
+          onRemoveInvite={(inviteId) => void removeInvite(inviteId)}
           onShowMap={showMap}
           onStartCreateMap={openMapEditorForCreate}
           onStartEditMap={openMapEditorForEdit}
@@ -656,6 +658,11 @@ export default function App() {
           playerMembers={playerMembers}
           dmFogEnabled={dmFogEnabled}
           dmFogUserId={dmFogUserId}
+          availableActors={availableActors}
+          actorSearch={actorSearch}
+          mapActorSearch={mapActorSearch}
+          actorTypeFilter={actorTypeFilter}
+          mapActorTypeFilter={mapActorTypeFilter}
           movementPreviews={movementPreviews}
           measurePreviews={measurePreviews}
           mapPings={mapPings}
@@ -666,9 +673,16 @@ export default function App() {
           onSelectActor={setSelectedActorId}
           onSetDmFogEnabled={setDmFogEnabled}
           onSetDmFogUserId={setDmFogUserId}
+          onActorSearchChange={setActorSearch}
+          onMapActorSearchChange={setMapActorSearch}
+          onActorTypeFilterChange={setActorTypeFilter}
+          onMapActorTypeFilterChange={setMapActorTypeFilter}
           onResetFog={resetFog}
           onClearFog={clearFog}
           onSelectedMapItemCountChange={setSelectedBoardItemCount}
+          onAssignActorToCurrentMap={(actorId) => void assignActorToCurrentMap(actorId)}
+          onRemoveActorFromCurrentMap={(actorId) => void removeActorFromCurrentMap(actorId)}
+          onShowMap={showMap}
           onMoveActor={moveActor}
           onBroadcastMovePreview={broadcastMovePreview}
           onBroadcastMeasurePreview={broadcastMeasurePreview}

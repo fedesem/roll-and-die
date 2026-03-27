@@ -1,4 +1,6 @@
-import { Home, ScrollText } from "lucide-react";
+import { useState } from "react";
+
+import { Home, Map as MapIcon, ScrollText } from "lucide-react";
 
 import type {
   ActorSheet,
@@ -15,10 +17,16 @@ import type {
 } from "@shared/types";
 
 import { BoardCanvas } from "../components/BoardCanvas";
+import { BoardMapPopup } from "../components/BoardMapPopup";
 import { CharacterSheet } from "../components/CharacterSheet";
 import { ChatPanel } from "../components/ChatPanel";
 import { WorkspaceModal } from "../components/WorkspaceModal";
-import type { CurrentMapRosterEntry, TokenUpdatePatch } from "../features/campaign/types";
+import type {
+  ActorTypeFilter,
+  AvailableActorEntry,
+  CurrentMapRosterEntry,
+  TokenUpdatePatch
+} from "../features/campaign/types";
 import { resolveAssetUrl } from "../lib/assets";
 
 type ActivePopup = "sheet" | null;
@@ -37,6 +45,11 @@ interface CampaignPageProps {
   playerMembers: CampaignMember[];
   dmFogEnabled: boolean;
   dmFogUserId: string | null;
+  availableActors: AvailableActorEntry[];
+  actorSearch: string;
+  mapActorSearch: string;
+  actorTypeFilter: ActorTypeFilter;
+  mapActorTypeFilter: ActorTypeFilter;
   movementPreviews: Array<{ actorId: string; mapId: string; preview: TokenMovementPreview }>;
   measurePreviews: Array<{ userId: string; mapId: string; preview: MeasurePreview }>;
   mapPings: MapPing[];
@@ -47,9 +60,16 @@ interface CampaignPageProps {
   onSelectActor: (actorId: string | null) => void;
   onSetDmFogEnabled: (enabled: boolean) => void;
   onSetDmFogUserId: (userId: string | null) => void;
+  onActorSearchChange: (value: string) => void;
+  onMapActorSearchChange: (value: string) => void;
+  onActorTypeFilterChange: (value: ActorTypeFilter) => void;
+  onMapActorTypeFilterChange: (value: ActorTypeFilter) => void;
   onResetFog: () => Promise<void>;
   onClearFog: () => Promise<void>;
   onSelectedMapItemCountChange: (count: number) => void;
+  onAssignActorToCurrentMap: (actorId: string) => void;
+  onRemoveActorFromCurrentMap: (actorId: string) => void;
+  onShowMap: (mapId: string) => void;
   onMoveActor: (actorId: string, x: number, y: number) => Promise<void>;
   onBroadcastMovePreview: (actorId: string, target: Point | null) => Promise<void>;
   onBroadcastMeasurePreview: (preview: MeasurePreview | null) => Promise<void>;
@@ -83,6 +103,11 @@ export function CampaignPage({
   playerMembers,
   dmFogEnabled,
   dmFogUserId,
+  availableActors,
+  actorSearch,
+  mapActorSearch,
+  actorTypeFilter,
+  mapActorTypeFilter,
   movementPreviews,
   measurePreviews,
   mapPings,
@@ -93,9 +118,16 @@ export function CampaignPage({
   onSelectActor,
   onSetDmFogEnabled,
   onSetDmFogUserId,
+  onActorSearchChange,
+  onMapActorSearchChange,
+  onActorTypeFilterChange,
+  onMapActorTypeFilterChange,
   onResetFog,
   onClearFog,
   onSelectedMapItemCountChange,
+  onAssignActorToCurrentMap,
+  onRemoveActorFromCurrentMap,
+  onShowMap,
   onMoveActor,
   onBroadcastMovePreview,
   onBroadcastMeasurePreview,
@@ -111,6 +143,8 @@ export function CampaignPage({
   onRoll,
   onUpdateToken
 }: CampaignPageProps) {
+  const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
+
   return (
     <>
       <main className="table-layout">
@@ -155,6 +189,10 @@ export function CampaignPage({
               <button type="button" className="overlay-menu-button" onClick={onOpenCampaignHome}>
                 <Home size={15} />
                 <span>Back to campaign</span>
+              </button>
+              <button type="button" className="overlay-menu-button" onClick={() => setIsMapPopupOpen(true)}>
+                <MapIcon size={15} />
+                <span>{role === "dm" ? "Maps" : "Map and actors"}</span>
               </button>
             </section>
 
@@ -265,6 +303,40 @@ export function CampaignPage({
             currentUserId={currentUserId}
             onSave={onSaveActor}
             onRoll={onRoll}
+          />
+        </WorkspaceModal>
+      )}
+
+      {isMapPopupOpen && (
+        <WorkspaceModal
+          title={role === "dm" ? "Board maps" : "Map and actors"}
+          size="full"
+          onClose={() => setIsMapPopupOpen(false)}
+        >
+          <BoardMapPopup
+            role={role}
+            currentUserId={currentUserId}
+            campaignMaps={campaign.maps}
+            activeMap={activeMap}
+            selectedActor={selectedActor}
+            filteredCurrentMapRoster={filteredCurrentMapRoster}
+            availableActors={availableActors}
+            actorSearch={actorSearch}
+            mapActorSearch={mapActorSearch}
+            actorTypeFilter={actorTypeFilter}
+            mapActorTypeFilter={mapActorTypeFilter}
+            onOpenSheet={(actorId) => {
+              setIsMapPopupOpen(false);
+              onSelectActor(actorId);
+              onSetActivePopup("sheet");
+            }}
+            onActorSearchChange={onActorSearchChange}
+            onMapActorSearchChange={onMapActorSearchChange}
+            onActorTypeFilterChange={onActorTypeFilterChange}
+            onMapActorTypeFilterChange={onMapActorTypeFilterChange}
+            onAssignActorToCurrentMap={onAssignActorToCurrentMap}
+            onRemoveActorFromCurrentMap={onRemoveActorFromCurrentMap}
+            onShowMap={onShowMap}
           />
         </WorkspaceModal>
       )}

@@ -39,7 +39,7 @@ export const acceptInviteBodySchema = z.object({
 export const campaignSnapshotResponseSchema = campaignSnapshotSchema;
 
 export const createInviteBodySchema = z.object({
-  label: z.string().trim().min(1),
+  label: z.string().trim().min(1).optional(),
   role: memberRoleSchema
 });
 export const campaignInviteResponseSchema = campaignInviteSchema;

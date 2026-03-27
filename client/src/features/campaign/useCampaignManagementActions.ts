@@ -20,6 +20,7 @@ import {
   createMapRecord,
   createMonsterActorRecord,
   deleteActorRecord,
+  removeInviteRecord,
   removeActorFromMapRecord,
   removeTokenRecord,
   saveActorRecord,
@@ -31,7 +32,6 @@ import { toErrorMessage } from "../../lib/errors";
 import type { BannerState, TokenUpdatePatch } from "./types";
 
 interface InviteDraft {
-  label: string;
   role: MemberRole;
 }
 
@@ -218,6 +218,22 @@ export function useCampaignManagementActions({
     }
   }, [inviteDraft, onStatus, selectedCampaignId, token]);
 
+  const removeInvite = useCallback(
+    async (inviteId: string) => {
+      if (!token || !selectedCampaignId) {
+        return;
+      }
+
+      try {
+        await removeInviteRecord(token, selectedCampaignId, inviteId);
+        onStatus("info", "Invite removed.");
+      } catch (error) {
+        onStatus("error", toErrorMessage(error));
+      }
+    },
+    [onStatus, selectedCampaignId, token]
+  );
+
   const createMonsterActor = useCallback(
     async (template: MonsterTemplate) => {
       if (!token || !selectedCampaignId) {
@@ -394,6 +410,7 @@ export function useCampaignManagementActions({
     acceptInvite,
     createActor,
     createInvite,
+    removeInvite,
     createMonsterActor,
     assignActorToCurrentMap,
     removeActorFromCurrentMap,

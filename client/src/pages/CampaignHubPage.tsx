@@ -51,7 +51,6 @@ interface CampaignHubPageProps {
   filteredCatalog: MonsterTemplate[];
   selectedMonsterTemplate: MonsterTemplate | null;
   inviteDraft: {
-    label: string;
     role: MemberRole;
   };
   canUndoEditingMap: boolean;
@@ -75,8 +74,9 @@ interface CampaignHubPageProps {
   onAssignActorToCurrentMap: (actorId: string) => void;
   onRemoveActorFromCurrentMap: (actorId: string) => void;
   onDeleteActor: (actor: ActorSheet) => void;
-  onInviteDraftChange: (draft: { label: string; role: MemberRole }) => void;
+  onInviteDraftChange: (draft: { role: MemberRole }) => void;
   onCreateInvite: () => void;
+  onRemoveInvite: (inviteId: string) => void;
   onShowMap: (mapId: string) => void;
   onStartCreateMap: () => void;
   onStartEditMap: (map: CampaignMap) => void;
@@ -138,6 +138,7 @@ export function CampaignHubPage({
   onDeleteActor,
   onInviteDraftChange,
   onCreateInvite,
+  onRemoveInvite,
   onShowMap,
   onStartCreateMap,
   onStartEditMap,
@@ -242,6 +243,7 @@ export function CampaignHubPage({
               inviteDraft={inviteDraft}
               onInviteDraftChange={onInviteDraftChange}
               onCreateInvite={onCreateInvite}
+              onRemoveInvite={onRemoveInvite}
             />
           )}
 

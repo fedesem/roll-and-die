@@ -672,6 +672,42 @@ export async function readCampaignInviteByCodeRecord(database: DatabaseSync, cod
         }
         : null;
 }
+export async function readCampaignInviteByIdRecord(database: DatabaseSync, campaignId: string, inviteId: string) {
+    const row = await database
+        .prepare(`
+        SELECT
+          id,
+          campaign_id as campaignId,
+          code,
+          label,
+          role,
+          created_at as createdAt,
+          created_by as createdBy
+        FROM campaign_invites
+        WHERE campaign_id = ? AND id = ?
+        LIMIT 1
+      `)
+        .get(campaignId, inviteId) as {
+        id: string;
+        campaignId: string;
+        code: string;
+        label: string;
+        role: CampaignInvite["role"];
+        createdAt: string;
+        createdBy: string;
+    } | undefined;
+    return row
+        ? {
+            id: row.id,
+            campaignId: row.campaignId,
+            code: row.code,
+            label: row.label,
+            role: row.role,
+            createdAt: row.createdAt,
+            createdBy: row.createdBy
+        }
+        : null;
+}
 export async function readMapExists(database: DatabaseSync, campaignId: string, mapId: string) {
     const row = await database
         .prepare(`
@@ -2655,6 +2691,14 @@ export function deleteCampaignInviteByCode(database: DatabaseSync, code: string)
         WHERE code = ?
       `)
         .run(code);
+}
+export function deleteCampaignInviteById(database: DatabaseSync, campaignId: string, inviteId: string) {
+    database
+        .prepare(`
+        DELETE FROM campaign_invites
+        WHERE campaign_id = ? AND id = ?
+      `)
+        .run(campaignId, inviteId);
 }
 export function deleteCampaignInvitesByCreator(database: DatabaseSync, campaignId: string, createdBy: string) {
     database
