@@ -247,13 +247,14 @@
   isolation: isolate;
   padding: 0;
   min-width: 0;
-  aspect-ratio: 1 / 1;
   overflow: visible;
   pointer-events: auto;
   cursor: grab;
   transition:
     left 220ms linear,
     top 220ms linear,
+    width 220ms linear,
+    height 220ms linear,
     transform 120ms ease;
 }
 
@@ -273,11 +274,16 @@
   box-shadow:
     0 10px 18px rgba(0, 0, 0, 0.26),
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  transition: box-shadow 120ms ease;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+  transform-origin: center;
 }
 
 .board-token.has-image .board-token-body {
   border: none;
+}
+
+.board-token.is-static .board-token-body {
+  border-radius: 0.45rem;
 }
 
 .board-token-initials {

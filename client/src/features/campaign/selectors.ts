@@ -7,7 +7,8 @@ import type {
   MapActorAssignment,
   MonsterTemplate
 } from "@shared/types";
-import { allMapCells, computeVisibleCellsForUser, tokenCellKey } from "@shared/vision";
+import { getTokenOccupiedCellKeys } from "@shared/tokenGeometry";
+import { allMapCells, computeVisibleCellsForUser } from "@shared/vision";
 
 import type { ActorTypeFilter, AvailableActorEntry, CurrentMapRosterEntry } from "./types";
 
@@ -113,8 +114,9 @@ export function selectVisibleMapTokens({
   }
 
   return activeMapTokens.filter((token) => {
-    const cell = tokenCellKey(activeMap, token);
-    return visibleCells.has(cell) || seenCells.has(cell);
+    return getTokenOccupiedCellKeys(activeMap, token).some(
+      (cellKey) => visibleCells.has(cellKey) || seenCells.has(cellKey)
+    );
   });
 }
 

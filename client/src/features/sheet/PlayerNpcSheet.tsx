@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "
 import type {
   AbilityKey,
   ActorBonusEntry,
+  ActorCreatureSize,
   ActorClassEntry,
   ActorSheet,
   ArmorEntry,
@@ -31,6 +32,7 @@ import type {
   SpellEntry,
   SpellSlotTrack
 } from "@shared/types";
+import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 
 import { resolveAssetUrl } from "../../lib/assets";
 import { readFileAsDataUrl } from "../../lib/media";
@@ -544,6 +546,22 @@ export function PlayerNpcSheet({
               disabled={!canEdit}
               onChange={(event) => updateField("species", event.target.value)}
             />
+          </Field>
+          <Field label="Size">
+            <select
+              className={inputClass}
+              value={draft.creatureSize}
+              disabled={!canEdit}
+              onChange={(event) =>
+                updateField("creatureSize", event.target.value as ActorCreatureSize)
+              }
+            >
+              {CREATURE_SIZE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Background">
             <input

@@ -25,10 +25,14 @@ import type {
   TokenMovementPreview
 } from "@shared/types";
 import {
+  getActorTokenFootprint,
+  getTokenFootprint,
+  getTokenOccupiedCellKeys,
+  snapTokenToGrid
+} from "@shared/tokenGeometry";
+import {
   allMapCells,
   computeVisibleCellsForUser,
-  snapPointToGrid,
-  tokenCellKey,
   traceMovementPath,
   type MovementTrace
 } from "@shared/vision";
@@ -198,10 +202,38 @@ type ContextMenuState =
       tokenId: string;
     };
 
-function getTokenStatusBadgeStyle(index: number, count: number, tokenSize: number, badgeSize: number): CSSProperties {
+function getTokenStatusBadgeStyle(
+  index: number,
+  count: number,
+  tokenWidth: number,
+  tokenHeight: number,
+  badgeSize: number
+): CSSProperties {
   const slotCount = Math.max(count, 10);
   const angle = -Math.PI / 2 + index * ((Math.PI * 2) / slotCount);
-  const orbitRadius = tokenSize / 2 + badgeSize * 0.58;
+  const isRectangular = Math.abs(tokenWidth - tokenHeight) > 0.0001;
+
+  if (isRectangular) {
+    const rayX = Math.cos(angle);
+    const rayY = Math.sin(angle);
+    const halfWidth = tokenWidth / 2 + badgeSize * 0.58;
+    const halfHeight = tokenHeight / 2 + badgeSize * 0.58;
+    const distanceToVertical =
+      Math.abs(rayX) < 0.0001 ? Number.POSITIVE_INFINITY : halfWidth / Math.abs(rayX);
+    const distanceToHorizontal =
+      Math.abs(rayY) < 0.0001 ? Number.POSITIVE_INFINITY : halfHeight / Math.abs(rayY);
+    const edgeDistance = Math.min(distanceToVertical, distanceToHorizontal);
+
+    return {
+      width: badgeSize,
+      height: badgeSize,
+      left: "50%",
+      top: "50%",
+      transform: `translate(calc(-50% + ${rayX * edgeDistance}px), calc(-50% + ${rayY * edgeDistance}px))`
+    };
+  }
+
+  const orbitRadius = Math.max(tokenWidth, tokenHeight) / 2 + badgeSize * 0.58;
 
   return {
     width: badgeSize,
@@ -380,7 +412,9 @@ export function BoardCanvas({
       return visibleTokens;
     }
 
-    return visibleTokens.filter((token) => currentVisibleCells.has(tokenCellKey(map, token)));
+    return visibleTokens.filter((token) =>
+      getTokenOccupiedCellKeys(map, token).some((cellKey) => currentVisibleCells.has(cellKey))
+    );
   }, [currentVisibleCells, map, usesRestrictedVision, visibleTokens]);
   const filteredTokenByActorId = useMemo(
     () => new Map(filteredTokens.map((token) => [token.actorId, token])),
@@ -655,6 +689,7 @@ export function BoardCanvas({
     const controlledActor = selectedActor;
     const controlledToken = selectedToken;
     const cellSize = currentMap.grid.cellSize;
+    const controlledFootprint = getTokenFootprint(controlledToken);
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented) {
@@ -697,7 +732,10 @@ export function BoardCanvas({
         currentMap,
         { x: controlledToken.x, y: controlledToken.y },
         { x: controlledToken.x + deltaX, y: controlledToken.y + deltaY },
-        { ignoreWalls: isDungeonMaster }
+        {
+          ignoreWalls: isDungeonMaster,
+          footprint: controlledFootprint
+        }
       );
 
       pendingTeleportCenterRef.current = nextTrace.teleported ? nextTrace.end : null;
@@ -873,6 +911,13 @@ export function BoardCanvas({
 
     const currentMap = activeMap;
     const currentDraggingToken = activeDraggingToken;
+    const draggedToken = visibleTokenByActorId.get(currentDraggingToken.actorId);
+
+    if (!draggedToken) {
+      return;
+    }
+
+    const draggedFootprint = getTokenFootprint(draggedToken);
 
     function handleWindowPointerMove(event: PointerEvent) {
       const point = toWorldPoint(event.clientX, event.clientY);
@@ -882,7 +927,8 @@ export function BoardCanvas({
       }
 
       const trace = traceMovementPath(currentMap, currentDraggingToken.start, point, {
-        ignoreWalls: isDungeonMaster
+        ignoreWalls: isDungeonMaster,
+        footprint: draggedFootprint
       });
       setMovePreview(trace);
 
@@ -894,7 +940,7 @@ export function BoardCanvas({
         return;
       }
 
-      const snappedTarget = snapPointToGrid(currentMap, point);
+      const snappedTarget = snapTokenToGrid(currentMap, point, draggedFootprint);
       const previewKey = `${snappedTarget.x}:${snappedTarget.y}`;
 
       if (lastPreviewTargetKeyRef.current === previewKey) {
@@ -907,11 +953,12 @@ export function BoardCanvas({
 
     function handleWindowPointerUp(event: PointerEvent) {
       const point = toWorldPoint(event.clientX, event.clientY);
-      const snappedTarget = point ? snapPointToGrid(currentMap, point) : null;
+      const snappedTarget = point ? snapTokenToGrid(currentMap, point, draggedFootprint) : null;
       const trace =
         point
           ? traceMovementPath(currentMap, currentDraggingToken.start, point, {
-              ignoreWalls: isDungeonMaster
+              ignoreWalls: isDungeonMaster,
+              footprint: draggedFootprint
             })
           : null;
 
@@ -934,7 +981,6 @@ export function BoardCanvas({
       }
 
       pendingTeleportCenterRef.current = trace.teleported ? trace.end : null;
-      const draggedToken = visibleTokenByActorId.get(currentDraggingToken.actorId);
 
       if (draggedToken) {
         setOptimisticTokenPositions((current) => ({
@@ -1377,7 +1423,7 @@ export function BoardCanvas({
     }
 
     if (tool === "select" && !selectedToken && selectedActor && canControlActor(selectedActor)) {
-      const snapped = snapPointToGrid(map, point);
+      const snapped = snapTokenToGrid(map, point, getActorTokenFootprint(selectedActor));
       await onMoveActor(selectedActor.id, snapped.x, snapped.y);
     }
   }
@@ -1402,7 +1448,8 @@ export function BoardCanvas({
     }
 
     onSelectActor(actorId);
-    const snapped = snapPointToGrid(map, point);
+    const actor = actorById.get(actorId);
+    const snapped = snapTokenToGrid(map, point, actor ? getActorTokenFootprint(actor) : { widthSquares: 1, heightSquares: 1 });
     await onMoveActor(actorId, snapped.x, snapped.y);
   }
 
@@ -1753,6 +1800,12 @@ export function BoardCanvas({
 
   async function handleTokenStatusChange(tokenId: string, statusMarkers: BoardToken["statusMarkers"]) {
     await onUpdateToken(tokenId, { statusMarkers });
+  }
+
+  async function handleTokenRotate(token: BoardToken) {
+    await onUpdateToken(token.id, {
+      rotationDegrees: (((token.rotationDegrees + 90) % 360) || 0) as BoardToken["rotationDegrees"]
+    });
   }
 
   function toggleTokenStatusMarker(token: BoardToken, statusMarker: BoardToken["statusMarkers"][number]) {
@@ -2259,24 +2312,32 @@ export function BoardCanvas({
           <div className="board-token-layer" style={tokenLayerStyle}>
             {orderedTokens.map((token) => {
               const hasImage = token.imageUrl.length > 0;
-              const size = map.grid.cellSize * token.size * (hasImage ? 0.88 : 0.72);
+              const footprint = getTokenFootprint(token);
+              const width = map.grid.cellSize * footprint.widthSquares;
+              const height = map.grid.cellSize * footprint.heightSquares;
+              const isQuarterTurn =
+                token.actorKind === "static" &&
+                (token.rotationDegrees === 90 || token.rotationDegrees === 270);
+              const bodyWidth = isQuarterTurn ? height : width;
+              const bodyHeight = isQuarterTurn ? width : height;
+              const badgeOrbitSize = Math.max(width, height);
               const statusOptions = token.statusMarkers
                 .map((statusMarker) => getTokenStatusOption(statusMarker))
                 .filter((option): option is NonNullable<ReturnType<typeof getTokenStatusOption>> => option !== null);
-              const badgeSize = Math.max(16, Math.min(24, size * 0.3));
+              const badgeSize = Math.max(16, Math.min(24, badgeOrbitSize * 0.22));
 
               return (
                 <button
                   key={token.id}
                   type="button"
                   title={token.label}
-                  className={`board-token ${hasImage ? "has-image" : ""} ${selectedActor?.id === token.actorId ? "is-selected" : ""}`}
+                  className={`board-token ${hasImage ? "has-image" : ""} ${token.actorKind === "static" ? "is-static" : ""} ${selectedActor?.id === token.actorId ? "is-selected" : ""}`}
                   style={{
                     left: token.x,
                     top: token.y,
-                    width: size,
-                    height: size,
-                    fontSize: Math.max(12, size * 0.34)
+                    width,
+                    height,
+                    fontSize: Math.max(12, Math.min(width, height) * 0.34)
                   }}
                   data-board-token-id={token.id}
                   onPointerDown={(event) => handleTokenPointerDown(token, event)}
@@ -2284,7 +2345,21 @@ export function BoardCanvas({
                     event.stopPropagation();
                   }}
                 >
-                  <span className="board-token-body" style={{ background: token.color }}>
+                  <span
+                    className="board-token-body"
+                    style={{
+                      background: token.color,
+                      position: token.actorKind === "static" ? "absolute" : undefined,
+                      width: token.actorKind === "static" ? bodyWidth : undefined,
+                      height: token.actorKind === "static" ? bodyHeight : undefined,
+                      left: token.actorKind === "static" ? "50%" : undefined,
+                      top: token.actorKind === "static" ? "50%" : undefined,
+                      transform:
+                        token.actorKind === "static"
+                          ? `translate(-50%, -50%) rotate(${token.rotationDegrees}deg)`
+                          : undefined
+                    }}
+                  >
                     {token.imageUrl ? (
                       <img className="board-token-image" src={resolveAssetUrl(token.imageUrl)} alt={token.label} draggable={false} />
                     ) : (
@@ -2302,7 +2377,7 @@ export function BoardCanvas({
                       key={statusOption.value}
                       className="board-token-status-badge"
                       data-tone={statusOption.tone}
-                      style={getTokenStatusBadgeStyle(index, statusOptions.length, size, badgeSize)}
+                      style={getTokenStatusBadgeStyle(index, statusOptions.length, width, height, badgeSize)}
                       title={statusOption.label}
                     >
                       <statusOption.Icon className="board-token-status-icon" strokeWidth={2.2} aria-hidden="true" />
@@ -2374,6 +2449,18 @@ export function BoardCanvas({
               ) : contextMenuToken ? (
                 <>
                   <div className="board-context-menu-heading">{contextMenuToken.label}</div>
+                  {contextMenuToken.actorKind === "static" && (
+                    <button
+                      type="button"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={() => {
+                        void handleTokenRotate(contextMenuToken);
+                        setContextMenu(null);
+                      }}
+                    >
+                      Rotate clockwise
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={contextMenuToken.statusMarkers.length === 0}

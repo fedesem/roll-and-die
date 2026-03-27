@@ -43,6 +43,7 @@ export function createClientActorDraft(kind: ActorKind, currentUserId?: string):
     ownerId: kind === "character" ? currentUserId ?? "draft-owner" : undefined,
     name: kind === "static" ? "New Static Actor" : "New Actor",
     kind,
+    creatureSize: "medium",
     imageUrl: "",
     className:
       kind === "npc"
@@ -65,6 +66,8 @@ export function createClientActorDraft(kind: ActorKind, currentUserId?: string):
     proficiencyBonus: 2,
     inspiration: false,
     visionRange: 6,
+    tokenWidthSquares: kind === "static" ? 2 : 1,
+    tokenLengthSquares: kind === "static" ? 4 : 1,
     hitPoints: { current: 12, max: 12, temp: 0 },
     hitDice: "1d8",
     abilities: { str: 10, dex: 14, con: 12, int: 10, wis: 12, cha: 10 },

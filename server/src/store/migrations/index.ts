@@ -21,6 +21,8 @@ import { compendiumBooksMigration } from "./121_compendium_books.js";
 import { monsterCreatureTypeMigration } from "./122_monster_creature_type.js";
 import { mapFogEnabledMigration } from "./123_map_fog_enabled.js";
 import { mapWallOpaqueMigration } from "./124_map_wall_opaque.js";
+import { tokenFootprintsMigration } from "./125_token_footprints.js";
+import { actorCreatureSizeMigration } from "./126_actor_creature_size.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -45,5 +47,7 @@ export const migrations = [
   compendiumBooksMigration,
   monsterCreatureTypeMigration,
   mapFogEnabledMigration,
-  mapWallOpaqueMigration
+  mapWallOpaqueMigration,
+  tokenFootprintsMigration,
+  actorCreatureSizeMigration
 ];

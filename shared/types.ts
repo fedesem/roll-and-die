@@ -1,8 +1,21 @@
 export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 export type MemberRole = "dm" | "player";
 export type ActorKind = "character" | "npc" | "monster" | "static";
+export type ActorCreatureSize =
+  | "tiny"
+  | "small"
+  | "medium"
+  | "large"
+  | "huge"
+  | "gargantuan";
 export type ChatMessageKind = "message" | "roll" | "system";
 export type CellKey = string;
+export type TokenRotation = 0 | 90 | 180 | 270;
+
+export interface TokenFootprint {
+  widthSquares: number;
+  heightSquares: number;
+}
 
 export interface AbilityScores {
   str: number;
@@ -119,6 +132,7 @@ export interface ActorSheet {
   sheetAccess?: "full" | "restricted";
   name: string;
   kind: ActorKind;
+  creatureSize: ActorCreatureSize;
   imageUrl: string;
   className: string;
   species: string;
@@ -134,6 +148,8 @@ export interface ActorSheet {
   proficiencyBonus: number;
   inspiration: boolean;
   visionRange: number;
+  tokenWidthSquares: number;
+  tokenLengthSquares: number;
   hitPoints: HitPoints;
   hitDice: string;
   abilities: AbilityScores;
@@ -494,6 +510,9 @@ export interface BoardToken {
   x: number;
   y: number;
   size: number;
+  widthSquares: number;
+  heightSquares: number;
+  rotationDegrees: TokenRotation;
   color: string;
   label: string;
   imageUrl: string;

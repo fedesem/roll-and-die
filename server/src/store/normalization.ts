@@ -1,4 +1,10 @@
 import { TOKEN_STATUS_MARKERS, type Campaign, type CampaignMap, type MapTeleporter } from "../../../shared/types.js";
+import {
+  clampCreatureTokenSize,
+  clampStaticTokenDimension,
+  normalizeCreatureSize,
+  normalizeTokenRotation
+} from "../../../shared/tokenGeometry.js";
 import { defaultDatabase, type Database } from "./types.js";
 
 export function normalizeStoreState(database: Database): Database {
@@ -118,6 +124,15 @@ function normalizeCampaign(campaign: Campaign): Campaign {
           ...actor,
           imageUrl: actor.imageUrl ?? "",
           visionRange: actor.visionRange ?? 6,
+          creatureSize: normalizeCreatureSize(actor.creatureSize),
+          tokenWidthSquares:
+            actor.kind === "static"
+              ? clampStaticTokenDimension(actor.tokenWidthSquares ?? 2)
+              : 1,
+          tokenLengthSquares:
+            actor.kind === "static"
+              ? clampStaticTokenDimension(actor.tokenLengthSquares ?? 4)
+              : 1,
           classes: Array.isArray(actor.classes) ? actor.classes : [],
           preparedSpells: Array.isArray(actor.preparedSpells) ? actor.preparedSpells : [],
           bonuses: Array.isArray(actor.bonuses) ? actor.bonuses : [],
@@ -156,6 +171,19 @@ function normalizeCampaign(campaign: Campaign): Campaign {
     tokens: Array.isArray(campaign.tokens)
       ? campaign.tokens.map((token) => ({
           ...token,
+          size:
+            token.actorKind === "static"
+              ? Math.max(token.widthSquares ?? token.size ?? 1, token.heightSquares ?? token.size ?? 1)
+              : clampCreatureTokenSize(token.size ?? 1),
+          widthSquares:
+            token.actorKind === "static"
+              ? clampStaticTokenDimension(token.widthSquares ?? token.size ?? 2)
+              : clampCreatureTokenSize(token.widthSquares ?? token.size ?? 1),
+          heightSquares:
+            token.actorKind === "static"
+              ? clampStaticTokenDimension(token.heightSquares ?? token.size ?? 4)
+              : clampCreatureTokenSize(token.heightSquares ?? token.size ?? 1),
+          rotationDegrees: normalizeTokenRotation(token.rotationDegrees ?? 0),
           imageUrl:
             typeof token.imageUrl === "string"
               ? token.imageUrl

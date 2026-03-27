@@ -1,7 +1,8 @@
 import { ImagePlus, ScrollText, Shield } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 
-import type { ActorSheet, CompendiumData, MemberRole } from "@shared/types";
+import type { ActorCreatureSize, ActorSheet, CompendiumData, MemberRole } from "@shared/types";
+import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 
 import { PlayerNpcSheet } from "../features/sheet/PlayerNpcSheet";
 import { cloneActor } from "../features/sheet/sheetUtils";
@@ -127,11 +128,23 @@ function SimpleActorSheet({
   onImageError,
   onSave
 }: SimpleActorSheetProps) {
+  const isStaticActor = actor.kind === "static";
+  const isCreatureActor = !isStaticActor;
+
   function updateField<K extends keyof ActorSheet>(key: K, value: ActorSheet[K]) {
     onDraftChange({
       ...actor,
       [key]: value
     });
+  }
+
+  function updateStaticDimension(key: "tokenWidthSquares" | "tokenLengthSquares", value: string) {
+    const nextValue = Math.max(1, Math.min(12, Math.round(Number(value || 1))));
+    updateField(key, nextValue);
+  }
+
+  function updateCreatureSize(value: string) {
+    updateField("creatureSize", value as ActorCreatureSize);
   }
 
   async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
@@ -197,7 +210,23 @@ function SimpleActorSheet({
                 onChange={(event) => updateField("species", event.target.value)}
               />
             </Field>
-            <Field label="Size / Profile">
+            {isCreatureActor && (
+              <Field label="Size">
+                <select
+                  className={inputClass}
+                  value={actor.creatureSize}
+                  disabled={!canEdit}
+                  onChange={(event) => updateCreatureSize(event.target.value)}
+                >
+                  {CREATURE_SIZE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            <Field label="Profile">
               <input
                 className={inputClass}
                 value={actor.className}
@@ -205,6 +234,32 @@ function SimpleActorSheet({
                 onChange={(event) => updateField("className", event.target.value)}
               />
             </Field>
+            {isStaticActor && (
+              <Field label="Width (sq)">
+                <input
+                  className={inputClass}
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={actor.tokenWidthSquares}
+                  disabled={!canEdit}
+                  onChange={(event) => updateStaticDimension("tokenWidthSquares", event.target.value)}
+                />
+              </Field>
+            )}
+            {isStaticActor && (
+              <Field label="Length (sq)">
+                <input
+                  className={inputClass}
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={actor.tokenLengthSquares}
+                  disabled={!canEdit}
+                  onChange={(event) => updateStaticDimension("tokenLengthSquares", event.target.value)}
+                />
+              </Field>
+            )}
             <Field label="Background / Weight">
               <input
                 className={inputClass}

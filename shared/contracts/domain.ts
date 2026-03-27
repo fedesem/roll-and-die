@@ -7,6 +7,7 @@ import type {
   ActorBonusEntry,
   ActorBonusSourceType,
   ActorBonusTargetType,
+  ActorCreatureSize,
   ActorClassEntry,
   ActorKind,
   ActorLayoutEntry,
@@ -74,6 +75,7 @@ import type {
   SpellSchool,
   SpellSlotTrack,
   TokenMovementPreview,
+  TokenRotation,
   UserProfile
 } from "../types.js";
 
@@ -95,6 +97,14 @@ export const actorKindSchema: z.ZodType<ActorKind> = z.enum([
   "npc",
   "monster",
   "static"
+]);
+export const actorCreatureSizeSchema: z.ZodType<ActorCreatureSize> = z.enum([
+  "tiny",
+  "small",
+  "medium",
+  "large",
+  "huge",
+  "gargantuan"
 ]);
 export const chatMessageKindSchema: z.ZodType<ChatMessageKind> = z.enum([
   "message",
@@ -228,6 +238,7 @@ export const actorSheetSchema: z.ZodType<ActorSheet> = z.object({
   sheetAccess: z.enum(["full", "restricted"]).optional(),
   name: trimmedString,
   kind: actorKindSchema,
+  creatureSize: actorCreatureSizeSchema,
   imageUrl: trimmedString,
   className: trimmedString,
   species: trimmedString,
@@ -243,6 +254,8 @@ export const actorSheetSchema: z.ZodType<ActorSheet> = z.object({
   proficiencyBonus: finiteNumber,
   inspiration: z.boolean(),
   visionRange: finiteNumber,
+  tokenWidthSquares: finiteNumber,
+  tokenLengthSquares: finiteNumber,
   hitPoints: hitPointsSchema,
   hitDice: trimmedString,
   abilities: abilityScoresSchema,
@@ -638,6 +651,13 @@ export const campaignMapSchema: z.ZodType<CampaignMap> = z.object({
 
 export const tokenStatusMarkerSchema = z.enum(TOKEN_STATUS_MARKERS);
 
+export const tokenRotationSchema: z.ZodType<TokenRotation> = z.union([
+  z.literal(0),
+  z.literal(90),
+  z.literal(180),
+  z.literal(270)
+]);
+
 export const boardTokenSchema: z.ZodType<BoardToken> = z.object({
   id: trimmedString,
   actorId: trimmedString,
@@ -646,6 +666,9 @@ export const boardTokenSchema: z.ZodType<BoardToken> = z.object({
   x: finiteNumber,
   y: finiteNumber,
   size: finiteNumber,
+  widthSquares: finiteNumber,
+  heightSquares: finiteNumber,
+  rotationDegrees: tokenRotationSchema,
   color: trimmedString,
   label: trimmedString,
   imageUrl: trimmedString,
@@ -749,7 +772,9 @@ export const tokenMovementPreviewSchema: z.ZodType<TokenMovementPreview> = z.obj
   blocked: z.boolean(),
   end: pointSchema,
   points: z.array(pointSchema),
-  steps: finiteNumber
+  steps: finiteNumber,
+  teleported: z.boolean().optional(),
+  teleportEntry: pointSchema.optional()
 });
 
 export const measureKindSchema: z.ZodType<MeasureKind> = z.enum([

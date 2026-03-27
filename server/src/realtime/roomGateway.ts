@@ -2,7 +2,8 @@ import type { Server } from "node:http";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { clientRoomMessageSchema, serverRoomMessageSchema } from "../../../shared/contracts/realtime.js";
 import type { ActorSheet, BoardToken, CampaignInvite, CampaignMap, CampaignMember, ChatMessage, MapPing, MapViewportRecall, MapActorAssignment, MemberRole, RoomCampaignPatch, RoomDoorToggled, RoomPlayerVisionUpdate, RoomTokenMoved, ServerRoomMessage, TokenMovementPreview, UserProfile } from "../../../shared/types.js";
-import { snapPointToGrid, traceMovementPath } from "../../../shared/vision.js";
+import { getActorTokenFootprint, snapTokenToGrid } from "../../../shared/tokenGeometry.js";
+import { traceMovementPath } from "../../../shared/vision.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema } from "../http/validation.js";
 import { runStoreQuery, runStoreTransaction } from "../store.js";
@@ -347,22 +348,37 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
                 if (!hasMapAssignment(campaign, actor.id, activeMap.id)) {
                     throw new HttpError(403, "Assign the actor to the active map first.");
                 }
-                const snapped = snapPointToGrid(activeMap, {
-                    x: payload.x,
-                    y: payload.y
-                });
                 const previousExploration = captureExplorationForMap(campaign, activeMap.id);
                 const existing = campaign.tokens.find((entry) => entry.actorId === actor.id && entry.mapId === activeMap.id);
+                const actorFootprint = getActorTokenFootprint(actor);
+                const footprint = existing
+                    ? {
+                        widthSquares: existing.widthSquares,
+                        heightSquares: existing.heightSquares
+                    }
+                    : actorFootprint;
+                const snapped = snapTokenToGrid(activeMap, {
+                    x: payload.x,
+                    y: payload.y
+                }, footprint);
                 let token: BoardToken;
                 if (existing) {
                     const trace = traceMovementPath(activeMap, { x: existing.x, y: existing.y }, snapped, {
-                        ignoreWalls: role === "dm"
+                        ignoreWalls: role === "dm",
+                        footprint
                     });
                     existing.x = trace.end.x;
                     existing.y = trace.end.y;
                     token = existing;
                 }
                 else {
+                    const placement = traceMovementPath(activeMap, snapped, snapped, {
+                        ignoreWalls: role === "dm",
+                        footprint
+                    });
+                    if (placement.blocked) {
+                        throw new HttpError(409, "That token cannot be placed there.");
+                    }
                     token = {
                         id: createId("tok"),
                         actorId: actor.id,
@@ -370,7 +386,10 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
                         mapId: activeMap.id,
                         x: snapped.x,
                         y: snapped.y,
-                        size: 1,
+                        size: actorFootprint.size,
+                        widthSquares: actorFootprint.widthSquares,
+                        heightSquares: actorFootprint.heightSquares,
+                        rotationDegrees: 0,
                         color: actor.color,
                         label: actor.name,
                         imageUrl: actor.imageUrl,
@@ -423,12 +442,17 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
                 });
                 return;
             }
-            const snapped = snapPointToGrid(activeMap, {
+            const footprint = {
+                widthSquares: existing.widthSquares,
+                heightSquares: existing.heightSquares
+            };
+            const snapped = snapTokenToGrid(activeMap, {
                 x: payload.target.x,
                 y: payload.target.y
-            });
+            }, footprint);
             const trace = traceMovementPath(activeMap, { x: existing.x, y: existing.y }, snapped, {
-                ignoreWalls: role === "dm"
+                ignoreWalls: role === "dm",
+                footprint
             });
             const preview: TokenMovementPreview = {
                 blocked: trace.blocked,

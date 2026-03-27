@@ -36,6 +36,12 @@ import type {
   UserProfile
 } from "../../../shared/types.js";
 import {
+  clampStaticTokenDimension,
+  getActorTokenFootprint,
+  getFootprintSamplePoints,
+  normalizeCreatureSize
+} from "../../../shared/tokenGeometry.js";
+import {
   computeVisibleCellsForActorToken,
   computeVisibleCellsForUser,
   snapPointToGrid,
@@ -331,6 +337,7 @@ export function createDefaultActor(
     ownerId: role === "dm" || kind === "character" || kind === "monster" ? userId : undefined,
     name,
     kind,
+    creatureSize: "medium",
     imageUrl: "",
     className:
       kind === "npc"
@@ -353,6 +360,8 @@ export function createDefaultActor(
     proficiencyBonus: 2,
     inspiration: false,
     visionRange: 6,
+    tokenWidthSquares: kind === "static" ? 2 : 1,
+    tokenLengthSquares: kind === "static" ? 4 : 1,
     hitPoints: { current: 12, max: 12, temp: 0 },
     hitDice: "1d8",
     abilities,
@@ -434,6 +443,7 @@ export function createMonsterActor(
     templateId: template.id,
     name: template.name,
     kind: "monster",
+    creatureSize: "medium",
     imageUrl: template.imageUrl,
     className: "Monster",
     species: template.source,
@@ -449,6 +459,8 @@ export function createMonsterActor(
     proficiencyBonus,
     inspiration: false,
     visionRange: 8,
+    tokenWidthSquares: 1,
+    tokenLengthSquares: 1,
     hitPoints: { current: template.hitPoints, max: template.hitPoints, temp: 0 },
     hitDice: "Monster HD",
     abilities: template.abilities,
@@ -567,8 +579,10 @@ export function canToggleDoor(
       return false;
     }
 
-    const range = interactionRange * Math.max(1, token.size);
-    return distancePointToSegment({ x: token.x, y: token.y }, door.start, door.end) <= range;
+    return getFootprintSamplePoints(map, { x: token.x, y: token.y }, {
+      widthSquares: token.widthSquares,
+      heightSquares: token.heightSquares
+    }).some((point) => distancePointToSegment(point, door.start, door.end) <= interactionRange);
   });
 }
 
@@ -1208,6 +1222,16 @@ function deriveArmorClass(actor: ActorSheet) {
 }
 
 function finalizeDerivedActor(actor: ActorSheet) {
+  actor.creatureSize = normalizeCreatureSize(actor.creatureSize);
+
+  if (actor.kind === "static") {
+    actor.tokenWidthSquares = clampStaticTokenDimension(actor.tokenWidthSquares);
+    actor.tokenLengthSquares = clampStaticTokenDimension(actor.tokenLengthSquares);
+  } else {
+    actor.tokenWidthSquares = 1;
+    actor.tokenLengthSquares = 1;
+  }
+
   if (actor.kind === "character" || actor.kind === "npc") {
     const totalLevel = actor.classes.reduce((sum, entry) => sum + entry.level, 0);
 
@@ -1376,6 +1400,10 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   actor.imageUrl = getOptionalString(patch.imageUrl, actor.imageUrl);
   actor.className = getOptionalString(patch.className, actor.className);
   actor.species = getOptionalString(patch.species, actor.species);
+  actor.creatureSize =
+    actor.kind === "static"
+      ? "medium"
+      : normalizeCreatureSize(patch.creatureSize, actor.creatureSize);
   actor.background = getOptionalString(patch.background, actor.background);
   actor.alignment = getOptionalString(patch.alignment, actor.alignment);
   actor.level = getOptionalNumber(patch.level, actor.level, 1, 20);
@@ -1393,6 +1421,14 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   );
   actor.inspiration = typeof patch.inspiration === "boolean" ? patch.inspiration : actor.inspiration;
   actor.visionRange = getOptionalNumber(patch.visionRange, actor.visionRange, 1, 24);
+  actor.tokenWidthSquares =
+    actor.kind === "static"
+      ? clampStaticTokenDimension(getOptionalNumber(patch.tokenWidthSquares, actor.tokenWidthSquares, 1, 12))
+      : 1;
+  actor.tokenLengthSquares =
+    actor.kind === "static"
+      ? clampStaticTokenDimension(getOptionalNumber(patch.tokenLengthSquares, actor.tokenLengthSquares, 1, 12))
+      : 1;
   actor.hitPoints = sanitizeHitPoints(patch.hitPoints, actor.hitPoints);
   actor.hitDice = getOptionalString(patch.hitDice, actor.hitDice);
   actor.abilities = sanitizeAbilities(patch.abilities, actor.abilities);
@@ -1428,6 +1464,13 @@ export function syncActorTokens(campaign: Campaign, actor: ActorSheet) {
     }
 
     token.actorKind = actor.kind;
+    token.rotationDegrees = actor.kind === "static" ? token.rotationDegrees : 0;
+    const footprint = getActorTokenFootprint(actor, token.rotationDegrees);
+    token.size = footprint.size;
+    token.widthSquares = footprint.widthSquares;
+    token.heightSquares = footprint.heightSquares;
+    token.rotationDegrees = actor.kind === "static" ? token.rotationDegrees : 0;
+
     token.color = actor.color;
     token.label = actor.name;
     token.imageUrl = actor.imageUrl;

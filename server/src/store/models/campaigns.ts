@@ -87,8 +87,11 @@ export async function readRealtimeCampaign(database: DatabaseSync, campaignId: s
         ownerId: string | null;
         name: string;
         kind: ActorKind;
+        creatureSize: ActorSheet["creatureSize"];
         imageUrl: string;
         visionRange: number;
+        tokenWidthSquares: number;
+        tokenLengthSquares: number;
         color: string;
     }>(database, `
       SELECT
@@ -96,8 +99,11 @@ export async function readRealtimeCampaign(database: DatabaseSync, campaignId: s
         owner_id as ownerId,
         name,
         kind,
+        creature_size as creatureSize,
         image_url as imageUrl,
         vision_range as visionRange,
+        token_width_squares as tokenWidthSquares,
+        token_length_squares as tokenLengthSquares,
         color
       FROM actors
       WHERE campaign_id = ?
@@ -233,6 +239,9 @@ export async function readRealtimeCampaign(database: DatabaseSync, campaignId: s
         x: number;
         y: number;
         size: number;
+        widthSquares: number;
+        heightSquares: number;
+        rotationDegrees: number;
         color: string;
         label: string;
         imageUrl: string;
@@ -247,6 +256,9 @@ export async function readRealtimeCampaign(database: DatabaseSync, campaignId: s
         x,
         y,
         size,
+        width_squares as widthSquares,
+        height_squares as heightSquares,
+        rotation_degrees as rotationDegrees,
         color,
         label,
         image_url as imageUrl,
@@ -263,6 +275,9 @@ export async function readRealtimeCampaign(database: DatabaseSync, campaignId: s
         x: row.x,
         y: row.y,
         size: row.size,
+        widthSquares: row.widthSquares,
+        heightSquares: row.heightSquares,
+        rotationDegrees: row.rotationDegrees as BoardToken["rotationDegrees"],
         color: row.color,
         label: row.label,
         imageUrl: row.imageUrl,
@@ -706,6 +721,9 @@ export async function readTokenById(database: DatabaseSync, campaignId: string, 
           x,
           y,
           size,
+          width_squares as widthSquares,
+          height_squares as heightSquares,
+          rotation_degrees as rotationDegrees,
           color,
           label,
           image_url as imageUrl,
@@ -723,6 +741,9 @@ export async function readTokenById(database: DatabaseSync, campaignId: string, 
         x: number;
         y: number;
         size: number;
+        widthSquares: number;
+        heightSquares: number;
+        rotationDegrees: number;
         color: string;
         label: string;
         imageUrl: string;
@@ -738,6 +759,9 @@ export async function readTokenById(database: DatabaseSync, campaignId: string, 
             x: row.x,
             y: row.y,
             size: row.size,
+            widthSquares: row.widthSquares,
+            heightSquares: row.heightSquares,
+            rotationDegrees: row.rotationDegrees as BoardToken["rotationDegrees"],
             color: row.color,
             label: row.label,
             imageUrl: row.imageUrl,
@@ -755,6 +779,9 @@ export async function readTokensForActor(database: DatabaseSync, campaignId: str
         x: number;
         y: number;
         size: number;
+        widthSquares: number;
+        heightSquares: number;
+        rotationDegrees: number;
         color: string;
         label: string;
         imageUrl: string;
@@ -769,6 +796,9 @@ export async function readTokensForActor(database: DatabaseSync, campaignId: str
         x,
         y,
         size,
+        width_squares as widthSquares,
+        height_squares as heightSquares,
+        rotation_degrees as rotationDegrees,
         color,
         label,
         image_url as imageUrl,
@@ -785,6 +815,9 @@ export async function readTokensForActor(database: DatabaseSync, campaignId: str
         x: row.x,
         y: row.y,
         size: row.size,
+        widthSquares: row.widthSquares,
+        heightSquares: row.heightSquares,
+        rotationDegrees: row.rotationDegrees as BoardToken["rotationDegrees"],
         color: row.color,
         label: row.label,
         imageUrl: row.imageUrl,
@@ -834,6 +867,7 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
           template_id as templateId,
           name,
           kind,
+          creature_size as creatureSize,
           image_url as imageUrl,
           class_name as className,
           species,
@@ -849,6 +883,8 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
           proficiency_bonus as proficiencyBonus,
           inspiration,
           vision_range as visionRange,
+          token_width_squares as tokenWidthSquares,
+          token_length_squares as tokenLengthSquares,
           hit_points_current as hitPointsCurrent,
           hit_points_max as hitPointsMax,
           hit_points_temp as hitPointsTemp,
@@ -878,6 +914,7 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
         templateId: string | null;
         name: string;
         kind: ActorKind;
+        creatureSize: ActorSheet["creatureSize"];
         imageUrl: string;
         className: string;
         species: string;
@@ -893,6 +930,8 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
         proficiencyBonus: number;
         inspiration: number;
         visionRange: number;
+        tokenWidthSquares: number;
+        tokenLengthSquares: number;
         hitPointsCurrent: number;
         hitPointsMax: number;
         hitPointsTemp: number;
@@ -923,6 +962,7 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
         templateId: row.templateId ?? undefined,
         name: row.name,
         kind: row.kind,
+        creatureSize: row.creatureSize,
         imageUrl: row.imageUrl,
         className: row.className,
         species: row.species,
@@ -938,6 +978,8 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
         proficiencyBonus: row.proficiencyBonus,
         inspiration: toBoolean(row.inspiration),
         visionRange: row.visionRange,
+        tokenWidthSquares: row.tokenWidthSquares,
+        tokenLengthSquares: row.tokenLengthSquares,
         hitPoints: {
             current: row.hitPointsCurrent,
             max: row.hitPointsMax,
@@ -1189,8 +1231,11 @@ export async function readCampaignBoardState(database: DatabaseSync, campaignId:
         ownerId: string | null;
         name: string;
         kind: ActorKind;
+        creatureSize: ActorSheet["creatureSize"];
         imageUrl: string;
         visionRange: number;
+        tokenWidthSquares: number;
+        tokenLengthSquares: number;
         color: string;
     }>(database, `
       SELECT
@@ -1198,8 +1243,11 @@ export async function readCampaignBoardState(database: DatabaseSync, campaignId:
         owner_id as ownerId,
         name,
         kind,
+        creature_size as creatureSize,
         image_url as imageUrl,
         vision_range as visionRange,
+        token_width_squares as tokenWidthSquares,
+        token_length_squares as tokenLengthSquares,
         color
       FROM actors
       WHERE campaign_id = ?
@@ -1341,6 +1389,9 @@ export async function readCampaignBoardState(database: DatabaseSync, campaignId:
         x: number;
         y: number;
         size: number;
+        widthSquares: number;
+        heightSquares: number;
+        rotationDegrees: number;
         color: string;
         label: string;
         imageUrl: string;
@@ -1355,6 +1406,9 @@ export async function readCampaignBoardState(database: DatabaseSync, campaignId:
         x,
         y,
         size,
+        width_squares as widthSquares,
+        height_squares as heightSquares,
+        rotation_degrees as rotationDegrees,
         color,
         label,
         image_url as imageUrl,
@@ -1371,6 +1425,9 @@ export async function readCampaignBoardState(database: DatabaseSync, campaignId:
         x: row.x,
         y: row.y,
         size: row.size,
+        widthSquares: row.widthSquares,
+        heightSquares: row.heightSquares,
+        rotationDegrees: row.rotationDegrees as BoardToken["rotationDegrees"],
         color: row.color,
         label: row.label,
         imageUrl: row.imageUrl,
@@ -1398,10 +1455,10 @@ export function upsertCampaignToken(database: DatabaseSync, campaignId: string, 
     database
         .prepare(`
         INSERT INTO tokens (
-          id, campaign_id, sort_order, actor_id, actor_kind, map_id, x, y, size, color, label, image_url, visible, status_marker
+          id, campaign_id, sort_order, actor_id, actor_kind, map_id, x, y, size, width_squares, height_squares, rotation_degrees, color, label, image_url, visible, status_marker
         )
         VALUES (
-          ?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM tokens WHERE campaign_id = ?), 0), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          ?, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM tokens WHERE campaign_id = ?), 0), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         ON CONFLICT(id) DO UPDATE SET
           actor_id = excluded.actor_id,
@@ -1410,13 +1467,16 @@ export function upsertCampaignToken(database: DatabaseSync, campaignId: string, 
           x = excluded.x,
           y = excluded.y,
           size = excluded.size,
+          width_squares = excluded.width_squares,
+          height_squares = excluded.height_squares,
+          rotation_degrees = excluded.rotation_degrees,
           color = excluded.color,
           label = excluded.label,
           image_url = excluded.image_url,
           visible = excluded.visible,
           status_marker = excluded.status_marker
       `)
-        .run(token.id, campaignId, campaignId, token.actorId, token.actorKind, token.mapId, token.x, token.y, token.size, token.color, token.label, token.imageUrl, toIntegerBoolean(token.visible), serializeTokenStatusMarkers(token.statusMarkers));
+        .run(token.id, campaignId, campaignId, token.actorId, token.actorKind, token.mapId, token.x, token.y, token.size, token.widthSquares, token.heightSquares, token.rotationDegrees, token.color, token.label, token.imageUrl, toIntegerBoolean(token.visible), serializeTokenStatusMarkers(token.statusMarkers));
 }
 export function updateCampaignDoorState(database: DatabaseSync, doorId: string, isOpen: boolean) {
     database
@@ -1506,11 +1566,11 @@ function prepareCampaignWriteStatements(database: DatabaseSync): CampaignWriteSt
         insertActor: database.prepare(`
       INSERT INTO actors (
         id, campaign_id, sort_order, owner_id, template_id, name, kind, image_url, class_name, species, background, alignment, level,
-        challenge_rating, experience, spellcasting_ability, armor_class, initiative, speed, proficiency_bonus, inspiration,
-        vision_range, hit_points_current, hit_points_max, hit_points_temp, hit_dice, ability_str, ability_dex, ability_con,
+        challenge_rating, experience, spellcasting_ability, armor_class, initiative, speed, creature_size, proficiency_bonus, inspiration,
+        vision_range, token_width_squares, token_length_squares, hit_points_current, hit_points_max, hit_points_temp, hit_dice, ability_str, ability_dex, ability_con,
         ability_int, ability_wis, ability_cha, currency_pp, currency_gp, currency_ep, currency_sp, currency_cp, notes, color,
         prepared_spells_json, layout_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
         insertActorClass: database.prepare(`
       INSERT INTO actor_classes (actor_id, id, sort_order, compendium_id, name, source, level, hit_die_faces, used_hit_dice, spellcasting_ability)
@@ -1575,8 +1635,8 @@ function prepareCampaignWriteStatements(database: DatabaseSync): CampaignWriteSt
       VALUES (?, ?, ?)
     `),
         insertToken: database.prepare(`
-      INSERT INTO tokens (id, campaign_id, sort_order, actor_id, actor_kind, map_id, x, y, size, color, label, image_url, visible, status_marker)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO tokens (id, campaign_id, sort_order, actor_id, actor_kind, map_id, x, y, size, width_squares, height_squares, rotation_degrees, color, label, image_url, visible, status_marker)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
         insertChatMessage: database.prepare(`
       INSERT INTO chat_messages (
@@ -1608,7 +1668,7 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
         statements.insertCampaignInvite.run(invite.id, campaign.id, inviteOrder, invite.code, invite.label, invite.role, invite.createdAt, invite.createdBy);
     });
     campaign.actors.forEach((actor, actorOrder) => {
-        statements.insertActor.run(actor.id, campaign.id, actorOrder, actor.ownerId ?? null, actor.templateId ?? null, actor.name, actor.kind, actor.imageUrl, actor.className, actor.species, actor.background, actor.alignment, actor.level, actor.challengeRating, actor.experience, actor.spellcastingAbility, actor.armorClass, actor.initiative, actor.speed, actor.proficiencyBonus, toIntegerBoolean(actor.inspiration), actor.visionRange, actor.hitPoints.current, actor.hitPoints.max, actor.hitPoints.temp, actor.hitDice, actor.abilities.str, actor.abilities.dex, actor.abilities.con, actor.abilities.int, actor.abilities.wis, actor.abilities.cha, actor.currency.pp, actor.currency.gp, actor.currency.ep, actor.currency.sp, actor.currency.cp, actor.notes, actor.color, JSON.stringify(actor.preparedSpells), JSON.stringify(actor.layout));
+        statements.insertActor.run(actor.id, campaign.id, actorOrder, actor.ownerId ?? null, actor.templateId ?? null, actor.name, actor.kind, actor.imageUrl, actor.className, actor.species, actor.background, actor.alignment, actor.level, actor.challengeRating, actor.experience, actor.spellcastingAbility, actor.armorClass, actor.initiative, actor.speed, actor.creatureSize, actor.proficiencyBonus, toIntegerBoolean(actor.inspiration), actor.visionRange, actor.tokenWidthSquares, actor.tokenLengthSquares, actor.hitPoints.current, actor.hitPoints.max, actor.hitPoints.temp, actor.hitDice, actor.abilities.str, actor.abilities.dex, actor.abilities.con, actor.abilities.int, actor.abilities.wis, actor.abilities.cha, actor.currency.pp, actor.currency.gp, actor.currency.ep, actor.currency.sp, actor.currency.cp, actor.notes, actor.color, JSON.stringify(actor.preparedSpells), JSON.stringify(actor.layout));
         actor.classes.forEach((actorClass, classOrder) => {
             statements.insertActorClass.run(actor.id, actorClass.id, classOrder, actorClass.compendiumId, actorClass.name, actorClass.source, actorClass.level, actorClass.hitDieFaces, actorClass.usedHitDice, actorClass.spellcastingAbility);
         });
@@ -1657,7 +1717,7 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
         statements.insertMapActorAssignment.run(campaign.id, assignment.mapId, assignment.actorId);
     });
     campaign.tokens.forEach((token, tokenOrder) => {
-        statements.insertToken.run(token.id, campaign.id, tokenOrder, token.actorId, token.actorKind, token.mapId, token.x, token.y, token.size, token.color, token.label, token.imageUrl, toIntegerBoolean(token.visible), serializeTokenStatusMarkers(token.statusMarkers));
+        statements.insertToken.run(token.id, campaign.id, tokenOrder, token.actorId, token.actorKind, token.mapId, token.x, token.y, token.size, token.widthSquares, token.heightSquares, token.rotationDegrees, token.color, token.label, token.imageUrl, toIntegerBoolean(token.visible), serializeTokenStatusMarkers(token.statusMarkers));
     });
     campaign.chat.forEach((message, messageOrder) => {
         statements.insertChatMessage.run(message.id, campaign.id, messageOrder, message.userId, message.userName, message.text, message.createdAt, message.kind, message.actor?.actorId ?? null, message.actor?.actorName ?? null, message.actor?.actorImageUrl ?? null, message.actor?.actorColor ?? null);
@@ -1821,6 +1881,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         templateId: string | null;
         name: string;
         kind: ActorKind;
+        creatureSize: ActorSheet["creatureSize"];
         imageUrl: string;
         className: string;
         species: string;
@@ -1836,6 +1897,8 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         proficiencyBonus: number;
         inspiration: number;
         visionRange: number;
+        tokenWidthSquares: number;
+        tokenLengthSquares: number;
         hitPointsCurrent: number;
         hitPointsMax: number;
         hitPointsTemp: number;
@@ -1862,6 +1925,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         template_id as templateId,
         name,
         kind,
+        creature_size as creatureSize,
         image_url as imageUrl,
         class_name as className,
         species,
@@ -1877,6 +1941,8 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         proficiency_bonus as proficiencyBonus,
         inspiration,
         vision_range as visionRange,
+        token_width_squares as tokenWidthSquares,
+        token_length_squares as tokenLengthSquares,
         hit_points_current as hitPointsCurrent,
         hit_points_max as hitPointsMax,
         hit_points_temp as hitPointsTemp,
@@ -1907,6 +1973,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
             templateId: row.templateId ?? undefined,
             name: row.name,
             kind: row.kind,
+            creatureSize: row.creatureSize,
             imageUrl: row.imageUrl,
             className: row.className,
             species: row.species,
@@ -1922,6 +1989,8 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
             proficiencyBonus: row.proficiencyBonus,
             inspiration: toBoolean(row.inspiration),
             visionRange: row.visionRange,
+            tokenWidthSquares: row.tokenWidthSquares,
+            tokenLengthSquares: row.tokenLengthSquares,
             hitPoints: {
                 current: row.hitPointsCurrent,
                 max: row.hitPointsMax,
@@ -2396,13 +2465,16 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         x: number;
         y: number;
         size: number;
+        widthSquares: number;
+        heightSquares: number;
+        rotationDegrees: number;
         color: string;
         label: string;
         imageUrl: string;
         visible: number;
         statusMarker: string | null;
     }>(database, `
-      SELECT id, actor_id as actorId, actor_kind as actorKind, map_id as mapId, x, y, size, color, label, image_url as imageUrl, visible, status_marker as statusMarker
+      SELECT id, actor_id as actorId, actor_kind as actorKind, map_id as mapId, x, y, size, width_squares as widthSquares, height_squares as heightSquares, rotation_degrees as rotationDegrees, color, label, image_url as imageUrl, visible, status_marker as statusMarker
       FROM tokens
       WHERE campaign_id = ?
       ORDER BY sort_order, id
@@ -2414,6 +2486,9 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         x: row.x,
         y: row.y,
         size: row.size,
+        widthSquares: row.widthSquares,
+        heightSquares: row.heightSquares,
+        rotationDegrees: row.rotationDegrees as BoardToken["rotationDegrees"],
         color: row.color,
         label: row.label,
         imageUrl: row.imageUrl,
@@ -2646,12 +2721,12 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
         .prepare(`
         INSERT INTO actors (
           id, campaign_id, sort_order, owner_id, template_id, name, kind, image_url, class_name, species, background, alignment, level,
-          challenge_rating, experience, spellcasting_ability, armor_class, initiative, speed, proficiency_bonus, inspiration,
-          vision_range, hit_points_current, hit_points_max, hit_points_temp, hit_dice, ability_str, ability_dex, ability_con,
+          challenge_rating, experience, spellcasting_ability, armor_class, initiative, speed, creature_size, proficiency_bonus, inspiration,
+          vision_range, token_width_squares, token_length_squares, hit_points_current, hit_points_max, hit_points_temp, hit_dice, ability_str, ability_dex, ability_con,
           ability_int, ability_wis, ability_cha, currency_pp, currency_gp, currency_ep, currency_sp, currency_cp, notes, color,
           prepared_spells_json, layout_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           campaign_id = excluded.campaign_id,
           sort_order = excluded.sort_order,
@@ -2671,9 +2746,12 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
           armor_class = excluded.armor_class,
           initiative = excluded.initiative,
           speed = excluded.speed,
+          creature_size = excluded.creature_size,
           proficiency_bonus = excluded.proficiency_bonus,
           inspiration = excluded.inspiration,
           vision_range = excluded.vision_range,
+          token_width_squares = excluded.token_width_squares,
+          token_length_squares = excluded.token_length_squares,
           hit_points_current = excluded.hit_points_current,
           hit_points_max = excluded.hit_points_max,
           hit_points_temp = excluded.hit_points_temp,
@@ -2694,7 +2772,7 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
           prepared_spells_json = excluded.prepared_spells_json,
           layout_json = excluded.layout_json
       `)
-        .run(actor.id, campaignId, sortOrder, actor.ownerId ?? null, actor.templateId ?? null, actor.name, actor.kind, actor.imageUrl, actor.className, actor.species, actor.background, actor.alignment, actor.level, actor.challengeRating, actor.experience, actor.spellcastingAbility, actor.armorClass, actor.initiative, actor.speed, actor.proficiencyBonus, toIntegerBoolean(actor.inspiration), actor.visionRange, actor.hitPoints.current, actor.hitPoints.max, actor.hitPoints.temp, actor.hitDice, actor.abilities.str, actor.abilities.dex, actor.abilities.con, actor.abilities.int, actor.abilities.wis, actor.abilities.cha, actor.currency.pp, actor.currency.gp, actor.currency.ep, actor.currency.sp, actor.currency.cp, actor.notes, actor.color, JSON.stringify(actor.preparedSpells), JSON.stringify(actor.layout));
+        .run(actor.id, campaignId, sortOrder, actor.ownerId ?? null, actor.templateId ?? null, actor.name, actor.kind, actor.imageUrl, actor.className, actor.species, actor.background, actor.alignment, actor.level, actor.challengeRating, actor.experience, actor.spellcastingAbility, actor.armorClass, actor.initiative, actor.speed, actor.creatureSize, actor.proficiencyBonus, toIntegerBoolean(actor.inspiration), actor.visionRange, actor.tokenWidthSquares, actor.tokenLengthSquares, actor.hitPoints.current, actor.hitPoints.max, actor.hitPoints.temp, actor.hitDice, actor.abilities.str, actor.abilities.dex, actor.abilities.con, actor.abilities.int, actor.abilities.wis, actor.abilities.cha, actor.currency.pp, actor.currency.gp, actor.currency.ep, actor.currency.sp, actor.currency.cp, actor.notes, actor.color, JSON.stringify(actor.preparedSpells), JSON.stringify(actor.layout));
     database.prepare("DELETE FROM actor_classes WHERE actor_id = ?").run(actor.id);
     database.prepare("DELETE FROM actor_skills WHERE actor_id = ?").run(actor.id);
     database.prepare("DELETE FROM actor_spell_slots WHERE actor_id = ?").run(actor.id);
@@ -3046,8 +3124,11 @@ function createRealtimeActorShell(campaignId: string, row: {
     ownerId: string | null;
     name: string;
     kind: ActorKind;
+    creatureSize: ActorSheet["creatureSize"];
     imageUrl: string;
     visionRange: number;
+    tokenWidthSquares: number;
+    tokenLengthSquares: number;
     color: string;
 }): ActorSheet {
     return {
@@ -3056,6 +3137,7 @@ function createRealtimeActorShell(campaignId: string, row: {
         ownerId: row.ownerId ?? undefined,
         name: row.name,
         kind: row.kind,
+        creatureSize: row.creatureSize,
         imageUrl: row.imageUrl,
         className: "",
         species: "",
@@ -3071,6 +3153,8 @@ function createRealtimeActorShell(campaignId: string, row: {
         proficiencyBonus: 2,
         inspiration: false,
         visionRange: row.visionRange,
+        tokenWidthSquares: row.tokenWidthSquares,
+        tokenLengthSquares: row.tokenLengthSquares,
         hitPoints: {
             current: 1,
             max: 1,

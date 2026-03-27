@@ -1,6 +1,11 @@
 import type { DatabaseSync } from "../store/types.js";
 import type { BoardToken, Campaign, CampaignInvite, ChatMessage, DrawingStroke } from "../../../shared/types.js";
-import { snapPointToGrid, traceMovementPath } from "../../../shared/vision.js";
+import {
+  getActorTokenFootprint,
+  normalizeTokenRotation,
+  snapTokenToGrid
+} from "../../../shared/tokenGeometry.js";
+import { traceMovementPath } from "../../../shared/vision.js";
 import { parseRollCommand, rollDice } from "../dice.js";
 import { HttpError } from "../http/errors.js";
 import { runStoreQuery, runStoreTransaction } from "../store.js";
@@ -46,6 +51,30 @@ function persistExplorationForMapIds(database: DatabaseSync, campaign: Campaign,
     for (const mapId of uniqueMapIds) {
         replaceMapExploration(database, campaign.id, mapId, campaign.exploration);
     }
+}
+function buildTokenFromActor(actor: Campaign["actors"][number], mapId: string, point: {
+    x: number;
+    y: number;
+}, rotationDegrees = 0): BoardToken {
+    const normalizedRotation = actor.kind === "static" ? normalizeTokenRotation(rotationDegrees) : 0;
+    const footprint = getActorTokenFootprint(actor, normalizedRotation);
+    return {
+        id: createId("tok"),
+        actorId: actor.id,
+        actorKind: actor.kind,
+        mapId,
+        x: point.x,
+        y: point.y,
+        size: footprint.size,
+        widthSquares: footprint.widthSquares,
+        heightSquares: footprint.heightSquares,
+        rotationDegrees: normalizedRotation,
+        color: actor.color,
+        label: actor.name,
+        imageUrl: actor.imageUrl,
+        visible: true,
+        statusMarkers: []
+    };
 }
 export async function createCampaignCommand(params: {
     user: {
@@ -476,53 +505,59 @@ export async function createTokenCommand(params: {
         if (!await readMapAssignment(database, params.campaignId, params.mapId, params.actorId)) {
             throw new HttpError(403, "Assign the actor to that map first.");
         }
-        const snapped = snapPointToGrid(map, { x: params.x, y: params.y });
         const existing = campaign.tokens.find((entry) => entry.actorId === params.actorId && entry.mapId === params.mapId);
-        const token = existing ??
-            {
-                id: createId("tok"),
-                actorId: params.actorId,
-                actorKind: actor.kind,
-                mapId: params.mapId,
-                x: snapped.x,
-                y: snapped.y,
-                size: 1,
-                color: actor.color,
-                label: actor.name,
-                imageUrl: actor.imageUrl,
-                visible: true,
-                statusMarkers: []
-            };
+        const footprint = existing
+            ? {
+                widthSquares: existing.widthSquares,
+                heightSquares: existing.heightSquares
+            }
+            : getActorTokenFootprint(actor);
+        const snapped = snapTokenToGrid(map, { x: params.x, y: params.y }, footprint);
         if (existing) {
-            const trace = traceMovementPath(map, { x: existing.x, y: existing.y }, snapped, {
-                ignoreWalls: role === "dm"
-            });
-            existing.x = trace.end.x;
-            existing.y = trace.end.y;
+            if (Math.abs(snapped.x - existing.x) > 0.0001 || Math.abs(snapped.y - existing.y) > 0.0001) {
+                const trace = traceMovementPath(map, { x: existing.x, y: existing.y }, snapped, {
+                    ignoreWalls: role === "dm",
+                    footprint
+                });
+                existing.x = trace.end.x;
+                existing.y = trace.end.y;
+            }
         }
         else {
+            const placement = traceMovementPath(map, snapped, snapped, {
+                ignoreWalls: role === "dm",
+                footprint
+            });
+            if (placement.blocked) {
+                throw new HttpError(409, "That token cannot be placed there.");
+            }
+            const token = buildTokenFromActor(actor, params.mapId, snapped);
             campaign.tokens.push(token);
+            updateExplorationForMap(campaign, map.id);
+            upsertCampaignToken(database, params.campaignId, token);
+            persistExplorationForMapIds(database, campaign, [map.id]);
+            return token;
         }
         updateExplorationForMap(campaign, map.id);
-        upsertCampaignToken(database, params.campaignId, existing ?? token);
+        upsertCampaignToken(database, params.campaignId, existing);
         persistExplorationForMapIds(database, campaign, [map.id]);
-        return existing ?? token;
+        return existing;
     });
 }
 export async function updateTokenCommand(params: {
     campaignId: string;
     tokenId: string;
     userId: string;
-    patch: {
-        mapId?: string;
-        x?: number;
-        y?: number;
-        size?: number;
-        color?: string;
-        label?: string;
-        visible?: boolean;
-        statusMarkers?: BoardToken["statusMarkers"];
-    };
+        patch: {
+            mapId?: string;
+            x?: number;
+            y?: number;
+            rotationDegrees?: BoardToken["rotationDegrees"];
+            color?: string;
+            label?: string;
+            visible?: boolean;
+            statusMarkers?: BoardToken["statusMarkers"];
+        };
 }) {
     return await runCampaignTransaction(params.campaignId, async (database) => {
         const campaignCore = await requireCampaignCore(database, params.campaignId);
@@ -558,18 +593,38 @@ export async function updateTokenCommand(params: {
             throw new HttpError(403, "Assign the actor to that map first.");
         }
         const previousMapId = storedToken.mapId;
-        const snapped = snapPointToGrid(targetMap, {
+        const nextRotationDegrees = actor.kind === "static"
+            ? normalizeTokenRotation(params.patch.rotationDegrees ?? storedToken.rotationDegrees)
+            : 0;
+        const nextFootprint = getActorTokenFootprint(actor, nextRotationDegrees);
+        const nextSize = nextFootprint.size;
+        const snapped = snapTokenToGrid(targetMap, {
             x: params.patch.x ?? storedToken.x,
             y: params.patch.y ?? storedToken.y
-        });
+        }, nextFootprint);
+        const positionChanged = Math.abs(snapped.x - storedToken.x) > 0.0001 || Math.abs(snapped.y - storedToken.y) > 0.0001;
+        const footprintChanged = storedToken.widthSquares !== nextFootprint.widthSquares ||
+            storedToken.heightSquares !== nextFootprint.heightSquares ||
+            storedToken.rotationDegrees !== nextRotationDegrees ||
+            storedToken.size !== nextSize;
         const trace = previousMapId === nextMapId
             ? traceMovementPath(targetMap, { x: storedToken.x, y: storedToken.y }, snapped, {
-                ignoreWalls: role === "dm"
+                ignoreWalls: role === "dm",
+                footprint: nextFootprint
             })
-            : { end: snapped };
+            : traceMovementPath(targetMap, snapped, snapped, {
+                ignoreWalls: role === "dm",
+                footprint: nextFootprint
+            });
+        if (trace.blocked && (positionChanged || footprintChanged || previousMapId !== nextMapId)) {
+            throw new HttpError(409, "That token cannot move, resize, or rotate into the requested space.");
+        }
         storedToken.x = trace.end.x;
         storedToken.y = trace.end.y;
-        storedToken.size = params.patch.size ?? storedToken.size;
+        storedToken.size = nextSize;
+        storedToken.widthSquares = nextFootprint.widthSquares;
+        storedToken.heightSquares = nextFootprint.heightSquares;
+        storedToken.rotationDegrees = nextRotationDegrees;
         storedToken.mapId = nextMapId;
         storedToken.color = params.patch.color ?? storedToken.color;
         storedToken.label = params.patch.label ?? storedToken.label;

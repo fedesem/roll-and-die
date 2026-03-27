@@ -18,6 +18,7 @@ import {
   monsterTemplateSchema,
   pointSchema,
   tokenStatusMarkerSchema,
+  tokenRotationSchema,
   tokenMovementPreviewSchema
 } from "./domain.js";
 
@@ -74,7 +75,7 @@ export const updateTokenBodySchema = z.object({
   mapId: z.string().trim().min(1).optional(),
   x: z.number().finite().optional(),
   y: z.number().finite().optional(),
-  size: z.number().finite().optional(),
+  rotationDegrees: tokenRotationSchema.optional(),
   color: z.string().optional(),
   label: z.string().optional(),
   visible: z.boolean().optional(),

@@ -5,6 +5,7 @@ import type {
   CampaignMap,
   MapActorAssignment,
   MeasurePreview,
+  TokenRotation,
   TokenStatusMarker,
   TokenMovementPreview
 } from "@shared/types";
@@ -48,7 +49,7 @@ export interface TokenUpdatePatch {
   mapId?: string;
   x?: number;
   y?: number;
-  size?: number;
+  rotationDegrees?: TokenRotation;
   color?: string;
   label?: string;
   visible?: boolean;

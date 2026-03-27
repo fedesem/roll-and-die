@@ -5,8 +5,16 @@ import type {
   CellKey,
   MapWall,
   MemberRole,
-  Point
+  Point,
+  TokenFootprint
 } from "./types.js";
+import {
+  getFootprintOccupiedCellKeys,
+  getFootprintSamplePoints,
+  getTokenGridCenter,
+  getTokenGridPosition,
+  getTokenOccupiedCellKeys
+} from "./tokenGeometry.js";
 
 const defaultVisionRange = 6;
 
@@ -22,6 +30,7 @@ export interface MovementTrace {
 
 interface MovementOptions {
   ignoreWalls?: boolean;
+  footprint?: TokenFootprint;
 }
 
 interface VisibleActorTokenEntry {
@@ -91,8 +100,7 @@ export function snapPointToGridIntersection(map: CampaignMap, point: Point): Poi
 }
 
 export function tokenCellKey(map: CampaignMap, token: BoardToken) {
-  const cell = pointToCell(map, { x: token.x, y: token.y });
-  return cellKey(cell.column, cell.row);
+  return getTokenOccupiedCellKeys(map, token)[0] ?? cellKey(0, 0);
 }
 
 export function allMapCells(map: CampaignMap) {
@@ -247,28 +255,36 @@ export function traceMovementPath(
   options: MovementOptions = {}
 ): MovementTrace {
   const indexedWalls = getWallSpatialIndex(map);
-  const startCell = pointToCell(map, start);
-  const targetCell = pointToCell(map, target);
+  const footprint = options.footprint ?? { widthSquares: 1, heightSquares: 1 };
+  const startCell = getTokenGridPosition(map, start, footprint);
+  const targetCell = getTokenGridPosition(map, target, footprint);
   const traversedCells = lineCells(startCell.column, startCell.row, targetCell.column, targetCell.row);
-  const points = [cellCenter(map, traversedCells[0].column, traversedCells[0].row)];
-  const cells = [cellKey(traversedCells[0].column, traversedCells[0].row)];
+  const points = [getTokenGridCenter(map, traversedCells[0].column, traversedCells[0].row, footprint)];
+  const cells = getFootprintOccupiedCellKeys(map, points[0], footprint);
   let blocked = false;
   let teleported = false;
   let teleportEntry: Point | undefined;
 
-  for (let index = 1; index < traversedCells.length; index += 1) {
+  if (!options.ignoreWalls && !isFootprintPassableAt(map, points[0], indexedWalls, footprint)) {
+    blocked = true;
+  }
+
+  for (let index = 1; !blocked && index < traversedCells.length; index += 1) {
     const previous = traversedCells[index - 1];
     const next = traversedCells[index];
-    const previousPoint = cellCenter(map, previous.column, previous.row);
-    const nextPoint = cellCenter(map, next.column, next.row);
+    const previousPoint = getTokenGridCenter(map, previous.column, previous.row, footprint);
+    const nextPoint = getTokenGridCenter(map, next.column, next.row, footprint);
 
-    if (!options.ignoreWalls && !canTraverseSegment(previousPoint, nextPoint, indexedWalls)) {
+    if (
+      !options.ignoreWalls &&
+      !canTraverseFootprintStep(map, previousPoint, nextPoint, indexedWalls, footprint)
+    ) {
       blocked = true;
       break;
     }
 
     points.push(nextPoint);
-    cells.push(cellKey(next.column, next.row));
+    cells.push(...getFootprintOccupiedCellKeys(map, nextPoint, footprint));
 
     const teleportDestination = findTeleporterDestination(map.teleporters, nextPoint);
 
@@ -284,13 +300,56 @@ export function traceMovementPath(
 
   return {
     blocked,
-    cells,
+    cells: Array.from(new Set(cells)),
     end: points[points.length - 1],
     points,
     steps: Math.max(0, points.length - 1),
     teleported,
     teleportEntry
   };
+}
+
+export function isFootprintPassableAt(
+  map: CampaignMap,
+  center: Point,
+  walls: WallCollisionSource,
+  footprint: TokenFootprint
+) {
+  if (
+    footprint.widthSquares < 1 ||
+    footprint.heightSquares < 1 ||
+    !Number.isInteger(footprint.widthSquares) ||
+    !Number.isInteger(footprint.heightSquares)
+  ) {
+    return true;
+  }
+
+  const samples = getFootprintSamplePoints(map, center, footprint);
+
+  for (let rowIndex = 0; rowIndex < footprint.heightSquares; rowIndex += 1) {
+    for (let columnIndex = 0; columnIndex < footprint.widthSquares; columnIndex += 1) {
+      const currentIndex = rowIndex * footprint.widthSquares + columnIndex;
+      const currentPoint = samples[currentIndex];
+
+      if (columnIndex + 1 < footprint.widthSquares) {
+        const rightPoint = samples[currentIndex + 1];
+
+        if (!canTraverseSegment(currentPoint, rightPoint, walls)) {
+          return false;
+        }
+      }
+
+      if (rowIndex + 1 < footprint.heightSquares) {
+        const belowPoint = samples[currentIndex + footprint.widthSquares];
+
+        if (!canTraverseSegment(currentPoint, belowPoint, walls)) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
 }
 
 export function obstacleBlocksVision(wall: MapWall) {
@@ -310,6 +369,25 @@ export function obstacleMidpoint(wall: MapWall): Point {
 
 function obstacleBlocksMode(wall: MapWall, mode: "view" | "movement") {
   return mode === "view" ? obstacleBlocksVision(wall) : obstacleBlocksMovement(wall);
+}
+
+function canTraverseFootprintStep(
+  map: CampaignMap,
+  start: Point,
+  end: Point,
+  walls: WallCollisionSource,
+  footprint: TokenFootprint
+) {
+  const startSamples = getFootprintSamplePoints(map, start, footprint);
+  const endSamples = getFootprintSamplePoints(map, end, footprint);
+
+  for (let index = 0; index < startSamples.length; index += 1) {
+    if (!canTraverseSegment(startSamples[index], endSamples[index], walls)) {
+      return false;
+    }
+  }
+
+  return isFootprintPassableAt(map, end, walls, footprint);
 }
 
 function getWallSpatialIndex(map: CampaignMap) {
