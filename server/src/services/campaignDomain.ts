@@ -1264,7 +1264,7 @@ function sanitizeWalls(value: unknown, fallback: MapWall[]) {
 
       const wall = entry as MapWall;
       const kind =
-        wall.kind === "transparent" || wall.kind === "door" || wall.kind === "wall"
+        wall.kind === "transparent" || wall.kind === "opaque" || wall.kind === "door" || wall.kind === "wall"
           ? wall.kind
           : "wall";
 

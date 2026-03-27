@@ -409,7 +409,7 @@ export interface DrawingStroke {
   points: Point[];
 }
 
-export type MapWallKind = "wall" | "transparent" | "door";
+export type MapWallKind = "wall" | "transparent" | "opaque" | "door";
 
 export interface MapWall {
   id: string;

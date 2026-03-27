@@ -582,6 +582,7 @@ export const drawingStrokeSchema: z.ZodType<DrawingStroke> = z.object({
 export const mapWallKindSchema: z.ZodType<MapWallKind> = z.enum([
   "wall",
   "transparent",
+  "opaque",
   "door"
 ]);
 

@@ -20,6 +20,7 @@ import { tokenStatusMarkerMigration } from "./120_token_status_marker.js";
 import { compendiumBooksMigration } from "./121_compendium_books.js";
 import { monsterCreatureTypeMigration } from "./122_monster_creature_type.js";
 import { mapFogEnabledMigration } from "./123_map_fog_enabled.js";
+import { mapWallOpaqueMigration } from "./124_map_wall_opaque.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -43,5 +44,6 @@ export const migrations = [
   tokenStatusMarkerMigration,
   compendiumBooksMigration,
   monsterCreatureTypeMigration,
-  mapFogEnabledMigration
+  mapFogEnabledMigration,
+  mapWallOpaqueMigration
 ];

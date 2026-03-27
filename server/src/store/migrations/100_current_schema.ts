@@ -190,7 +190,7 @@ export const currentSchemaMigration: Migration = {
         start_y REAL NOT NULL,
         end_x REAL NOT NULL,
         end_y REAL NOT NULL,
-        kind TEXT NOT NULL DEFAULT 'wall' CHECK (kind IN ('wall', 'transparent', 'door')),
+        kind TEXT NOT NULL DEFAULT 'wall' CHECK (kind IN ('wall', 'transparent', 'opaque', 'door')),
         is_open INTEGER NOT NULL DEFAULT 0
       );
 

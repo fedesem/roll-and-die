@@ -294,7 +294,7 @@ export function traceMovementPath(
 }
 
 export function obstacleBlocksVision(wall: MapWall) {
-  return wall.kind === "wall" || (wall.kind === "door" && !wall.isOpen);
+  return wall.kind === "wall" || wall.kind === "opaque" || (wall.kind === "door" && !wall.isOpen);
 }
 
 export function obstacleBlocksMovement(wall: MapWall) {

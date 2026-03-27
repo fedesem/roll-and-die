@@ -2,11 +2,13 @@ import {
   Circle,
   Eye,
   EyeOff,
+  Grid2x2,
   MousePointer2,
   PencilLine,
   RectangleHorizontal,
   RotateCcw,
   Ruler,
+  Search,
   Square,
   Star,
   Trash2,
@@ -16,18 +18,23 @@ import {
 import type {
   DrawingKind,
   MeasureKind,
-  MeasureSnapMode
+  MeasureSnapMode,
+  Point
 } from "@shared/types";
 
 interface BoardToolbarProps {
   tool: "select" | "draw" | "measure";
   onToolChange: (tool: "select" | "draw" | "measure") => void;
   viewZoom: number;
+  viewCenter: Point;
   isDungeonMaster: boolean;
   fogEnabled: boolean;
+  gridAvailable: boolean;
+  gridVisible: boolean;
   fogPlayers: Array<{ userId: string; name: string }>;
   dmFogEnabled: boolean;
   dmFogUserId: string | null;
+  onSetGridVisible: (value: boolean) => void;
   onSetDmFogEnabled: (value: boolean) => void;
   onSetDmFogUserId: (value: string | null) => void;
   onResetFog: () => void;
@@ -61,11 +68,15 @@ export function BoardToolbar({
   tool,
   onToolChange,
   viewZoom,
+  viewCenter,
   isDungeonMaster,
   fogEnabled,
+  gridAvailable,
+  gridVisible,
   fogPlayers,
   dmFogEnabled,
   dmFogUserId,
+  onSetGridVisible,
   onSetDmFogEnabled,
   onSetDmFogUserId,
   onResetFog,
@@ -127,11 +138,26 @@ export function BoardToolbar({
           </button>
         </div>
         <div className="tool-meta">
-          <span className="board-zoom-chip">Zoom {Math.round(viewZoom * 100)}%</span>
+          <span className="board-zoom-chip">
+            <Search size={14} />
+            <span>{Math.round(viewZoom * 100)}%</span>
+            <span className="board-zoom-location">
+              {formatBoardValue(viewCenter.x)}, {formatBoardValue(viewCenter.y)}
+            </span>
+          </span>
+          <button
+            type="button"
+            className={`icon-action-button ${gridVisible && gridAvailable ? "is-active" : ""}`}
+            title={gridAvailable ? (gridVisible ? "Hide grid" : "Show grid") : "Grid disabled on this map"}
+            disabled={!gridAvailable}
+            onClick={() => onSetGridVisible(!gridVisible)}
+          >
+            <Grid2x2 size={15} />
+          </button>
           {isDungeonMaster && fogEnabled && (
-            <>
+            <div className="board-fog-group">
               {fogPlayers.length > 0 && (
-                <>
+                <div className="board-fog-actions">
                   <select value={dmFogUserId ?? ""} onChange={(event) => onSetDmFogUserId(event.target.value || null)}>
                     {fogPlayers.map((member) => (
                       <option key={member.userId} value={member.userId}>
@@ -156,17 +182,18 @@ export function BoardToolbar({
                   >
                     <RotateCcw size={15} />
                   </button>
-                </>
+                </div>
               )}
               <button
                 type="button"
-                className="board-toolbar-action danger-button"
+                className="icon-action-button danger-button board-fog-clear-button"
                 title="Clear fog for all users"
+                aria-label="Clear fog for all users"
                 onClick={onClearFog}
               >
-                Clear Fog
+                <Trash2 size={15} />
               </button>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -346,4 +373,9 @@ export function BoardToolbar({
       )}
     </>
   );
+}
+
+function formatBoardValue(value: number) {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }

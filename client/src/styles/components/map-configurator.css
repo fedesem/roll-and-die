@@ -152,9 +152,15 @@
   stroke-dasharray: 12 8;
 }
 
+.map-preview-wall.kind-opaque {
+  stroke: rgba(218, 225, 244, 0.96);
+  stroke-dasharray: 6 6;
+}
+
 .map-preview-wall.kind-door {
   stroke: rgba(242, 187, 63, 0.96);
   stroke-width: 7;
+  stroke-linecap: butt;
 }
 
 .map-preview-wall.kind-door.is-open {

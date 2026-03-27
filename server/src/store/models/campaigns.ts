@@ -2277,7 +2277,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         startY: number;
         endX: number;
         endY: number;
-        kind: "wall" | "transparent" | "door";
+        kind: "wall" | "transparent" | "opaque" | "door";
         isOpen: number;
     }>(database, `
       SELECT id, map_id as mapId, start_x as startX, start_y as startY, end_x as endX, end_y as endY, kind, is_open as isOpen

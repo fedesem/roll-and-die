@@ -75,7 +75,48 @@
 }
 
 .board-toolbar .board-zoom-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
   white-space: nowrap;
+}
+
+.board-toolbar .board-zoom-location {
+  color: rgba(244, 229, 194, 0.82);
+  font-variant-numeric: tabular-nums;
+}
+
+.board-fog-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-left: 0.2rem;
+  padding: 0.2rem 0.25rem 0.2rem 0.55rem;
+  border-left: 1px solid rgba(245, 198, 92, 0.18);
+  background: rgba(13, 16, 20, 0.42);
+}
+
+.board-fog-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.board-fog-clear-button {
+  position: relative;
+}
+
+.board-fog-clear-button::before {
+  content: "";
+  position: absolute;
+  left: -0.28rem;
+  top: 0.42rem;
+  bottom: 0.42rem;
+  width: 1px;
+  background: rgba(226, 99, 74, 0.22);
 }
 
 .board-toolbar-action {
@@ -381,9 +422,15 @@
   stroke-dasharray: 12 8;
 }
 
+.board-wall.kind-opaque {
+  stroke: rgba(218, 225, 244, 0.94);
+  stroke-dasharray: 6 6;
+}
+
 .board-wall.kind-door {
   stroke: rgba(242, 187, 63, 0.96);
   stroke-width: 7;
+  stroke-linecap: butt;
 }
 
 .board-wall.kind-door.is-open {

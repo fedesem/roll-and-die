@@ -63,6 +63,7 @@ import {
   writeDiscoveredDrawingsMemory
 } from "../features/board/boardUtils";
 import {
+  boardGridPreferenceStorageKey,
   maxViewZoom,
   minViewZoom,
   selectionDragThreshold
@@ -70,6 +71,7 @@ import {
 import { getTokenStatusOption, TOKEN_STATUS_OPTIONS } from "../features/board/tokenStatus";
 import { useBoardViewport } from "../features/board/useBoardViewport";
 import type { TokenUpdatePatch } from "../features/campaign/types";
+import { usePersistentState } from "../hooks/usePersistentState";
 import { resolveAssetUrl } from "../lib/assets";
 
 type Tool = "select" | "draw" | "measure";
@@ -261,6 +263,7 @@ export function BoardCanvas({
   const broadcastMeasurePreviewRef = useRef(onBroadcastMeasurePreview);
   const updateDrawingsRef = useRef(onUpdateDrawings);
   const drawingOverridesRef = useRef<Record<string, { points: Point[]; rotation: number }>>({});
+  const [gridVisible, setGridVisible] = usePersistentState(boardGridPreferenceStorageKey, true);
   const [tool, setTool] = useState<Tool>("select");
   const [drawKind, setDrawKind] = useState<DrawingKind>("freehand");
   const [strokeColor, setStrokeColor] = useState("#000000");
@@ -305,6 +308,7 @@ export function BoardCanvas({
   } = useBoardViewport({
     map,
     currentUserId,
+    gridVisible,
     role,
     viewRecall
   });
@@ -1851,11 +1855,15 @@ export function BoardCanvas({
         tool={tool}
         onToolChange={setTool}
         viewZoom={viewZoom}
+        viewCenter={viewCenter}
         isDungeonMaster={isDungeonMaster}
         fogEnabled={mapFogEnabled}
+        gridAvailable={Boolean(map?.grid.show)}
+        gridVisible={gridVisible}
         fogPlayers={fogPlayers}
         dmFogEnabled={dmFogEnabled}
         dmFogUserId={dmFogUserId}
+        onSetGridVisible={setGridVisible}
         onSetDmFogEnabled={onSetDmFogEnabled}
         onSetDmFogUserId={onSetDmFogUserId}
         onResetFog={() => void onResetFog()}

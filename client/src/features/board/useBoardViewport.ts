@@ -14,6 +14,7 @@ interface ViewportSize {
 interface UseBoardViewportOptions {
   map?: CampaignMap;
   currentUserId: string;
+  gridVisible: boolean;
   role: MemberRole;
   viewRecall: MapViewportRecall | null;
 }
@@ -21,6 +22,7 @@ interface UseBoardViewportOptions {
 export function useBoardViewport({
   map,
   currentUserId,
+  gridVisible,
   role,
   viewRecall
 }: UseBoardViewportOptions) {
@@ -156,7 +158,7 @@ export function useBoardViewport({
   }, [map?.id]);
 
   const gridStyle = useMemo(() => {
-    if (!map?.grid.show) {
+    if (!map?.grid.show || !gridVisible) {
       return undefined;
     }
 
@@ -172,7 +174,7 @@ export function useBoardViewport({
       backgroundSize: `${cell}px ${cell}px`,
       backgroundPosition: `${offsetX}px ${offsetY}px`
     };
-  }, [map, viewPan.x, viewPan.y, worldScale]);
+  }, [gridVisible, map, viewPan.x, viewPan.y, worldScale]);
 
   const backgroundRect = useMemo(() => {
     if (!map?.backgroundUrl) {

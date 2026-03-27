@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent
 } from "react";
-import { DoorOpen, MousePointer2, Move, Radio, RotateCcw, Square, Trash2, Waves, ZoomIn, ZoomOut } from "lucide-react";
+import { DoorOpen, EyeOff, MousePointer2, Move, Radio, RotateCcw, Square, Trash2, Waves, ZoomIn, ZoomOut } from "lucide-react";
 
 import type { CampaignMap, MapTeleporter, MapWall, MapWallKind, Point } from "@shared/types";
 import { snapPointToGrid, snapPointToGridIntersection } from "@shared/vision";
@@ -680,7 +680,7 @@ export function MapConfigurator({
   }
 
   function clearMapItems() {
-    if (!window.confirm("Clear all walls, transparent walls, doors, and teleporters from this map?")) {
+    if (!window.confirm("Clear all walls, transparent walls, opaque walls, doors, and teleporters from this map?")) {
       return;
     }
 
@@ -704,7 +704,7 @@ export function MapConfigurator({
             : "Click one cell, then another, to create a numbered teleporter pair. Right click ends the current pair without leaving the teleporter tool."
         : obstacleAnchor
           ? `Click the next snapped border point to continue the ${obstacleLabel(editorMode).toLowerCase()}. Right click ends the chain and keeps the tool active.`
-          : editorMode === "door" || editorMode === "transparent"
+          : editorMode === "door" || editorMode === "transparent" || editorMode === "opaque"
             ? `Click two snapped border points to place a ${obstacleLabel(editorMode).toLowerCase()}, or click a wall section to replace one square with it. Right click keeps the tool active.`
             : `Click two snapped border points to place a ${obstacleLabel(editorMode).toLowerCase()}. Right click keeps the tool active.`;
 
@@ -838,6 +838,19 @@ export function MapConfigurator({
                 }}
               >
                 <Waves size={15} />
+              </button>
+              <button
+                className={`icon-action-button ${editorMode === "opaque" ? "is-active" : ""}`}
+                type="button"
+                disabled={disabled}
+                title="Opaque wall"
+                onClick={() => {
+                  setEditorMode("opaque");
+                  setObstacleAnchor(null);
+                  setTeleporterAnchor(null);
+                }}
+              >
+                <EyeOff size={15} />
               </button>
               <button
                 className={`icon-action-button ${editorMode === "door" ? "is-active" : ""}`}
@@ -999,7 +1012,7 @@ export function MapConfigurator({
             </svg>
 
             <svg className="map-preview-hit-layer" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
-              {(editorMode === "select" || editorMode === "door" || editorMode === "transparent") &&
+              {(editorMode === "select" || editorMode === "door" || editorMode === "transparent" || editorMode === "opaque") &&
                 map.walls.map((wall) => {
                 const start = worldToScreen(wall.start);
                 const end = worldToScreen(wall.end);
@@ -1020,7 +1033,7 @@ export function MapConfigurator({
                         return;
                       }
 
-                      if (editorMode === "door" || editorMode === "transparent") {
+                      if (editorMode === "door" || editorMode === "transparent" || editorMode === "opaque") {
                         const point = toWorldPoint(event.clientX, event.clientY);
 
                         if (!point) {
@@ -1202,6 +1215,8 @@ function obstacleLabel(kind: EditorMode) {
       return "Door";
     case "teleporter":
       return "Teleporter";
+    case "opaque":
+      return "Opaque Wall";
     case "transparent":
       return "Transparent Wall";
     case "wall":
@@ -1263,7 +1278,7 @@ function replaceWallSection(
   walls: MapWall[],
   wallId: string,
   point: Point,
-  kind: Extract<MapWallKind, "door" | "transparent">,
+  kind: Extract<MapWallKind, "door" | "transparent" | "opaque">,
   cellSize: number
 ) {
   const nextWalls: MapWall[] = [];
@@ -1290,7 +1305,7 @@ function replaceWallSection(
 function splitWallSection(
   wall: MapWall,
   point: Point,
-  kind: Extract<MapWallKind, "door" | "transparent">,
+  kind: Extract<MapWallKind, "door" | "transparent" | "opaque">,
   cellSize: number
 ) {
   const horizontal = Math.abs(wall.start.y - wall.end.y) < 0.0001;
@@ -1337,7 +1352,7 @@ function splitWallSection(
 
 function buildSplitWallParts(
   wall: MapWall,
-  kind: Extract<MapWallKind, "door" | "transparent">,
+  kind: Extract<MapWallKind, "door" | "transparent" | "opaque">,
   sectionStart: Point,
   sectionEnd: Point
 ) {
