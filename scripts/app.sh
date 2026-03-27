@@ -26,7 +26,7 @@ MODE="${1:-}"
 ACTION="${2:-up}"
 
 if [[ -z "$MODE" ]]; then
-  echo "usage: scripts/docker-app.sh <dev|prod> [up|down|build|logs|ps|restart]"
+  echo "usage: scripts/app.sh <dev|prod> [up|down|build|logs|ps|restart]"
   exit 1
 fi
 
@@ -41,7 +41,7 @@ case "$MODE" in
     ;;
   *)
     echo "invalid mode: $MODE"
-    echo "usage: scripts/docker-app.sh <dev|prod> [up|down|build|logs|ps|restart]"
+    echo "usage: scripts/app.sh <dev|prod> [up|down|build|logs|ps|restart]"
     exit 1
     ;;
 esac
@@ -67,7 +67,7 @@ case "$ACTION" in
     ;;
   *)
     echo "invalid action: $ACTION"
-    echo "usage: scripts/docker-app.sh <dev|prod> [up|down|build|logs|ps|restart]"
+    echo "usage: scripts/app.sh <dev|prod> [up|down|build|logs|ps|restart]"
     exit 1
     ;;
 esac
