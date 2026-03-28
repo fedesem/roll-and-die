@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Home, Map as MapIcon, ScrollText } from "lucide-react";
 
 import type {
+  ActorKind,
   ActorSheet,
   CampaignMap,
   CampaignMember,
@@ -12,17 +13,20 @@ import type {
   MapViewportRecall,
   MeasurePreview,
   MemberRole,
+  MonsterTemplate,
   Point,
   TokenMovementPreview
 } from "@shared/types";
 
 import { BoardCanvas } from "../components/BoardCanvas";
-import { BoardMapPopup } from "../components/BoardMapPopup";
+import { CampaignMapActorCreator } from "../components/CampaignMapActorCreator";
+import { CampaignMapEditor } from "../components/CampaignMapEditor";
+import { CampaignMapManager } from "../components/CampaignMapManager";
+import { CampaignMapRoster } from "../components/CampaignMapRoster";
 import { CharacterSheet } from "../components/CharacterSheet";
 import { ChatPanel } from "../components/ChatPanel";
-import { WorkspaceModal } from "../components/WorkspaceModal";
+import { WorkspaceModal, type WorkspaceModalView } from "../components/WorkspaceModal";
 import type {
-  ActorTypeFilter,
   AvailableActorEntry,
   CurrentMapRosterEntry,
   TokenUpdatePatch
@@ -38,6 +42,7 @@ interface CampaignPageProps {
   role: MemberRole;
   currentUserId: string;
   activeMap?: CampaignMap;
+  selectedMap?: CampaignMap;
   selectedActor: ActorSheet | null;
   activePopup: ActivePopup;
   boardSeenCells: string[];
@@ -45,31 +50,48 @@ interface CampaignPageProps {
   playerMembers: CampaignMember[];
   dmFogEnabled: boolean;
   dmFogUserId: string | null;
-  availableActors: AvailableActorEntry[];
-  actorSearch: string;
-  mapActorSearch: string;
-  actorTypeFilter: ActorTypeFilter;
-  mapActorTypeFilter: ActorTypeFilter;
+  selectedMapAvailableActors: AvailableActorEntry[];
+  actorCreatorKind: ActorKind;
+  filteredCatalog: MonsterTemplate[];
+  selectedMonsterTemplate: MonsterTemplate | null;
   movementPreviews: Array<{ actorId: string; mapId: string; preview: TokenMovementPreview }>;
   measurePreviews: Array<{ userId: string; mapId: string; preview: MeasurePreview }>;
   mapPings: MapPing[];
   viewRecall: MapViewportRecall | null;
   filteredCurrentMapRoster: CurrentMapRosterEntry[];
+  filteredSelectedMapRoster: CurrentMapRosterEntry[];
+  editingMap: CampaignMap | null;
+  mapEditorMode: "create" | "edit" | null;
+  canUndoEditingMap: boolean;
+  canRedoEditingMap: boolean;
+  canPersistEditingMap: boolean;
   onSetActivePopup: (popup: ActivePopup) => void;
   onOpenCampaignHome: () => void;
+  onSelectMap: (mapId: string | null) => void;
   onSelectActor: (actorId: string | null) => void;
   onSetDmFogEnabled: (enabled: boolean) => void;
   onSetDmFogUserId: (userId: string | null) => void;
-  onActorSearchChange: (value: string) => void;
-  onMapActorSearchChange: (value: string) => void;
-  onActorTypeFilterChange: (value: ActorTypeFilter) => void;
-  onMapActorTypeFilterChange: (value: ActorTypeFilter) => void;
+  onActorCreatorKindChange: (value: ActorKind) => void;
+  onMonsterQueryChange: (value: string) => void;
+  onSelectMonster: (monsterId: string) => void;
   onResetFog: () => Promise<void>;
   onClearFog: () => Promise<void>;
   onSelectedMapItemCountChange: (count: number) => void;
-  onAssignActorToCurrentMap: (actorId: string) => void;
-  onRemoveActorFromCurrentMap: (actorId: string) => void;
+  onAssignActorToMap: (actorId: string, mapId: string) => void;
+  onRemoveActorFromMap: (actorId: string, mapId: string) => void;
   onShowMap: (mapId: string) => void;
+  onStartCreateMap: () => void;
+  onStartEditMap: (map: CampaignMap) => void;
+  onChangeEditingMap: (map: CampaignMap) => void;
+  onSaveEditingMap: () => void;
+  onReloadEditingMap: () => void;
+  onUndoEditingMap: () => void;
+  onRedoEditingMap: () => void;
+  onSetEditingMapActive: () => void;
+  onBackToMapsList: () => void;
+  onMapUploadError: (message: string) => void;
+  onCreateMapActor: (draft: ActorSheet, mapId: string) => Promise<void>;
+  onCreateMapMonsterActor: (monster: MonsterTemplate, mapId: string) => Promise<void>;
   onMoveActor: (actorId: string, x: number, y: number) => Promise<void>;
   onBroadcastMovePreview: (actorId: string, target: Point | null) => Promise<void>;
   onBroadcastMeasurePreview: (preview: MeasurePreview | null) => Promise<void>;
@@ -96,6 +118,7 @@ export function CampaignPage({
   role,
   currentUserId,
   activeMap,
+  selectedMap,
   selectedActor,
   activePopup,
   boardSeenCells,
@@ -103,31 +126,48 @@ export function CampaignPage({
   playerMembers,
   dmFogEnabled,
   dmFogUserId,
-  availableActors,
-  actorSearch,
-  mapActorSearch,
-  actorTypeFilter,
-  mapActorTypeFilter,
+  selectedMapAvailableActors,
+  actorCreatorKind,
+  filteredCatalog,
+  selectedMonsterTemplate,
   movementPreviews,
   measurePreviews,
   mapPings,
   viewRecall,
   filteredCurrentMapRoster,
+  filteredSelectedMapRoster,
+  editingMap,
+  mapEditorMode,
+  canUndoEditingMap,
+  canRedoEditingMap,
+  canPersistEditingMap,
   onSetActivePopup,
   onOpenCampaignHome,
+  onSelectMap,
   onSelectActor,
   onSetDmFogEnabled,
   onSetDmFogUserId,
-  onActorSearchChange,
-  onMapActorSearchChange,
-  onActorTypeFilterChange,
-  onMapActorTypeFilterChange,
+  onActorCreatorKindChange,
+  onMonsterQueryChange,
+  onSelectMonster,
   onResetFog,
   onClearFog,
   onSelectedMapItemCountChange,
-  onAssignActorToCurrentMap,
-  onRemoveActorFromCurrentMap,
+  onAssignActorToMap,
+  onRemoveActorFromMap,
   onShowMap,
+  onStartCreateMap,
+  onStartEditMap,
+  onChangeEditingMap,
+  onSaveEditingMap,
+  onReloadEditingMap,
+  onUndoEditingMap,
+  onRedoEditingMap,
+  onSetEditingMapActive,
+  onBackToMapsList,
+  onMapUploadError,
+  onCreateMapActor,
+  onCreateMapMonsterActor,
   onMoveActor,
   onBroadcastMovePreview,
   onBroadcastMeasurePreview,
@@ -144,6 +184,52 @@ export function CampaignPage({
   onUpdateToken
 }: CampaignPageProps) {
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
+
+  function closeBoardMapModal() {
+    setIsMapPopupOpen(false);
+    onBackToMapsList();
+  }
+
+  function resolveDialogMap(mapId?: string) {
+    if (!mapId) {
+      return undefined;
+    }
+
+    const map = campaign.maps.find((entry) => entry.id === mapId);
+    return map && selectedMap?.id === map.id ? selectedMap : map;
+  }
+
+  function resolveDialogRoster(mapId?: string) {
+    return selectedMap?.id === mapId ? filteredSelectedMapRoster : [];
+  }
+
+  function resolveDialogAvailableActors(mapId?: string) {
+    return selectedMap?.id === mapId ? selectedMapAvailableActors : [];
+  }
+
+  function buildCreateActorView(mapId: string): WorkspaceModalView {
+    const map = resolveDialogMap(mapId);
+
+    return {
+      id: "board-map-actor-create",
+      title: map ? `Create actor for ${map.name}` : "Create actor",
+      size: "wide",
+      data: { mapId }
+    };
+  }
+
+  const boardMapView: WorkspaceModalView =
+    role === "dm"
+      ? {
+          id: "board-maps",
+          title: "Board maps",
+          size: "full"
+        }
+      : {
+          id: "board-player-map",
+          title: "Actors",
+          size: "wide"
+        };
 
   return (
     <>
@@ -192,7 +278,7 @@ export function CampaignPage({
               </button>
               <button type="button" className="overlay-menu-button" onClick={() => setIsMapPopupOpen(true)}>
                 <MapIcon size={15} />
-                <span>{role === "dm" ? "Maps" : "Map and actors"}</span>
+                <span>{role === "dm" ? "Maps" : "Actors"}</span>
               </button>
             </section>
 
@@ -205,9 +291,9 @@ export function CampaignPage({
                 <span className="badge subtle">{filteredCurrentMapRoster.length}</span>
               </div>
               <div className="list-stack compact-list">
-                {filteredCurrentMapRoster.map(({ actor, assignment, color, label, imageUrl }) => {
+                {filteredCurrentMapRoster.map(({ actor, assignment, color, label, imageUrl, token }) => {
                   const canSelect = Boolean(actor);
-                  const canDrag = Boolean(actor && (role === "dm" || actor.ownerId === currentUserId));
+                  const canDrag = Boolean(actor && (role === "dm" || (actor.ownerId === currentUserId && token)));
 
                   return (
                     <div key={`${assignment.mapId}:${assignment.actorId}`} className="overlay-token-row">
@@ -307,39 +393,137 @@ export function CampaignPage({
         </WorkspaceModal>
       )}
 
-      {isMapPopupOpen && (
-        <WorkspaceModal
-          title={role === "dm" ? "Board maps" : "Map and actors"}
-          size="full"
-          onClose={() => setIsMapPopupOpen(false)}
-        >
-          <BoardMapPopup
-            role={role}
-            currentUserId={currentUserId}
-            campaignMaps={campaign.maps}
-            activeMap={activeMap}
-            selectedActor={selectedActor}
-            filteredCurrentMapRoster={filteredCurrentMapRoster}
-            availableActors={availableActors}
-            actorSearch={actorSearch}
-            mapActorSearch={mapActorSearch}
-            actorTypeFilter={actorTypeFilter}
-            mapActorTypeFilter={mapActorTypeFilter}
-            onOpenSheet={(actorId) => {
-              setIsMapPopupOpen(false);
-              onSelectActor(actorId);
-              onSetActivePopup("sheet");
-            }}
-            onActorSearchChange={onActorSearchChange}
-            onMapActorSearchChange={onMapActorSearchChange}
-            onActorTypeFilterChange={onActorTypeFilterChange}
-            onMapActorTypeFilterChange={onMapActorTypeFilterChange}
-            onAssignActorToCurrentMap={onAssignActorToCurrentMap}
-            onRemoveActorFromCurrentMap={onRemoveActorFromCurrentMap}
-            onShowMap={onShowMap}
-          />
+      {isMapPopupOpen ? (
+        <WorkspaceModal initialView={boardMapView} onClose={closeBoardMapModal}>
+          {({ currentView, pushView }) => {
+            const currentMapId = (currentView.data as { mapId?: string } | undefined)?.mapId;
+            const currentMap = resolveDialogMap(currentMapId);
+
+            if (role !== "dm") {
+              return (
+                <CampaignMapRoster
+                  role={role}
+                  currentUserId={currentUserId}
+                  selectedMap={activeMap}
+                  selectedActor={selectedActor}
+                  roster={filteredCurrentMapRoster}
+                  onOpenSheet={(actorId) => {
+                    setIsMapPopupOpen(false);
+                    onSelectActor(actorId);
+                    onSetActivePopup("sheet");
+                  }}
+                  onRemoveActorFromCurrentMap={onRemoveActorFromMap}
+                />
+              );
+            }
+
+            if (currentView.id === "board-maps") {
+              return (
+                <CampaignMapManager
+                  campaignMaps={campaign.maps}
+                  role={role}
+                  activeMap={activeMap}
+                  onShowMap={onShowMap}
+                  onStartCreateMap={() => {
+                    onStartCreateMap();
+                    pushView({
+                      id: "board-map-create",
+                      title: "New map",
+                      size: "full"
+                    });
+                  }}
+                  onStartEditMap={(map) => {
+                    onSelectMap(map.id);
+                    onStartEditMap(map);
+                    pushView({
+                      id: "board-map-edit",
+                      title: `Edit ${map.name}`,
+                      size: "full",
+                      data: { mapId: map.id }
+                    });
+                  }}
+                  onOpenActors={(map) => {
+                    onSelectMap(map.id);
+                    pushView({
+                      id: "board-map-actors",
+                      title: `${map.name} actors`,
+                      size: "wide",
+                      data: { mapId: map.id }
+                    });
+                  }}
+                />
+              );
+            }
+
+            if (currentView.id === "board-map-create" || currentView.id === "board-map-edit") {
+              return (
+                <CampaignMapEditor
+                  token={token}
+                  role={role}
+                  activeMap={activeMap}
+                  editingMap={editingMap}
+                  mapEditorMode={mapEditorMode}
+                  canUndoEditingMap={canUndoEditingMap}
+                  canRedoEditingMap={canRedoEditingMap}
+                  canPersistEditingMap={canPersistEditingMap}
+                  onChangeEditingMap={onChangeEditingMap}
+                  onSaveEditingMap={onSaveEditingMap}
+                  onReloadEditingMap={onReloadEditingMap}
+                  onUndoEditingMap={onUndoEditingMap}
+                  onRedoEditingMap={onRedoEditingMap}
+                  onSetEditingMapActive={onSetEditingMapActive}
+                  onMapUploadError={onMapUploadError}
+                />
+              );
+            }
+
+            if (currentView.id === "board-map-actors") {
+              return (
+                <CampaignMapRoster
+                  role={role}
+                  currentUserId={currentUserId}
+                  selectedMap={currentMap}
+                  selectedActor={selectedActor}
+                  roster={resolveDialogRoster(currentMapId)}
+                  onOpenSheet={(actorId) => {
+                    setIsMapPopupOpen(false);
+                    onSelectActor(actorId);
+                    onSetActivePopup("sheet");
+                  }}
+                  onRemoveActorFromCurrentMap={onRemoveActorFromMap}
+                  onOpenAddFlow={currentMap ? () => pushView(buildCreateActorView(currentMap.id)) : undefined}
+                />
+              );
+            }
+
+            if (currentView.id === "board-map-actor-create") {
+              return (
+                <CampaignMapActorCreator
+                  currentUserId={currentUserId}
+                  selectedMap={currentMap}
+                  actorCreatorKind={actorCreatorKind}
+                  availableActors={resolveDialogAvailableActors(currentMapId)}
+                  filteredCatalog={filteredCatalog}
+                  selectedMonsterTemplate={selectedMonsterTemplate}
+                  onActorCreatorKindChange={onActorCreatorKindChange}
+                  onCreateActor={onCreateMapActor}
+                  onMonsterQueryChange={onMonsterQueryChange}
+                  onSelectMonster={onSelectMonster}
+                  onCreateMonsterActor={onCreateMapMonsterActor}
+                  onAssignActorToCurrentMap={onAssignActorToMap}
+                  onOpenSheet={(actorId) => {
+                    setIsMapPopupOpen(false);
+                    onSelectActor(actorId);
+                    onSetActivePopup("sheet");
+                  }}
+                />
+              );
+            }
+
+            return null;
+          }}
         </WorkspaceModal>
-      )}
+      ) : null}
     </>
   );
 }

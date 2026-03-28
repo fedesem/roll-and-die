@@ -4,6 +4,7 @@ import type {
   BoardToken,
   CampaignMap,
   MapActorAssignment,
+  MemberRole,
   MeasurePreview,
   TokenRotation,
   TokenStatusMarker,
@@ -33,6 +34,8 @@ export interface CurrentMapRosterEntry {
   actor: ActorSheet | null;
   actorKind: ActorKind;
   assignment: MapActorAssignment;
+  isImplicitAssignment: boolean;
+  ownerName: string | null;
   color: string;
   label: string;
   imageUrl: string;
@@ -43,6 +46,9 @@ export interface AvailableActorEntry {
   actor: ActorSheet;
   activeMaps: CampaignMap[];
   onCurrentMap: boolean;
+  isOnAllMaps: boolean;
+  ownerName: string;
+  ownerRole: MemberRole | null;
 }
 
 export interface TokenUpdatePatch {

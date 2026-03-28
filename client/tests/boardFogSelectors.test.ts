@@ -11,6 +11,8 @@ import { createClientActorDraft, createClientMapDraft } from "../src/lib/drafts.
 import {
   selectBoardSeenCells,
   selectBoardVisibleCells,
+  selectMapAssignments,
+  selectAvailableActors,
   selectVisibleMapTokens
 } from "../src/features/campaign/selectors.ts";
 
@@ -70,7 +72,11 @@ function createCampaignFixture() {
     createdBy: "user-1",
     activeMapId: map.id,
     allowedSourceBooks: [],
-    members: [],
+    members: [
+      { userId: "dm-1", name: "Dungeon Master", email: "dm@example.com", role: "dm" },
+      { userId: "user-1", name: "Player One", email: "player-one@example.com", role: "player" },
+      { userId: "user-2", name: "Player Two", email: "player-two@example.com", role: "player" }
+    ],
     invites: [],
     actors: [hero, scout],
     maps: [map],
@@ -207,5 +213,82 @@ describe("campaign board fog selectors", () => {
         seenCells: new Set()
       })
     ).toEqual(campaign.tokens);
+  });
+
+  it("filters tokens through the selected player's fog when a DM previews it", () => {
+    const { map, campaign, heroToken, seenOnlyToken, hiddenToken } = createCampaignFixture();
+
+    expect(
+      selectVisibleMapTokens({
+        activeMap: map,
+        role: "dm",
+        fogPreviewUserId: "user-1",
+        activeMapTokens: campaign.tokens,
+        visibleCells: new Set(["1:1"]),
+        seenCells: new Set(["0:0"])
+      })
+    ).toEqual([heroToken, seenOnlyToken]);
+
+    expect(
+      selectVisibleMapTokens({
+        activeMap: map,
+        role: "dm",
+        fogPreviewUserId: "user-1",
+        activeMapTokens: campaign.tokens,
+        visibleCells: new Set(["1:1"]),
+        seenCells: new Set(["0:0"])
+      })
+    ).not.toContain(hiddenToken);
+  });
+
+  it("treats player-owned actors as assigned to every map", () => {
+    const { campaign } = createCampaignFixture();
+    const secondMap = createBoardMap();
+    secondMap.id = "map-two";
+    secondMap.name = "Second Map";
+    campaign.maps.push(secondMap);
+
+    expect(selectMapAssignments(campaign, secondMap)).toEqual([
+      { actorId: "actor-hero", mapId: "map-two" },
+      { actorId: "actor-scout", mapId: "map-two" }
+    ]);
+  });
+
+  it("reports owner and map coverage for available actors", () => {
+    const { campaign } = createCampaignFixture();
+    const secondMap = createBoardMap();
+    secondMap.id = "map-two";
+    secondMap.name = "Second Map";
+    campaign.maps.push(secondMap);
+
+    const dmActor = createClientActorDraft("npc", "dm-1");
+    dmActor.id = "actor-dm";
+    dmActor.ownerId = "dm-1";
+    dmActor.name = "DM Actor";
+    campaign.actors.push(dmActor);
+    campaign.mapAssignments.push({ actorId: dmActor.id, mapId: secondMap.id });
+
+    const entries = selectAvailableActors({
+      campaign,
+      role: "dm",
+      currentUserId: "dm-1",
+      map: secondMap,
+      typeFilter: "all",
+      query: ""
+    });
+
+    expect(entries.find((entry) => entry.actor.id === "actor-hero")).toMatchObject({
+      isOnAllMaps: true,
+      onCurrentMap: true,
+      ownerName: "Player One",
+      ownerRole: "player"
+    });
+
+    expect(entries.find((entry) => entry.actor.id === "actor-dm")).toMatchObject({
+      isOnAllMaps: false,
+      onCurrentMap: true,
+      ownerName: "Dungeon Master",
+      ownerRole: "dm"
+    });
   });
 });

@@ -7,6 +7,7 @@ import type {
   MapActorAssignment,
   MonsterTemplate
 } from "@shared/types";
+import { getActorAssignedMaps, isActorAssignedToMap, isPlayerOwnedActor } from "@shared/campaignActors";
 import { getTokenOccupiedCellKeys } from "@shared/tokenGeometry";
 import { allMapCells, computeVisibleCellsForUser } from "@shared/vision";
 
@@ -26,6 +27,10 @@ export function selectSelectedActor(campaign: Campaign | null, selectedActorId: 
 
 export function selectActiveMapTokens(campaign: Campaign | null, activeMap: CampaignMap | undefined) {
   return campaign?.tokens.filter((token) => token.mapId === activeMap?.id && token.visible) ?? [];
+}
+
+export function selectMapTokens(campaign: Campaign | null, map: CampaignMap | undefined) {
+  return campaign?.tokens.filter((token) => token.mapId === map?.id && token.visible) ?? [];
 }
 
 export function selectBoardSeenCells({
@@ -91,12 +96,14 @@ export function selectBoardVisibleCells({
 export function selectVisibleMapTokens({
   activeMap,
   role,
+  fogPreviewUserId,
   activeMapTokens,
   visibleCells,
   seenCells
 }: {
   activeMap: CampaignMap | undefined;
   role: "dm" | "player";
+  fogPreviewUserId?: string;
   activeMapTokens: Campaign["tokens"];
   visibleCells: Set<string>;
   seenCells: Set<string>;
@@ -109,7 +116,7 @@ export function selectVisibleMapTokens({
     return activeMapTokens;
   }
 
-  if (role === "dm") {
+  if (role === "dm" && !fogPreviewUserId) {
     return activeMapTokens;
   }
 
@@ -120,13 +127,27 @@ export function selectVisibleMapTokens({
   });
 }
 
-export function selectActiveMapAssignments(campaign: Campaign | null, activeMap: CampaignMap | undefined) {
-  return campaign?.mapAssignments.filter((assignment) => assignment.mapId === activeMap?.id) ?? [];
+export function selectMapAssignments(campaign: Campaign | null, map: CampaignMap | undefined) {
+  if (!campaign || !map) {
+    return [];
+  }
+
+  const explicitAssignments = campaign.mapAssignments.filter((assignment) => assignment.mapId === map.id);
+  const assignedActorIdSet = new Set(explicitAssignments.map((assignment) => assignment.actorId));
+  const implicitAssignments = campaign.actors
+    .filter((actor) => isPlayerOwnedActor(campaign, actor) && !assignedActorIdSet.has(actor.id))
+    .map<MapActorAssignment>((actor) => ({
+      actorId: actor.id,
+      mapId: map.id
+    }));
+
+  return [...explicitAssignments, ...implicitAssignments];
 }
 
 export function buildCurrentMapRoster({
   assignments,
   actors,
+  members,
   allTokens,
   visibleTokens,
   role,
@@ -134,17 +155,21 @@ export function buildCurrentMapRoster({
 }: {
   assignments: MapActorAssignment[];
   actors: ActorSheet[];
+  members: CampaignMember[];
   allTokens: Campaign["tokens"];
   visibleTokens: Campaign["tokens"];
   role: "dm" | "player";
   currentUserId?: string;
 }): CurrentMapRosterEntry[] {
   const actorById = new Map(actors.map((actor) => [actor.id, actor]));
+  const playerOwnerIdSet = new Set(members.filter((member) => member.role === "player").map((member) => member.userId));
+  const memberByUserId = new Map(members.map((member) => [member.userId, member]));
   const tokenByActorId = new Map(allTokens.map((token) => [token.actorId, token]));
   const visibleTokenByActorId = new Map(visibleTokens.map((token) => [token.actorId, token]));
 
   return assignments.flatMap<CurrentMapRosterEntry>((assignment) => {
     const actor = actorById.get(assignment.actorId) ?? null;
+    const isImplicitAssignment = Boolean(actor?.ownerId && playerOwnerIdSet.has(actor.ownerId));
     const token = tokenByActorId.get(assignment.actorId) ?? null;
     const visibleToken = visibleTokenByActorId.get(assignment.actorId) ?? null;
 
@@ -158,6 +183,8 @@ export function buildCurrentMapRoster({
           actor,
           actorKind: actor.kind,
           assignment,
+          isImplicitAssignment,
+          ownerName: resolveActorOwnerName(actor, memberByUserId),
           color: token?.color ?? actor.color,
           label: token?.label ?? actor.name,
           imageUrl: token?.imageUrl ?? actor.imageUrl,
@@ -172,6 +199,8 @@ export function buildCurrentMapRoster({
           actor,
           actorKind: actor.kind,
           assignment,
+          isImplicitAssignment,
+          ownerName: resolveActorOwnerName(actor, memberByUserId),
           color: token?.color ?? actor.color,
           label: token?.label ?? actor.name,
           imageUrl: token?.imageUrl ?? actor.imageUrl,
@@ -189,6 +218,8 @@ export function buildCurrentMapRoster({
         actor: null,
         actorKind: visibleToken.actorKind,
         assignment,
+        isImplicitAssignment: false,
+        ownerName: null,
         color: visibleToken.color,
         label: visibleToken.label,
         imageUrl: visibleToken.imageUrl,
@@ -224,14 +255,14 @@ export function selectAvailableActors({
   campaign,
   role,
   currentUserId,
-  activeMap,
+  map,
   typeFilter,
   query
 }: {
   campaign: Campaign | null;
   role: "dm" | "player";
   currentUserId?: string;
-  activeMap: CampaignMap | undefined;
+  map: CampaignMap | undefined;
   typeFilter: ActorTypeFilter;
   query: string;
 }): AvailableActorEntry[] {
@@ -256,15 +287,19 @@ export function selectAvailableActors({
         value.toLowerCase().includes(normalizedQuery)
       );
     })
-    .map((actor) => ({
-      actor,
-      activeMaps: campaign.maps.filter((map) =>
-        campaign.mapAssignments.some((assignment) => assignment.actorId === actor.id && assignment.mapId === map.id)
-      ),
-      onCurrentMap: campaign.mapAssignments.some(
-        (assignment) => assignment.actorId === actor.id && assignment.mapId === activeMap?.id
-      )
-    }));
+    .map((actor) => {
+      const owner = actor.ownerId ? campaign.members.find((member) => member.userId === actor.ownerId) ?? null : null;
+      const activeMaps = getActorAssignedMaps(campaign, actor);
+
+      return {
+        actor,
+        activeMaps,
+        onCurrentMap: map ? isActorAssignedToMap(campaign, actor, map.id) : false,
+        isOnAllMaps: campaign.maps.length > 0 && activeMaps.length === campaign.maps.length,
+        ownerName: owner?.name ?? (actor.ownerId ? "Former member" : "Unowned"),
+        ownerRole: owner?.role ?? null
+      };
+    });
 }
 
 export function selectPlayerMembers(campaign: Campaign | null): CampaignMember[] {
@@ -291,4 +326,12 @@ export function filterMonsterCatalog(snapshot: CampaignSnapshot | null, query: s
 
 export function selectMonsterTemplate(filteredCatalog: MonsterTemplate[], selectedMonsterId: string | null) {
   return filteredCatalog.find((monster) => monster.id === selectedMonsterId) ?? filteredCatalog[0] ?? null;
+}
+
+function resolveActorOwnerName(actor: ActorSheet, memberByUserId: Map<string, CampaignMember>) {
+  if (!actor.ownerId) {
+    return "Unowned";
+  }
+
+  return memberByUserId.get(actor.ownerId)?.name ?? "Former member";
 }

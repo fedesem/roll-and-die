@@ -40,7 +40,6 @@ interface UseCampaignManagementActionsOptions {
   currentUserId?: string;
   selectedCampaignId: string | null;
   selectedActorId: string | null;
-  activeMap: CampaignMap | null;
   createCampaignName: string;
   createCampaignAllowedSourceBooks: string[];
   joinCode: string;
@@ -66,7 +65,6 @@ export function useCampaignManagementActions({
   currentUserId,
   selectedCampaignId,
   selectedActorId,
-  activeMap,
   createCampaignName,
   createCampaignAllowedSourceBooks,
   joinCode,
@@ -173,7 +171,7 @@ export function useCampaignManagementActions({
   }, [joinCode, onStatus, refreshCampaigns, setJoinCode, setSelectedCampaignId, token]);
 
   const createActor = useCallback(
-    async (nextDraft: ActorSheet) => {
+    async (nextDraft: ActorSheet, options?: { mapId?: string }) => {
       if (!token || !selectedCampaignId || !nextDraft.name.trim()) {
         return;
       }
@@ -181,7 +179,8 @@ export function useCampaignManagementActions({
       try {
         const created = await createActorRecord(token, selectedCampaignId, {
           name: nextDraft.name.trim(),
-          kind: nextDraft.kind
+          kind: nextDraft.kind,
+          mapId: options?.mapId
         });
 
         const draftToSave: ActorSheet = {
@@ -235,13 +234,13 @@ export function useCampaignManagementActions({
   );
 
   const createMonsterActor = useCallback(
-    async (template: MonsterTemplate) => {
+    async (template: MonsterTemplate, options?: { mapId?: string }) => {
       if (!token || !selectedCampaignId) {
         return;
       }
 
       try {
-        const created = await createMonsterActorRecord(token, selectedCampaignId, template.id);
+        const created = await createMonsterActorRecord(token, selectedCampaignId, template.id, options?.mapId);
 
         setSelectedActorId(created.id);
         setActorCreatorOpen(false);
@@ -253,29 +252,29 @@ export function useCampaignManagementActions({
     [onStatus, selectedCampaignId, setActorCreatorOpen, setSelectedActorId, token]
   );
 
-  const assignActorToCurrentMap = useCallback(
-    async (actorId: string) => {
-      if (!token || !selectedCampaignId || !activeMap) {
+  const assignActorToMap = useCallback(
+    async (actorId: string, mapId: string | undefined) => {
+      if (!token || !selectedCampaignId || !mapId) {
         return;
       }
 
       try {
-        await assignActorToMapRecord(token, selectedCampaignId, activeMap.id, actorId);
+        await assignActorToMapRecord(token, selectedCampaignId, mapId, actorId);
       } catch (error) {
         onStatus("error", toErrorMessage(error));
       }
     },
-    [activeMap, onStatus, selectedCampaignId, token]
+    [onStatus, selectedCampaignId, token]
   );
 
-  const removeActorFromCurrentMap = useCallback(
-    async (actorId: string) => {
-      if (!token || !selectedCampaignId || !activeMap) {
+  const removeActorFromMap = useCallback(
+    async (actorId: string, mapId: string | undefined) => {
+      if (!token || !selectedCampaignId || !mapId) {
         return;
       }
 
       try {
-        await removeActorFromMapRecord(token, selectedCampaignId, activeMap.id, actorId);
+        await removeActorFromMapRecord(token, selectedCampaignId, mapId, actorId);
 
         if (selectedActorId === actorId) {
           setSelectedActorId(null);
@@ -284,7 +283,7 @@ export function useCampaignManagementActions({
         onStatus("error", toErrorMessage(error));
       }
     },
-    [activeMap, onStatus, selectedActorId, selectedCampaignId, setSelectedActorId, token]
+    [onStatus, selectedActorId, selectedCampaignId, setSelectedActorId, token]
   );
 
   const removeToken = useCallback(
@@ -412,8 +411,8 @@ export function useCampaignManagementActions({
     createInvite,
     removeInvite,
     createMonsterActor,
-    assignActorToCurrentMap,
-    removeActorFromCurrentMap,
+    assignActorToMap,
+    removeActorFromMap,
     removeToken,
     updateToken,
     deleteActor,

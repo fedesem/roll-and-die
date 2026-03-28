@@ -216,6 +216,8 @@ export default function App() {
     boardSeenCells,
     filteredCurrentMapRoster,
     availableActors,
+    filteredSelectedMapRoster,
+    selectedMapReusableActors,
     playerMembers,
     filteredCatalog,
     selectedMonsterTemplate
@@ -241,8 +243,8 @@ export default function App() {
     createInvite,
     removeInvite,
     createMonsterActor,
-    assignActorToCurrentMap,
-    removeActorFromCurrentMap,
+    assignActorToMap,
+    removeActorFromMap,
     removeToken,
     updateToken,
     deleteActor,
@@ -254,7 +256,6 @@ export default function App() {
     currentUserId: session?.user.id,
     selectedCampaignId,
     selectedActorId,
-    activeMap: activeMap ?? null,
     createCampaignName,
     createCampaignAllowedSourceBooks,
     joinCode,
@@ -595,11 +596,11 @@ export default function App() {
           editingMap={editingMap}
           mapEditorMode={mapEditorMode}
           filteredCurrentMapRoster={filteredCurrentMapRoster}
+          filteredSelectedMapRoster={filteredSelectedMapRoster}
           availableActors={availableActors}
+          selectedMapAvailableActors={selectedMapReusableActors}
           actorSearch={actorSearch}
-          mapActorSearch={mapActorSearch}
           actorTypeFilter={actorTypeFilter}
-          mapActorTypeFilter={mapActorTypeFilter}
           actorCreatorKind={actorCreatorKind}
           actorCreatorOpen={actorCreatorOpen}
           actorDraft={actorDraft}
@@ -612,21 +613,26 @@ export default function App() {
           canPersistEditingMap={canPersistEditingMap}
           onOpenBoard={openCampaignBoard}
           onSetActivePopup={setActivePopup}
+          onSelectMap={setSelectedMapId}
           onSelectActor={setSelectedActorId}
           onRoll={rollFromSheet}
           onSaveActor={saveActor}
           onActorSearchChange={setActorSearch}
-          onMapActorSearchChange={setMapActorSearch}
           onActorTypeFilterChange={setActorTypeFilter}
-          onMapActorTypeFilterChange={setMapActorTypeFilter}
           onActorCreatorOpenChange={setActorCreatorOpen}
           onActorCreatorKindChange={setActorCreatorKind}
           onCreateActor={createActor}
           onMonsterQueryChange={setMonsterQuery}
           onSelectMonster={setSelectedMonsterId}
           onCreateMonsterActor={(monster) => void createMonsterActor(monster)}
-          onAssignActorToCurrentMap={(actorId) => void assignActorToCurrentMap(actorId)}
-          onRemoveActorFromCurrentMap={(actorId) => void removeActorFromCurrentMap(actorId)}
+          onCreateMapActor={async (draft, mapId) => {
+            await createActor(draft, { mapId });
+          }}
+          onCreateMapMonsterActor={async (monster, mapId) => {
+            await createMonsterActor(monster, { mapId });
+          }}
+          onAssignActorToMap={(actorId, mapId) => void assignActorToMap(actorId, mapId)}
+          onRemoveActorFromMap={(actorId, mapId) => void removeActorFromMap(actorId, mapId)}
           onDeleteActor={(actor) => void deleteActor(actor)}
           onInviteDraftChange={setInviteDraft}
           onCreateInvite={() => void createInvite()}
@@ -651,6 +657,7 @@ export default function App() {
           role={role}
           currentUserId={session.user.id}
           activeMap={activeMap}
+          selectedMap={selectedMap ?? undefined}
           selectedActor={selectedActor}
           activePopup={activePopup}
           boardSeenCells={boardSeenCells}
@@ -658,31 +665,52 @@ export default function App() {
           playerMembers={playerMembers}
           dmFogEnabled={dmFogEnabled}
           dmFogUserId={dmFogUserId}
-          availableActors={availableActors}
-          actorSearch={actorSearch}
-          mapActorSearch={mapActorSearch}
-          actorTypeFilter={actorTypeFilter}
-          mapActorTypeFilter={mapActorTypeFilter}
+          selectedMapAvailableActors={selectedMapReusableActors}
+          actorCreatorKind={actorCreatorKind}
+          filteredCatalog={filteredCatalog}
+          selectedMonsterTemplate={selectedMonsterTemplate}
           movementPreviews={movementPreviews}
           measurePreviews={measurePreviews}
           mapPings={mapPings}
           viewRecall={viewportRecall}
           filteredCurrentMapRoster={filteredCurrentMapRoster}
+          filteredSelectedMapRoster={filteredSelectedMapRoster}
+          editingMap={editingMap}
+          mapEditorMode={mapEditorMode}
+          canUndoEditingMap={canUndoEditingMap}
+          canRedoEditingMap={canRedoEditingMap}
+          canPersistEditingMap={canPersistEditingMap}
           onSetActivePopup={setActivePopup}
           onOpenCampaignHome={openCampaignHome}
+          onSelectMap={setSelectedMapId}
           onSelectActor={setSelectedActorId}
           onSetDmFogEnabled={setDmFogEnabled}
           onSetDmFogUserId={setDmFogUserId}
-          onActorSearchChange={setActorSearch}
-          onMapActorSearchChange={setMapActorSearch}
-          onActorTypeFilterChange={setActorTypeFilter}
-          onMapActorTypeFilterChange={setMapActorTypeFilter}
+          onActorCreatorKindChange={setActorCreatorKind}
+          onMonsterQueryChange={setMonsterQuery}
+          onSelectMonster={setSelectedMonsterId}
           onResetFog={resetFog}
           onClearFog={clearFog}
           onSelectedMapItemCountChange={setSelectedBoardItemCount}
-          onAssignActorToCurrentMap={(actorId) => void assignActorToCurrentMap(actorId)}
-          onRemoveActorFromCurrentMap={(actorId) => void removeActorFromCurrentMap(actorId)}
+          onAssignActorToMap={(actorId, mapId) => void assignActorToMap(actorId, mapId)}
+          onRemoveActorFromMap={(actorId, mapId) => void removeActorFromMap(actorId, mapId)}
           onShowMap={showMap}
+          onStartCreateMap={openMapEditorForCreate}
+          onStartEditMap={openMapEditorForEdit}
+          onChangeEditingMap={changeEditingMap}
+          onSaveEditingMap={saveEditingMap}
+          onReloadEditingMap={reloadEditingMap}
+          onUndoEditingMap={undoEditingMap}
+          onRedoEditingMap={redoEditingMap}
+          onSetEditingMapActive={setEditingMapActive}
+          onBackToMapsList={() => setMapEditorMode(null)}
+          onMapUploadError={(message) => setBanner({ tone: "error", text: message })}
+          onCreateMapActor={async (draft, mapId) => {
+            await createActor(draft, { mapId });
+          }}
+          onCreateMapMonsterActor={async (monster, mapId) => {
+            await createMonsterActor(monster, { mapId });
+          }}
           onMoveActor={moveActor}
           onBroadcastMovePreview={broadcastMovePreview}
           onBroadcastMeasurePreview={broadcastMeasurePreview}

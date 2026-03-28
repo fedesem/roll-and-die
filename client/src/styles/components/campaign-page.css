@@ -239,12 +239,83 @@
 .popup-grid {
   display: grid;
   gap: 1rem;
+  align-items: start;
 }
 
 .campaign-dashboard-shell {
   display: grid;
   gap: 1rem;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
   min-height: 0;
+}
+
+.campaign-dashboard-content {
+  display: grid;
+  min-height: 0;
+}
+
+.campaign-dashboard-shell button {
+  padding: 0.5rem 0.72rem;
+}
+
+.campaign-dashboard-shell .admin-tabbar button {
+  min-height: 2.45rem;
+  min-width: 9rem;
+  padding: 0.48rem 0.74rem;
+  gap: 0.38rem;
+}
+
+.campaign-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.52rem;
+  border-radius: 0;
+  white-space: nowrap;
+}
+
+.campaign-action-button.is-icon-only {
+  width: 2.35rem;
+  min-width: 2.35rem;
+  height: 2.35rem;
+  padding: 0;
+}
+
+.campaign-action-button.has-label {
+  min-height: 2.35rem;
+  padding: 0.46rem 0.84rem;
+}
+
+.campaign-action-button.is-stretch {
+  width: 100%;
+}
+
+.campaign-action-button.is-align-start {
+  justify-content: flex-start;
+}
+
+.campaign-action-button.is-accent,
+.campaign-action-button.is-active {
+  background: linear-gradient(180deg, rgba(245, 198, 92, 0.38), rgba(211, 162, 50, 0.18));
+  border-color: var(--line-strong);
+  color: #161311;
+}
+
+.campaign-action-button.is-danger {
+  border-color: rgba(226, 99, 74, 0.36);
+  color: #f2c2b8;
+}
+
+.campaign-action-button__icon {
+  width: 1.22rem;
+  height: 1.22rem;
+  flex: 0 0 auto;
+  stroke-width: 2.35;
+}
+
+.campaign-action-button__label {
+  line-height: 1;
 }
 
 .campaign-maps-grid {
@@ -262,12 +333,15 @@
 .campaign-map-assignment-grid {
   min-height: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
 }
 
 .maps-popup {
   display: grid;
   gap: 1rem;
+  height: 100%;
   min-height: 0;
+  align-items: start;
 }
 
 .popup-grid.two-columns {
@@ -289,6 +363,7 @@
   display: grid;
   gap: 0.8rem;
   min-height: 0;
+  align-content: start;
 }
 
 .actor-filter-row {
@@ -317,6 +392,7 @@
 .popup-card {
   min-width: 0;
   border-radius: 0;
+  align-content: start;
 }
 
 .maps-list-card,
@@ -324,10 +400,15 @@
   display: grid;
   gap: 0.9rem;
   min-height: 0;
+  align-content: start;
 }
 
 .maps-list-card-compact {
   width: min(100%, 720px);
+}
+
+.maps-list-card-fill {
+  height: 100%;
 }
 
 .maps-list-scroll {
@@ -383,6 +464,48 @@
   display: inline-flex;
   align-items: center;
   gap: 0.38rem;
+}
+
+.actor-meta-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.8rem;
+  height: 1.5rem;
+  padding: 0.12rem 0.24rem;
+}
+
+.actor-meta-icon-badge svg {
+  width: 1rem;
+  height: 1rem;
+  stroke-width: 2.25;
+}
+
+.actor-owner-badge {
+  max-width: 14rem;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actor-selection-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.actor-creation-modal {
+  display: grid;
+  gap: 0.9rem;
+  align-content: start;
+}
+
+.actor-creation-results {
+  max-height: min(56vh, 640px);
 }
 
 .actor-list-card .list-stack {

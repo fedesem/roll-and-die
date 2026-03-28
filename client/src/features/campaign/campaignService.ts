@@ -65,7 +65,7 @@ export function acceptCampaignInvite(token: string, code: string) {
   });
 }
 
-export function createActorRecord(token: string, campaignId: string, input: { name: string; kind: ActorKind }) {
+export function createActorRecord(token: string, campaignId: string, input: { name: string; kind: ActorKind; mapId?: string }) {
   return apiRequest<ActorSheet>(`/campaigns/${campaignId}/actors`, {
     method: "POST",
     token,
@@ -110,11 +110,11 @@ export function removeInviteRecord(token: string, campaignId: string, inviteId: 
   });
 }
 
-export function createMonsterActorRecord(token: string, campaignId: string, templateId: string) {
+export function createMonsterActorRecord(token: string, campaignId: string, templateId: string, mapId?: string) {
   return apiRequest<ActorSheet>(`/campaigns/${campaignId}/monsters`, {
     method: "POST",
     token,
-    body: { templateId },
+    body: { templateId, mapId },
     bodySchema: createMonsterActorBodySchema,
     responseSchema: actorResponseSchema
   });

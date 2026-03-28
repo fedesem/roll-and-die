@@ -3,7 +3,7 @@ import { acceptInviteBodySchema, createActorBodySchema, createCampaignBodySchema
 import type { CampaignInvite } from "../../../shared/types.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema, requireRouteParam } from "../http/validation.js";
-import { broadcastActorRemovedToRoom, broadcastActorUpdatedToRoom, broadcastActorUpsertToRoom, broadcastChatAppendedToRoom, broadcastCampaignMembershipToRoom } from "../realtime/roomGateway.js";
+import { broadcastActorRemovedToRoom, broadcastActorUpdatedToRoom, broadcastActorUpsertToRoom, broadcastChatAppendedToRoom, broadcastCampaignMembershipToRoom, broadcastMapAssignmentsToRoom } from "../realtime/roomGateway.js";
 import { runStoreQuery } from "../store.js";
 import { requireUser } from "../services/authService.js";
 import { buildCampaignSnapshot, toCampaignSummary } from "../services/campaignDomain.js";
@@ -93,14 +93,20 @@ export const campaignController = {
         const user = requireUser(request);
         const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
         const body = parseWithSchema(createActorBodySchema, request.body);
-        const actor = await createActorCommand({
+        const result = await createActorCommand({
             campaignId,
             user,
             name: body.name,
-            kind: body.kind
+            kind: body.kind,
+            mapId: body.mapId
         });
-        broadcastActorUpsertToRoom(campaignId, actor);
-        response.status(201).json(actor);
+        broadcastActorUpsertToRoom(campaignId, result.actor);
+        if (result.assignment) {
+            broadcastMapAssignmentsToRoom(campaignId, {
+                upsert: [result.assignment]
+            });
+        }
+        response.status(201).json(result.actor);
     },
     async updateActor(request: Request, response: Response) {
         const user = requireUser(request);
@@ -120,13 +126,19 @@ export const campaignController = {
         const user = requireUser(request);
         const campaignId = requireRouteParam(request.params.campaignId, "campaignId");
         const body = parseWithSchema(createMonsterActorBodySchema, request.body);
-        const actor = await createMonsterActorCommand({
+        const result = await createMonsterActorCommand({
             campaignId,
             userId: user.id,
-            templateId: body.templateId
+            templateId: body.templateId,
+            mapId: body.mapId
         });
-        broadcastActorUpsertToRoom(campaignId, actor);
-        response.status(201).json(actor);
+        broadcastActorUpsertToRoom(campaignId, result.actor);
+        if (result.assignment) {
+            broadcastMapAssignmentsToRoom(campaignId, {
+                upsert: [result.assignment]
+            });
+        }
+        response.status(201).json(result.actor);
     },
     async deleteActor(request: Request, response: Response) {
         const user = requireUser(request);

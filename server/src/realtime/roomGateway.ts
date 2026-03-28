@@ -4,6 +4,7 @@ import { clientRoomMessageSchema, serverRoomMessageSchema } from "../../../share
 import type { ActorSheet, BoardToken, CampaignInvite, CampaignMap, CampaignMember, ChatMessage, MapPing, MapViewportRecall, MapActorAssignment, MemberRole, RoomCampaignPatch, RoomDoorToggled, RoomPlayerVisionUpdate, RoomTokenMoved, ServerRoomMessage, TokenMovementPreview, UserProfile } from "../../../shared/types.js";
 import { getActorTokenFootprint, snapTokenToGrid } from "../../../shared/tokenGeometry.js";
 import { traceMovementPath } from "../../../shared/vision.js";
+import { isPlayerOwnedActor } from "../../../shared/campaignActors.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema } from "../http/validation.js";
 import { runStoreQuery, runStoreTransaction } from "../store.js";
@@ -372,6 +373,9 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
                     token = existing;
                 }
                 else {
+                    if (role !== "dm" && isPlayerOwnedActor(campaign, actor)) {
+                        throw new HttpError(403, "The DM must place that actor on the active map first.");
+                    }
                     const placement = traceMovementPath(activeMap, snapped, snapped, {
                         ignoreWalls: role === "dm",
                         footprint

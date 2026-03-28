@@ -47,6 +47,7 @@ import {
   snapPointToGrid,
   snapPointToGridIntersection
 } from "../../../shared/vision.js";
+import { isActorAssignedToMap } from "../../../shared/campaignActors.js";
 import type { Database } from "../store.js";
 import { HttpError } from "../http/errors.js";
 import { createId, now } from "./authService.js";
@@ -553,9 +554,13 @@ export function canManageDrawing(role: MemberRole, userId: string, drawing: Draw
 }
 
 export function hasMapAssignment(campaign: Campaign, actorId: string, mapId: string) {
-  return campaign.mapAssignments.some(
-    (assignment) => assignment.actorId === actorId && assignment.mapId === mapId
-  );
+  const actor = campaign.actors.find((entry) => entry.id === actorId);
+
+  if (!actor) {
+    return false;
+  }
+
+  return isActorAssignedToMap(campaign, actor, mapId);
 }
 
 export function canToggleDoor(

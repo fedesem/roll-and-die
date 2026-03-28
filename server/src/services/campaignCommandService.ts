@@ -6,6 +6,7 @@ import {
   snapTokenToGrid
 } from "../../../shared/tokenGeometry.js";
 import { traceMovementPath } from "../../../shared/vision.js";
+import { isPlayerOwnedActor } from "../../../shared/campaignActors.js";
 import { parseRollCommand, rollDice } from "../dice.js";
 import { HttpError } from "../http/errors.js";
 import { runStoreQuery, runStoreTransaction } from "../store.js";
@@ -198,15 +199,31 @@ export async function createActorCommand(params: {
     };
     name: string;
     kind: "character" | "npc" | "monster" | "static";
+    mapId?: string;
 }) {
     return await runCampaignTransaction(params.campaignId, async (database) => {
         const role = await requireCampaignMemberRole(database, params.campaignId, params.user.id);
         if (role !== "dm" && params.kind !== "character" && params.kind !== "monster") {
             throw new HttpError(403, "Players can only create characters or player-owned monsters.");
         }
+        if (params.mapId && !await readMapExists(database, params.campaignId, params.mapId)) {
+            throw new HttpError(404, "Map not found.");
+        }
         const actor = createDefaultActor(params.campaignId, params.user.id, params.name, params.kind, role);
         await upsertActorRecord(database, params.campaignId, actor);
-        return actor;
+        const assignment = role === "dm" && params.mapId
+            ? {
+                actorId: actor.id,
+                mapId: params.mapId
+            }
+            : null;
+        if (assignment) {
+            insertMapAssignmentRecord(database, params.campaignId, assignment);
+        }
+        return {
+            actor,
+            assignment
+        };
     });
 }
 export async function updateActorCommand(params: {
@@ -282,6 +299,7 @@ export async function createMonsterActorCommand(params: {
     campaignId: string;
     userId: string;
     templateId: string;
+    mapId?: string;
 }) {
     const template = await runStoreQuery(async (database) => {
         const nextTemplate = await readMonsterTemplateById(database, params.templateId);
@@ -292,11 +310,26 @@ export async function createMonsterActorCommand(params: {
     });
     const imageUrl = await externalizeImageUrl(template.imageUrl, "actors");
     return await runCampaignTransaction(params.campaignId, async (database) => {
-        await requireCampaignMemberRole(database, params.campaignId, params.userId);
+        const role = await requireCampaignMemberRole(database, params.campaignId, params.userId);
+        if (params.mapId && !await readMapExists(database, params.campaignId, params.mapId)) {
+            throw new HttpError(404, "Map not found.");
+        }
         const actor = createMonsterActor(params.campaignId, params.userId, template);
         actor.imageUrl = imageUrl;
         await upsertActorRecord(database, params.campaignId, actor);
-        return actor;
+        const assignment = role === "dm" && params.mapId
+            ? {
+                actorId: actor.id,
+                mapId: params.mapId
+            }
+            : null;
+        if (assignment) {
+            insertMapAssignmentRecord(database, params.campaignId, assignment);
+        }
+        return {
+            actor,
+            assignment
+        };
     });
 }
 export async function deleteActorCommand(params: {
@@ -433,6 +466,21 @@ export async function assignActorToMapCommand(params: {
             throw new HttpError(403, "Players can only assign owned actors to the active map.");
         }
         if (!await readMapAssignment(database, params.campaignId, params.mapId, params.actorId)) {
+            const campaign = await readCampaignBoardState(database, params.campaignId, [params.mapId]);
+            if (!campaign) {
+                throw new HttpError(404, "Campaign not found.");
+            }
+            const currentActor = campaign.actors.find((entry) => entry.id === params.actorId);
+            if (!currentActor) {
+                throw new HttpError(404, "Actor not found.");
+            }
+            if (isPlayerOwnedActor(campaign, currentActor)) {
+                return {
+                    assigned: false,
+                    mapId: params.mapId,
+                    actorId: params.actorId
+                };
+            }
             insertMapAssignmentRecord(database, params.campaignId, {
                 actorId: params.actorId,
                 mapId: params.mapId
@@ -468,6 +516,17 @@ export async function removeActorFromMapCommand(params: {
         }
         if (!canManageActor(role, params.userId, actor)) {
             throw new HttpError(403, "You cannot remove that actor from the map.");
+        }
+        const campaign = await readCampaignBoardState(database, params.campaignId, [params.mapId]);
+        if (!campaign) {
+            throw new HttpError(404, "Campaign not found.");
+        }
+        const currentActor = campaign.actors.find((entry) => entry.id === params.actorId);
+        if (!currentActor) {
+            throw new HttpError(404, "Actor not found.");
+        }
+        if (isPlayerOwnedActor(campaign, currentActor)) {
+            throw new HttpError(403, "Player-owned actors are available on every map.");
         }
         if (role !== "dm" && params.mapId !== campaignCore.activeMapId) {
             throw new HttpError(403, "Players can only remove owned actors from the active map.");
@@ -519,9 +578,14 @@ export async function createTokenCommand(params: {
             throw new HttpError(403, "You cannot place that actor.");
         }
         if (!await readMapAssignment(database, params.campaignId, params.mapId, params.actorId)) {
-            throw new HttpError(403, "Assign the actor to that map first.");
+            if (!isPlayerOwnedActor(campaign, actor)) {
+                throw new HttpError(403, "Assign the actor to that map first.");
+            }
         }
         const existing = campaign.tokens.find((entry) => entry.actorId === params.actorId && entry.mapId === params.mapId);
+        if (!existing && role !== "dm" && isPlayerOwnedActor(campaign, actor)) {
+            throw new HttpError(403, "The DM must place that actor on this map first.");
+        }
         const footprint = existing
             ? {
                 widthSquares: existing.widthSquares,
@@ -606,7 +670,9 @@ export async function updateTokenCommand(params: {
             throw new HttpError(404, "Map not found.");
         }
         if (!await readMapAssignment(database, params.campaignId, nextMapId, token.actorId)) {
-            throw new HttpError(403, "Assign the actor to that map first.");
+            if (!isPlayerOwnedActor(campaign, actor)) {
+                throw new HttpError(403, "Assign the actor to that map first.");
+            }
         }
         const previousMapId = storedToken.mapId;
         const nextRotationDegrees = actor.kind === "static"

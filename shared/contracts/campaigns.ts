@@ -46,13 +46,15 @@ export const campaignInviteResponseSchema = campaignInviteSchema;
 
 export const createActorBodySchema = z.object({
   name: z.string().trim().min(1),
-  kind: actorKindSchema
+  kind: actorKindSchema,
+  mapId: z.string().trim().min(1).optional()
 });
 export const saveActorBodySchema = actorSheetSchema;
 export const actorResponseSchema = actorSheetSchema;
 
 export const createMonsterActorBodySchema = z.object({
-  templateId: z.string().trim().min(1)
+  templateId: z.string().trim().min(1),
+  mapId: z.string().trim().min(1).optional()
 });
 export const monsterTemplateResponseSchema = monsterTemplateSchema;
 
