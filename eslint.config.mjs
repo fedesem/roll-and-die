@@ -30,7 +30,12 @@ export default tseslint.config(
     files: ["client/**/*.{ts,tsx,mts,cts}", "server/**/*.ts", "shared/**/*.ts"],
     languageOptions: {
       parserOptions: {
-        project: ["./client/tsconfig.json", "./server/tsconfig.json"],
+        project: [
+          "./client/tsconfig.json",
+          "./client/tsconfig.test.json",
+          "./server/tsconfig.json",
+          "./server/tsconfig.test.json"
+        ],
         tsconfigRootDir
       }
     },

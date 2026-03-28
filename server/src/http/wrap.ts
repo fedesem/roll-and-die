@@ -4,6 +4,8 @@ export function wrap(
   handler: (request: Request, response: Response, next: NextFunction) => Promise<void> | void
 ) {
   return (request: Request, response: Response, next: NextFunction) => {
-    Promise.resolve(handler(request, response, next)).catch(next);
+    Promise.resolve()
+      .then(() => handler(request, response, next))
+      .catch(next);
   };
 }
