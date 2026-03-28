@@ -1,14 +1,11 @@
-FROM node:22.13.1-bookworm-slim
+FROM node:24.14.0-alpine
 
 WORKDIR /app
 
 ENV CI=true
 ENV CHOKIDAR_USEPOLLING=true
-ENV npm_config_build_from_source=true
 
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache python3 make g++
 
 EXPOSE 4000 5174
 
