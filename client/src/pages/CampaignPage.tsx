@@ -287,9 +287,9 @@ export function CampaignPage({
                   <span className="badge subtle">{filteredCurrentMapRoster.length}</span>
                 </div>
                 <div className="list-stack compact-list">
-                  {filteredCurrentMapRoster.map(({ actor, assignment, color, label, imageUrl, token }) => {
+                  {filteredCurrentMapRoster.map(({ actor, assignment, color, label, imageUrl }) => {
                     const canSelect = Boolean(actor);
-                    const canDrag = Boolean(actor && (role === "dm" || (actor.ownerId === currentUserId && token)));
+                    const canDrag = Boolean(actor);
 
                     return (
                       <div key={`${assignment.mapId}:${assignment.actorId}`} className="overlay-token-row">
@@ -348,7 +348,6 @@ export function CampaignPage({
                             className="icon-action-button overlay-token-sheet-button"
                             type="button"
                             title="Open sheet"
-                            disabled={!(role === "dm" || actor.sheetAccess === "full" || actor.ownerId === currentUserId)}
                             onClick={() => {
                               onSelectActor(actor.id);
                               onSetActivePopup("sheet");

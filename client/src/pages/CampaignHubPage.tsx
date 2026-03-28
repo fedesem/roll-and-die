@@ -41,7 +41,6 @@ interface CampaignHubPageProps {
   activePopup: ActivePopup;
   editingMap: CampaignMap | null;
   mapEditorMode: "create" | "edit" | null;
-  filteredCurrentMapRoster: CurrentMapRosterEntry[];
   filteredSelectedMapRoster: CurrentMapRosterEntry[];
   availableActors: AvailableActorEntry[];
   selectedMapAvailableActors: AvailableActorEntry[];
@@ -106,7 +105,6 @@ export function CampaignHubPage({
   activePopup,
   editingMap,
   mapEditorMode,
-  filteredCurrentMapRoster,
   filteredSelectedMapRoster,
   availableActors,
   selectedMapAvailableActors,
@@ -156,7 +154,7 @@ export function CampaignHubPage({
   onBackToMapsList,
   onMapUploadError
 }: CampaignHubPageProps) {
-  const [section, setSection] = useState<DashboardSection>("maps");
+  const [section, setSection] = useState<DashboardSection>(role === "dm" ? "maps" : "room");
   const [mapDialog, setMapDialog] = useState<MapDialogState>(null);
 
   function closeMapDialog() {
@@ -242,7 +240,7 @@ export function CampaignHubPage({
               <p className="mt-3 text-sm leading-6 text-slate-400">
                 {role === "dm"
                   ? "Manage members, actors, and maps here before opening the live board."
-                  : "Manage your roster and review the active board setup here before opening the live board."}
+                  : "Review members and access here before opening the live board."}
               </p>
             </div>
             <div className="flex flex-col items-stretch gap-3 sm:min-w-64">
@@ -300,11 +298,13 @@ export function CampaignHubPage({
                   <span className="badge subtle">{availableActors.length}</span>
                 </button>
               ) : null}
-              <button type="button" className={section === "maps" ? "is-active" : ""} onClick={() => setSection("maps")}>
-                <MapIcon size={15} />
-                <span>{role === "dm" ? "Maps" : "Board actors"}</span>
-                <span className="badge subtle">{role === "dm" ? campaign.maps.length : filteredCurrentMapRoster.length}</span>
-              </button>
+              {role === "dm" ? (
+                <button type="button" className={section === "maps" ? "is-active" : ""} onClick={() => setSection("maps")}>
+                  <MapIcon size={15} />
+                  <span>Maps</span>
+                  <span className="badge subtle">{campaign.maps.length}</span>
+                </button>
+              ) : null}
             </div>
           </div>
           <div className="campaign-dashboard-content">
@@ -354,31 +354,17 @@ export function CampaignHubPage({
               />
             )}
 
-            {section === "maps" &&
-              (role === "dm" ? (
-                <CampaignMapManager
-                  campaignMaps={campaign.maps}
-                  role={role}
-                  activeMap={activeMap}
-                  onShowMap={onShowMap}
-                  onStartCreateMap={openCreateMapDialog}
-                  onStartEditMap={openEditMapDialog}
-                  onOpenActors={openMapActorsDialog}
-                />
-              ) : (
-                <CampaignMapRoster
-                  role={role}
-                  currentUserId={currentUserId}
-                  selectedMap={activeMap}
-                  selectedActor={selectedActor}
-                  roster={filteredCurrentMapRoster}
-                  onOpenSheet={(actorId) => {
-                    onSelectActor(actorId);
-                    onSetActivePopup("sheet");
-                  }}
-                  onRemoveActorFromCurrentMap={onRemoveActorFromMap}
-                />
-              ))}
+            {role === "dm" && section === "maps" ? (
+              <CampaignMapManager
+                campaignMaps={campaign.maps}
+                role={role}
+                activeMap={activeMap}
+                onShowMap={onShowMap}
+                onStartCreateMap={openCreateMapDialog}
+                onStartEditMap={openEditMapDialog}
+                onOpenActors={openMapActorsDialog}
+              />
+            ) : null}
           </div>
         </section>
       </main>

@@ -595,7 +595,6 @@ export default function App() {
           activePopup={activePopup}
           editingMap={editingMap}
           mapEditorMode={mapEditorMode}
-          filteredCurrentMapRoster={filteredCurrentMapRoster}
           filteredSelectedMapRoster={filteredSelectedMapRoster}
           availableActors={availableActors}
           selectedMapAvailableActors={selectedMapReusableActors}

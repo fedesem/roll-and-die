@@ -51,6 +51,10 @@ Refactor before adding more code when:
 
 ## Server Verification
 
+After any server edit:
+- always run the relevant automated tests or validation commands before responding
+- if there is no dedicated test for the touched server area, run the closest meaningful server verification and state what you ran
+
 After server structural changes:
 - run `npm run lint --workspace server`
 - run `npm run build --workspace server`

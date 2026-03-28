@@ -65,6 +65,10 @@ Refactor before adding more code when:
 
 ## Client Verification
 
+After any client edit:
+- always run the relevant automated tests or validation commands before responding
+- if there is no dedicated test for the touched client area, run the closest meaningful client verification and state what you ran
+
 After client structural changes:
 - run `tsc --noEmit -p client/tsconfig.json`
 - run `npm run lint --workspace client`

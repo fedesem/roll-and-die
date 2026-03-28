@@ -182,6 +182,11 @@ Refactor before adding more code when any of these are true:
 
 ## Verification
 
+After any file edit:
+- always run the relevant automated tests or validation commands before responding
+- if no dedicated test exists for the touched area, run the closest meaningful verification for that workspace and state what you ran
+- do not skip verification just because the change looks small
+
 After structural changes:
 - run `npm run lint` after client/server code changes
 - run `tsc --noEmit -p client/tsconfig.json` for client refactors
