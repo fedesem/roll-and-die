@@ -1,7 +1,7 @@
 import type { CompendiumData, MonsterTemplate } from "../../../shared/types.js";
 import { runStoreQuery } from "../store.js";
 import { readCampaignCompendium } from "../store/models/compendium.js";
-type RoomCompendium = Pick<CompendiumData, "spells" | "monsters" | "feats" | "classes">;
+type RoomCompendium = Pick<CompendiumData, "spells" | "monsters" | "feats" | "classes" | "variantRules" | "conditions">;
 let cachedCompendium: RoomCompendium | null = null;
 let pendingCompendiumRead: Promise<RoomCompendium> | null = null;
 function stripMonsterImages(monsters: MonsterTemplate[]) {
@@ -23,6 +23,8 @@ export async function readRoomCompendiumCache() {
             spells: compendium.spells,
             feats: compendium.feats,
             classes: compendium.classes,
+            variantRules: compendium.variantRules,
+            conditions: compendium.conditions,
             monsters: stripMonsterImages(compendium.monsters)
         } satisfies RoomCompendium;
     });

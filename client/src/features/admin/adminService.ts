@@ -7,6 +7,7 @@ import {
   createBackgroundBodySchema,
   createBookBodySchema,
   createClassBodySchema,
+  createConditionBodySchema,
   createFeatBodySchema,
   createItemBodySchema,
   createLanguageBodySchema,
@@ -15,12 +16,14 @@ import {
   createRaceBodySchema,
   createSkillBodySchema,
   createSpellBodySchema,
+  createVariantRuleBodySchema,
   createdCompendiumEntryResponseSchema,
   emptyAdminResponseSchema,
   importActionsBodySchema,
   importBackgroundsBodySchema,
   importBooksBodySchema,
   importClassesBodySchema,
+  importConditionsBodySchema,
   importCompendiumResultResponseSchema,
   importFeatsBodySchema,
   importItemsBodySchema,
@@ -30,7 +33,8 @@ import {
   importOptionalFeaturesBodySchema,
   importRacesBodySchema,
   importSkillsBodySchema,
-  importSpellsBodySchema
+  importSpellsBodySchema,
+  importVariantRulesBodySchema
 } from "@shared/contracts/admin";
 
 import { apiRequest } from "../../api";
@@ -43,6 +47,8 @@ const createBodySchemaByKind = {
   feats: createFeatBodySchema,
   classes: createClassBodySchema,
   books: createBookBodySchema,
+  variantRules: createVariantRuleBodySchema,
+  conditions: createConditionBodySchema,
   optionalFeatures: createOptionalFeatureBodySchema,
   actions: createActionBodySchema,
   backgrounds: createBackgroundBodySchema,
@@ -58,6 +64,8 @@ const importBodySchemaByKind = {
   feats: importFeatsBodySchema,
   classes: importClassesBodySchema,
   books: importBooksBodySchema,
+  variantRules: importVariantRulesBodySchema,
+  conditions: importConditionsBodySchema,
   optionalFeatures: importOptionalFeaturesBodySchema,
   actions: importActionsBodySchema,
   backgrounds: importBackgroundsBodySchema,

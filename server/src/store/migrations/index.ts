@@ -23,6 +23,7 @@ import { mapFogEnabledMigration } from "./123_map_fog_enabled.js";
 import { mapWallOpaqueMigration } from "./124_map_wall_opaque.js";
 import { tokenFootprintsMigration } from "./125_token_footprints.js";
 import { actorCreatureSizeMigration } from "./126_actor_creature_size.js";
+import { compendiumReferenceEntriesMigration } from "./127_compendium_reference_entries.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -49,5 +50,6 @@ export const migrations = [
   mapFogEnabledMigration,
   mapWallOpaqueMigration,
   tokenFootprintsMigration,
-  actorCreatureSizeMigration
+  actorCreatureSizeMigration,
+  compendiumReferenceEntriesMigration
 ];

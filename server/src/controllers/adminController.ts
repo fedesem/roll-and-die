@@ -7,6 +7,7 @@ import {
   createActionBodySchema,
   createBackgroundBodySchema,
   createBookBodySchema,
+  createConditionBodySchema,
   createFeatBodySchema,
   createItemBodySchema,
   createLanguageBodySchema,
@@ -15,9 +16,11 @@ import {
   createRaceBodySchema,
   createSkillBodySchema,
   createSpellBodySchema,
+  createVariantRuleBodySchema,
   importActionsBodySchema,
   importBackgroundsBodySchema,
   importBooksBodySchema,
+  importConditionsBodySchema,
   importClassesBodySchema,
   importFeatsBodySchema,
   importItemsBodySchema,
@@ -26,7 +29,8 @@ import {
   importOptionalFeaturesBodySchema,
   importRacesBodySchema,
   importSkillsBodySchema,
-  importSpellsBodySchema
+  importSpellsBodySchema,
+  importVariantRulesBodySchema
 } from "../../../shared/contracts/admin.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema, requireRouteParam } from "../http/validation.js";
@@ -79,6 +83,10 @@ function parseCompendiumCreateBody(kind: CompendiumKind, value: unknown) {
       return parseWithSchema(createClassBodySchema, value);
     case "books":
       return parseWithSchema(createBookBodySchema, value);
+    case "variantRules":
+      return parseWithSchema(createVariantRuleBodySchema, value);
+    case "conditions":
+      return parseWithSchema(createConditionBodySchema, value);
     case "optionalFeatures":
       return parseWithSchema(createOptionalFeatureBodySchema, value);
     case "actions":
@@ -107,6 +115,10 @@ function parseCompendiumImportBody(kind: CompendiumKind, value: unknown) {
       return parseWithSchema(importClassesBodySchema, value);
     case "books":
       return parseWithSchema(importBooksBodySchema, value);
+    case "variantRules":
+      return parseWithSchema(importVariantRulesBodySchema, value);
+    case "conditions":
+      return parseWithSchema(importConditionsBodySchema, value);
     case "optionalFeatures":
       return parseWithSchema(importOptionalFeaturesBodySchema, value);
     case "actions":
@@ -130,6 +142,8 @@ async function readAdminCompendium(database: DatabaseSync) {
     feats: await readCompendiumCollection(database, "feats"),
     classes: await readCompendiumCollection(database, "classes"),
     books: await readCompendiumCollection(database, "books"),
+    variantRules: await readCompendiumCollection(database, "variantRules"),
+    conditions: await readCompendiumCollection(database, "conditions"),
     optionalFeatures: await readCompendiumCollection(database, "optionalFeatures"),
     actions: await readCompendiumCollection(database, "actions"),
     backgrounds: await readCompendiumCollection(database, "backgrounds"),

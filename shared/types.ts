@@ -363,6 +363,7 @@ export interface CompendiumReferenceEntry {
   source: string;
   category: string;
   description: string;
+  entries: string;
   tags: string[];
 }
 
@@ -372,6 +373,8 @@ export interface CompendiumData {
   feats: FeatEntry[];
   classes: ClassEntry[];
   books: CampaignSourceBook[];
+  variantRules: CompendiumReferenceEntry[];
+  conditions: CompendiumReferenceEntry[];
   optionalFeatures: CompendiumReferenceEntry[];
   actions: CompendiumReferenceEntry[];
   backgrounds: CompendiumReferenceEntry[];
@@ -599,7 +602,7 @@ export interface CampaignSnapshot {
   currentUser: UserProfile;
   role: MemberRole;
   catalog: MonsterTemplate[];
-  compendium: Pick<CompendiumData, "spells" | "feats" | "classes">;
+  compendium: Pick<CompendiumData, "spells" | "feats" | "classes" | "variantRules" | "conditions">;
   playerVision: Record<string, CellKey[]>;
 }
 

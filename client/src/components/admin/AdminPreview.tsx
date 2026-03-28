@@ -1,12 +1,16 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
-import type { CampaignSourceBook, ClassEntry, CompendiumReferenceEntry, FeatEntry, MonsterActionEntry, MonsterTemplate, SpellEntry, UserProfile } from "@shared/types";
-import { resolveAssetUrl } from "../../lib/assets";
+import type { CampaignSourceBook, ClassEntry, CompendiumReferenceEntry, FeatEntry, MonsterTemplate, SpellEntry, UserProfile } from "@shared/types";
+import { FloatingLayer, anchorFromRect } from "../FloatingLayer";
+import { MonsterStatBlock } from "../monster/MonsterStatBlock";
 
 interface RulesLookupData {
   spellEntries?: Array<SpellEntry | Omit<SpellEntry, "id">>;
   featEntries?: Array<FeatEntry | Omit<FeatEntry, "id">>;
   classEntries?: Array<ClassEntry | Omit<ClassEntry, "id">>;
+  variantRuleEntries?: Array<CompendiumReferenceEntry | Omit<CompendiumReferenceEntry, "id">>;
+  conditionEntries?: Array<CompendiumReferenceEntry | Omit<CompendiumReferenceEntry, "id">>;
+  actionEntries?: Array<CompendiumReferenceEntry | Omit<CompendiumReferenceEntry, "id">>;
 }
 
 interface PreviewFrameProps {
@@ -79,11 +83,17 @@ export function SpellPreviewCard({
   spell,
   featEntries = [],
   classEntries = [],
+  variantRuleEntries = [],
+  conditionEntries = [],
+  actionEntries = [],
   sourceTitle
 }: {
   spell: SpellEntry | Omit<SpellEntry, "id">;
   featEntries?: FeatEntry[];
   classEntries?: ClassEntry[];
+  variantRuleEntries?: CompendiumReferenceEntry[];
+  conditionEntries?: CompendiumReferenceEntry[];
+  actionEntries?: CompendiumReferenceEntry[];
   sourceTitle?: string;
 }) {
   const subtitle =
@@ -107,7 +117,7 @@ export function SpellPreviewCard({
           <div><strong>Components:</strong> {components || "None"}{spell.components.materialText ? ` (${spell.components.materialText})` : ""}</div>
           <div><strong>Duration:</strong> {formatSpellDuration(spell)}</div>
         </div>
-        <p className="admin-preview-body"><RulesText text={spell.description} spellEntries={[spell]} featEntries={featEntries} classEntries={classEntries} /></p>
+        <p className="admin-preview-body"><RulesText text={spell.description} spellEntries={[spell]} featEntries={featEntries} classEntries={classEntries} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} /></p>
         {spell.damageNotation && (
           <p className="admin-preview-body">
             <strong>Damage:</strong> {spell.damageNotation}
@@ -117,11 +127,11 @@ export function SpellPreviewCard({
         {spell.higherLevelDescription && (
           <p className="admin-preview-body">
             <strong>Higher Levels.</strong>{" "}
-            <RulesText text={spell.higherLevelDescription} spellEntries={[spell]} featEntries={featEntries} classEntries={classEntries} />
+            <RulesText text={spell.higherLevelDescription} spellEntries={[spell]} featEntries={featEntries} classEntries={classEntries} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} />
           </p>
         )}
         {spell.fullDescription && spell.fullDescription !== spell.description && (
-          <p className="admin-preview-body"><RulesText text={spell.fullDescription} spellEntries={[spell]} featEntries={featEntries} classEntries={classEntries} /></p>
+          <p className="admin-preview-body"><RulesText text={spell.fullDescription} spellEntries={[spell]} featEntries={featEntries} classEntries={classEntries} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} /></p>
         )}
         <p className="admin-preview-footnote">
           <strong>Classes:</strong> {displayedClasses || "Unavailable in imported source data"}
@@ -140,11 +150,17 @@ export function FeatPreviewCard({
   feat,
   spellEntries = [],
   classEntries = [],
+  variantRuleEntries = [],
+  conditionEntries = [],
+  actionEntries = [],
   sourceTitle
 }: {
   feat: FeatEntry | Omit<FeatEntry, "id">;
   spellEntries?: SpellEntry[];
   classEntries?: ClassEntry[];
+  variantRuleEntries?: CompendiumReferenceEntry[];
+  conditionEntries?: CompendiumReferenceEntry[];
+  actionEntries?: CompendiumReferenceEntry[];
   sourceTitle?: string;
 }) {
   const subtitle = feat.prerequisites
@@ -156,10 +172,10 @@ export function FeatPreviewCard({
       <div className="admin-preview-stack">
         {feat.abilityScoreIncrease && (
           <p className="admin-preview-body">
-            <strong>Ability Score Increase.</strong> <RulesText text={feat.abilityScoreIncrease} spellEntries={spellEntries} classEntries={classEntries} />
+            <strong>Ability Score Increase.</strong> <RulesText text={feat.abilityScoreIncrease} spellEntries={spellEntries} classEntries={classEntries} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} />
           </p>
         )}
-        <p className="admin-preview-body"><RulesText text={feat.description} spellEntries={spellEntries} classEntries={classEntries} /></p>
+        <p className="admin-preview-body"><RulesText text={feat.description} spellEntries={spellEntries} classEntries={classEntries} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} /></p>
       </div>
     </PreviewFrame>
   );
@@ -170,111 +186,30 @@ export function MonsterPreviewCard({
   spellEntries = [],
   featEntries = [],
   classEntries = [],
+  variantRuleEntries = [],
+  conditionEntries = [],
+  actionEntries = [],
   sourceTitle
 }: {
   monster: MonsterTemplate | Omit<MonsterTemplate, "id">;
   spellEntries?: SpellEntry[];
   featEntries?: FeatEntry[];
   classEntries?: ClassEntry[];
+  variantRuleEntries?: CompendiumReferenceEntry[];
+  conditionEntries?: CompendiumReferenceEntry[];
+  actionEntries?: CompendiumReferenceEntry[];
   sourceTitle?: string;
 }) {
-  const speedModes = [
-    monster.speedModes.walk ? `${monster.speedModes.walk} ft.` : null,
-    monster.speedModes.climb ? `Climb ${monster.speedModes.climb} ft.` : null,
-    monster.speedModes.fly ? `Fly ${monster.speedModes.fly} ft.` : null,
-    monster.speedModes.swim ? `Swim ${monster.speedModes.swim} ft.` : null,
-    monster.speedModes.burrow ? `Burrow ${monster.speedModes.burrow} ft.` : null
-  ]
-    .filter(Boolean)
-    .join(", ");
-
   return (
-    <PreviewFrame
+    <MonsterStatBlock
+      monster={monster}
       eyebrow="Monster"
-      title={monster.name}
-      source={monster.source}
       sourceTitle={sourceTitle}
-      subtitle={`CR ${monster.challengeRating}${monster.xp ? ` (${monster.xp.toLocaleString()} XP)` : ""}`}
-    >
-      <div className="admin-monster-preview-head">
-        <div className="admin-preview-stack">
-          <div className="admin-preview-rules">
-            <div><strong>AC</strong> {monster.armorClass}</div>
-            <div><strong>HP</strong> {monster.hitPoints}</div>
-            <div><strong>Initiative</strong> {formatSigned(monster.initiative)}</div>
-            <div><strong>Speed</strong> {speedModes || `${monster.speed} ft.`}</div>
-          </div>
-        </div>
-        {monster.imageUrl ? (
-          <div className="admin-monster-portrait">
-            <img src={resolveAssetUrl(monster.imageUrl)} alt={monster.name} />
-          </div>
-        ) : null}
-      </div>
-
-      <div className="admin-monster-ability-grid">
-        {(["str", "dex", "con", "int", "wis", "cha"] as const).map((ability) => (
-          <div key={ability} className="admin-monster-ability-cell">
-            <span>{ability.toUpperCase()}</span>
-            <strong>{monster.abilities[ability]}</strong>
-            <small>{formatModifier(monster.abilities[ability])}</small>
-          </div>
-        ))}
-      </div>
-
-      <div className="admin-preview-stack">
-        {monster.skills.length > 0 && (
-          <p className="admin-preview-body"><strong>Skills</strong> {monster.skills.map((skill) => `${skill.name} ${formatSigned(skill.bonus)}`).join(", ")}</p>
-        )}
-        {monster.resistances.length > 0 && (
-          <p className="admin-preview-body"><strong>Resistances</strong> {monster.resistances.join(", ")}</p>
-        )}
-        {monster.vulnerabilities.length > 0 && (
-          <p className="admin-preview-body"><strong>Vulnerabilities</strong> {monster.vulnerabilities.join(", ")}</p>
-        )}
-        {monster.immunities.length > 0 && (
-          <p className="admin-preview-body"><strong>Immunities</strong> {monster.immunities.join(", ")}</p>
-        )}
-        {monster.senses.length > 0 && (
-          <p className="admin-preview-body">
-            <strong>Senses</strong> {monster.senses.map((sense) => `${sense.name} ${sense.range} ft.${sense.notes ? ` (${sense.notes})` : ""}`).join(", ")}, Passive Perception {monster.passivePerception}
-          </p>
-        )}
-        {monster.languages.length > 0 && (
-          <p className="admin-preview-body"><strong>Languages</strong> {monster.languages.join(", ")}</p>
-        )}
-        <p className="admin-preview-body">
-          <strong>CR</strong> {monster.challengeRating}{monster.xp ? ` (${monster.xp.toLocaleString()} XP)` : ""} (PB {formatSigned(monster.proficiencyBonus)})
-        </p>
-        {monster.spellcasting.length > 0 && (
-          <Section title="Spellcasting">
-            {monster.spellcasting.map((entry) => (
-              <p key={`${entry.label}-${entry.spells.join("|")}`} className="admin-preview-body">
-                <strong>{entry.label}.</strong>{" "}
-                <RulesText text={entry.spells.join(", ")} spellEntries={spellEntries} />
-              </p>
-            ))}
-          </Section>
-        )}
-        {monster.traits.length > 0 && (
-          <Section title="Traits">
-            {monster.traits.map((trait) => (
-              <p key={trait} className="admin-preview-body">
-                <RulesText text={trait} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} />
-              </p>
-            ))}
-          </Section>
-        )}
-        <ActionSection title="Actions" items={monster.actions} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} />
-        <ActionSection title="Bonus Actions" items={monster.bonusActions} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} />
-        <ActionSection title="Reactions" items={monster.reactions} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} />
-        <ActionSection title={`Legendary Actions${monster.legendaryActionsUse ? ` (${monster.legendaryActionsUse})` : ""}`} items={monster.legendaryActions} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} />
-        <ActionSection title="Lair Actions" items={monster.lairActions} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} />
-        <ActionSection title="Regional Effects" items={monster.regionalEffects} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} />
-        {monster.habitat && <p className="admin-preview-body"><strong>Habitat</strong> {monster.habitat}</p>}
-        {monster.treasure && <p className="admin-preview-body"><strong>Treasure</strong> {monster.treasure}</p>}
-      </div>
-    </PreviewFrame>
+      className="admin-preview-card"
+      renderText={(text) => (
+        <RulesText text={text} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} />
+      )}
+    />
   );
 }
 
@@ -282,11 +217,17 @@ export function ClassPreviewCard({
   entry,
   spellEntries = [],
   featEntries = [],
+  variantRuleEntries = [],
+  conditionEntries = [],
+  actionEntries = [],
   sourceTitle
 }: {
   entry: ClassEntry | Omit<ClassEntry, "id">;
   spellEntries?: SpellEntry[];
   featEntries?: FeatEntry[];
+  variantRuleEntries?: CompendiumReferenceEntry[];
+  conditionEntries?: CompendiumReferenceEntry[];
+  actionEntries?: CompendiumReferenceEntry[];
   sourceTitle?: string;
 }) {
   const normalizedDescription = normalizeClassPreviewDescription(entry);
@@ -302,7 +243,7 @@ export function ClassPreviewCard({
           {hasStartingProficiencies(entry) && <div><strong>Starting Proficiencies:</strong> {formatStartingProficiencies(entry)}</div>}
         </div>
         {normalizedDescription ? (
-          <p className="admin-preview-body"><RulesText text={normalizedDescription} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} /></p>
+          <p className="admin-preview-body"><RulesText text={normalizedDescription} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} /></p>
         ) : null}
         {referencedSpells.length > 0 && (
           <Section title="Referenced Spells">
@@ -310,7 +251,7 @@ export function ClassPreviewCard({
               {referencedSpells.map((spellName, index) => (
                 <span key={spellName}>
                   {index > 0 ? ", " : null}
-                  <RulesText text={`{@spell ${spellName}}`} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
+                  <RulesText text={`{@spell ${spellName}}`} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} />
                 </span>
               ))}
             </p>
@@ -320,7 +261,7 @@ export function ClassPreviewCard({
           <Section title="Features">
             {entry.features.map((feature) => (
               <p key={feature.reference || `${feature.level}-${feature.name}`} className="admin-preview-body">
-                <strong>Level {feature.level}: {feature.name}.</strong> <RulesText text={feature.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
+                <strong>Level {feature.level}: {feature.name}.</strong> <RulesText text={feature.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} />
               </p>
             ))}
           </Section>
@@ -333,7 +274,7 @@ export function ClassPreviewCard({
                 {subclass.description ? (
                   <>
                     {" "}
-                    <RulesText text={subclass.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
+                    <RulesText text={subclass.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} />
                   </>
                 ) : null}
                 {subclass.features.length > 0 ? (
@@ -341,7 +282,7 @@ export function ClassPreviewCard({
                     {subclass.features.map((feature) => (
                       <p key={`${subclass.id}-${feature.reference || `${feature.level}-${feature.name}`}`} className="admin-preview-body">
                         <strong>Level {feature.level}: {feature.name}.</strong>{" "}
-                        <RulesText text={feature.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
+                        <RulesText text={feature.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} />
                       </p>
                     ))}
                   </div>
@@ -352,7 +293,7 @@ export function ClassPreviewCard({
         )}
         {entry.tables.map((table) => (
           <section key={table.name} className="admin-preview-section">
-            <h4><RulesText text={table.name} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} /></h4>
+            <h4><RulesText text={table.name} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} conditionEntries={conditionEntries} /></h4>
             <div className="admin-class-table-wrap">
               <table className="admin-class-table">
                 <thead>
@@ -360,7 +301,7 @@ export function ClassPreviewCard({
                     <th>Level</th>
                     {table.columns.map((column) => (
                       <th key={column}>
-                        <RulesText text={column} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
+                        <RulesText text={column} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} />
                       </th>
                     ))}
                   </tr>
@@ -371,7 +312,7 @@ export function ClassPreviewCard({
                       <td>{rowIndex + 1}</td>
                       {row.map((cell, cellIndex) => (
                         <td key={`${table.name}-${rowIndex}-${cellIndex}`}>
-                          <RulesText text={cell} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} />
+                          <RulesText text={cell} spellEntries={spellEntries} featEntries={featEntries} classEntries={[entry]} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} />
                         </td>
                       ))}
                     </tr>
@@ -390,18 +331,38 @@ export function ReferencePreviewCard({
   title,
   eyebrow,
   entry,
+  spellEntries = [],
+  featEntries = [],
+  classEntries = [],
+  variantRuleEntries = [],
+  conditionEntries = [],
+  actionEntries = [],
   sourceTitle
 }: {
   title: string;
   eyebrow: string;
   entry: CompendiumReferenceEntry;
+  spellEntries?: SpellEntry[];
+  featEntries?: FeatEntry[];
+  classEntries?: ClassEntry[];
+  variantRuleEntries?: CompendiumReferenceEntry[];
+  conditionEntries?: CompendiumReferenceEntry[];
+  actionEntries?: CompendiumReferenceEntry[];
   sourceTitle?: string;
 }) {
   return (
     <PreviewFrame eyebrow={eyebrow} title={entry.name} source={entry.source} sourceTitle={sourceTitle} subtitle={entry.category}>
       <div className="admin-preview-stack">
         <p className="admin-preview-body">
-          <RulesText text={entry.description} />
+          <RulesText
+            text={entry.entries || entry.description}
+            spellEntries={spellEntries}
+            featEntries={featEntries}
+            classEntries={classEntries}
+            variantRuleEntries={variantRuleEntries}
+            conditionEntries={conditionEntries}
+            actionEntries={actionEntries}
+          />
         </p>
         {entry.tags.length > 0 ? (
           <p className="admin-preview-footnote">
@@ -456,38 +417,27 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function ActionSection({
-  title,
-  items,
+export function RulesText({
+  text,
   spellEntries = [],
   featEntries = [],
-  classEntries = []
-}: {
-  title: string;
-  items: MonsterActionEntry[];
-  spellEntries?: SpellEntry[];
-  featEntries?: FeatEntry[];
-  classEntries?: ClassEntry[];
-}) {
-  if (items.length === 0) {
-    return null;
-  }
-
+  classEntries = [],
+  variantRuleEntries = [],
+  conditionEntries = [],
+  actionEntries = []
+}: { text: string } & RulesLookupData) {
   return (
-    <Section title={title}>
-      {items.map((item) => (
-        <p key={`${title}-${item.name}`} className="admin-preview-body">
-          <strong>{item.name}.</strong> <RulesText text={item.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} />
-          {item.attackBonus ? ` ${formatAttack(item)}` : ""}
-          {item.damage ? ` ${item.damage}${item.damageType ? ` ${item.damageType}` : ""}` : ""}
-        </p>
-      ))}
-    </Section>
+    <RulesTextInner
+      text={text}
+      spellEntries={spellEntries}
+      featEntries={featEntries}
+      classEntries={classEntries}
+      variantRuleEntries={variantRuleEntries}
+      conditionEntries={conditionEntries}
+      actionEntries={actionEntries}
+      disableHover={false}
+    />
   );
-}
-
-function RulesText({ text, spellEntries = [], featEntries = [], classEntries = [] }: { text: string } & RulesLookupData) {
-  return <RulesTextInner text={text} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} disableHover={false} />;
 }
 
 function formatSpellClassList(spell: SpellEntry | Omit<SpellEntry, "id">) {
@@ -728,6 +678,9 @@ function RulesTextInner({
   spellEntries = [],
   featEntries = [],
   classEntries = [],
+  variantRuleEntries = [],
+  conditionEntries = [],
+  actionEntries = [],
   disableHover
 }: { text: string; disableHover: boolean } & RulesLookupData) {
   const normalized = text.replace(/\n+/g, "\n");
@@ -735,6 +688,9 @@ function RulesTextInner({
   const spellLookup = new Map(spellEntries.map((entry) => [entry.name.toLowerCase(), entry]));
   const featLookup = new Map(featEntries.map((entry) => [entry.name.toLowerCase(), entry]));
   const classLookup = new Map(classEntries.map((entry) => [entry.name.toLowerCase(), entry]));
+  const variantRuleLookup = new Map(variantRuleEntries.map((entry) => [entry.name.toLowerCase(), entry]));
+  const conditionLookup = new Map(conditionEntries.map((entry) => [entry.name.toLowerCase(), entry]));
+  const actionLookup = new Map(actionEntries.map((entry) => [entry.name.toLowerCase(), entry]));
 
   return (
     <>
@@ -752,23 +708,83 @@ function RulesTextInner({
             part,
             index,
             spellName,
-            spell ? (
-              <RulesTooltip title={spell.name} subtitle={spell.level === "cantrip" ? `${spell.school} Cantrip` : `${spell.school} Level ${spell.level}`}>
-                <div className="rules-tooltip-meta">
-                  <span>{formatSpellTime(spell)}</span>
-                  <span>{formatSpellRange(spell)}</span>
-                  <span>{formatSpellDuration(spell)}</span>
+            spell ? renderSpellTooltip(spell, spellEntries, featEntries, classEntries, variantRuleEntries, conditionEntries, actionEntries) : null,
+            disableHover
+          );
+        }
+
+        const variantRuleMatch = part.match(/^\{@variantrule ([^}|]+)(?:\|([^}|]+))?(?:\|([^}]+))?}/i);
+
+        if (variantRuleMatch) {
+          const referenceName = variantRuleMatch[1].trim();
+          const referenceSource = variantRuleMatch[2]?.trim() || "";
+          const label = variantRuleMatch[3]?.trim() || referenceName;
+          const variantRule = findReferenceEntryByTag(variantRuleEntries, variantRuleLookup, referenceName, referenceSource, label);
+
+          return renderLinkedTag(
+            part,
+            index,
+            label,
+            variantRule ? (
+              <RulesTooltip title={variantRule.name} subtitle={variantRule.source || referenceSource || "Variant Rule"}>
+                <div className="rules-tooltip-body rules-tooltip-body-full">
+                  <RulesTextInner
+                    text={variantRule.entries || variantRule.description}
+                    spellEntries={spellEntries}
+                    featEntries={featEntries}
+                    classEntries={classEntries}
+                    variantRuleEntries={variantRuleEntries}
+                    conditionEntries={conditionEntries}
+                    actionEntries={actionEntries}
+                    disableHover
+                  />
                 </div>
-                <div className="rules-tooltip-body">
-                  <RulesTextInner text={spell.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} disableHover />
-                </div>
-                {spell.fullDescription && spell.fullDescription !== spell.description ? (
-                  <div className="rules-tooltip-body rules-tooltip-body-secondary">
-                    <RulesTextInner text={spell.fullDescription} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} disableHover />
-                  </div>
-                ) : null}
               </RulesTooltip>
-            ) : null,
+            ) : (
+              <RulesTooltip title={referenceName} subtitle={referenceSource || "Variant Rule"}>
+                <div className="rules-tooltip-body rules-tooltip-body-secondary">
+                  <TextWithLineBreaks text={referenceName} />
+                </div>
+              </RulesTooltip>
+            ),
+            disableHover
+          );
+        }
+
+        const conditionMatch = part.match(/^\{@condition ([^}|]+)(?:\|([^}|]+))?(?:\|([^}]+))?}/i);
+
+        if (conditionMatch) {
+          const conditionName = conditionMatch[1].trim();
+          const conditionSource = conditionMatch[2]?.trim() || "";
+          const label = conditionMatch[3]?.trim() || conditionName;
+          const condition = findReferenceEntryByTag(conditionEntries, conditionLookup, conditionName, conditionSource, label);
+
+          return renderLinkedTag(
+            part,
+            index,
+            label,
+            condition ? (
+              <RulesTooltip title={condition.name} subtitle={condition.source || conditionSource || condition.category || "Condition"}>
+                <div className="rules-tooltip-body rules-tooltip-body-full">
+                  <RulesTextInner
+                    text={condition.entries || condition.description}
+                    spellEntries={spellEntries}
+                    featEntries={featEntries}
+                    classEntries={classEntries}
+                    variantRuleEntries={variantRuleEntries}
+                    conditionEntries={conditionEntries}
+                    actionEntries={actionEntries}
+                    disableHover
+                  />
+                </div>
+              </RulesTooltip>
+            ) : (
+              <RulesTooltip title={conditionName} subtitle={conditionSource || "Condition"}>
+                <div className="rules-tooltip-body rules-tooltip-body-secondary">
+                  <TextWithLineBreaks text={conditionName} />
+                </div>
+              </RulesTooltip>
+            ),
             disableHover
           );
         }
@@ -784,11 +800,11 @@ function RulesTextInner({
               {feat.abilityScoreIncrease ? (
                 <div className="rules-tooltip-body rules-tooltip-body-secondary">
                   <strong>Ability Score Increase.</strong>{" "}
-                  <RulesTextInner text={feat.abilityScoreIncrease} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} disableHover />
+                  <RulesTextInner text={feat.abilityScoreIncrease} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} disableHover />
                 </div>
               ) : null}
               <div className="rules-tooltip-body">
-                <RulesTextInner text={feat.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} disableHover />
+                <RulesTextInner text={feat.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} disableHover />
               </div>
             </RulesTooltip>
           ) : null, disableHover);
@@ -802,16 +818,54 @@ function RulesTextInner({
           return renderLinkedTag(part, index, className, classEntry ? (
             <RulesTooltip title={classEntry.name} subtitle={classEntry.source}>
               <div className="rules-tooltip-body">
-                <RulesTextInner text={classEntry.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} disableHover />
+                <RulesTextInner text={classEntry.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} disableHover />
               </div>
               {classEntry.features.slice(0, 3).map((feature) => (
                 <div key={`${classEntry.name}-${feature.level}-${feature.name}`} className="rules-tooltip-body rules-tooltip-body-secondary">
                   <strong>Level {feature.level}: {feature.name}.</strong>{" "}
-                  <RulesTextInner text={feature.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} disableHover />
+                  <RulesTextInner text={feature.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} disableHover />
                 </div>
               ))}
             </RulesTooltip>
           ) : null, disableHover);
+        }
+
+        const actionMatch = part.match(/^\{@action ([^}|]+)(?:\|([^}|]+))?(?:\|([^}]+))?}/i);
+
+        if (actionMatch) {
+          const actionName = actionMatch[1].trim();
+          const actionSource = actionMatch[2]?.trim() || "";
+          const label = actionMatch[3]?.trim() || actionName;
+          const action = findReferenceEntryByTag(actionEntries, actionLookup, actionName, actionSource, label);
+
+          return renderLinkedTag(
+            part,
+            index,
+            label,
+            action ? (
+              <RulesTooltip title={action.name} subtitle={action.source || actionSource || action.category || "Action"}>
+                <div className="rules-tooltip-body rules-tooltip-body-full">
+                  <RulesTextInner
+                    text={action.entries || action.description}
+                    spellEntries={spellEntries}
+                    featEntries={featEntries}
+                    classEntries={classEntries}
+                    variantRuleEntries={variantRuleEntries}
+                    conditionEntries={conditionEntries}
+                    actionEntries={actionEntries}
+                    disableHover
+                  />
+                </div>
+              </RulesTooltip>
+            ) : (
+              <RulesTooltip title={actionName} subtitle={actionSource || "Action"}>
+                <div className="rules-tooltip-body rules-tooltip-body-secondary">
+                  <TextWithLineBreaks text={actionName} />
+                </div>
+              </RulesTooltip>
+            ),
+            disableHover
+          );
         }
 
         const filterTag = parseFilterTag(part);
@@ -995,6 +1049,34 @@ function formatSpellDuration(spell: SpellEntry | Omit<SpellEntry, "id">) {
   return `${prefix}${spell.durationValue} ${spell.durationUnit}${spell.durationValue === 1 ? "" : "s"}`;
 }
 
+function renderSpellTooltip(
+  spell: SpellEntry | Omit<SpellEntry, "id">,
+  spellEntries: Array<SpellEntry | Omit<SpellEntry, "id">>,
+  featEntries: Array<FeatEntry | Omit<FeatEntry, "id">>,
+  classEntries: Array<ClassEntry | Omit<ClassEntry, "id">>,
+  variantRuleEntries: Array<CompendiumReferenceEntry | Omit<CompendiumReferenceEntry, "id">>,
+  conditionEntries: Array<CompendiumReferenceEntry | Omit<CompendiumReferenceEntry, "id">>,
+  actionEntries: Array<CompendiumReferenceEntry | Omit<CompendiumReferenceEntry, "id">>
+) {
+  return (
+    <RulesTooltip title={spell.name} subtitle={spell.level === "cantrip" ? `${spell.school} Cantrip` : `${spell.school} Level ${spell.level}`}>
+      <div className="rules-tooltip-meta">
+        <span>{formatSpellTime(spell)}</span>
+        <span>{formatSpellRange(spell)}</span>
+        <span>{formatSpellDuration(spell)}</span>
+      </div>
+      <div className="rules-tooltip-body">
+        <RulesTextInner text={spell.description} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} disableHover />
+      </div>
+      {spell.fullDescription && spell.fullDescription !== spell.description ? (
+        <div className="rules-tooltip-body rules-tooltip-body-secondary">
+          <RulesTextInner text={spell.fullDescription} spellEntries={spellEntries} featEntries={featEntries} classEntries={classEntries} variantRuleEntries={variantRuleEntries} conditionEntries={conditionEntries} actionEntries={actionEntries} disableHover />
+        </div>
+      ) : null}
+    </RulesTooltip>
+  );
+}
+
 function formatActionTag(value: string, fallback: string) {
   const inner = value.replace(/^\{@[^ ]+\s*|\}$/g, "").trim();
   if (!inner) {
@@ -1002,20 +1084,6 @@ function formatActionTag(value: string, fallback: string) {
   }
 
   return `${fallback} ${inner.replace(/\|.*$/, "").trim()}`;
-}
-
-function formatModifier(score: number) {
-  return formatSigned(Math.floor((score - 10) / 2));
-}
-
-function formatSigned(value: number) {
-  return value >= 0 ? `+${value}` : `${value}`;
-}
-
-function formatAttack(action: MonsterActionEntry) {
-  const attackType = action.attackType === "other" ? "" : `${action.attackType} attack`;
-  const reach = action.reachOrRange ? `, ${action.reachOrRange}` : "";
-  return `(${attackType} ${formatSigned(action.attackBonus)}${reach})`.trim();
 }
 
 function formatAttackTag(value: string) {
@@ -1040,6 +1108,38 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function findReferenceEntryByTag<T extends CompendiumReferenceEntry | Omit<CompendiumReferenceEntry, "id">>(
+  entries: T[],
+  lookup: Map<string, T>,
+  name: string,
+  source: string,
+  label: string
+) {
+  const normalizedName = name.toLowerCase();
+  const normalizedLabel = label.toLowerCase();
+  const normalizedSource = normalizeCompendiumSourceKey(source);
+
+  if (normalizedSource) {
+    const sourcedEntry = entries.find((entry) => {
+      const entryName = entry.name.toLowerCase();
+      return (
+        (entryName === normalizedName || entryName === normalizedLabel) &&
+        normalizeCompendiumSourceKey(entry.source) === normalizedSource
+      );
+    });
+
+    if (sourcedEntry) {
+      return sourcedEntry;
+    }
+  }
+
+  return lookup.get(normalizedName) ?? lookup.get(normalizedLabel) ?? null;
+}
+
+function normalizeCompendiumSourceKey(value: string) {
+  return value.trim().split(/\s+p\./i)[0]?.trim().toLowerCase() ?? "";
+}
+
 function renderLinkedTag(
   part: string,
   index: number,
@@ -1049,10 +1149,125 @@ function renderLinkedTag(
   className = "rules-tag rules-tag-link"
 ) {
   return (
-    <span key={`${part}-${index}`} className={disableHover ? "rules-tag" : className}>
-      {label}
-      {!disableHover && tooltip ? <span className="rules-tag-tooltip">{tooltip}</span> : null}
-    </span>
+    <FloatingRulesTag
+      key={`${part}-${index}`}
+      label={label}
+      tooltip={tooltip}
+      disableHover={disableHover}
+      className={className}
+    />
+  );
+}
+
+function FloatingRulesTag({
+  label,
+  tooltip,
+  disableHover,
+  className
+}: {
+  label: string;
+  tooltip: ReactNode | null;
+  disableHover: boolean;
+  className: string;
+}) {
+  const triggerRef = useRef<HTMLSpanElement | null>(null);
+  const closeTimeoutRef = useRef<number | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [anchor, setAnchor] = useState<ReturnType<typeof anchorFromRect> | null>(null);
+
+  const updateAnchor = () => {
+    if (!triggerRef.current) {
+      return;
+    }
+
+    setAnchor(anchorFromRect(triggerRef.current.getBoundingClientRect()));
+  };
+
+  const clearCloseTimeout = () => {
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
+
+  const openTooltip = () => {
+    if (disableHover || !tooltip) {
+      return;
+    }
+
+    clearCloseTimeout();
+    updateAnchor();
+    setIsOpen(true);
+  };
+
+  const closeTooltipSoon = () => {
+    clearCloseTimeout();
+    closeTimeoutRef.current = window.setTimeout(() => {
+      setIsOpen(false);
+    }, 90);
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const syncAnchor = () => {
+      if (!triggerRef.current) {
+        return;
+      }
+
+      setAnchor(anchorFromRect(triggerRef.current.getBoundingClientRect()));
+    };
+
+    window.addEventListener("resize", syncAnchor);
+    window.addEventListener("scroll", syncAnchor, true);
+    return () => {
+      window.removeEventListener("resize", syncAnchor);
+      window.removeEventListener("scroll", syncAnchor, true);
+    };
+  }, [isOpen]);
+
+  useEffect(
+    () => () => {
+      if (closeTimeoutRef.current !== null) {
+        window.clearTimeout(closeTimeoutRef.current);
+      }
+    },
+    []
+  );
+
+  if (disableHover || !tooltip) {
+    return <span className="rules-tag">{label}</span>;
+  }
+
+  return (
+    <>
+      <span
+        ref={triggerRef}
+        className={className}
+        tabIndex={0}
+        onPointerEnter={openTooltip}
+        onPointerLeave={closeTooltipSoon}
+        onFocus={openTooltip}
+        onBlur={closeTooltipSoon}
+      >
+        {label}
+      </span>
+      {isOpen ? (
+        <FloatingLayer
+          anchor={anchor}
+          className="rules-tag-tooltip"
+          placement="top-start"
+          offset={12}
+          zIndex={2147483000}
+          onPointerEnter={openTooltip}
+          onPointerLeave={closeTooltipSoon}
+        >
+          {tooltip}
+        </FloatingLayer>
+      ) : null}
+    </>
   );
 }
 

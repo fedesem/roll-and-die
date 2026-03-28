@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { BookText, GraduationCap, ShieldPlus, Skull, Sparkles, Swords, Users, type LucideIcon } from "lucide-react";
+import { BookText, CircleAlert, GraduationCap, ShieldPlus, Skull, Sparkles, Swords, Users, type LucideIcon } from "lucide-react";
 
 import { toErrorMessage } from "../../lib/errors";
 
@@ -11,6 +11,8 @@ export type AdminTab =
   | "feats"
   | "classes"
   | "books"
+  | "variantRules"
+  | "conditions"
   | "optionalFeatures"
   | "actions"
   | "backgrounds"
@@ -32,6 +34,8 @@ export const tabIcons = {
   feats: ShieldPlus,
   classes: GraduationCap,
   books: BookText,
+  variantRules: BookText,
+  conditions: CircleAlert,
   optionalFeatures: BookText,
   actions: Swords,
   backgrounds: BookText,
@@ -100,6 +104,10 @@ export function labelForTab(tab: AdminTab) {
       return "Classes";
     case "books":
       return "Books";
+    case "variantRules":
+      return "Variant Rules";
+    case "conditions":
+      return "Conditions";
     case "optionalFeatures":
       return "Optional Features";
     case "actions":
@@ -133,6 +141,10 @@ export function singularLabel(tab: AdminTab) {
       return "Class";
     case "books":
       return "Book";
+    case "variantRules":
+      return "Variant Rule";
+    case "conditions":
+      return "Condition";
     case "optionalFeatures":
       return "Optional Feature";
     case "actions":
@@ -351,6 +363,48 @@ export function getImportExample(tab: CompendiumTab) {
             group: "core",
             published: "2014-08-19",
             author: "Wizards RPG Team"
+          }
+        ]
+      }, null, 2);
+    case "variantRules":
+      return JSON.stringify({
+        variantrule: [
+          {
+            name: "Darkness",
+            source: "XPHB",
+            page: 363,
+            ruleType: "Variant Rule",
+            entries: [
+              "A creature with {@sense Darkvision} can't see through this darkness, and nonmagical light can't illuminate it."
+            ]
+          }
+        ]
+      }, null, 2);
+    case "conditions":
+      return JSON.stringify({
+        condition: [
+          {
+            name: "Blinded",
+            source: "XPHB",
+            page: 361,
+            entries: [
+              "While you have the Blinded condition, you experience the following effects.",
+              {
+                type: "entries",
+                entries: [
+                  {
+                    type: "entries",
+                    name: "Can't See",
+                    entries: ["You can't see and automatically fail any ability check that requires sight."]
+                  },
+                  {
+                    type: "entries",
+                    name: "Attacks Affected",
+                    entries: ["{@action Attack|XPHB} rolls against you have {@variantrule Advantage|XPHB}, and your attack rolls have {@variantrule Disadvantage|XPHB}."]
+                  }
+                ]
+              }
+            ]
           }
         ]
       }, null, 2);

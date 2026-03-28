@@ -38,6 +38,8 @@ export function sanitizeCompendiumEntry(kind: CompendiumKind, input: unknown) {
       return sanitizeClassEntry(input);
     case "books":
       return sanitizeBookEntry(input);
+    case "variantRules":
+    case "conditions":
     case "optionalFeatures":
     case "actions":
     case "backgrounds":
@@ -94,6 +96,14 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
 
   if (kind === "books" && Array.isArray(object.book)) {
     return object.book;
+  }
+
+  if (kind === "variantRules" && Array.isArray(object.variantrule)) {
+    return object.variantrule;
+  }
+
+  if (kind === "conditions" && Array.isArray(object.condition)) {
+    return object.condition;
   }
 
   if (kind === "actions" && Array.isArray(object.action)) {
@@ -489,7 +499,7 @@ function sanitizeClassEntry(input: unknown): ClassEntry {
 }
 
 function sanitizeReferenceEntry(
-  kind: Extract<CompendiumKind, "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<CompendiumKind, "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
   input: unknown
 ): CompendiumReferenceEntry {
   const object = asObject(input, `${kind} entry`);
@@ -500,6 +510,7 @@ function sanitizeReferenceEntry(
     source: formatSourceWithPage(object, kind.slice(0, 1).toUpperCase() + kind.slice(1, -1)),
     category: readReferenceCategory(kind, object),
     description: readReferenceDescription(kind, object),
+    entries: readReferenceEntriesText(object),
     tags: readReferenceTags(kind, object)
   };
 }
@@ -1643,10 +1654,14 @@ function getCompendiumEntityKey(entry: Record<string, unknown>) {
 }
 
 function readReferenceCategory(
-  kind: Extract<CompendiumKind, "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<CompendiumKind, "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
   object: Record<string, unknown>
 ) {
   switch (kind) {
+    case "variantRules":
+      return readString(object.ruleType) || readString(object.type) || readString(object.category) || "Variant Rule";
+    case "conditions":
+      return readString(object.type) || readString(object.category) || "Condition";
     case "optionalFeatures":
       return formatOptionalFeatureTypeCategory(object.featureType);
     case "actions":
@@ -1672,12 +1687,14 @@ function readReferenceCategory(
 }
 
 function readReferenceDescription(
-  kind: Extract<CompendiumKind, "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<CompendiumKind, "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
   object: Record<string, unknown>
 ) {
-  const entries = joinEntries(object.entries) || joinEntries(object.additionalEntries);
+  const entries = readReferenceEntriesText(object);
 
   switch (kind) {
+    case "variantRules":
+    case "conditions":
     case "optionalFeatures":
     case "actions":
     case "backgrounds":
@@ -1700,11 +1717,30 @@ function readReferenceDescription(
   }
 }
 
+function readReferenceEntriesText(object: Record<string, unknown>) {
+  return (
+    joinEntries(object.entries) ||
+    joinEntries(object.additionalEntries) ||
+    readString(object.description)
+  );
+}
+
 function readReferenceTags(
-  kind: Extract<CompendiumKind, "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<CompendiumKind, "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
   object: Record<string, unknown>
 ) {
   switch (kind) {
+    case "variantRules":
+      return uniqueStrings([
+        readString(object.ruleType),
+        readString(object.type),
+        readString(object.category)
+      ]);
+    case "conditions":
+      return uniqueStrings([
+        readString(object.type),
+        readString(object.category)
+      ]);
     case "optionalFeatures":
       return readOptionalFeatureTypeTags(object.featureType);
     case "actions":

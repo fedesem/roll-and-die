@@ -9,11 +9,12 @@ import type {
 } from "@shared/types";
 
 import { CharacterSheet } from "./CharacterSheet";
+import { RulesText } from "./admin/AdminPreview";
 import type {
   ActorTypeFilter,
   AvailableActorEntry
 } from "../features/campaign/types";
-import { formatMonsterModifier } from "../lib/drafts";
+import { MonsterCatalogOption, MonsterStatBlock } from "./monster/MonsterStatBlock";
 
 interface CampaignActorManagerProps {
   token: string;
@@ -195,32 +196,32 @@ export function CampaignActorManager({
                   />
                   <div className="monster-list">
                     {filteredCatalog.map((monster) => (
-                      <button
+                      <MonsterCatalogOption
                         key={monster.id}
-                        className={`monster-card ${selectedMonsterTemplate?.id === monster.id ? "is-selected" : ""}`}
-                        type="button"
-                        onClick={() => onSelectMonster(monster.id)}
-                      >
-                        <span>{monster.name}</span>
-                        <small>
-                          CR {monster.challengeRating}
-                          {monster.xp ? ` (${monster.xp.toLocaleString()} XP)` : ""}
-                          {" | "}AC {monster.armorClass}
-                          {" | "}HP {monster.hitPoints}
-                        </small>
-                      </button>
+                        monster={monster}
+                        selected={selectedMonsterTemplate?.id === monster.id}
+                        onSelect={() => onSelectMonster(monster.id)}
+                      />
                     ))}
                     {filteredCatalog.length === 0 && <p className="empty-state">No monsters match that search.</p>}
                   </div>
                 </section>
                 <section className="sheet-panel monster-preview-card">
                   {selectedMonsterTemplate ? (
-                    <>
-                      <div className="panel-head">
-                        <div>
-                          <p className="panel-label">Preview</p>
-                          <h2>{selectedMonsterTemplate.name}</h2>
-                        </div>
+                    <MonsterStatBlock
+                      monster={selectedMonsterTemplate}
+                      eyebrow="Preview"
+                      renderText={(text) => (
+                        <RulesText
+                          text={text}
+                          spellEntries={compendium.spells}
+                          featEntries={compendium.feats}
+                          classEntries={compendium.classes}
+                          variantRuleEntries={compendium.variantRules}
+                          conditionEntries={compendium.conditions}
+                        />
+                      )}
+                      action={(
                         <button
                           className="accent-button"
                           type="button"
@@ -228,35 +229,8 @@ export function CampaignActorManager({
                         >
                           {monsterActionLabel}
                         </button>
-                      </div>
-                      <div className="monster-preview-summary">
-                        <span className="badge">
-                          CR {selectedMonsterTemplate.challengeRating}
-                          {selectedMonsterTemplate.xp ? ` (${selectedMonsterTemplate.xp.toLocaleString()} XP)` : ""}
-                        </span>
-                        <span className="badge subtle">{selectedMonsterTemplate.source}</span>
-                        <span className="badge subtle">AC {selectedMonsterTemplate.armorClass}</span>
-                        <span className="badge subtle">HP {selectedMonsterTemplate.hitPoints}</span>
-                        <span className="badge subtle">
-                          Init{" "}
-                          {selectedMonsterTemplate.initiative >= 0
-                            ? `+${selectedMonsterTemplate.initiative}`
-                            : selectedMonsterTemplate.initiative}
-                        </span>
-                        <span className="badge subtle">Speed {selectedMonsterTemplate.speed}</span>
-                      </div>
-                      <div className="ability-card-grid">
-                        {Object.entries(selectedMonsterTemplate.abilities).map(([key, value]) => (
-                          <div key={key} className="ability-card">
-                            <header>
-                              <h4>{key.toUpperCase()}</h4>
-                              <span>{formatMonsterModifier(value)}</span>
-                            </header>
-                            <strong>{value}</strong>
-                          </div>
-                        ))}
-                      </div>
-                    </>
+                      )}
+                    />
                   ) : (
                     <p className="empty-state">Select a monster to preview its stat block.</p>
                   )}

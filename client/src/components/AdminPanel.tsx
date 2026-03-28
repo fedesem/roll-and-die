@@ -95,6 +95,8 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
     feats: "",
     classes: "",
     books: "",
+    variantRules: "",
+    conditions: "",
     optionalFeatures: "",
     actions: "",
     backgrounds: "",
@@ -110,6 +112,8 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
     feats: null,
     classes: null,
     books: null,
+    variantRules: null,
+    conditions: null,
     optionalFeatures: null,
     actions: null,
     backgrounds: null,
@@ -125,6 +129,8 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
     feats: { source: "", type: "", secondaryType: "", sort: "name-asc" },
     classes: { source: "", type: "", secondaryType: "", sort: "name-asc" },
     books: { source: "", type: "", secondaryType: "", sort: "published-desc" },
+    variantRules: { source: "", type: "", secondaryType: "", sort: "name-asc" },
+    conditions: { source: "", type: "", secondaryType: "", sort: "name-asc" },
     optionalFeatures: { source: "", type: "", secondaryType: "", sort: "name-asc" },
     actions: { source: "", type: "", secondaryType: "", sort: "name-asc" },
     backgrounds: { source: "", type: "", secondaryType: "", sort: "name-asc" },
@@ -139,6 +145,8 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
     feats: null,
     classes: null,
     books: null,
+    variantRules: null,
+    conditions: null,
     optionalFeatures: null,
     actions: null,
     backgrounds: null,
@@ -177,6 +185,8 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
       feats: overview?.compendium.feats.length ?? 0,
       classes: overview?.compendium.classes.length ?? 0,
       books: overview?.compendium.books.length ?? 0,
+      variantRules: overview?.compendium.variantRules.length ?? 0,
+      conditions: overview?.compendium.conditions.length ?? 0,
       optionalFeatures: overview?.compendium.optionalFeatures.length ?? 0,
       actions: overview?.compendium.actions.length ?? 0,
       backgrounds: overview?.compendium.backgrounds.length ?? 0,
@@ -224,6 +234,26 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
         entry.published
       ]),
     [overview?.compendium.books, search.books]
+  );
+  const variantRules = useMemo(
+    () =>
+      filterEntries(overview?.compendium.variantRules ?? [], search.variantRules, (entry) => [
+        entry.name,
+        entry.source,
+        entry.category,
+        ...entry.tags
+      ]),
+    [overview?.compendium.variantRules, search.variantRules]
+  );
+  const conditions = useMemo(
+    () =>
+      filterEntries(overview?.compendium.conditions ?? [], search.conditions, (entry) => [
+        entry.name,
+        entry.source,
+        entry.category,
+        ...entry.tags
+      ]),
+    [overview?.compendium.conditions, search.conditions]
   );
   const optionalFeatures = useMemo(
     () =>
@@ -285,6 +315,14 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
   const displayedFeats = useMemo(() => filterAndSortReferences(feats, listControls.feats), [feats, listControls.feats]);
   const displayedClasses = useMemo(() => filterAndSortClasses(classes, listControls.classes), [classes, listControls.classes]);
   const displayedBooks = useMemo(() => filterAndSortBooks(books, listControls.books), [books, listControls.books]);
+  const displayedVariantRules = useMemo(
+    () => filterAndSortReferences(variantRules, listControls.variantRules),
+    [listControls.variantRules, variantRules]
+  );
+  const displayedConditions = useMemo(
+    () => filterAndSortReferences(conditions, listControls.conditions),
+    [conditions, listControls.conditions]
+  );
   const displayedOptionalFeatures = useMemo(
     () => filterAndSortReferences(optionalFeatures, listControls.optionalFeatures),
     [listControls.optionalFeatures, optionalFeatures]
@@ -305,6 +343,8 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
   const selectedFeat = resolveSelected(displayedFeats, selectedIds.feats);
   const selectedClass = resolveSelected(displayedClasses, selectedIds.classes);
   const selectedBook = resolveSelectedByKey(displayedBooks, selectedIds.books, (entry) => entry.source);
+  const selectedVariantRule = resolveSelected(displayedVariantRules, selectedIds.variantRules);
+  const selectedCondition = resolveSelected(displayedConditions, selectedIds.conditions);
   const selectedOptionalFeature = resolveSelected(displayedOptionalFeatures, selectedIds.optionalFeatures);
   const selectedAction = resolveSelected(displayedActions, selectedIds.actions);
   const selectedBackground = resolveSelected(displayedBackgrounds, selectedIds.backgrounds);
@@ -361,6 +401,8 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
         feats,
         classes,
         books,
+        variantRules,
+        conditions,
         optionalFeatures,
         actions,
         backgrounds,
@@ -369,7 +411,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
         races,
         skills
       }),
-    [actions, backgrounds, books, classes, feats, items, languages, monsters, optionalFeatures, races, skills, spells, tab]
+    [actions, backgrounds, books, classes, conditions, feats, items, languages, monsters, optionalFeatures, races, skills, spells, tab, variantRules]
   );
   const currentTypeOptions = useMemo(
     () =>
@@ -379,6 +421,8 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
         feats,
         classes,
         books,
+        variantRules,
+        conditions,
         optionalFeatures,
         actions,
         backgrounds,
@@ -387,7 +431,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
         races,
         skills
       }),
-    [actions, backgrounds, books, classes, feats, items, languages, monsters, optionalFeatures, races, skills, spells, tab]
+    [actions, backgrounds, books, classes, conditions, feats, items, languages, monsters, optionalFeatures, races, skills, spells, tab, variantRules]
   );
   const currentSecondaryTypeOptions = useMemo(
     () =>
@@ -861,6 +905,10 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     ))}
 
                   {tab === "books" && renderBookRows(displayedBooks, selectedBook, setSelectedIds)}
+                  {tab === "variantRules" &&
+                    renderReferenceRows(displayedVariantRules, selectedVariantRule, "variantRules", setSelectedIds, sourceBookNameById)}
+                  {tab === "conditions" &&
+                    renderReferenceRows(displayedConditions, selectedCondition, "conditions", setSelectedIds, sourceBookNameById)}
                   {tab === "optionalFeatures" &&
                     renderReferenceRows(
                       displayedOptionalFeatures,
@@ -886,6 +934,8 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     feats: feats.length,
                     classes: classes.length,
                     books: books.length,
+                    variantRules: variantRules.length,
+                    conditions: conditions.length,
                     optionalFeatures: optionalFeatures.length,
                     actions: actions.length,
                     backgrounds: backgrounds.length,
@@ -1457,7 +1507,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                         </button>
                       </form>
                     )}
-                    {["optionalFeatures", "actions", "backgrounds", "items", "languages", "races", "skills"].includes(tab) && (
+                    {["variantRules", "conditions", "optionalFeatures", "actions", "backgrounds", "items", "languages", "races", "skills"].includes(tab) && (
                       <PreviewPlaceholder
                         title={`${singularLabel(tab)} add`}
                         message="Use Import mode for these reference libraries. The backend now supports direct imports for the matching 5etools JSON files."
@@ -1504,6 +1554,10 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                               Accepted book files: 5etools `books.json` with `book` entries. Only id, name, group, published, and author are
                               imported.
                             </small>
+                          ) : tab === "variantRules" ? (
+                            <small>Accepted variant rule files: 5etools `variantrules.json` with `variantrule` entries.</small>
+                          ) : tab === "conditions" ? (
+                            <small>Accepted condition files: 5etools JSON with `condition` entries.</small>
                           ) : tab === "optionalFeatures" ? (
                             <small>Accepted optional feature files: 5etools `optionalfeatures.json` with `optionalfeature` entries.</small>
                           ) : tab === "items" ? (
@@ -1618,6 +1672,24 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                         Delete
                       </button>
                     ) : null}
+                    {tab === "variantRules" && selectedVariantRule ? (
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() => void removeCompendiumEntry("variantRules", selectedVariantRule.id)}
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+                    {tab === "conditions" && selectedCondition ? (
+                      <button
+                        type="button"
+                        className="danger-button"
+                        onClick={() => void removeCompendiumEntry("conditions", selectedCondition.id)}
+                      >
+                        Delete
+                      </button>
+                    ) : null}
                     {tab === "optionalFeatures" && selectedOptionalFeature ? (
                       <button
                         type="button"
@@ -1689,6 +1761,9 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     spell={selectedSpell}
                     featEntries={overview?.compendium.feats ?? []}
                     classEntries={overview?.compendium.classes ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
                     sourceTitle={sourceBookNameById.get(selectedSpell.source)}
                   />
                 ) : (
@@ -1701,6 +1776,9 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     spellEntries={overview?.compendium.spells ?? []}
                     featEntries={overview?.compendium.feats ?? []}
                     classEntries={overview?.compendium.classes ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
                     sourceTitle={sourceBookNameById.get(selectedMonster.source)}
                   />
                 ) : (
@@ -1712,6 +1790,9 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     feat={selectedFeat}
                     spellEntries={overview?.compendium.spells ?? []}
                     classEntries={overview?.compendium.classes ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
                     sourceTitle={sourceBookNameById.get(selectedFeat.source)}
                   />
                 ) : (
@@ -1723,6 +1804,9 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     entry={selectedClass}
                     spellEntries={overview?.compendium.spells ?? []}
                     featEntries={overview?.compendium.feats ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
                     sourceTitle={sourceBookNameById.get(selectedClass.source)}
                   />
                 ) : (
@@ -1734,12 +1818,52 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                 ) : (
                   <PreviewPlaceholder title="Books" message="Select a book to preview it here." />
                 ))}
+              {tab === "variantRules" &&
+                (selectedVariantRule ? (
+                  <ReferencePreviewCard
+                    title="Variant Rule"
+                    eyebrow="Variant Rule"
+                    entry={selectedVariantRule}
+                    spellEntries={overview?.compendium.spells ?? []}
+                    featEntries={overview?.compendium.feats ?? []}
+                    classEntries={overview?.compendium.classes ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
+                    sourceTitle={sourceBookNameById.get(selectedVariantRule.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Variant Rules" message="Select a variant rule to preview it here." />
+                ))}
+              {tab === "conditions" &&
+                (selectedCondition ? (
+                  <ReferencePreviewCard
+                    title="Condition"
+                    eyebrow="Condition"
+                    entry={selectedCondition}
+                    spellEntries={overview?.compendium.spells ?? []}
+                    featEntries={overview?.compendium.feats ?? []}
+                    classEntries={overview?.compendium.classes ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
+                    sourceTitle={sourceBookNameById.get(selectedCondition.source)}
+                  />
+                ) : (
+                  <PreviewPlaceholder title="Conditions" message="Select a condition to preview it here." />
+                ))}
               {tab === "optionalFeatures" &&
                 (selectedOptionalFeature ? (
                   <ReferencePreviewCard
                     title="Optional Feature"
                     eyebrow="Optional Feature"
                     entry={selectedOptionalFeature}
+                    spellEntries={overview?.compendium.spells ?? []}
+                    featEntries={overview?.compendium.feats ?? []}
+                    classEntries={overview?.compendium.classes ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
                     sourceTitle={sourceBookNameById.get(selectedOptionalFeature.source)}
                   />
                 ) : (
@@ -1751,6 +1875,12 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     title="Action"
                     eyebrow="Action"
                     entry={selectedAction}
+                    spellEntries={overview?.compendium.spells ?? []}
+                    featEntries={overview?.compendium.feats ?? []}
+                    classEntries={overview?.compendium.classes ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
                     sourceTitle={sourceBookNameById.get(selectedAction.source)}
                   />
                 ) : (
@@ -1762,6 +1892,12 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     title="Background"
                     eyebrow="Background"
                     entry={selectedBackground}
+                    spellEntries={overview?.compendium.spells ?? []}
+                    featEntries={overview?.compendium.feats ?? []}
+                    classEntries={overview?.compendium.classes ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
                     sourceTitle={sourceBookNameById.get(selectedBackground.source)}
                   />
                 ) : (
@@ -1773,6 +1909,12 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     title="Item"
                     eyebrow="Item"
                     entry={selectedItem}
+                    spellEntries={overview?.compendium.spells ?? []}
+                    featEntries={overview?.compendium.feats ?? []}
+                    classEntries={overview?.compendium.classes ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
                     sourceTitle={sourceBookNameById.get(selectedItem.source)}
                   />
                 ) : (
@@ -1784,6 +1926,12 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     title="Language"
                     eyebrow="Language"
                     entry={selectedLanguage}
+                    spellEntries={overview?.compendium.spells ?? []}
+                    featEntries={overview?.compendium.feats ?? []}
+                    classEntries={overview?.compendium.classes ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
                     sourceTitle={sourceBookNameById.get(selectedLanguage.source)}
                   />
                 ) : (
@@ -1795,6 +1943,12 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     title="Race"
                     eyebrow="Race"
                     entry={selectedRace}
+                    spellEntries={overview?.compendium.spells ?? []}
+                    featEntries={overview?.compendium.feats ?? []}
+                    classEntries={overview?.compendium.classes ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
                     sourceTitle={sourceBookNameById.get(selectedRace.source)}
                   />
                 ) : (
@@ -1806,6 +1960,12 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     title="Skill"
                     eyebrow="Skill"
                     entry={selectedSkill}
+                    spellEntries={overview?.compendium.spells ?? []}
+                    featEntries={overview?.compendium.feats ?? []}
+                    classEntries={overview?.compendium.classes ?? []}
+                    variantRuleEntries={overview?.compendium.variantRules ?? []}
+                    conditionEntries={overview?.compendium.conditions ?? []}
+                    actionEntries={overview?.compendium.actions ?? []}
                     sourceTitle={sourceBookNameById.get(selectedSkill.source)}
                   />
                 ) : (
@@ -1855,6 +2015,14 @@ function resolveImportEntryCount(kind: CompendiumTab, parsed: unknown) {
 
     if (kind === "books" && Array.isArray(record.book)) {
       return record.book.length;
+    }
+
+    if (kind === "variantRules" && Array.isArray(record.variantrule)) {
+      return record.variantrule.length;
+    }
+
+    if (kind === "conditions" && Array.isArray(record.condition)) {
+      return record.condition.length;
     }
 
     if (kind === "optionalFeatures" && Array.isArray(record.optionalfeature)) {
@@ -1984,7 +2152,7 @@ function readObjectArray(value: unknown) {
 function renderReferenceRows(
   entries: CompendiumReferenceEntry[],
   selected: CompendiumReferenceEntry | null,
-  kind: Extract<CompendiumTab, "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<CompendiumTab, "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
   setSelectedIds: Dispatch<SetStateAction<Record<AdminTab, string | null>>>,
   sourceBookNameById: Map<string, string>
 ) {
@@ -2042,6 +2210,8 @@ function getAdminTabSourceOptions(
     feats: Array<{ source: string }>;
     classes: Array<{ source: string }>;
     books: CampaignSourceBook[];
+    variantRules: CompendiumReferenceEntry[];
+    conditions: CompendiumReferenceEntry[];
     optionalFeatures: CompendiumReferenceEntry[];
     actions: CompendiumReferenceEntry[];
     backgrounds: CompendiumReferenceEntry[];
@@ -2064,6 +2234,8 @@ function getAdminTabSourceOptions(
       return uniqueOptionObjects(entries.feats.map((entry) => ({ value: normalizeSourceId(entry.source), label: entry.source })));
     case "classes":
       return uniqueOptionObjects(entries.classes.map((entry) => ({ value: normalizeSourceId(entry.source), label: entry.source })));
+    case "variantRules":
+    case "conditions":
     case "optionalFeatures":
     case "actions":
     case "backgrounds":
@@ -2083,6 +2255,8 @@ function getAdminTabTypeOptions(
     feats: Array<{ category: string }>;
     classes: Array<unknown>;
     books: CampaignSourceBook[];
+    variantRules: CompendiumReferenceEntry[];
+    conditions: CompendiumReferenceEntry[];
     optionalFeatures: CompendiumReferenceEntry[];
     actions: CompendiumReferenceEntry[];
     backgrounds: CompendiumReferenceEntry[];
@@ -2104,6 +2278,8 @@ function getAdminTabTypeOptions(
       return uniqueStrings(entries.feats.map((entry) => entry.category));
     case "books":
       return uniqueStrings(entries.books.map((entry) => entry.group));
+    case "variantRules":
+    case "conditions":
     case "optionalFeatures":
     case "actions":
     case "backgrounds":

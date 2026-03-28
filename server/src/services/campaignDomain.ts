@@ -75,7 +75,7 @@ const skillTemplates: Array<{ name: string; ability: AbilityKey }> = [
 export function buildCampaignSnapshot(
   campaign: Campaign,
   user: UserProfile,
-  compendium: Pick<CompendiumData, "spells" | "feats" | "classes" | "monsters">
+  compendium: Pick<CompendiumData, "spells" | "feats" | "classes" | "variantRules" | "conditions" | "monsters">
 ): CampaignSnapshot {
   const member = campaign.members.find((entry) => entry.userId === user.id);
 
@@ -98,7 +98,9 @@ export function buildCampaignSnapshot(
     compendium: {
       spells: filteredCompendium.spells,
       feats: filteredCompendium.feats,
-      classes: filteredCompendium.classes
+      classes: filteredCompendium.classes,
+      variantRules: filteredCompendium.variantRules,
+      conditions: filteredCompendium.conditions
     },
     playerVision: member.role === "dm" ? {} : normalizeExplorationMemory(campaign, user.id)
   };
@@ -271,7 +273,7 @@ export function toCampaignSummary(campaign: Campaign, userId: string): CampaignS
 
 function filterCampaignCompendium(
   campaign: Campaign,
-  compendium: Pick<CompendiumData, "spells" | "feats" | "classes" | "monsters">
+  compendium: Pick<CompendiumData, "spells" | "feats" | "classes" | "variantRules" | "conditions" | "monsters">
 ) {
   const allowedBooks = new Set(campaign.allowedSourceBooks.map((entry) => entry.trim()).filter(Boolean));
 
@@ -283,6 +285,8 @@ function filterCampaignCompendium(
     spells: compendium.spells.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
     feats: compendium.feats.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
     classes: compendium.classes.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
+    variantRules: compendium.variantRules.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
+    conditions: compendium.conditions.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
     monsters: compendium.monsters.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source)))
   };
 }

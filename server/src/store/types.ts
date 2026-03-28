@@ -60,6 +60,8 @@ export const defaultDatabase: Database = {
     feats: [],
     classes: [],
     books: [],
+    variantRules: [],
+    conditions: [],
     optionalFeatures: [],
     actions: [],
     backgrounds: [],

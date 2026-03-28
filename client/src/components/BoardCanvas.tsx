@@ -38,6 +38,7 @@ import {
 } from "@shared/vision";
 import { BoardToolbar } from "../features/board/BoardToolbar";
 import { BoardFogOverlay } from "../features/board/BoardFogOverlay";
+import { FloatingLayer } from "./FloatingLayer";
 import {
   buildMeasurePreview,
   clamp,
@@ -1461,7 +1462,6 @@ export function BoardCanvas({
     event.preventDefault();
     setContextMenu(null);
     suppressContextMenuRef.current = false;
-    const menuLocalPoint = event.button === 2 ? toLocalPoint(event.clientX, event.clientY) : null;
     const menuWorldPoint = event.button === 2 ? toWorldPoint(event.clientX, event.clientY) : null;
     const target = event.target instanceof Element ? event.target : null;
     const tokenButton = target?.closest<HTMLElement>("[data-board-token-id]");
@@ -1489,8 +1489,8 @@ export function BoardCanvas({
       originX: viewPan.x,
       originY: viewPan.y,
       menu,
-      menuX: menuLocalPoint?.x,
-      menuY: menuLocalPoint?.y
+      menuX: event.button === 2 ? event.clientX : undefined,
+      menuY: event.button === 2 ? event.clientY : undefined
     });
   }
 
@@ -2408,105 +2408,111 @@ export function BoardCanvas({
               );
             })}
           </div>
-          {contextMenu && (
-            <div
-              className={`board-context-menu ${contextMenu.kind === "token" ? "is-token-menu" : ""}`}
-              style={{ left: contextMenu.x, top: contextMenu.y }}
-              onPointerDown={(event) => event.stopPropagation()}
-              onPointerUp={(event) => event.stopPropagation()}
-              onClick={(event) => event.stopPropagation()}
-              onWheel={(event) => event.stopPropagation()}
-              onContextMenu={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-              }}
-            >
-              {contextMenu.kind === "board" ? (
-                <>
-                  <button
-                    type="button"
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={() => {
-                      void onPing(contextMenu.point);
-                      setContextMenu(null);
-                    }}
-                  >
-                    Ping here
-                  </button>
-                  {isDungeonMaster && (
-                    <button
-                      type="button"
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={() => {
-                        void onPingAndRecall(contextMenu.point, viewCenter, viewZoom);
-                        setContextMenu(null);
-                      }}
-                    >
-                      Ping and recall here
-                    </button>
-                  )}
-                </>
-              ) : contextMenuToken ? (
-                <>
-                  <div className="board-context-menu-heading">{contextMenuToken.label}</div>
-                  {contextMenuToken.actorKind === "static" && (
-                    <button
-                      type="button"
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={() => {
-                        void handleTokenRotate(contextMenuToken);
-                        setContextMenu(null);
-                      }}
-                    >
-                      Rotate clockwise
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    disabled={contextMenuToken.statusMarkers.length === 0}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={() => {
-                      void handleTokenStatusChange(contextMenuToken.id, []);
-                    }}
-                  >
-                    Clear markers
-                  </button>
-                  <div className="board-token-status-menu">
-                    {TOKEN_STATUS_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={`board-token-status-option ${contextMenuToken.statusMarkers.includes(option.value) ? "is-active" : ""}`}
-                        title={option.label}
-                        aria-pressed={contextMenuToken.statusMarkers.includes(option.value)}
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={() => {
-                          toggleTokenStatusMarker(contextMenuToken, option.value);
-                        }}
-                      >
-                        <span className="board-token-status-swatch" data-tone={option.tone}>
-                          <option.Icon className="board-token-status-icon" strokeWidth={2.2} aria-hidden="true" />
-                        </span>
-                        <span>{option.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              ) : (
+        </div>
+      </div>
+      {contextMenu ? (
+        <FloatingLayer
+          anchor={{ left: contextMenu.x, top: contextMenu.y, width: 0, height: 0 }}
+          className={`board-context-menu ${contextMenu.kind === "token" ? "is-token-menu" : ""}`}
+          placement="bottom-start"
+          offset={10}
+          zIndex={2147482800}
+        >
+          <div
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+            onWheel={(event) => event.stopPropagation()}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+          >
+            {contextMenu.kind === "board" ? (
+              <>
                 <button
                   type="button"
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={() => {
+                    void onPing(contextMenu.point);
                     setContextMenu(null);
                   }}
                 >
-                  Close
+                  Ping here
                 </button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+                {isDungeonMaster && (
+                  <button
+                    type="button"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => {
+                      void onPingAndRecall(contextMenu.point, viewCenter, viewZoom);
+                      setContextMenu(null);
+                    }}
+                  >
+                    Ping and recall here
+                  </button>
+                )}
+              </>
+            ) : contextMenuToken ? (
+              <>
+                <div className="board-context-menu-heading">{contextMenuToken.label}</div>
+                {contextMenuToken.actorKind === "static" && (
+                  <button
+                    type="button"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => {
+                      void handleTokenRotate(contextMenuToken);
+                      setContextMenu(null);
+                    }}
+                  >
+                    Rotate clockwise
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={contextMenuToken.statusMarkers.length === 0}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={() => {
+                    void handleTokenStatusChange(contextMenuToken.id, []);
+                  }}
+                >
+                  Clear markers
+                </button>
+                <div className="board-token-status-menu">
+                  {TOKEN_STATUS_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`board-token-status-option ${contextMenuToken.statusMarkers.includes(option.value) ? "is-active" : ""}`}
+                      title={option.label}
+                      aria-pressed={contextMenuToken.statusMarkers.includes(option.value)}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={() => {
+                        toggleTokenStatusMarker(contextMenuToken, option.value);
+                      }}
+                    >
+                      <span className="board-token-status-swatch" data-tone={option.tone}>
+                        <option.Icon className="board-token-status-icon" strokeWidth={2.2} aria-hidden="true" />
+                      </span>
+                      <span>{option.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <button
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={() => {
+                  setContextMenu(null);
+                }}
+              >
+                Close
+              </button>
+            )}
+          </div>
+        </FloatingLayer>
+      ) : null}
 
       <p className="panel-hint">
         {tool === "select" &&

@@ -646,12 +646,12 @@
 }
 
 .board-context-menu {
-  position: absolute;
-  z-index: 6;
-  min-width: 10rem;
-  padding: 0.4rem;
+  min-width: 11.5rem;
+  max-width: min(32rem, calc(100vw - 1.5rem));
+  max-height: min(34rem, calc(100vh - 1.5rem));
+  padding: 0.55rem;
   display: grid;
-  gap: 0.25rem;
+  gap: 0.3rem;
   border: 1px solid rgba(245, 198, 92, 0.16);
   border-radius: 0;
   background:
@@ -661,18 +661,19 @@
     0 18px 44px rgba(0, 0, 0, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(18px);
-  transform: translate(10px, 10px);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .board-context-menu.is-token-menu {
-  min-width: 20rem;
-  max-width: min(28rem, calc(100vw - 2rem));
+  min-width: 22rem;
+  max-width: min(32rem, calc(100vw - 1.5rem));
 }
 
 .board-context-menu-heading {
-  padding: 0.4rem 0.25rem 0.2rem;
+  padding: 0.45rem 0.3rem 0.25rem;
   color: var(--sand);
-  font-size: 0.77rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -682,8 +683,8 @@
   width: 100%;
   justify-content: flex-start;
   border-radius: 0;
-  padding: 0.65rem 0.75rem;
-  font-size: 0.84rem;
+  padding: 0.72rem 0.82rem;
+  font-size: 0.8rem;
 }
 
 .board-token-status-menu {

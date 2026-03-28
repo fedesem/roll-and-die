@@ -25,6 +25,8 @@ export function normalizeStoreState(database: Database): Database {
             feats: Array.isArray(database.compendium.feats) ? database.compendium.feats : [],
             classes: Array.isArray(database.compendium.classes) ? database.compendium.classes : [],
             books: Array.isArray(database.compendium.books) ? database.compendium.books : [],
+            variantRules: Array.isArray(database.compendium.variantRules) ? database.compendium.variantRules : [],
+            conditions: Array.isArray(database.compendium.conditions) ? database.compendium.conditions : [],
             optionalFeatures: Array.isArray(database.compendium.optionalFeatures) ? database.compendium.optionalFeatures : [],
             actions: Array.isArray(database.compendium.actions) ? database.compendium.actions : [],
             backgrounds: Array.isArray(database.compendium.backgrounds) ? database.compendium.backgrounds : [],

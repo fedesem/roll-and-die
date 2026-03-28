@@ -2,13 +2,15 @@ import type { DatabaseSync } from "../types.js";
 import type { AbilityKey, CampaignSourceBook, ClassEntry, ClassFeatureEntry, ClassSubclassEntry, CompendiumData, CompendiumReferenceEntry, FeatEntry, MonsterActionEntry, MonsterSense, MonsterSkillBonus, MonsterSpellcastingEntry, MonsterTemplate, SpellClassReference, SpellEntry, SpellLevel } from "../../../../shared/types.js";
 import { readAll, toIntegerBoolean } from "../helpers.js";
 export type CompendiumCollectionKind = keyof CompendiumData;
-type ReferenceCompendiumKind = Extract<CompendiumCollectionKind, "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">;
-export async function readCampaignCompendium(database: DatabaseSync): Promise<Pick<CompendiumData, "spells" | "monsters" | "feats" | "classes">> {
+type ReferenceCompendiumKind = Extract<CompendiumCollectionKind, "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">;
+export async function readCampaignCompendium(database: DatabaseSync): Promise<Pick<CompendiumData, "spells" | "monsters" | "feats" | "classes" | "variantRules" | "conditions">> {
     return {
         spells: await readSpellEntries(database),
         monsters: await readMonsterEntries(database),
         feats: await readFeatEntries(database),
-        classes: await readClassEntries(database)
+        classes: await readClassEntries(database),
+        variantRules: await readReferenceEntries(database, "variantRules"),
+        conditions: await readReferenceEntries(database, "conditions")
     };
 }
 export async function readCompendiumCollection<K extends CompendiumCollectionKind>(database: DatabaseSync, kind: K): Promise<CompendiumData[K]> {
@@ -23,6 +25,8 @@ export async function readCompendiumCollection<K extends CompendiumCollectionKin
             return (await readClassEntries(database)) as CompendiumData[K];
         case "books":
             return (await readBookEntries(database)) as CompendiumData[K];
+        case "variantRules":
+        case "conditions":
         case "optionalFeatures":
         case "actions":
         case "backgrounds":
@@ -52,6 +56,8 @@ export async function compendiumEntryExists(database: DatabaseSync, kind: Compen
             return Boolean(await database.prepare("SELECT 1 FROM compendium_classes WHERE id = ? LIMIT 1").get(entryId));
         case "books":
             return Boolean(await database.prepare("SELECT 1 FROM compendium_books WHERE source = ? LIMIT 1").get(entryId));
+        case "variantRules":
+        case "conditions":
         case "optionalFeatures":
         case "actions":
         case "backgrounds":
@@ -506,6 +512,7 @@ async function readReferenceEntries(database: DatabaseSync, kind: ReferenceCompe
         source: string;
         category: string;
         description: string;
+        entriesText: string;
         tagsJson: string;
     }>(database, `
       SELECT
@@ -514,6 +521,7 @@ async function readReferenceEntries(database: DatabaseSync, kind: ReferenceCompe
         source,
         category,
         description,
+        entries_text as entriesText,
         tags_json as tagsJson
       FROM compendium_references
       WHERE kind = ?
@@ -524,6 +532,7 @@ async function readReferenceEntries(database: DatabaseSync, kind: ReferenceCompe
         source: row.source,
         category: row.category,
         description: row.description,
+        entries: row.entriesText,
         tags: parseJsonArray<string>(row.tagsJson)
     }));
 }
@@ -566,7 +575,7 @@ export async function insertCompendiumEntryAtStart(database: DatabaseSync, kind:
 }
 export async function upsertCompendiumEntry<K extends CompendiumCollectionKind>(database: DatabaseSync, kind: K, entry: CompendiumData[K][number]) {
     const sortOrder = (await readExistingCompendiumSortOrder(database, kind, getCompendiumEntryKey(entry))) ??
-        (await readNextCompendiumSortOrder(database, kind));
+        (await readNextCompendiumSortOrder(database, kind)) ?? 0;
     writeCompendiumEntry(database, kind, entry, sortOrder);
 }
 export function deleteCompendiumEntryRecord(database: DatabaseSync, kind: CompendiumCollectionKind, entryId: string) {
@@ -586,6 +595,8 @@ export function deleteCompendiumEntryRecord(database: DatabaseSync, kind: Compen
         case "books":
             database.prepare("DELETE FROM compendium_books WHERE source = ?").run(entryId);
             return;
+        case "variantRules":
+        case "conditions":
         case "optionalFeatures":
         case "actions":
         case "backgrounds":
@@ -616,6 +627,8 @@ export function clearCompendiumCollection(database: DatabaseSync, kind: Compendi
         case "books":
             database.prepare("DELETE FROM compendium_books").run();
             return;
+        case "variantRules":
+        case "conditions":
         case "optionalFeatures":
         case "actions":
         case "backgrounds":
@@ -647,6 +660,8 @@ async function shiftCompendiumSortOrders(database: DatabaseSync, kind: Compendiu
         case "books":
             await database.prepare("UPDATE compendium_books SET sort_order = sort_order + ?").run(amount);
             return;
+        case "variantRules":
+        case "conditions":
         case "optionalFeatures":
         case "actions":
         case "backgrounds":
@@ -702,6 +717,8 @@ async function readExistingCompendiumSortOrder(database: DatabaseSync, kind: Com
             }>(entryId);
             return row?.sortOrder ?? null;
         }
+        case "variantRules":
+        case "conditions":
         case "optionalFeatures":
         case "actions":
         case "backgrounds":
@@ -760,6 +777,8 @@ async function readNextCompendiumSortOrder(database: DatabaseSync, kind: Compend
             }>();
             return row?.nextSortOrder ?? 0;
         }
+        case "variantRules":
+        case "conditions":
         case "optionalFeatures":
         case "actions":
         case "backgrounds":
@@ -793,6 +812,8 @@ function writeCompendiumEntry<K extends CompendiumCollectionKind>(database: Data
         case "books":
             upsertBookEntry(database, entry as CampaignSourceBook, sortOrder);
             return;
+        case "variantRules":
+        case "conditions":
         case "optionalFeatures":
         case "actions":
         case "backgrounds":
@@ -998,17 +1019,18 @@ function upsertReferenceEntry(database: DatabaseSync, kind: ReferenceCompendiumK
     database
         .prepare(`
         INSERT INTO compendium_references (
-          kind, id, sort_order, name, source, category, description, tags_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          kind, id, sort_order, name, source, category, description, entries_text, tags_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(kind, id) DO UPDATE SET
           sort_order = excluded.sort_order,
           name = excluded.name,
           source = excluded.source,
           category = excluded.category,
           description = excluded.description,
+          entries_text = excluded.entries_text,
           tags_json = excluded.tags_json
       `)
-        .run(kind, entry.id, sortOrder, entry.name, entry.source, entry.category, entry.description, JSON.stringify(entry.tags));
+        .run(kind, entry.id, sortOrder, entry.name, entry.source, entry.category, entry.description, entry.entries, JSON.stringify(entry.tags));
 }
 function upsertBookEntry(database: DatabaseSync, entry: CampaignSourceBook, sortOrder: number) {
     database

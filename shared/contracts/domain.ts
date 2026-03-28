@@ -517,6 +517,7 @@ export const compendiumReferenceEntrySchema: z.ZodType<CompendiumReferenceEntry>
   source: trimmedString,
   category: trimmedString,
   description: trimmedString,
+  entries: trimmedString,
   tags: z.array(trimmedString)
 });
 
@@ -534,6 +535,8 @@ export const compendiumDataSchema: z.ZodType<CompendiumData> = z.object({
       author: trimmedString
     })
   ),
+  variantRules: z.array(compendiumReferenceEntrySchema),
+  conditions: z.array(compendiumReferenceEntrySchema),
   optionalFeatures: z.array(compendiumReferenceEntrySchema),
   actions: z.array(compendiumReferenceEntrySchema),
   backgrounds: z.array(compendiumReferenceEntrySchema),
@@ -758,7 +761,9 @@ export const campaignSnapshotSchema: z.ZodType<CampaignSnapshot> = z.object({
   compendium: z.object({
     spells: z.array(spellEntrySchema),
     feats: z.array(featEntrySchema),
-    classes: z.array(classEntrySchema)
+    classes: z.array(classEntrySchema),
+    variantRules: z.array(compendiumReferenceEntrySchema),
+    conditions: z.array(compendiumReferenceEntrySchema)
   }),
   playerVision: z.record(z.string(), z.array(trimmedString))
 });
