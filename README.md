@@ -27,19 +27,20 @@ Roll or Die is a PWA-ready Dungeon and Dragons 5e 2024 campaign board built as a
 ## Run
 
 ```bash
-npm install
-npm run dev
+cp example.env .env
+./app.sh npm install
+./app.sh up
 ```
 
-Frontend: `http://localhost:5173`
+Set `APP_MODE=prod` in `.env` when you want the production container instead of the dev one.
+
+Frontend: `http://localhost:5174`
 
 Backend: `http://localhost:4000`
 
 ## Build
 
-```bash
-npm run build
-```
+Use `./app.sh build` to build the active Docker profile from `.env`.
 
 ## Data
 

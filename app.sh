@@ -2,8 +2,15 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
+
+if [[ -f "$ROOT_DIR/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$ROOT_DIR/.env"
+  set +a
+fi
 
 export LOCAL_UID="${LOCAL_UID:-$(id -u)}"
 export LOCAL_GID="${LOCAL_GID:-$(id -g)}"
@@ -22,14 +29,9 @@ else
   exit 1
 fi
 
-MODE="${1:-}"
-ACTION="${2:-up}"
-NPM_ARGS=("${@:3}")
-
-if [[ -z "$MODE" ]]; then
-  echo "usage: scripts/app.sh <dev|prod> [up|down|build|logs|ps|restart|npm]"
-  exit 1
-fi
+MODE="${APP_MODE:-dev}"
+ACTION="${1:-up}"
+NPM_ARGS=("${@:2}")
 
 case "$MODE" in
   dev)
@@ -41,15 +43,15 @@ case "$MODE" in
     PROFILE="prod"
     ;;
   *)
-    echo "invalid mode: $MODE"
-    echo "usage: scripts/app.sh <dev|prod> [up|down|build|logs|ps|restart|npm]"
+    echo "invalid APP_MODE: $MODE"
+    echo "set APP_MODE=dev or APP_MODE=prod in .env"
     exit 1
     ;;
 esac
 
 run_dev_npm() {
   if [[ "$MODE" != "dev" ]]; then
-    echo "npm is only supported for dev mode"
+    echo "npm is only supported when APP_MODE=dev"
     exit 1
   fi
 
@@ -90,7 +92,7 @@ case "$ACTION" in
     ;;
   *)
     echo "invalid action: $ACTION"
-    echo "usage: scripts/app.sh <dev|prod> [up|down|build|logs|ps|restart|npm]"
+    echo "usage: ./app.sh [up|down|build|logs|ps|restart|npm]"
     exit 1
     ;;
 esac
