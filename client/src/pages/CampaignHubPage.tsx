@@ -293,11 +293,13 @@ export function CampaignHubPage({
                 <span>Members and access</span>
                 <span className="badge subtle">{campaign.members.length}</span>
               </button>
-              <button type="button" className={section === "actors" ? "is-active" : ""} onClick={() => setSection("actors")}>
-                <Users size={15} />
-                <span>Actors</span>
-                <span className="badge subtle">{availableActors.length}</span>
-              </button>
+              {role === "dm" ? (
+                <button type="button" className={section === "actors" ? "is-active" : ""} onClick={() => setSection("actors")}>
+                  <Users size={15} />
+                  <span>Actors</span>
+                  <span className="badge subtle">{availableActors.length}</span>
+                </button>
+              ) : null}
               <button type="button" className={section === "maps" ? "is-active" : ""} onClick={() => setSection("maps")}>
                 <MapIcon size={15} />
                 <span>{role === "dm" ? "Maps" : "Board actors"}</span>
