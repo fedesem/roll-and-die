@@ -420,6 +420,7 @@ export function CampaignHubPage({
                 <CampaignMapActorCreator
                   currentUserId={currentUserId}
                   selectedMap={currentMap}
+                  compendium={compendium}
                   actorCreatorKind={actorCreatorKind}
                   availableActors={resolveDialogAvailableActors(currentMapId)}
                   filteredCatalog={filteredCatalog}

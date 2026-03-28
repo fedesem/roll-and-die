@@ -267,6 +267,26 @@
 
 .monster-browser {
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.monster-browser-list-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: min(76vh, 960px);
+}
+
+.monster-browser-preview-panel {
+  min-height: min(76vh, 960px);
+  align-content: start;
+  overflow: auto;
+}
+
+.monster-browser-list-panel .monster-list,
+.monster-browser-list-panel .actor-creation-results {
+  min-height: 0;
+  max-height: none;
+  height: 100%;
 }
 
 .monster-preview-card,

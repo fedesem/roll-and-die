@@ -266,7 +266,7 @@ export function CampaignActorManager({
 
             {actorCreatorKind === "monster" ? (
               <div className="popup-grid monster-browser">
-                <section className="sheet-panel">
+                <section className="sheet-panel monster-browser-list-panel">
                   <input
                     placeholder="Search monsters"
                     value={monsterQuery}
@@ -284,7 +284,7 @@ export function CampaignActorManager({
                     {filteredCatalog.length === 0 && <p className="empty-state">No monsters match that search.</p>}
                   </div>
                 </section>
-                <section className="sheet-panel monster-preview-card">
+                <section className="sheet-panel monster-preview-card monster-browser-preview-panel">
                   {selectedMonsterTemplate ? (
                     <MonsterStatBlock
                       monster={selectedMonsterTemplate}
