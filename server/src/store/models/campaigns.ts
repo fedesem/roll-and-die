@@ -185,8 +185,9 @@ export async function readRealtimeCampaign(database: DatabaseSync, campaignId: s
         endY: number;
         kind: MapWall["kind"];
         isOpen: number;
+        isLocked: number;
     }>(database, `
-      SELECT id, start_x as startX, start_y as startY, end_x as endX, end_y as endY, kind, is_open as isOpen
+      SELECT id, start_x as startX, start_y as startY, end_x as endX, end_y as endY, kind, is_open as isOpen, is_locked as isLocked
       FROM map_walls
       WHERE map_id = ?
       ORDER BY sort_order, id
@@ -195,7 +196,8 @@ export async function readRealtimeCampaign(database: DatabaseSync, campaignId: s
         start: { x: row.startX, y: row.startY },
         end: { x: row.endX, y: row.endY },
         kind: row.kind ?? "wall",
-        isOpen: toBoolean(row.isOpen)
+        isOpen: toBoolean(row.isOpen),
+        isLocked: toBoolean(row.isLocked)
     }));
     map.teleporters = (await readAll<{
         id: string;
@@ -380,8 +382,9 @@ export async function readMapEditorMap(database: DatabaseSync, campaignId: strin
         endY: number;
         kind: MapWall["kind"];
         isOpen: number;
+        isLocked: number;
     }>(database, `
-      SELECT id, start_x as startX, start_y as startY, end_x as endX, end_y as endY, kind, is_open as isOpen
+      SELECT id, start_x as startX, start_y as startY, end_x as endX, end_y as endY, kind, is_open as isOpen, is_locked as isLocked
       FROM map_walls
       WHERE map_id = ?
       ORDER BY sort_order, id
@@ -390,7 +393,8 @@ export async function readMapEditorMap(database: DatabaseSync, campaignId: strin
         start: { x: wall.startX, y: wall.startY },
         end: { x: wall.endX, y: wall.endY },
         kind: wall.kind ?? "wall",
-        isOpen: toBoolean(wall.isOpen)
+        isOpen: toBoolean(wall.isOpen),
+        isLocked: toBoolean(wall.isLocked)
     }));
     map.teleporters = (await readAll<{
         id: string;
@@ -1366,8 +1370,9 @@ export async function readCampaignBoardState(database: DatabaseSync, campaignId:
         endY: number;
         kind: MapWall["kind"];
         isOpen: number;
+        isLocked: number;
     }>(database, `
-      SELECT id, map_id as mapId, start_x as startX, start_y as startY, end_x as endX, end_y as endY, kind, is_open as isOpen
+      SELECT id, map_id as mapId, start_x as startX, start_y as startY, end_x as endX, end_y as endY, kind, is_open as isOpen, is_locked as isLocked
       FROM map_walls
       WHERE map_id IN (${uniqueMapIds.map(() => "?").join(", ")})
       ORDER BY map_id, sort_order, id
@@ -1377,7 +1382,8 @@ export async function readCampaignBoardState(database: DatabaseSync, campaignId:
             start: { x: row.startX, y: row.startY },
             end: { x: row.endX, y: row.endY },
             kind: row.kind ?? "wall",
-            isOpen: toBoolean(row.isOpen)
+            isOpen: toBoolean(row.isOpen),
+            isLocked: toBoolean(row.isLocked)
         });
     }
     for (const row of await readAll<{
@@ -1514,14 +1520,14 @@ export function upsertCampaignToken(database: DatabaseSync, campaignId: string, 
       `)
         .run(token.id, campaignId, campaignId, token.actorId, token.actorKind, token.mapId, token.x, token.y, token.size, token.widthSquares, token.heightSquares, token.rotationDegrees, token.color, token.label, token.imageUrl, toIntegerBoolean(token.visible), serializeTokenStatusMarkers(token.statusMarkers));
 }
-export function updateCampaignDoorState(database: DatabaseSync, doorId: string, isOpen: boolean) {
+export function updateCampaignDoorState(database: DatabaseSync, doorId: string, isOpen: boolean, isLocked: boolean) {
     database
         .prepare(`
         UPDATE map_walls
-        SET is_open = ?
+        SET is_open = ?, is_locked = ?
         WHERE id = ? AND kind = 'door'
       `)
-        .run(toIntegerBoolean(isOpen), doorId);
+        .run(toIntegerBoolean(isOpen), toIntegerBoolean(isLocked), doorId);
 }
 export function insertCampaignExplorationCells(database: DatabaseSync, campaignId: string, userId: string, mapId: string, cells: string[]) {
     const insertCell = database.prepare(`
@@ -1653,8 +1659,8 @@ function prepareCampaignWriteStatements(database: DatabaseSync): CampaignWriteSt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
         insertMapWall: database.prepare(`
-      INSERT INTO map_walls (id, map_id, sort_order, start_x, start_y, end_x, end_y, kind, is_open)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO map_walls (id, map_id, sort_order, start_x, start_y, end_x, end_y, kind, is_open, is_locked)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
         insertMapTeleporter: database.prepare(`
       INSERT INTO map_teleporters (id, map_id, sort_order, pair_number, point_a_x, point_a_y, point_b_x, point_b_y)
@@ -1739,7 +1745,7 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
     campaign.maps.forEach((map, mapOrder) => {
         statements.insertMap.run(map.id, campaign.id, mapOrder, map.name, map.backgroundUrl, map.backgroundOffsetX, map.backgroundOffsetY, map.backgroundScale, map.width, map.height, toIntegerBoolean(map.grid.show), map.grid.cellSize, map.grid.scale, map.grid.offsetX, map.grid.offsetY, map.grid.color, toIntegerBoolean(map.fogEnabled), map.visibilityVersion ?? 1);
         map.walls.forEach((wall, wallOrder) => {
-            statements.insertMapWall.run(wall.id, map.id, wallOrder, wall.start.x, wall.start.y, wall.end.x, wall.end.y, wall.kind ?? "wall", toIntegerBoolean(wall.kind === "door" ? wall.isOpen : false));
+            statements.insertMapWall.run(wall.id, map.id, wallOrder, wall.start.x, wall.start.y, wall.end.x, wall.end.y, wall.kind ?? "wall", toIntegerBoolean(wall.kind === "door" ? wall.isOpen : false), toIntegerBoolean(wall.kind === "door" ? wall.isLocked : false));
         });
         map.teleporters.forEach((teleporter, teleporterOrder) => {
             statements.insertMapTeleporter.run(teleporter.id, map.id, teleporterOrder, teleporter.pairNumber, teleporter.pointA.x, teleporter.pointA.y, teleporter.pointB.x, teleporter.pointB.y);
@@ -2386,8 +2392,9 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         endY: number;
         kind: "wall" | "transparent" | "opaque" | "door";
         isOpen: number;
+        isLocked: number;
     }>(database, `
-      SELECT id, map_id as mapId, start_x as startX, start_y as startY, end_x as endX, end_y as endY, kind, is_open as isOpen
+      SELECT id, map_id as mapId, start_x as startX, start_y as startY, end_x as endX, end_y as endY, kind, is_open as isOpen, is_locked as isLocked
       FROM map_walls
       WHERE map_id IN (SELECT id FROM maps WHERE campaign_id = ?)
       ORDER BY map_id, sort_order, id
@@ -2397,7 +2404,8 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
             start: { x: row.startX, y: row.startY },
             end: { x: row.endX, y: row.endY },
             kind: row.kind ?? "wall",
-            isOpen: Boolean(row.isOpen)
+            isOpen: Boolean(row.isOpen),
+            isLocked: Boolean(row.isLocked)
         } satisfies MapWall);
     }
     for (const row of await readAll<{
@@ -2942,10 +2950,10 @@ export async function upsertMapRecord(database: DatabaseSync, campaignId: string
     map.walls.forEach((wall, wallOrder) => {
         database
             .prepare(`
-          INSERT INTO map_walls (id, map_id, sort_order, start_x, start_y, end_x, end_y, kind, is_open)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO map_walls (id, map_id, sort_order, start_x, start_y, end_x, end_y, kind, is_open, is_locked)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
-            .run(wall.id, map.id, wallOrder, wall.start.x, wall.start.y, wall.end.x, wall.end.y, wall.kind ?? "wall", toIntegerBoolean(wall.kind === "door" ? wall.isOpen : false));
+            .run(wall.id, map.id, wallOrder, wall.start.x, wall.start.y, wall.end.x, wall.end.y, wall.kind ?? "wall", toIntegerBoolean(wall.kind === "door" ? wall.isOpen : false), toIntegerBoolean(wall.kind === "door" ? wall.isLocked : false));
     });
     map.teleporters.forEach((teleporter, teleporterOrder) => {
         database

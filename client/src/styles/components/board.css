@@ -205,7 +205,9 @@
 .board-grid,
 .board-overlay,
 .board-fog-layer,
-.board-interaction-layer {
+.board-interaction-layer,
+.board-door-foreground-layer,
+.board-door-interaction-layer {
   position: absolute;
   inset: 0;
 }
@@ -227,6 +229,16 @@
 
 .board-interaction-layer {
   z-index: 2;
+  pointer-events: none;
+}
+
+.board-door-foreground-layer {
+  z-index: 1;
+  pointer-events: none;
+}
+
+.board-door-interaction-layer {
+  z-index: 5;
   pointer-events: none;
 }
 
@@ -444,6 +456,12 @@
 .board-wall.kind-door.is-open {
   stroke: rgba(136, 174, 98, 0.96);
   stroke-dasharray: 14 10;
+}
+
+.board-wall.kind-door.is-locked {
+  stroke: rgba(229, 92, 74, 0.98);
+  stroke-dasharray: 3 5;
+  filter: drop-shadow(0 0 8px rgba(229, 92, 74, 0.28));
 }
 
 .board-teleporter-link {

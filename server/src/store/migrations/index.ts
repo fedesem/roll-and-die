@@ -24,6 +24,7 @@ import { mapWallOpaqueMigration } from "./124_map_wall_opaque.js";
 import { tokenFootprintsMigration } from "./125_token_footprints.js";
 import { actorCreatureSizeMigration } from "./126_actor_creature_size.js";
 import { compendiumReferenceEntriesMigration } from "./127_compendium_reference_entries.js";
+import { mapDoorLockMigration } from "./128_map_door_lock.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -51,5 +52,6 @@ export const migrations = [
   mapWallOpaqueMigration,
   tokenFootprintsMigration,
   actorCreatureSizeMigration,
-  compendiumReferenceEntriesMigration
+  compendiumReferenceEntriesMigration,
+  mapDoorLockMigration
 ];

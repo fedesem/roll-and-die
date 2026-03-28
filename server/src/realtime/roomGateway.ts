@@ -671,7 +671,7 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
             return;
         }
         if (payload.type === "door:toggle") {
-            const { campaign, activeMapId, doorId, isOpen } = await runStoreTransaction(async (database) => {
+            const { campaign, activeMapId, doorId, isOpen, isLocked } = await runStoreTransaction(async (database) => {
                 const campaign = await readActiveBoardCampaign(database, campaignId);
                 if (!campaign) {
                     throw new HttpError(404, "Campaign not found.");
@@ -683,24 +683,62 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
                     throw new HttpError(404, "Door not found.");
                 }
                 if (!canToggleDoor(role, user.id, campaign, activeMap, door)) {
-                    throw new HttpError(403, "Move a controlled actor next to the door first.");
+                    throw new HttpError(403, door.isLocked ? "Unlock the door first." : "Move a controlled actor next to the door first.");
                 }
                 const previousExploration = captureExplorationForMap(campaign, activeMap.id);
                 door.isOpen = !door.isOpen;
-                updateCampaignDoorState(database, door.id, door.isOpen);
+                updateCampaignDoorState(database, door.id, door.isOpen, door.isLocked);
                 updateExplorationForMap(campaign, activeMap.id);
                 persistExplorationDeltaForMap(campaignId, campaign, activeMap.id, previousExploration, database);
                 return {
                     campaign,
                     activeMapId: activeMap.id,
                     doorId: door.id,
-                    isOpen: door.isOpen
+                    isOpen: door.isOpen,
+                    isLocked: door.isLocked
                 };
             }, { queueKey: `campaign:${campaignId}` });
             broadcastDoorToggledToRoom(campaignId, campaign, {
                 mapId: activeMapId,
                 doorId,
-                isOpen
+                isOpen,
+                isLocked
+            });
+            return;
+        }
+        if (payload.type === "door:lock-toggle") {
+            const { campaign, activeMapId, doorId, isOpen, isLocked } = await runStoreTransaction(async (database) => {
+                const campaign = await readActiveBoardCampaign(database, campaignId);
+                if (!campaign) {
+                    throw new HttpError(404, "Campaign not found.");
+                }
+                requireDungeonMaster(campaign, user.id);
+                const activeMap = requireActiveMap(campaign);
+                const door = activeMap.walls.find((entry) => entry.id === payload.doorId && entry.kind === "door");
+                if (!door) {
+                    throw new HttpError(404, "Door not found.");
+                }
+                const previousExploration = captureExplorationForMap(campaign, activeMap.id);
+                door.isLocked = !door.isLocked;
+                if (door.isLocked) {
+                    door.isOpen = false;
+                }
+                updateCampaignDoorState(database, door.id, door.isOpen, door.isLocked);
+                updateExplorationForMap(campaign, activeMap.id);
+                persistExplorationDeltaForMap(campaignId, campaign, activeMap.id, previousExploration, database);
+                return {
+                    campaign,
+                    activeMapId: activeMap.id,
+                    doorId: door.id,
+                    isOpen: door.isOpen,
+                    isLocked: door.isLocked
+                };
+            }, { queueKey: `campaign:${campaignId}` });
+            broadcastDoorToggledToRoom(campaignId, campaign, {
+                mapId: activeMapId,
+                doorId,
+                isOpen,
+                isLocked
             });
             return;
         }

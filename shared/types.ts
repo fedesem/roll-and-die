@@ -436,6 +436,7 @@ export interface MapWall {
   end: Point;
   kind: MapWallKind;
   isOpen: boolean;
+  isLocked: boolean;
 }
 
 export interface MapTeleporter {
@@ -620,6 +621,7 @@ export interface RoomDoorToggled {
   mapId: string;
   doorId: string;
   isOpen: boolean;
+  isLocked: boolean;
   playerVision: RoomPlayerVisionUpdate;
 }
 
@@ -763,6 +765,10 @@ export type ClientRoomMessage =
     }
   | {
       type: "door:toggle";
+      doorId: string;
+    }
+  | {
+      type: "door:lock-toggle";
       doorId: string;
     };
 

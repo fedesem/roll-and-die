@@ -91,7 +91,8 @@ function normalizeCampaign(campaign: Campaign): Campaign {
           ? map.walls.map((wall) => ({
               ...wall,
               kind: wall.kind ?? "wall",
-              isOpen: wall.kind === "door" ? Boolean(wall.isOpen) : false
+              isOpen: wall.kind === "door" ? Boolean(wall.isOpen) : false,
+              isLocked: wall.kind === "door" ? Boolean(wall.isLocked) : false
             }))
           : []
       }))

@@ -414,6 +414,7 @@ export default function App() {
     pingMap,
     pingAndRecallMap,
     toggleDoor,
+    toggleDoorLock,
     resetFog,
     clearFog,
     setEditingMapActive,
@@ -714,6 +715,7 @@ export default function App() {
           onBroadcastMovePreview={broadcastMovePreview}
           onBroadcastMeasurePreview={broadcastMeasurePreview}
           onToggleDoor={toggleDoor}
+          onToggleDoorLock={toggleDoorLock}
           onCreateDrawing={createDrawing}
           onUpdateDrawings={updateDrawings}
           onDeleteDrawings={deleteDrawings}

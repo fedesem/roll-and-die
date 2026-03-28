@@ -280,6 +280,24 @@ export function useRoomActions({
     [onStatus, selectedCampaignId, sendRoomMessage]
   );
 
+  const toggleDoorLock = useCallback(
+    async (doorId: string) => {
+      if (!selectedCampaignId) {
+        return;
+      }
+
+      try {
+        await sendRoomMessage({
+          type: "door:lock-toggle",
+          doorId
+        });
+      } catch (error) {
+        onStatus("error", toErrorMessage(error));
+      }
+    },
+    [onStatus, selectedCampaignId, sendRoomMessage]
+  );
+
   const resetFog = useCallback(async () => {
     if (!selectedCampaignId || !activeMap) {
       return;
@@ -352,6 +370,7 @@ export function useRoomActions({
     pingMap,
     pingAndRecallMap,
     toggleDoor,
+    toggleDoorLock,
     resetFog,
     clearFog,
     setEditingMapActive,

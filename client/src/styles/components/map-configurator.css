@@ -168,6 +168,11 @@
   stroke-dasharray: 14 10;
 }
 
+.map-preview-wall.kind-door.is-locked {
+  stroke: rgba(229, 92, 74, 0.98);
+  stroke-dasharray: 3 5;
+}
+
 .map-preview-wall.is-selected {
   filter: drop-shadow(0 0 10px rgba(242, 187, 63, 0.4));
 }

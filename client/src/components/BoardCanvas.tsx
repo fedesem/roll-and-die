@@ -108,6 +108,7 @@ interface BoardCanvasProps {
   onBroadcastMovePreview: (actorId: string, target: Point | null) => Promise<void>;
   onBroadcastMeasurePreview: (preview: MeasurePreview | null) => Promise<void>;
   onToggleDoor: (doorId: string) => Promise<void>;
+  onToggleDoorLock: (doorId: string) => Promise<void>;
   onCreateDrawing: (mapId: string, stroke: DrawingStroke) => Promise<void>;
   onUpdateDrawings: (
     mapId: string,
@@ -276,6 +277,7 @@ export function BoardCanvas({
   onBroadcastMovePreview,
   onBroadcastMeasurePreview,
   onToggleDoor,
+  onToggleDoorLock,
   onCreateDrawing,
   onUpdateDrawings,
   onDeleteDrawings,
@@ -539,6 +541,7 @@ export function BoardCanvas({
       return isDoorCurrentlyVisible(map, currentVisibleCells, wall);
     });
   }, [currentVisibleCells, map, usesRestrictedVision]);
+  const visibleDoors = useMemo(() => visibleObstacles.filter((wall) => wall.kind === "door"), [visibleObstacles]);
 
   const visibleTeleporters = useMemo(() => {
     if (!map || !isDungeonMaster) {
@@ -1832,6 +1835,18 @@ export function BoardCanvas({
     void onToggleDoor(doorId);
   }
 
+  function handleDoorContextMenu(doorId: string, event: ReactMouseEvent<SVGLineElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu(null);
+
+    if (!isDungeonMaster || tool !== "select") {
+      return;
+    }
+
+    void onToggleDoorLock(doorId);
+  }
+
   function toSvgPathWorld(points: Point[]) {
     return points
       .map((point, index) => {
@@ -2015,7 +2030,9 @@ export function BoardCanvas({
                 />
               </g>
             ))}
-            {visibleObstacles.map((wall) => {
+            {visibleObstacles
+              .filter((wall) => wall.kind !== "door")
+              .map((wall) => {
               const start = worldToScreen(wall.start);
               const end = worldToScreen(wall.end);
               return (
@@ -2237,7 +2254,7 @@ export function BoardCanvas({
             )}
           </svg>
 
-          {((tool === "select" && selectableDrawings.length > 0) || visibleObstacles.some((wall) => wall.kind === "door") || visibleTeleporters.length > 0) && (
+          {((tool === "select" && selectableDrawings.length > 0) || visibleDoors.length > 0 || visibleTeleporters.length > 0) && (
             <svg className="board-interaction-layer" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
               {tool === "select" &&
                 selectableDrawings.map((stroke) => (
@@ -2249,24 +2266,6 @@ export function BoardCanvas({
                     onPointerDown={(event) => handleDrawingPointerDown(stroke, event)}
                   />
                 ))}
-              {visibleObstacles
-                .filter((wall) => wall.kind === "door")
-                .map((wall) => {
-                const start = worldToScreen(wall.start);
-                const end = worldToScreen(wall.end);
-                return (
-                  <line
-                    key={wall.id}
-                    x1={start.x}
-                    y1={start.y}
-                    x2={end.x}
-                    y2={end.y}
-                    className="board-door-hit"
-                    strokeWidth={18}
-                    onClick={(event) => handleDoorClick(wall.id, event)}
-                  />
-                );
-              })}
               {visibleTeleporters.flatMap((teleporter) =>
                 [teleporter.pointA, teleporter.pointB].map((point, index) => {
                   const screen = worldToScreen(point);
@@ -2408,6 +2407,47 @@ export function BoardCanvas({
               );
             })}
           </div>
+          {visibleDoors.length > 0 && (
+            <>
+              <svg className="board-door-foreground-layer" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
+                {visibleDoors.map((wall) => {
+                  const start = worldToScreen(wall.start);
+                  const end = worldToScreen(wall.end);
+
+                  return (
+                    <line
+                      key={wall.id}
+                      x1={start.x}
+                      y1={start.y}
+                      x2={end.x}
+                      y2={end.y}
+                      className={`board-wall kind-door ${wall.isOpen ? "is-open" : ""} ${wall.isLocked ? "is-locked" : ""}`}
+                    />
+                  );
+                })}
+              </svg>
+              <svg className="board-door-interaction-layer" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
+                {visibleDoors.map((wall) => {
+                  const start = worldToScreen(wall.start);
+                  const end = worldToScreen(wall.end);
+
+                  return (
+                    <line
+                      key={wall.id}
+                      x1={start.x}
+                      y1={start.y}
+                      x2={end.x}
+                      y2={end.y}
+                      className="board-door-hit"
+                      strokeWidth={18}
+                      onClick={(event) => handleDoorClick(wall.id, event)}
+                      onContextMenu={(event) => handleDoorContextMenu(wall.id, event)}
+                    />
+                  );
+                })}
+              </svg>
+            </>
+          )}
         </div>
       </div>
       {contextMenu ? (
@@ -2522,7 +2562,9 @@ export function BoardCanvas({
               : `Selected: ${selectedActor.name}. Click the board to place the token on the grid.`
             : selectedMapItems.length > 0
               ? `${selectedMapItems.length} drawing${selectedMapItems.length === 1 ? "" : "s"} selected. Drag to move them, or press Delete to remove them.`
-              : "Click a token to select a character, drag a token to move it, click a nearby visible door to open or close it, use middle or right drag to pan, and use the mouse wheel to zoom.")}
+              : `Click a token to select a character, drag a token to move it, click a nearby visible door to open or close it${
+                  isDungeonMaster ? ", or right-click a door to lock or unlock it" : ""
+                }, use middle or right drag to pan, and use the mouse wheel to zoom.`)}
         {tool === "draw" &&
           "Choose freehand, circle, square, or star, then drag to preview and release to draw. Middle or right drag still pans the infinite board."}
         {tool === "measure" &&

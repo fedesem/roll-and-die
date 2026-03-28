@@ -97,6 +97,10 @@ export const clientRoomMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("door:toggle"),
     doorId: z.string().trim().min(1)
+  }),
+  z.object({
+    type: z.literal("door:lock-toggle"),
+    doorId: z.string().trim().min(1)
   })
 ]);
 
@@ -151,6 +155,7 @@ export const serverRoomMessageSchema = z.discriminatedUnion("type", [
       mapId: z.string().trim().min(1),
       doorId: z.string().trim().min(1),
       isOpen: z.boolean(),
+      isLocked: z.boolean(),
       playerVision: z.object({
         mapId: z.string().trim().min(1),
         cells: z.array(z.string().trim().min(1))

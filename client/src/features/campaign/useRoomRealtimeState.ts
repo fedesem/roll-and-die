@@ -97,7 +97,8 @@ export function useRoomRealtimeState({ isCampaignRoute, selectedCampaignId, onEr
                     wall.id === update.doorId && wall.kind === "door"
                       ? {
                           ...wall,
-                          isOpen: update.isOpen
+                          isOpen: update.isOpen,
+                          isLocked: update.isLocked
                         }
                       : wall
                   )

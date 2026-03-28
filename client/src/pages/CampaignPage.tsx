@@ -96,6 +96,7 @@ interface CampaignPageProps {
   onBroadcastMovePreview: (actorId: string, target: Point | null) => Promise<void>;
   onBroadcastMeasurePreview: (preview: MeasurePreview | null) => Promise<void>;
   onToggleDoor: (doorId: string) => Promise<void>;
+  onToggleDoorLock: (doorId: string) => Promise<void>;
   onCreateDrawing: (mapId: string, stroke: DrawingStroke) => Promise<void>;
   onUpdateDrawings: (
     mapId: string,
@@ -172,6 +173,7 @@ export function CampaignPage({
   onBroadcastMovePreview,
   onBroadcastMeasurePreview,
   onToggleDoor,
+  onToggleDoorLock,
   onCreateDrawing,
   onUpdateDrawings,
   onDeleteDrawings,
@@ -254,6 +256,7 @@ export function CampaignPage({
             onBroadcastMovePreview={onBroadcastMovePreview}
             onBroadcastMeasurePreview={onBroadcastMeasurePreview}
             onToggleDoor={onToggleDoor}
+            onToggleDoorLock={onToggleDoorLock}
             onCreateDrawing={onCreateDrawing}
             onUpdateDrawings={onUpdateDrawings}
             onDeleteDrawings={onDeleteDrawings}

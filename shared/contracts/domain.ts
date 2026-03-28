@@ -607,7 +607,8 @@ export const mapWallSchema: z.ZodType<MapWall> = z.object({
   start: pointSchema,
   end: pointSchema,
   kind: mapWallKindSchema,
-  isOpen: z.boolean()
+  isOpen: z.boolean(),
+  isLocked: z.boolean()
 });
 
 export const mapTeleporterSchema: z.ZodType<MapTeleporter> = z.object({

@@ -570,6 +570,10 @@ export function canToggleDoor(
   map: CampaignMap,
   door: MapWall
 ) {
+  if (door.isLocked) {
+    return false;
+  }
+
   if (role === "dm") {
     return true;
   }
@@ -728,7 +732,8 @@ export function applyMapPatch(map: CampaignMap, patch: Record<string, unknown> |
     ...wall,
     start: snapPointToGridIntersection(map, wall.start),
     end: snapPointToGridIntersection(map, wall.end),
-    isOpen: wall.kind === "door" ? wall.isOpen : false
+    isOpen: wall.kind === "door" ? wall.isOpen : false,
+    isLocked: wall.kind === "door" ? wall.isLocked : false
   }));
   map.teleporters = sanitizeTeleporters(patch.teleporters, map.teleporters).map((teleporter) => ({
     ...teleporter,
@@ -1306,7 +1311,8 @@ function sanitizeWalls(value: unknown, fallback: MapWall[]) {
         start: wall.start,
         end: wall.end,
         kind,
-        isOpen: kind === "door" ? Boolean(wall.isOpen) : false
+        isOpen: kind === "door" ? Boolean(wall.isOpen) : false,
+        isLocked: kind === "door" ? Boolean(wall.isLocked) : false
       };
     })
     .filter((entry): entry is MapWall => Boolean(entry))

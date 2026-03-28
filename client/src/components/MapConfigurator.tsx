@@ -610,7 +610,8 @@ export function MapConfigurator({
       start: obstacleAnchor,
       end: snappedPoint,
       kind: editorMode,
-      isOpen: false
+      isOpen: false,
+      isLocked: false
     };
 
     updateWalls([...map.walls, obstacle]);
@@ -924,7 +925,7 @@ export function MapConfigurator({
                     y1={start.y}
                     x2={end.x}
                     y2={end.y}
-                    className={`map-preview-wall kind-${wall.kind} ${wall.isOpen ? "is-open" : ""} ${selectedItemIds.includes(`wall:${wall.id}`) ? "is-selected" : ""}`}
+                    className={`map-preview-wall kind-${wall.kind} ${wall.isOpen ? "is-open" : ""} ${wall.isLocked ? "is-locked" : ""} ${selectedItemIds.includes(`wall:${wall.id}`) ? "is-selected" : ""}`}
                   />
                   );
               })}
@@ -1353,7 +1354,8 @@ function buildSplitWallParts(
       start: ordered.start,
       end: orderedSection.start,
       kind: wall.kind,
-      isOpen: wall.kind === "door" ? wall.isOpen : false
+      isOpen: wall.kind === "door" ? wall.isOpen : false,
+      isLocked: wall.kind === "door" ? wall.isLocked : false
     });
   }
 
@@ -1363,7 +1365,8 @@ function buildSplitWallParts(
     start: orderedSection.start,
     end: orderedSection.end,
     kind,
-    isOpen: false
+    isOpen: false,
+    isLocked: false
   });
 
   if (!samePoint(ordered.end, orderedSection.end)) {
@@ -1373,7 +1376,8 @@ function buildSplitWallParts(
       start: orderedSection.end,
       end: ordered.end,
       kind: wall.kind,
-      isOpen: wall.kind === "door" ? wall.isOpen : false
+      isOpen: wall.kind === "door" ? wall.isOpen : false,
+      isLocked: wall.kind === "door" ? wall.isLocked : false
     });
   }
 
@@ -1400,7 +1404,7 @@ function mergeAdjacentWalls(walls: MapWall[], cellSize: number) {
 }
 
 function canMergeWalls(left: MapWall, right: MapWall, cellSize: number) {
-  if (left.kind !== right.kind || left.isOpen !== right.isOpen) {
+  if (left.kind !== right.kind || left.isOpen !== right.isOpen || left.isLocked !== right.isLocked) {
     return false;
   }
 
