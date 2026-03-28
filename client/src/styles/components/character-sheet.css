@@ -266,18 +266,20 @@
 }
 
 .monster-browser {
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(380px, 500px) minmax(0, 1fr);
   align-items: stretch;
 }
 
 .monster-browser-list-panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  min-height: min(76vh, 960px);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: clamp(30rem, 62vh, 42rem);
+  min-height: 0;
 }
 
 .monster-browser-preview-panel {
-  min-height: min(76vh, 960px);
+  height: clamp(30rem, 62vh, 42rem);
+  min-height: 0;
   align-content: start;
   overflow: auto;
 }
@@ -287,6 +289,12 @@
   min-height: 0;
   max-height: none;
   height: 100%;
+}
+
+.monster-browser-list-panel .actor-creation-results {
+  overflow-y: scroll;
+  overflow-x: hidden;
+  padding-right: 0.45rem;
 }
 
 .monster-preview-card,

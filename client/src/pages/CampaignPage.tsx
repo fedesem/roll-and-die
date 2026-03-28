@@ -277,92 +277,96 @@ export function CampaignPage({
               ) : null}
             </section>
 
-            {role === "dm" ? (
-              <section className="overlay-card overlay-active-actors">
-                <div className="panel-head">
-                  <div>
-                    <p className="panel-label">Map</p>
-                    <h3>Actors</h3>
-                  </div>
-                  <span className="badge subtle">{filteredCurrentMapRoster.length}</span>
+            <section className="overlay-card overlay-active-actors">
+              <div className="panel-head">
+                <div>
+                  <p className="panel-label">Map</p>
+                  <h3>Actors</h3>
                 </div>
-                <div className="list-stack compact-list">
-                  {filteredCurrentMapRoster.map(({ actor, assignment, color, label, imageUrl }) => {
-                    const canSelect = Boolean(actor);
-                    const canDrag = Boolean(actor);
+                <span className="badge subtle">{filteredCurrentMapRoster.length}</span>
+              </div>
+              <div className="list-stack compact-list">
+                {filteredCurrentMapRoster.map(({ actor, assignment, color, label, imageUrl }) => {
+                  const canSelect = Boolean(actor);
+                  const canDrag = Boolean(actor && (role === "dm" || actor.ownerId === currentUserId));
+                  const canOpenSheet = Boolean(actor && (role === "dm" || actor.sheetAccess === "full" || actor.ownerId === currentUserId));
 
-                    return (
-                      <div key={`${assignment.mapId}:${assignment.actorId}`} className="overlay-token-row">
-                        <div className={`overlay-token-chip ${actor && selectedActor?.id === actor.id ? "is-selected" : ""}`}>
-                          <button
-                            type="button"
-                            className="overlay-token-drag"
-                            disabled={!canDrag}
-                            draggable={canDrag}
-                            title={canDrag ? `Drag ${label} onto the board` : label}
-                            onClick={() => {
-                              if (actor) {
-                                onSelectActor(actor.id);
-                              }
-                            }}
-                            onDragStart={(event) => {
-                              if (!actor) {
-                                event.preventDefault();
-                                return;
-                              }
+                  return (
+                    <div key={`${assignment.mapId}:${assignment.actorId}`} className="overlay-token-row">
+                      <div className={`overlay-token-chip ${actor && selectedActor?.id === actor.id ? "is-selected" : ""}`}>
+                        <button
+                          type="button"
+                          className="overlay-token-drag"
+                          disabled={!canDrag}
+                          draggable={canDrag}
+                          title={canDrag ? `Drag ${label} onto the board` : label}
+                          onClick={() => {
+                            if (actor) {
+                              onSelectActor(actor.id);
+                            }
+                          }}
+                          onDragStart={(event) => {
+                            if (!actor || !canDrag) {
+                              event.preventDefault();
+                              return;
+                            }
 
-                              event.dataTransfer.setData("application/x-dnd-actor-id", actor.id);
-                              event.dataTransfer.effectAllowed = "move";
+                            event.dataTransfer.setData("application/x-dnd-actor-id", actor.id);
+                            event.dataTransfer.effectAllowed = "move";
+                            onSelectActor(actor.id);
+                          }}
+                        >
+                          <span className={`overlay-token-dot ${imageUrl ? "has-image" : ""}`} style={{ background: imageUrl ? "transparent" : color }}>
+                            {imageUrl ? (
+                              <img src={resolveAssetUrl(imageUrl)} alt={label} />
+                            ) : (
+                              label
+                                .split(/\s+/)
+                                .filter(Boolean)
+                                .slice(0, 2)
+                                .map((part) => part[0]?.toUpperCase() ?? "")
+                                .join("")
+                            )}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="overlay-token-name-button"
+                          disabled={!canSelect}
+                          title={label}
+                          onClick={() => {
+                            if (actor) {
                               onSelectActor(actor.id);
-                            }}
-                          >
-                            <span className={`overlay-token-dot ${imageUrl ? "has-image" : ""}`} style={{ background: imageUrl ? "transparent" : color }}>
-                              {imageUrl ? (
-                                <img src={resolveAssetUrl(imageUrl)} alt={label} />
-                              ) : (
-                                label
-                                  .split(/\s+/)
-                                  .filter(Boolean)
-                                  .slice(0, 2)
-                                  .map((part) => part[0]?.toUpperCase() ?? "")
-                                  .join("")
-                              )}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            className="overlay-token-name-button"
-                            disabled={!canSelect}
-                            title={label}
-                            onClick={() => {
-                              if (actor) {
-                                onSelectActor(actor.id);
-                              }
-                            }}
-                          >
-                            <span className="overlay-token-name">{label}</span>
-                          </button>
-                        </div>
-                        {actor ? (
-                          <button
-                            className="icon-action-button overlay-token-sheet-button"
-                            type="button"
-                            title="Open sheet"
-                            onClick={() => {
-                              onSelectActor(actor.id);
-                              onSetActivePopup("sheet");
-                            }}
-                          >
-                            <ScrollText size={13} />
-                          </button>
-                        ) : null}
+                            }
+                          }}
+                        >
+                          <span className="overlay-token-name">{label}</span>
+                        </button>
                       </div>
-                    );
-                  })}
-                  {filteredCurrentMapRoster.length === 0 ? <p className="empty-state">No actors are assigned to this map.</p> : null}
-                </div>
-              </section>
-            ) : null}
+                      {actor ? (
+                        <button
+                          className="icon-action-button overlay-token-sheet-button"
+                          type="button"
+                          title="Open sheet"
+                          disabled={!canOpenSheet}
+                          onClick={() => {
+                            if (!canOpenSheet) {
+                              return;
+                            }
+
+                            onSelectActor(actor.id);
+                            onSetActivePopup("sheet");
+                          }}
+                        >
+                          <ScrollText size={13} />
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+                {filteredCurrentMapRoster.length === 0 ? <p className="empty-state">No actors are assigned to this map.</p> : null}
+              </div>
+            </section>
           </aside>
 
           <aside className="table-overlay table-chat">

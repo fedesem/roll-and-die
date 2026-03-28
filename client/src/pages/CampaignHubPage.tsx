@@ -154,7 +154,7 @@ export function CampaignHubPage({
   onBackToMapsList,
   onMapUploadError
 }: CampaignHubPageProps) {
-  const [section, setSection] = useState<DashboardSection>(role === "dm" ? "maps" : "room");
+  const [section, setSection] = useState<DashboardSection>(role === "dm" ? "maps" : "actors");
   const [mapDialog, setMapDialog] = useState<MapDialogState>(null);
 
   function closeMapDialog() {
@@ -275,7 +275,7 @@ export function CampaignHubPage({
                     <span>Roster</span>
                   </div>
                   <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">
-                    {availableActors.length} managed
+                    {role === "dm" ? `${availableActors.length} managed` : `${availableActors.length} actors`}
                   </p>
                 </div>
               </div>
@@ -291,13 +291,11 @@ export function CampaignHubPage({
                 <span>Members and access</span>
                 <span className="badge subtle">{campaign.members.length}</span>
               </button>
-              {role === "dm" ? (
-                <button type="button" className={section === "actors" ? "is-active" : ""} onClick={() => setSection("actors")}>
-                  <Users size={15} />
-                  <span>Actors</span>
-                  <span className="badge subtle">{availableActors.length}</span>
-                </button>
-              ) : null}
+              <button type="button" className={section === "actors" ? "is-active" : ""} onClick={() => setSection("actors")}>
+                <Users size={15} />
+                <span>Actors</span>
+                <span className="badge subtle">{availableActors.length}</span>
+              </button>
               {role === "dm" ? (
                 <button type="button" className={section === "maps" ? "is-active" : ""} onClick={() => setSection("maps")}>
                   <MapIcon size={15} />
