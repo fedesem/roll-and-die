@@ -13,30 +13,37 @@ Use this root file for cross-cutting rules, then follow the nearest child `AGENT
 1. Keep pages thin.
 Pages compose feature hooks and presentational components. They should not become controllers full of data fetching, websocket message handling, or large blocks of derived state.
 
-2. Keep I/O out of UI components.
+2. Keep Docker image families stable.
+If a Dockerfile uses a specific base image family such as Alpine, do not switch it to another image family such as Debian or Ubuntu as part of routine feature work or bug fixing.
+Only adjust the image version when needed unless the user explicitly requests a base-image-family change.
+
+3. Do not add a dedicated `node_modules` Docker volume.
+Do not introduce or reintroduce compose volumes that mount `node_modules` separately from the project bind mount unless the user explicitly asks for that workflow.
+
+4. Keep I/O out of UI components.
 React components and pages must not call `apiRequest`, `fetch`, or open websockets directly.
 Use:
 - `client/src/features/*/*Service.ts` for HTTP and persistence-adjacent client calls
 - `client/src/services/roomConnection.ts` for room websocket transport
 - feature hooks for orchestration
 
-3. Put derived state in pure selectors.
+5. Put derived state in pure selectors.
 Anything computed from campaign snapshot, actors, tokens, maps, fog, or filters belongs in pure selectors or small hooks, not inline inside JSX files.
 Preferred locations:
 - `client/src/features/<feature>/selectors.ts`
 - `client/src/lib/*` for generic pure helpers
 
-4. Split by feature first, then by file type.
+6. Split by feature first, then by file type.
 Prefer:
 - `client/src/features/campaign/...`
 - `client/src/features/admin/...`
 - `client/src/features/auth/...`
 Use `components/`, `pages/`, and `services/` for shared cross-feature pieces, not as the primary place for feature logic.
 
-5. Separate transport state from domain state.
+7. Separate transport state from domain state.
 Realtime room state such as snapshots, pings, recalls, and shared previews should live in dedicated hooks. Transport concerns should not be mixed with rendering code.
 
-6. Keep TypeScript contracts strict and consistent.
+8. Keep TypeScript contracts strict and consistent.
 Do not mix nullable conventions casually, do not redefine child handler signatures in parent pages, and do not rely on `vite build` alone to validate client types.
 
 ## Client Structure
