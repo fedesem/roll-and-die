@@ -37,6 +37,7 @@ import type {
   CurrencyPouch,
   DiceRoll,
   DrawingKind,
+  DrawingTextFont,
   DrawingStroke,
   FeatEntry,
   FogRect,
@@ -575,17 +576,29 @@ export const pointSchema: z.ZodType<Point> = z.object({
   y: finiteNumber
 });
 
+export const drawingTextFontSchema: z.ZodType<DrawingTextFont> = z.enum([
+  "serif",
+  "sans",
+  "mono",
+  "script"
+]);
+
 export const drawingKindSchema: z.ZodType<DrawingKind> = z.enum([
   "freehand",
   "circle",
   "square",
-  "star"
+  "star",
+  "text"
 ]);
 
 export const drawingStrokeSchema: z.ZodType<DrawingStroke> = z.object({
   id: trimmedString,
   ownerId: trimmedString.optional(),
   kind: drawingKindSchema,
+  text: trimmedString,
+  fontFamily: drawingTextFontSchema,
+  bold: z.boolean(),
+  italic: z.boolean(),
   color: trimmedString,
   strokeOpacity: finiteNumber,
   fillColor: trimmedString,

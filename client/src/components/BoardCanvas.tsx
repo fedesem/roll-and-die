@@ -15,6 +15,7 @@ import type {
   CampaignMap,
   DrawingKind,
   DrawingStroke,
+  DrawingTextFont,
   MapPing,
   MapViewportRecall,
   MeasureKind,
@@ -37,6 +38,7 @@ import {
   type MovementTrace
 } from "@shared/vision";
 import { BoardToolbar } from "../features/board/BoardToolbar";
+import { BoardTextEditor } from "../features/board/BoardTextEditor";
 import { BoardFogOverlay } from "../features/board/BoardFogOverlay";
 import { FloatingLayer } from "./FloatingLayer";
 import {
@@ -67,6 +69,13 @@ import {
   toDegrees,
   writeDiscoveredDrawingsMemory
 } from "../features/board/boardUtils";
+import {
+  buildTextDrawingPoints,
+  getDrawingTextFontStack,
+  getDrawingTextMetrics,
+  getTextDrawingBounds,
+  normalizeDrawingText
+} from "../features/board/drawingText";
 import {
   boardGridPreferenceStorageKey,
   maxViewZoom,
@@ -131,15 +140,32 @@ interface DragState {
 }
 
 interface DrawingDraftState {
+  id: string;
   color: string;
   fillColor: string;
   fillOpacity: number;
   kind: DrawingKind;
+  text: string;
+  fontFamily: DrawingTextFont;
+  bold: boolean;
+  italic: boolean;
   points: Point[];
   rotation: number;
   size: number;
   strokeOpacity: number;
 }
+
+interface TextDraftState {
+  point: Point;
+  screenX: number;
+  screenY: number;
+  text: string;
+}
+
+type RenderableDrawing = Pick<
+  DrawingStroke,
+  "id" | "kind" | "text" | "fontFamily" | "bold" | "italic" | "color" | "strokeOpacity" | "fillColor" | "fillOpacity" | "size" | "rotation" | "points"
+>;
 
 interface DrawingMoveState {
   drawingIds: string[];
@@ -305,13 +331,18 @@ export function BoardCanvas({
   const [strokeOpacity, setStrokeOpacity] = useState(1);
   const [fillColor, setFillColor] = useState("#000000");
   const [fillOpacity, setFillOpacity] = useState(0);
-  const [strokeSize, setStrokeSize] = useState(4);
+  const [shapeStrokeSize, setShapeStrokeSize] = useState(4);
+  const [textFontSize, setTextFontSize] = useState(28);
+  const [textFontFamily, setTextFontFamily] = useState<DrawingTextFont>("serif");
+  const [textBold, setTextBold] = useState(false);
+  const [textItalic, setTextItalic] = useState(false);
   const [measureKind, setMeasureKind] = useState<MeasureKind>("line");
   const [measureSnapMode, setMeasureSnapMode] = useState<MeasureSnapMode>("center");
   const [measureBroadcast, setMeasureBroadcast] = useState(true);
   const [coneAngle, setConeAngle] = useState<45 | 60 | 90>(60);
   const [beamWidthSquares, setBeamWidthSquares] = useState(1);
   const [draftDrawing, setDraftDrawing] = useState<DrawingDraftState | null>(null);
+  const [textDraft, setTextDraft] = useState<TextDraftState | null>(null);
   const [measuring, setMeasuring] = useState<MeasuringState | null>(null);
   const [movePreview, setMovePreview] = useState<MovementTrace | null>(null);
   const [draggingToken, setDraggingToken] = useState<DragState | null>(null);
@@ -327,6 +358,7 @@ export function BoardCanvas({
   const [discoveredDrawingsByViewer, setDiscoveredDrawingsByViewer] = useState<Record<string, Record<string, string[]>>>(() =>
     readDiscoveredDrawingsMemory()
   );
+  const activeDrawSize = drawKind === "text" ? textFontSize : shapeStrokeSize;
   const {
     boardRef,
     baseScale,
@@ -523,7 +555,6 @@ export function BoardCanvas({
   }, [selectableDrawings, selectedMapItems]);
 
   const selectedDrawing = selectedDrawings.length === 1 ? selectedDrawings[0] : null;
-
   const visibleObstacles = useMemo(() => {
     if (!map) {
       return [];
@@ -637,6 +668,21 @@ export function BoardCanvas({
   useEffect(() => {
     drawingOverridesRef.current = drawingOverrides;
   }, [drawingOverrides]);
+
+  useEffect(() => {
+    if (tool !== "draw" || drawKind !== "text") {
+      setTextDraft(null);
+    }
+
+    if (drawKind === "text") {
+      setDraftDrawing(null);
+    }
+  }, [drawKind, tool]);
+
+  useEffect(() => {
+    setDraftDrawing(null);
+    setTextDraft(null);
+  }, [map?.id]);
 
   useEffect(() => {
     setOptimisticTokenPositions((current) => {
@@ -1542,15 +1588,38 @@ export function BoardCanvas({
       return;
     }
 
+    if (drawKind === "text") {
+      event.preventDefault();
+      const localPoint = toLocalPoint(event.clientX, event.clientY);
+
+      if (!localPoint) {
+        return;
+      }
+
+      setDraftDrawing(null);
+      setTextDraft((current) => ({
+        point,
+        screenX: localPoint.x,
+        screenY: localPoint.y,
+        text: current?.text ?? ""
+      }));
+      return;
+    }
+
     setDraftDrawing({
+      id: "draft-shape",
       color: strokeColor,
       strokeOpacity,
       fillColor,
       fillOpacity,
       kind: drawKind,
+      text: "",
+      fontFamily: textFontFamily,
+      bold: textBold,
+      italic: textItalic,
       points: [point],
       rotation: 0,
-      size: strokeSize
+      size: activeDrawSize
     });
   }
 
@@ -1641,6 +1710,10 @@ export function BoardCanvas({
       id: `drw_${crypto.randomUUID().slice(0, 8)}`,
       ownerId: currentUserId,
       kind: draftDrawing.kind,
+      text: draftDrawing.text,
+      fontFamily: draftDrawing.fontFamily,
+      bold: draftDrawing.bold,
+      italic: draftDrawing.italic,
       color: draftDrawing.color,
       strokeOpacity: draftDrawing.strokeOpacity,
       fillColor: draftDrawing.fillColor,
@@ -1847,6 +1920,148 @@ export function BoardCanvas({
     void onToggleDoorLock(doorId);
   }
 
+  function handleDrawKindChange(kind: DrawingKind) {
+    setDrawKind(kind);
+    setSelectedMapItems([]);
+
+    if (kind !== "text") {
+      setTextDraft(null);
+    }
+  }
+
+  function handleDrawSizeChange(value: number) {
+    if (drawKind === "text") {
+      setTextFontSize(value);
+      return;
+    }
+
+    setShapeStrokeSize(value);
+  }
+
+  async function placeTextDrawing() {
+    if (!map || !textDraft) {
+      return;
+    }
+
+    const text = normalizeDrawingText(textDraft.text);
+
+    if (!text.trim()) {
+      return;
+    }
+
+    const stroke: DrawingStroke = {
+      id: `drw_${crypto.randomUUID().slice(0, 8)}`,
+      ownerId: currentUserId,
+      kind: "text",
+      text,
+      fontFamily: textFontFamily,
+      bold: textBold,
+      italic: textItalic,
+      color: strokeColor,
+      strokeOpacity,
+      fillColor,
+      fillOpacity,
+      size: textFontSize,
+      rotation: 0,
+      points: buildTextDrawingPoints(textDraft.point, text, textFontSize, textFontFamily, textBold, textItalic)
+    };
+
+    await onCreateDrawing(map.id, stroke);
+    setTextDraft(null);
+  }
+
+  function renderTextDrawing(stroke: RenderableDrawing, opacityMultiplier = 1, draft = false) {
+    if (!stroke.text.trim()) {
+      return null;
+    }
+
+    const bounds = getTextDrawingBounds(stroke);
+    const center = worldToScreen(getDrawingCenter(stroke));
+    const width = bounds.width * worldScale;
+    const height = bounds.height * worldScale;
+    const fontSize = Math.max(12, stroke.size * worldScale);
+    const metrics = getDrawingTextMetrics(stroke.text, stroke.size, stroke.fontFamily, stroke.bold, stroke.italic);
+    const paddingX = metrics.paddingX * worldScale;
+    const paddingY = metrics.paddingY * worldScale;
+    const lineHeight = metrics.lineHeight * worldScale;
+    const textX = -width / 2 + paddingX;
+    const textY = -height / 2 + paddingY;
+    const isSelected = !draft && selectedMapItems.includes(`drawing:${stroke.id}`);
+
+    return (
+      <g key={stroke.id}>
+        <g transform={`translate(${center.x} ${center.y}) rotate(${stroke.rotation})`}>
+          {shouldFillDrawing(stroke) && (
+            <rect
+              x={-width / 2}
+              y={-height / 2}
+              width={width}
+              height={height}
+              fill={stroke.fillColor || "none"}
+              fillOpacity={stroke.fillOpacity * opacityMultiplier}
+            />
+          )}
+          <text
+            x={textX}
+            y={textY}
+            fill={stroke.color}
+            fillOpacity={stroke.strokeOpacity * opacityMultiplier}
+            fontFamily={getDrawingTextFontStack(stroke.fontFamily)}
+            fontSize={fontSize}
+            fontStyle={stroke.italic ? "italic" : "normal"}
+            fontWeight={stroke.bold ? 700 : 400}
+            dominantBaseline="text-before-edge"
+          >
+            {metrics.lines.map((line, index) => (
+              <tspan key={`${stroke.id}:${index}`} x={textX} dy={index === 0 ? 0 : lineHeight}>
+                {line || " "}
+              </tspan>
+            ))}
+          </text>
+        </g>
+        {isSelected && (
+          <path
+            d={getDrawingStrokePath(stroke, worldToScreen)}
+            fill="none"
+            strokeWidth={Math.max(2, 2.2 * worldScale)}
+            className="board-drawing-selected"
+          />
+        )}
+      </g>
+    );
+  }
+
+  function renderDrawingStroke(stroke: RenderableDrawing, opacityMultiplier = 1, draft = false) {
+    if (stroke.kind === "text") {
+      return renderTextDrawing(stroke, opacityMultiplier, draft);
+    }
+
+    const isSelected = !draft && selectedMapItems.includes(`drawing:${stroke.id}`);
+
+    return (
+      <g key={stroke.id}>
+        {shouldFillDrawing(stroke) && (
+          <path
+            d={getDrawingFillPath(stroke, worldToScreen)}
+            fill={stroke.fillColor || "none"}
+            fillOpacity={stroke.fillOpacity * opacityMultiplier}
+          />
+        )}
+        <path
+          d={getDrawingStrokePath(stroke, worldToScreen)}
+          fill="none"
+          stroke={stroke.color}
+          strokeOpacity={stroke.strokeOpacity * opacityMultiplier}
+          strokeDasharray={draft ? "10 8" : undefined}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={stroke.size * worldScale}
+          className={isSelected ? "board-drawing-selected" : undefined}
+        />
+      </g>
+    );
+  }
+
   function toSvgPathWorld(points: Point[]) {
     return points
       .map((point, index) => {
@@ -1917,6 +2132,10 @@ export function BoardCanvas({
     );
   }
 
+  const textEditorMetrics = textDraft
+    ? getDrawingTextMetrics(textDraft.text, textFontSize, textFontFamily, textBold, textItalic)
+    : null;
+
   return (
     <section className="board-panel">
       <BoardToolbar
@@ -1947,7 +2166,7 @@ export function BoardCanvas({
         measureBroadcast={measureBroadcast}
         onMeasureBroadcastChange={setMeasureBroadcast}
         drawKind={drawKind}
-        onDrawKindChange={setDrawKind}
+        onDrawKindChange={handleDrawKindChange}
         strokeColor={strokeColor}
         onStrokeColorChange={setStrokeColor}
         strokeOpacity={strokeOpacity}
@@ -1956,8 +2175,14 @@ export function BoardCanvas({
         onFillColorChange={setFillColor}
         fillOpacity={fillOpacity}
         onFillOpacityChange={setFillOpacity}
-        strokeSize={strokeSize}
-        onStrokeSizeChange={setStrokeSize}
+        drawSize={activeDrawSize}
+        onDrawSizeChange={handleDrawSizeChange}
+        textFontFamily={textFontFamily}
+        onTextFontFamilyChange={setTextFontFamily}
+        textBold={textBold}
+        onTextBoldChange={setTextBold}
+        textItalic={textItalic}
+        onTextItalicChange={setTextItalic}
         onClearInk={() => {
           void clearInk();
         }}
@@ -2009,27 +2234,7 @@ export function BoardCanvas({
           {gridStyle && <div className="board-grid" style={gridStyle} />}
 
           <svg className="board-overlay" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
-            {drawingBuckets.underFog.map((stroke) => (
-              <g key={stroke.id}>
-                {shouldFillDrawing(stroke) && (
-                  <path
-                    d={getDrawingFillPath(stroke, worldToScreen)}
-                    fill={stroke.fillColor || "none"}
-                    fillOpacity={stroke.fillOpacity}
-                  />
-                )}
-                <path
-                  d={getDrawingStrokePath(stroke, worldToScreen)}
-                  fill="none"
-                  stroke={stroke.color}
-                  strokeOpacity={stroke.strokeOpacity}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={stroke.size * worldScale}
-                  className={selectedMapItems.includes(`drawing:${stroke.id}`) ? "board-drawing-selected" : undefined}
-                />
-              </g>
-            ))}
+            {drawingBuckets.underFog.map((stroke) => renderDrawingStroke(stroke))}
             {visibleObstacles
               .filter((wall) => wall.kind !== "door")
               .map((wall) => {
@@ -2114,68 +2319,10 @@ export function BoardCanvas({
                 <path d="M 0 0 L 10 5 L 0 10 z" fill="#f2bb3f" />
               </marker>
             </defs>
-            {drawingBuckets.memory.map((stroke) => (
-              <g key={stroke.id}>
-                {shouldFillDrawing(stroke) && (
-                  <path
-                    d={getDrawingFillPath(stroke, worldToScreen)}
-                    fill={stroke.fillColor || "none"}
-                    fillOpacity={stroke.fillOpacity * 0.72}
-                  />
-                )}
-                <path
-                  d={getDrawingStrokePath(stroke, worldToScreen)}
-                  fill="none"
-                  stroke={stroke.color}
-                  strokeOpacity={stroke.strokeOpacity * 0.82}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={stroke.size * worldScale}
-                  className={selectedMapItems.includes(`drawing:${stroke.id}`) ? "board-drawing-selected" : undefined}
-                />
-              </g>
-            ))}
-            {drawingBuckets.overFog.map((stroke) => (
-              <g key={stroke.id}>
-                {shouldFillDrawing(stroke) && (
-                  <path
-                    d={getDrawingFillPath(stroke, worldToScreen)}
-                    fill={stroke.fillColor || "none"}
-                    fillOpacity={stroke.fillOpacity}
-                  />
-                )}
-                <path
-                  d={getDrawingStrokePath(stroke, worldToScreen)}
-                  fill="none"
-                  stroke={stroke.color}
-                  strokeOpacity={stroke.strokeOpacity}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={stroke.size * worldScale}
-                  className={selectedMapItems.includes(`drawing:${stroke.id}`) ? "board-drawing-selected" : undefined}
-                />
-              </g>
-            ))}
+            {drawingBuckets.memory.map((stroke) => renderDrawingStroke(stroke, 0.82))}
+            {drawingBuckets.overFog.map((stroke) => renderDrawingStroke(stroke))}
             {draftDrawing && drawingHasRenderableSpan(draftDrawing) && (
-              <g>
-                {shouldFillDrawing(draftDrawing) && (
-                  <path
-                    d={getDrawingFillPath(draftDrawing, worldToScreen)}
-                    fill={draftDrawing.fillColor || "none"}
-                    fillOpacity={draftDrawing.fillOpacity}
-                  />
-                )}
-                <path
-                  d={getDrawingStrokePath(draftDrawing, worldToScreen)}
-                  fill="none"
-                  stroke={draftDrawing.color}
-                  strokeOpacity={draftDrawing.strokeOpacity}
-                  strokeDasharray="10 8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={draftDrawing.size * worldScale}
-                />
-              </g>
+              renderDrawingStroke(draftDrawing, 1, true)
             )}
             {normalizedSelectionBox && (
               <rect
@@ -2286,6 +2433,45 @@ export function BoardCanvas({
                 })
               )}
             </svg>
+          )}
+          {tool === "draw" && drawKind === "text" && textDraft && (
+            <BoardTextEditor
+              x={Math.min(textDraft.screenX, Math.max(16, viewportSize.width - 336))}
+              y={Math.min(textDraft.screenY, Math.max(16, viewportSize.height - 248))}
+              text={textDraft.text}
+              fontFamily={getDrawingTextFontStack(textFontFamily)}
+              fontSize={Math.max(12, textFontSize * worldScale)}
+              lineHeight={(textEditorMetrics?.lineHeight ?? textFontSize * 1.24) * worldScale}
+              paddingX={(textEditorMetrics?.paddingX ?? Math.max(10, textFontSize * 0.45)) * worldScale}
+              paddingY={(textEditorMetrics?.paddingY ?? Math.max(8, textFontSize * 0.32)) * worldScale}
+              bold={textBold}
+              italic={textItalic}
+              color={strokeColor}
+              backgroundColor={fillColor}
+              backgroundOpacity={fillOpacity}
+              onTextChange={(value) =>
+                setTextDraft((current) =>
+                  current
+                    ? {
+                        ...current,
+                        text: value
+                      }
+                    : current
+                )
+              }
+              onSave={() => {
+                void placeTextDrawing();
+              }}
+              onCancel={() => {
+                setTextDraft(null);
+              }}
+              onToggleBold={() => {
+                setTextBold((current) => !current);
+              }}
+              onToggleItalic={() => {
+                setTextItalic((current) => !current);
+              }}
+            />
           )}
 
           {tool === "select" && selectedDrawing && canEditDrawing(selectedDrawing) && (() => {
@@ -2566,7 +2752,9 @@ export function BoardCanvas({
                   isDungeonMaster ? ", or right-click a door to lock or unlock it" : ""
                 }, use middle or right drag to pan, and use the mouse wheel to zoom.`)}
         {tool === "draw" &&
-          "Choose freehand, circle, square, or star, then drag to preview and release to draw. Middle or right drag still pans the infinite board."}
+          (drawKind === "text"
+            ? "Choose Text, click where it should go, pick the font and colors, then type and place it. Middle or right drag still pans the infinite board."
+            : "Choose freehand, circle, square, or star, then drag to preview and release to draw. Middle or right drag still pans the infinite board.")}
         {tool === "measure" &&
           "Drag to measure line, cone, beam, emanation, or square templates. Change snapping and enable Broadcast to share the live template with everyone else."}
       </p>

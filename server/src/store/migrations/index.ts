@@ -25,6 +25,9 @@ import { tokenFootprintsMigration } from "./125_token_footprints.js";
 import { actorCreatureSizeMigration } from "./126_actor_creature_size.js";
 import { compendiumReferenceEntriesMigration } from "./127_compendium_reference_entries.js";
 import { mapDoorLockMigration } from "./128_map_door_lock.js";
+import { drawingTextMigration } from "./129_drawing_text.js";
+import { drawingPointsForeignKeyRepairMigration } from "./130_drawing_points_fk_repair.js";
+import { drawingTextStyleMigration } from "./131_drawing_text_style.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -53,5 +56,8 @@ export const migrations = [
   tokenFootprintsMigration,
   actorCreatureSizeMigration,
   compendiumReferenceEntriesMigration,
-  mapDoorLockMigration
+  mapDoorLockMigration,
+  drawingTextMigration,
+  drawingPointsForeignKeyRepairMigration,
+  drawingTextStyleMigration
 ];

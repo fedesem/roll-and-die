@@ -78,6 +78,16 @@ function normalizeCampaign(campaign: Campaign): Campaign {
           ? map.drawings.map((drawing) => ({
               ...drawing,
               kind: drawing.kind ?? "freehand",
+              text: drawing.text ?? "",
+              fontFamily:
+                drawing.fontFamily === "sans" ||
+                drawing.fontFamily === "mono" ||
+                drawing.fontFamily === "script" ||
+                drawing.fontFamily === "serif"
+                  ? drawing.fontFamily
+                  : "serif",
+              bold: Boolean(drawing.bold),
+              italic: Boolean(drawing.italic),
               strokeOpacity: typeof drawing.strokeOpacity === "number" ? drawing.strokeOpacity : 1,
               fillColor: drawing.fillColor ?? "",
               fillOpacity: typeof drawing.fillOpacity === "number" ? drawing.fillOpacity : 0.22,

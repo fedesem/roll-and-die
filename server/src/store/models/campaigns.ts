@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "../types.js";
 import { TOKEN_STATUS_MARKERS } from "../../../../shared/types.js";
-import type { AbilityKey, ActorBonusEntry, ActorClassEntry, ActorKind, ActorLayoutEntry, ActorSheet, ArmorEntry, AttackEntry, BoardToken, Campaign, CampaignInvite, CampaignMap, MapActorAssignment, CampaignMember, CampaignSummary, ChatActorContext, ChatMessage, DiceRoll, DrawingKind, DrawingStroke, InventoryEntry, MapTeleporter, MapWall, Point, ResourceEntry, SkillEntry, SpellSlotTrack, TokenStatusMarker } from "../../../../shared/types.js";
+import type { AbilityKey, ActorBonusEntry, ActorClassEntry, ActorKind, ActorLayoutEntry, ActorSheet, ArmorEntry, AttackEntry, BoardToken, Campaign, CampaignInvite, CampaignMap, MapActorAssignment, CampaignMember, CampaignSummary, ChatActorContext, ChatMessage, DiceRoll, DrawingKind, DrawingStroke, DrawingTextFont, InventoryEntry, MapTeleporter, MapWall, Point, ResourceEntry, SkillEntry, SpellSlotTrack, TokenStatusMarker } from "../../../../shared/types.js";
 import { normalizeStoreState } from "../normalization.js";
 import { parseCellKey, readAll, toBoolean, toIntegerBoolean } from "../helpers.js";
 const tokenStatusMarkerSet = new Set<string>(TOKEN_STATUS_MARKERS);
@@ -425,6 +425,10 @@ export async function readMapEditorMap(database: DatabaseSync, campaignId: strin
         id: string;
         ownerId: string | null;
         kind: DrawingKind;
+        text: string | null;
+        fontFamily: DrawingTextFont | null;
+        bold: number | null;
+        italic: number | null;
         color: string;
         strokeOpacity: number;
         fillColor: string;
@@ -436,6 +440,10 @@ export async function readMapEditorMap(database: DatabaseSync, campaignId: strin
         id,
         owner_id as ownerId,
         kind,
+        text_content as text,
+        font_family as fontFamily,
+        is_bold as bold,
+        is_italic as italic,
         color,
         stroke_opacity as strokeOpacity,
         fill_color as fillColor,
@@ -450,6 +458,10 @@ export async function readMapEditorMap(database: DatabaseSync, campaignId: strin
             id: drawing.id,
             ownerId: drawing.ownerId ?? undefined,
             kind: drawing.kind ?? "freehand",
+            text: drawing.text ?? "",
+            fontFamily: drawing.fontFamily ?? "serif",
+            bold: Boolean(drawing.bold),
+            italic: Boolean(drawing.italic),
             color: drawing.color,
             strokeOpacity: drawing.strokeOpacity ?? 1,
             fillColor: drawing.fillColor ?? "",
@@ -1667,8 +1679,10 @@ function prepareCampaignWriteStatements(database: DatabaseSync): CampaignWriteSt
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `),
         insertMapDrawing: database.prepare(`
-      INSERT INTO map_drawings (id, map_id, sort_order, owner_id, kind, color, stroke_opacity, fill_color, fill_opacity, size, rotation)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO map_drawings (
+        id, map_id, sort_order, owner_id, kind, text_content, font_family, is_bold, is_italic, color, stroke_opacity, fill_color, fill_opacity, size, rotation
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
         insertMapDrawingPoint: database.prepare(`
       INSERT INTO map_drawing_points (stroke_id, sort_order, x, y)
@@ -1751,7 +1765,7 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
             statements.insertMapTeleporter.run(teleporter.id, map.id, teleporterOrder, teleporter.pairNumber, teleporter.pointA.x, teleporter.pointA.y, teleporter.pointB.x, teleporter.pointB.y);
         });
         map.drawings.forEach((stroke, strokeOrder) => {
-            statements.insertMapDrawing.run(stroke.id, map.id, strokeOrder, stroke.ownerId ?? null, stroke.kind ?? "freehand", stroke.color, stroke.strokeOpacity ?? 1, stroke.fillColor ?? "", stroke.fillOpacity ?? 0.22, stroke.size, stroke.rotation ?? 0);
+            statements.insertMapDrawing.run(stroke.id, map.id, strokeOrder, stroke.ownerId ?? null, stroke.kind ?? "freehand", stroke.text ?? "", stroke.fontFamily ?? "serif", toIntegerBoolean(stroke.bold ?? false), toIntegerBoolean(stroke.italic ?? false), stroke.color, stroke.strokeOpacity ?? 1, stroke.fillColor ?? "", stroke.fillOpacity ?? 0.22, stroke.size, stroke.rotation ?? 0);
             stroke.points.forEach((point, pointOrder) => {
                 statements.insertMapDrawingPoint.run(stroke.id, pointOrder, point.x, point.y);
             });
@@ -2441,6 +2455,10 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         mapId: string;
         ownerId: string | null;
         kind: DrawingKind;
+        text: string | null;
+        fontFamily: DrawingTextFont | null;
+        bold: number | null;
+        italic: number | null;
         color: string;
         strokeOpacity: number;
         fillColor: string;
@@ -2453,6 +2471,10 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         map_id as mapId,
         owner_id as ownerId,
         kind,
+        text_content as text,
+        font_family as fontFamily,
+        is_bold as bold,
+        is_italic as italic,
         color,
         stroke_opacity as strokeOpacity,
         fill_color as fillColor,
@@ -2467,6 +2489,10 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
             id: row.id,
             ownerId: row.ownerId ?? undefined,
             kind: row.kind ?? "freehand",
+            text: row.text ?? "",
+            fontFamily: row.fontFamily ?? "serif",
+            bold: Boolean(row.bold),
+            italic: Boolean(row.italic),
             color: row.color,
             strokeOpacity: row.strokeOpacity ?? 1,
             fillColor: row.fillColor ?? "",
@@ -3091,10 +3117,12 @@ export async function insertDrawingRecord(database: DatabaseSync, mapId: string,
     const sortOrder = await readNextSortOrder(database, "map_drawings", "map_id", mapId);
     database
         .prepare(`
-        INSERT INTO map_drawings (id, map_id, sort_order, owner_id, kind, color, stroke_opacity, fill_color, fill_opacity, size, rotation)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO map_drawings (
+          id, map_id, sort_order, owner_id, kind, text_content, font_family, is_bold, is_italic, color, stroke_opacity, fill_color, fill_opacity, size, rotation
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
-        .run(drawing.id, mapId, sortOrder, drawing.ownerId ?? null, drawing.kind ?? "freehand", drawing.color, drawing.strokeOpacity ?? 1, drawing.fillColor ?? "", drawing.fillOpacity ?? 0.22, drawing.size, drawing.rotation ?? 0);
+        .run(drawing.id, mapId, sortOrder, drawing.ownerId ?? null, drawing.kind ?? "freehand", drawing.text ?? "", drawing.fontFamily ?? "serif", toIntegerBoolean(drawing.bold ?? false), toIntegerBoolean(drawing.italic ?? false), drawing.color, drawing.strokeOpacity ?? 1, drawing.fillColor ?? "", drawing.fillOpacity ?? 0.22, drawing.size, drawing.rotation ?? 0);
     drawing.points.forEach((point, pointOrder) => {
         database
             .prepare(`
@@ -3108,10 +3136,10 @@ export function updateDrawingRecord(database: DatabaseSync, drawing: DrawingStro
     database
         .prepare(`
         UPDATE map_drawings
-        SET kind = ?, color = ?, stroke_opacity = ?, fill_color = ?, fill_opacity = ?, size = ?, rotation = ?
+        SET kind = ?, text_content = ?, font_family = ?, is_bold = ?, is_italic = ?, color = ?, stroke_opacity = ?, fill_color = ?, fill_opacity = ?, size = ?, rotation = ?
         WHERE id = ?
       `)
-        .run(drawing.kind ?? "freehand", drawing.color, drawing.strokeOpacity ?? 1, drawing.fillColor ?? "", drawing.fillOpacity ?? 0.22, drawing.size, drawing.rotation ?? 0, drawing.id);
+        .run(drawing.kind ?? "freehand", drawing.text ?? "", drawing.fontFamily ?? "serif", toIntegerBoolean(drawing.bold ?? false), toIntegerBoolean(drawing.italic ?? false), drawing.color, drawing.strokeOpacity ?? 1, drawing.fillColor ?? "", drawing.fillOpacity ?? 0.22, drawing.size, drawing.rotation ?? 0, drawing.id);
     replaceDrawingPoints(database, drawing.id, drawing.points);
 }
 export function replaceDrawingPoints(database: DatabaseSync, drawingId: string, points: Point[]) {

@@ -413,12 +413,18 @@ export interface Point {
   y: number;
 }
 
-export type DrawingKind = "freehand" | "circle" | "square" | "star";
+export type DrawingTextFont = "serif" | "sans" | "mono" | "script";
+
+export type DrawingKind = "freehand" | "circle" | "square" | "star" | "text";
 
 export interface DrawingStroke {
   id: string;
   ownerId?: string;
   kind: DrawingKind;
+  text: string;
+  fontFamily: DrawingTextFont;
+  bold: boolean;
+  italic: boolean;
   color: string;
   strokeOpacity: number;
   fillColor: string;

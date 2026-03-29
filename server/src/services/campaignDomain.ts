@@ -1375,11 +1375,23 @@ export function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {
         stroke.kind === "circle" ||
         stroke.kind === "square" ||
         stroke.kind === "star" ||
+        stroke.kind === "text" ||
         stroke.kind === "freehand"
           ? stroke.kind
           : "freehand";
 
-      if (points.length < 2) {
+      const text = typeof stroke.text === "string" ? stroke.text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").slice(0, 4000) : "";
+      const fontFamily =
+        stroke.fontFamily === "sans" ||
+        stroke.fontFamily === "mono" ||
+        stroke.fontFamily === "script" ||
+        stroke.fontFamily === "serif"
+          ? stroke.fontFamily
+          : "serif";
+      const bold = Boolean(stroke.bold);
+      const italic = Boolean(stroke.italic);
+
+      if (points.length < 2 || (kind === "text" && text.trim().length === 0)) {
         return null;
       }
 
@@ -1388,6 +1400,10 @@ export function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {
         ownerId:
           typeof stroke.ownerId === "string" && stroke.ownerId ? stroke.ownerId : undefined,
         kind,
+        text,
+        fontFamily,
+        bold,
+        italic,
         color: typeof stroke.color === "string" ? stroke.color : "#d9a641",
         strokeOpacity:
           typeof stroke.strokeOpacity === "number"
@@ -1398,7 +1414,14 @@ export function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {
           typeof stroke.fillOpacity === "number"
             ? Math.min(1, Math.max(0, stroke.fillOpacity))
             : 0.22,
-        size: typeof stroke.size === "number" ? Math.min(24, Math.max(1, stroke.size)) : 4,
+        size:
+          typeof stroke.size === "number"
+            ? kind === "text"
+              ? Math.min(96, Math.max(12, stroke.size))
+              : Math.min(24, Math.max(1, stroke.size))
+            : kind === "text"
+              ? 28
+              : 4,
         rotation:
           typeof stroke.rotation === "number"
             ? Math.min(360, Math.max(-360, stroke.rotation))

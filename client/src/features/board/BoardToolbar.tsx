@@ -1,8 +1,10 @@
 import {
+  Bold,
   Circle,
   Eye,
   EyeOff,
   Grid2x2,
+  Italic,
   MousePointer2,
   PencilLine,
   RectangleHorizontal,
@@ -12,15 +14,18 @@ import {
   Square,
   Star,
   Trash2,
-  Triangle
+  Triangle,
+  Type
 } from "lucide-react";
 
 import type {
   DrawingKind,
+  DrawingTextFont,
   MeasureKind,
   MeasureSnapMode,
   Point
 } from "@shared/types";
+import { drawingTextFontOptions, drawingTextSizeOptions } from "./drawingText";
 
 interface BoardToolbarProps {
   tool: "select" | "draw" | "measure";
@@ -59,8 +64,14 @@ interface BoardToolbarProps {
   onFillColorChange: (value: string) => void;
   fillOpacity: number;
   onFillOpacityChange: (value: number) => void;
-  strokeSize: number;
-  onStrokeSizeChange: (value: number) => void;
+  drawSize: number;
+  onDrawSizeChange: (value: number) => void;
+  textFontFamily: DrawingTextFont;
+  onTextFontFamilyChange: (value: DrawingTextFont) => void;
+  textBold: boolean;
+  onTextBoldChange: (value: boolean) => void;
+  textItalic: boolean;
+  onTextItalicChange: (value: boolean) => void;
   onClearInk: () => void;
 }
 
@@ -101,10 +112,18 @@ export function BoardToolbar({
   onFillColorChange,
   fillOpacity,
   onFillOpacityChange,
-  strokeSize,
-  onStrokeSizeChange,
+  drawSize,
+  onDrawSizeChange,
+  textFontFamily,
+  onTextFontFamilyChange,
+  textBold,
+  onTextBoldChange,
+  textItalic,
+  onTextItalicChange,
   onClearInk
 }: BoardToolbarProps) {
+  const isTextTool = drawKind === "text";
+
   return (
     <>
       <div className="board-toolbar">
@@ -325,45 +344,113 @@ export function BoardToolbar({
             >
               <Star size={14} />
             </button>
+            <button
+              type="button"
+              className={drawKind === "text" ? "is-active" : ""}
+              title="Text"
+              onClick={() => onDrawKindChange("text")}
+            >
+              <Type size={14} />
+            </button>
           </div>
-          <label>
-            Stroke
-            <input type="color" value={strokeColor} onChange={(event) => onStrokeColorChange(event.target.value)} />
-          </label>
-          <label>
-            Stroke {Math.round(strokeOpacity * 100)}%
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={Math.round(strokeOpacity * 100)}
-              onChange={(event) => onStrokeOpacityChange(Number(event.target.value) / 100)}
-            />
-          </label>
-          <label>
-            Fill
-            <input type="color" value={fillColor} onChange={(event) => onFillColorChange(event.target.value)} />
-          </label>
-          <label>
-            Fill {Math.round(fillOpacity * 100)}%
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={Math.round(fillOpacity * 100)}
-              onChange={(event) => onFillOpacityChange(Number(event.target.value) / 100)}
-            />
-          </label>
-          <label>
-            Size
-            <input
-              type="range"
-              min="1"
-              max="16"
-              value={strokeSize}
-              onChange={(event) => onStrokeSizeChange(Number(event.target.value))}
-            />
-          </label>
+          {isTextTool ? (
+            <>
+              <div className="board-color-pair" aria-label="Text colors">
+                <ColorControl
+                  label="Text"
+                  showLabel={false}
+                  color={strokeColor}
+                  opacity={strokeOpacity}
+                  onColorChange={onStrokeColorChange}
+                  onOpacityChange={onStrokeOpacityChange}
+                />
+                <ColorControl
+                  label="Background"
+                  showLabel={false}
+                  color={fillColor}
+                  opacity={fillOpacity}
+                  onColorChange={onFillColorChange}
+                  onOpacityChange={onFillOpacityChange}
+                />
+              </div>
+              <select
+                className="board-text-select"
+                aria-label="Text font"
+                value={textFontFamily}
+                onChange={(event) => onTextFontFamilyChange(event.target.value as DrawingTextFont)}
+              >
+                {drawingTextFontOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <div className="segmented board-text-style-picker">
+                <button
+                  type="button"
+                  className={textBold ? "is-active" : ""}
+                  title="Bold"
+                  aria-pressed={textBold}
+                  onClick={() => onTextBoldChange(!textBold)}
+                >
+                  <Bold size={14} />
+                </button>
+                <button
+                  type="button"
+                  className={textItalic ? "is-active" : ""}
+                  title="Italic"
+                  aria-pressed={textItalic}
+                  onClick={() => onTextItalicChange(!textItalic)}
+                >
+                  <Italic size={14} />
+                </button>
+              </div>
+              <select
+                className="board-text-select board-text-size-select"
+                aria-label="Text size"
+                value={drawSize}
+                onChange={(event) => onDrawSizeChange(Number(event.target.value))}
+              >
+                {drawingTextSizeOptions.map((size) => (
+                  <option key={size} value={size}>
+                    {size}px
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <>
+              <div className="board-color-pair" aria-label="Drawing colors">
+                <ColorControl
+                  label="Stroke"
+                  showLabel={false}
+                  color={strokeColor}
+                  opacity={strokeOpacity}
+                  onColorChange={onStrokeColorChange}
+                  onOpacityChange={onStrokeOpacityChange}
+                />
+                <ColorControl
+                  label="Fill"
+                  showLabel={false}
+                  color={fillColor}
+                  opacity={fillOpacity}
+                  onColorChange={onFillColorChange}
+                  onOpacityChange={onFillOpacityChange}
+                />
+              </div>
+              <label className="board-draw-size-control">
+                <span>Size</span>
+                <span className="board-draw-size-value">{Math.round(drawSize)}</span>
+                <input
+                  type="range"
+                  min="1"
+                  max="16"
+                  value={drawSize}
+                  onChange={(event) => onDrawSizeChange(Number(event.target.value))}
+                />
+              </label>
+            </>
+          )}
           {isDungeonMaster && (
             <button type="button" className="icon-action-button" title="Clear ink" onClick={onClearInk}>
               <Trash2 size={15} />
@@ -378,4 +465,45 @@ export function BoardToolbar({
 function formatBoardValue(value: number) {
   const rounded = Math.round(value * 10) / 10;
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function ColorControl({
+  label,
+  showLabel = true,
+  color,
+  opacity,
+  onColorChange,
+  onOpacityChange
+}: {
+  label: string;
+  showLabel?: boolean;
+  color: string;
+  opacity: number;
+  onColorChange: (value: string) => void;
+  onOpacityChange: (value: number) => void;
+}) {
+  return (
+    <div className={`board-color-control ${showLabel ? "" : "is-icon-only"}`}>
+      {showLabel && <span>{label}</span>}
+      <details className="board-color-picker">
+        <summary className={`board-color-swatch ${opacity <= 0 ? "is-transparent" : ""}`} aria-label={`${label} color`}>
+          <span className="board-color-swatch-fill" style={{ backgroundColor: color, opacity }} />
+        </summary>
+        <div className="board-color-picker-panel">
+          <input type="color" value={color} onChange={(event) => onColorChange(event.target.value)} />
+          <label className="board-color-picker-opacity">
+            <span>Opacity</span>
+            <input
+              className="board-color-opacity-slider"
+              type="range"
+              min="0"
+              max="100"
+              value={Math.round(opacity * 100)}
+              onChange={(event) => onOpacityChange(Number(event.target.value) / 100)}
+            />
+          </label>
+        </div>
+      </details>
+    </div>
+  );
 }

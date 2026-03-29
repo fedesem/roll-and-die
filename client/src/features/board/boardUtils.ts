@@ -19,6 +19,7 @@ import {
   boardViewStorageKeyPrefix,
   discoveredDrawingsStorageKey
 } from "./constants";
+import { getTextDrawingBounds } from "./drawingText";
 
 export interface MeasurePalette {
   stroke: string;
@@ -127,9 +128,18 @@ export function getMeasureGeometry(map: CampaignMap, preview: MeasurePreview) {
   };
 }
 
-export function drawingHasRenderableSpan(drawing: Pick<DrawingStroke, "kind" | "points">) {
+export function drawingHasRenderableSpan(drawing: Pick<DrawingStroke, "kind" | "points" | "text">) {
   if (drawing.kind === "freehand") {
     return drawing.points.length >= 2;
+  }
+
+  if (drawing.kind === "text") {
+    if (!drawing.text.trim()) {
+      return false;
+    }
+
+    const { width, height } = getTextDrawingBounds(drawing);
+    return width >= 2 && height >= 2;
   }
 
   const [start, end] = drawing.points;
@@ -137,7 +147,7 @@ export function drawingHasRenderableSpan(drawing: Pick<DrawingStroke, "kind" | "
 }
 
 export function shouldFillDrawing(
-  drawing: Pick<DrawingStroke, "fillColor" | "fillOpacity" | "kind" | "points">
+  drawing: Pick<DrawingStroke, "fillColor" | "fillOpacity" | "kind" | "points" | "text">
 ) {
   return drawing.fillOpacity > 0 && drawing.fillColor && drawingHasRenderableSpan(drawing);
 }
@@ -197,6 +207,16 @@ export function getDrawingRenderPoints(
     return getSquarePoints(drawing.points, center).map((point) =>
       rotatePoint(point, center, drawing.rotation)
     );
+  }
+
+  if (drawing.kind === "text") {
+    const { x, y, width, height } = getTextDrawingBounds(drawing);
+    return [
+      { x, y },
+      { x: x + width, y },
+      { x: x + width, y: y + height },
+      { x, y: y + height }
+    ].map((point) => rotatePoint(point, center, drawing.rotation));
   }
 
   return getStarPoints(drawing.points, center, drawing.rotation);
