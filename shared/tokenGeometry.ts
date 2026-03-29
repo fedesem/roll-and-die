@@ -1,13 +1,4 @@
-import type {
-  ActorCreatureSize,
-  ActorSheet,
-  BoardToken,
-  CampaignMap,
-  CellKey,
-  Point,
-  TokenFootprint,
-  TokenRotation
-} from "./types.js";
+import type { ActorCreatureSize, ActorSheet, BoardToken, CampaignMap, CellKey, Point, TokenFootprint, TokenRotation } from "./types.js";
 
 const creatureTokenSizes = [0.5, 1, 2, 3, 4] as const;
 const maxStaticTokenDimension = 12;
@@ -22,9 +13,7 @@ export const CREATURE_SIZE_OPTIONS = [
 ] as const;
 
 export function clampCreatureTokenSize(value: number) {
-  return creatureTokenSizes.reduce((closest, current) =>
-    Math.abs(current - value) < Math.abs(closest - value) ? current : closest
-  );
+  return creatureTokenSizes.reduce((closest, current) => (Math.abs(current - value) < Math.abs(closest - value) ? current : closest));
 }
 
 export function clampStaticTokenDimension(value: number) {
@@ -32,10 +21,7 @@ export function clampStaticTokenDimension(value: number) {
   return Math.max(1, Math.min(maxStaticTokenDimension, rounded));
 }
 
-export function normalizeCreatureSize(
-  value: unknown,
-  fallback: ActorCreatureSize = "medium"
-): ActorCreatureSize {
+export function normalizeCreatureSize(value: unknown, fallback: ActorCreatureSize = "medium"): ActorCreatureSize {
   switch (value) {
     case "tiny":
     case "small":
@@ -53,10 +39,7 @@ export function getCreatureSizeSquares(size: ActorCreatureSize) {
   return CREATURE_SIZE_OPTIONS.find((option) => option.value === size)?.squares ?? 1;
 }
 
-export function deriveCreatureSizeFromTokenSize(
-  value: number,
-  fallback: ActorCreatureSize = "medium"
-): ActorCreatureSize {
+export function deriveCreatureSizeFromTokenSize(value: number, fallback: ActorCreatureSize = "medium"): ActorCreatureSize {
   const clamped = clampCreatureTokenSize(value);
 
   switch (clamped) {
@@ -74,7 +57,7 @@ export function deriveCreatureSizeFromTokenSize(
 }
 
 export function normalizeTokenRotation(value: number): TokenRotation {
-  const normalized = ((Math.round(value / 90) * 90) % 360 + 360) % 360;
+  const normalized = (((Math.round(value / 90) * 90) % 360) + 360) % 360;
 
   switch (normalized) {
     case 90:
@@ -88,10 +71,8 @@ export function normalizeTokenRotation(value: number): TokenRotation {
 
 export function getTokenFootprint(token: Pick<BoardToken, "size" | "widthSquares" | "heightSquares">): TokenFootprint {
   const size = clampCreatureTokenSize(typeof token.size === "number" ? token.size : 1);
-  const widthSquares =
-    typeof token.widthSquares === "number" && token.widthSquares > 0 ? token.widthSquares : size;
-  const heightSquares =
-    typeof token.heightSquares === "number" && token.heightSquares > 0 ? token.heightSquares : size;
+  const widthSquares = typeof token.widthSquares === "number" && token.widthSquares > 0 ? token.widthSquares : size;
+  const heightSquares = typeof token.heightSquares === "number" && token.heightSquares > 0 ? token.heightSquares : size;
 
   return {
     widthSquares,
@@ -142,12 +123,7 @@ export function getTokenGridPosition(map: CampaignMap, point: Point, footprint: 
   };
 }
 
-export function getTokenGridCenter(
-  map: CampaignMap,
-  column: number,
-  row: number,
-  footprint: TokenFootprint
-) {
+export function getTokenGridCenter(map: CampaignMap, column: number, row: number, footprint: TokenFootprint) {
   const { x: xOffset, y: yOffset } = getTokenSnapOffsets(map, footprint);
 
   return {
@@ -156,11 +132,7 @@ export function getTokenGridCenter(
   };
 }
 
-export function getFootprintSamplePoints(
-  map: CampaignMap,
-  center: Point,
-  footprint: TokenFootprint
-): Point[] {
+export function getFootprintSamplePoints(map: CampaignMap, center: Point, footprint: TokenFootprint): Point[] {
   if (
     footprint.widthSquares < 1 ||
     footprint.heightSquares < 1 ||
@@ -186,10 +158,7 @@ export function getFootprintSamplePoints(
   return points;
 }
 
-export function getTokenOccupiedCellKeys(
-  map: CampaignMap,
-  token: Pick<BoardToken, "x" | "y" | "size" | "widthSquares" | "heightSquares">
-) {
+export function getTokenOccupiedCellKeys(map: CampaignMap, token: Pick<BoardToken, "x" | "y" | "size" | "widthSquares" | "heightSquares">) {
   return getFootprintOccupiedCellKeys(map, { x: token.x, y: token.y }, getTokenFootprint(token));
 }
 

@@ -1,3 +1,4 @@
+import type { RouterHistory } from "@tanstack/history";
 import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 
 import App from "./App";
@@ -69,9 +70,14 @@ const routeTree = rootRoute.addChildren([
   campaignBoardRoute
 ]);
 
-export const appRouter = createRouter({
-  routeTree
-});
+export function createAppRouter(history?: RouterHistory) {
+  return createRouter({
+    routeTree,
+    history
+  });
+}
+
+export const appRouter = createAppRouter();
 
 declare module "@tanstack/react-router" {
   interface Register {

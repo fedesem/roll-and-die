@@ -1,9 +1,6 @@
 import { startTransition, useCallback, useEffect, useRef } from "react";
 
-import {
-  clientRoomMessageSchema,
-  serverRoomMessageSchema
-} from "@shared/contracts/realtime";
+import { clientRoomMessageSchema, serverRoomMessageSchema } from "@shared/contracts/realtime";
 import type {
   CampaignSnapshot,
   ClientRoomMessage,
@@ -211,19 +208,16 @@ export function useRoomConnection({
     token
   ]);
 
-  const sendRoomMessage = useCallback(
-    async (message: ClientRoomMessage) => {
-      const socket = socketRef.current;
+  const sendRoomMessage = useCallback(async (message: ClientRoomMessage) => {
+    const socket = socketRef.current;
 
-      if (!socket || socket.readyState !== WebSocket.OPEN) {
-        throw new Error("Room connection is not ready yet.");
-      }
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      throw new Error("Room connection is not ready yet.");
+    }
 
-      const parsedMessage = clientRoomMessageSchema.parse(message);
-      socket.send(JSON.stringify(parsedMessage));
-    },
-    []
-  );
+    const parsedMessage = clientRoomMessageSchema.parse(message);
+    socket.send(JSON.stringify(parsedMessage));
+  }, []);
 
   return { sendRoomMessage };
 }

@@ -41,9 +41,7 @@ export const actorCreatureSizeMigration: Migration = {
       `
     )) {
       const creatureSize: ActorSheet["creatureSize"] =
-        actor.kind === "static"
-          ? "medium"
-          : deriveCreatureSizeFromTokenSize(tokenSizeByActorId.get(actor.id) ?? 1);
+        actor.kind === "static" ? "medium" : deriveCreatureSizeFromTokenSize(tokenSizeByActorId.get(actor.id) ?? 1);
 
       await updateActor.run(creatureSize, actor.id);
     }

@@ -1,15 +1,7 @@
 import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
-import type {
-  ActorKind,
-  ActorSheet,
-  CampaignMap,
-  CampaignSnapshot,
-  CampaignSummary,
-  MemberRole,
-  MonsterTemplate
-} from "@shared/types";
+import type { ActorKind, ActorSheet, CampaignMap, CampaignSnapshot, CampaignSummary, MemberRole, MonsterTemplate } from "@shared/types";
 
 import {
   acceptCampaignInvite,
@@ -149,26 +141,37 @@ export function useCampaignManagementActions({
     } catch (error) {
       onStatus("error", toErrorMessage(error));
     }
-  }, [createCampaignAllowedSourceBooks, createCampaignName, onStatus, refreshCampaigns, setCreateCampaignName, setSelectedCampaignId, token]);
+  }, [
+    createCampaignAllowedSourceBooks,
+    createCampaignName,
+    onStatus,
+    refreshCampaigns,
+    setCreateCampaignName,
+    setSelectedCampaignId,
+    token
+  ]);
 
-  const acceptInvite = useCallback(async (overrideCode?: string) => {
-    const nextCode = (overrideCode ?? joinCode).trim();
+  const acceptInvite = useCallback(
+    async (overrideCode?: string) => {
+      const nextCode = (overrideCode ?? joinCode).trim();
 
-    if (!token || !nextCode) {
-      return;
-    }
+      if (!token || !nextCode) {
+        return;
+      }
 
-    try {
-      const joined = await acceptCampaignInvite(token, nextCode);
+      try {
+        const joined = await acceptCampaignInvite(token, nextCode);
 
-      setJoinCode("");
-      await refreshCampaigns();
-      setSelectedCampaignId(joined.id);
-      onStatus("info", "Campaign joined.");
-    } catch (error) {
-      onStatus("error", toErrorMessage(error));
-    }
-  }, [joinCode, onStatus, refreshCampaigns, setJoinCode, setSelectedCampaignId, token]);
+        setJoinCode("");
+        await refreshCampaigns();
+        setSelectedCampaignId(joined.id);
+        onStatus("info", "Campaign joined.");
+      } catch (error) {
+        onStatus("error", toErrorMessage(error));
+      }
+    },
+    [joinCode, onStatus, refreshCampaigns, setJoinCode, setSelectedCampaignId, token]
+  );
 
   const createActor = useCallback(
     async (nextDraft: ActorSheet, options?: { mapId?: string }) => {
@@ -354,17 +357,17 @@ export function useCampaignManagementActions({
       }
 
       try {
-      const created = await createMapRecord(token, selectedCampaignId, {
-        ...nextMap,
-        name: nextMap.name.trim()
-      });
+        const created = await createMapRecord(token, selectedCampaignId, {
+          ...nextMap,
+          name: nextMap.name.trim()
+        });
 
-      patchSnapshotMap(created);
-      setNewMapDraft(createClientMapDraft("New Map"));
-      setSelectedMapId(created.id);
-      setMapDraft(cloneMap(created));
-      setMapEditorMode("edit");
-      onStatus("info", "Map created.");
+        patchSnapshotMap(created);
+        setNewMapDraft(createClientMapDraft("New Map"));
+        setSelectedMapId(created.id);
+        setMapDraft(cloneMap(created));
+        setMapEditorMode("edit");
+        onStatus("info", "Map created.");
       } catch (error) {
         onStatus("error", toErrorMessage(error));
       }

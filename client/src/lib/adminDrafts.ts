@@ -197,7 +197,7 @@ export function spellFormToEntry(form: SpellFormState): Omit<SpellEntry, "id"> {
   return {
     name: form.name.trim(),
     source: form.source.trim(),
-    level: form.level === "cantrip" ? "cantrip" : Number(form.level) as SpellEntry["level"],
+    level: form.level === "cantrip" ? "cantrip" : (Number(form.level) as SpellEntry["level"]),
     school: form.school,
     castingTimeUnit: form.castingTimeUnit,
     castingTimeValue: Number(form.castingTimeValue) || 1,
@@ -334,24 +334,28 @@ function splitLines(value: string) {
 }
 
 function parseSkillList(value: string): MonsterSkillBonus[] {
-  return splitList(value).map((entry) => {
-    const [name, bonusText] = entry.split(":");
-    return {
-      name: name?.trim() ?? "",
-      bonus: Number(bonusText?.trim()) || 0
-    };
-  }).filter((entry) => entry.name);
+  return splitList(value)
+    .map((entry) => {
+      const [name, bonusText] = entry.split(":");
+      return {
+        name: name?.trim() ?? "",
+        bonus: Number(bonusText?.trim()) || 0
+      };
+    })
+    .filter((entry) => entry.name);
 }
 
 function parseSenseList(value: string): MonsterSense[] {
-  return splitList(value).map((entry) => {
-    const [name, rangeText, notes] = entry.split(":");
-    return {
-      name: name?.trim() ?? "",
-      range: Number(rangeText?.trim()) || 0,
-      notes: notes?.trim() ?? ""
-    };
-  }).filter((entry) => entry.name);
+  return splitList(value)
+    .map((entry) => {
+      const [name, rangeText, notes] = entry.split(":");
+      return {
+        name: name?.trim() ?? "",
+        range: Number(rangeText?.trim()) || 0,
+        notes: notes?.trim() ?? ""
+      };
+    })
+    .filter((entry) => entry.name);
 }
 
 function parseJsonArray<T>(value: string): T[] {

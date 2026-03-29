@@ -83,35 +83,12 @@ import type {
 const finiteNumber = z.number().finite();
 const trimmedString = z.string();
 
-export const abilityKeySchema: z.ZodType<AbilityKey> = z.enum([
-  "str",
-  "dex",
-  "con",
-  "int",
-  "wis",
-  "cha"
-]);
+export const abilityKeySchema: z.ZodType<AbilityKey> = z.enum(["str", "dex", "con", "int", "wis", "cha"]);
 
 export const memberRoleSchema: z.ZodType<MemberRole> = z.enum(["dm", "player"]);
-export const actorKindSchema: z.ZodType<ActorKind> = z.enum([
-  "character",
-  "npc",
-  "monster",
-  "static"
-]);
-export const actorCreatureSizeSchema: z.ZodType<ActorCreatureSize> = z.enum([
-  "tiny",
-  "small",
-  "medium",
-  "large",
-  "huge",
-  "gargantuan"
-]);
-export const chatMessageKindSchema: z.ZodType<ChatMessageKind> = z.enum([
-  "message",
-  "roll",
-  "system"
-]);
+export const actorKindSchema: z.ZodType<ActorKind> = z.enum(["character", "npc", "monster", "static"]);
+export const actorCreatureSizeSchema: z.ZodType<ActorCreatureSize> = z.enum(["tiny", "small", "medium", "large", "huge", "gargantuan"]);
+export const chatMessageKindSchema: z.ZodType<ChatMessageKind> = z.enum(["message", "roll", "system"]);
 
 export const abilityScoresSchema: z.ZodType<AbilityScores> = z.object({
   str: finiteNumber,
@@ -171,12 +148,7 @@ export const resourceEntrySchema: z.ZodType<ResourceEntry> = z.object({
   restoreAmount: finiteNumber
 });
 
-export const inventoryItemTypeSchema: z.ZodType<InventoryItemType> = z.enum([
-  "gear",
-  "reagent",
-  "loot",
-  "consumable"
-]);
+export const inventoryItemTypeSchema: z.ZodType<InventoryItemType> = z.enum(["gear", "reagent", "loot", "consumable"]);
 
 export const inventoryEntrySchema: z.ZodType<InventoryEntry> = z.object({
   id: trimmedString,
@@ -298,12 +270,7 @@ export const monsterSenseSchema: z.ZodType<MonsterSense> = z.object({
   notes: trimmedString
 });
 
-export const monsterAttackTypeSchema: z.ZodType<MonsterAttackType> = z.enum([
-  "melee",
-  "ranged",
-  "melee or ranged",
-  "other"
-]);
+export const monsterAttackTypeSchema: z.ZodType<MonsterAttackType> = z.enum(["melee", "ranged", "melee or ranged", "other"]);
 
 export const monsterActionEntrySchema: z.ZodType<MonsterActionEntry> = z.object({
   name: trimmedString,
@@ -382,13 +349,7 @@ export const spellSchoolSchema: z.ZodType<SpellSchool> = z.enum([
   "Transmutation"
 ]);
 
-export const spellCastingTimeUnitSchema: z.ZodType<SpellCastingTimeUnit> = z.enum([
-  "action",
-  "bonus action",
-  "reaction",
-  "minute",
-  "hour"
-]);
+export const spellCastingTimeUnitSchema: z.ZodType<SpellCastingTimeUnit> = z.enum(["action", "bonus action", "reaction", "minute", "hour"]);
 
 export const spellRangeTypeSchema: z.ZodType<SpellRangeType> = z.enum([
   "feet",
@@ -400,14 +361,7 @@ export const spellRangeTypeSchema: z.ZodType<SpellRangeType> = z.enum([
   "special"
 ]);
 
-export const spellDurationUnitSchema: z.ZodType<SpellDurationUnit> = z.enum([
-  "instant",
-  "minute",
-  "hour",
-  "day",
-  "permanent",
-  "special"
-]);
+export const spellDurationUnitSchema: z.ZodType<SpellDurationUnit> = z.enum(["instant", "minute", "hour", "day", "permanent", "special"]);
 
 export const spellClassReferenceKindSchema: z.ZodType<SpellClassReferenceKind> = z.enum([
   "class",
@@ -576,20 +530,9 @@ export const pointSchema: z.ZodType<Point> = z.object({
   y: finiteNumber
 });
 
-export const drawingTextFontSchema: z.ZodType<DrawingTextFont> = z.enum([
-  "serif",
-  "sans",
-  "mono",
-  "script"
-]);
+export const drawingTextFontSchema: z.ZodType<DrawingTextFont> = z.enum(["serif", "sans", "mono", "script"]);
 
-export const drawingKindSchema: z.ZodType<DrawingKind> = z.enum([
-  "freehand",
-  "circle",
-  "square",
-  "star",
-  "text"
-]);
+export const drawingKindSchema: z.ZodType<DrawingKind> = z.enum(["freehand", "circle", "square", "star", "text"]);
 
 export const drawingStrokeSchema: z.ZodType<DrawingStroke> = z.object({
   id: trimmedString,
@@ -608,12 +551,7 @@ export const drawingStrokeSchema: z.ZodType<DrawingStroke> = z.object({
   points: z.array(pointSchema)
 });
 
-export const mapWallKindSchema: z.ZodType<MapWallKind> = z.enum([
-  "wall",
-  "transparent",
-  "opaque",
-  "door"
-]);
+export const mapWallKindSchema: z.ZodType<MapWallKind> = z.enum(["wall", "transparent", "opaque", "door"]);
 
 export const mapWallSchema: z.ZodType<MapWall> = z.object({
   id: trimmedString,
@@ -668,12 +606,7 @@ export const campaignMapSchema: z.ZodType<CampaignMap> = z.object({
 
 export const tokenStatusMarkerSchema = z.enum(TOKEN_STATUS_MARKERS);
 
-export const tokenRotationSchema: z.ZodType<TokenRotation> = z.union([
-  z.literal(0),
-  z.literal(90),
-  z.literal(180),
-  z.literal(270)
-]);
+export const tokenRotationSchema: z.ZodType<TokenRotation> = z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]);
 
 export const boardTokenSchema: z.ZodType<BoardToken> = z.object({
   id: trimmedString,
@@ -796,19 +729,9 @@ export const tokenMovementPreviewSchema: z.ZodType<TokenMovementPreview> = z.obj
   teleportEntry: pointSchema.optional()
 });
 
-export const measureKindSchema: z.ZodType<MeasureKind> = z.enum([
-  "line",
-  "cone",
-  "beam",
-  "emanation",
-  "square"
-]);
+export const measureKindSchema: z.ZodType<MeasureKind> = z.enum(["line", "cone", "beam", "emanation", "square"]);
 
-export const measureSnapModeSchema: z.ZodType<MeasureSnapMode> = z.enum([
-  "center",
-  "corner",
-  "none"
-]);
+export const measureSnapModeSchema: z.ZodType<MeasureSnapMode> = z.enum(["center", "corner", "none"]);
 
 export const measurePreviewSchema: z.ZodType<MeasurePreview> = z.object({
   kind: measureKindSchema,

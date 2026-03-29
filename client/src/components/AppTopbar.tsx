@@ -39,8 +39,12 @@ export function AppTopbar({
       </div>
       {showRoomStatus && campaignName && role && roomStatus && (
         <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2">
-          <span className="rounded-none border border-amber-300/20 bg-amber-300/12 px-3 py-1 text-xs font-semibold text-amber-100">{campaignName}</span>
-          <span className="rounded-none border border-white/10 bg-white/6 px-3 py-1 text-xs text-slate-200">{activeMapName ?? "No map"}</span>
+          <span className="rounded-none border border-amber-300/20 bg-amber-300/12 px-3 py-1 text-xs font-semibold text-amber-100">
+            {campaignName}
+          </span>
+          <span className="rounded-none border border-white/10 bg-white/6 px-3 py-1 text-xs text-slate-200">
+            {activeMapName ?? "No map"}
+          </span>
           <span className="rounded-none border border-white/10 bg-white/6 px-3 py-1 text-xs text-slate-200">{role.toUpperCase()}</span>
           <span
             className={`rounded-none border px-3 py-1 text-xs font-medium ${

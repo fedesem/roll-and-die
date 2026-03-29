@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { ActorKind, ActorSheet, CampaignMap, CampaignSourceBook, MemberRole } from "@shared/types";
+import type { CampaignMap, CampaignSourceBook } from "@shared/types";
 
 import { AppRouteContent } from "./app/AppRouteContent";
 import { useAppRoute } from "./appRouteState";
@@ -10,13 +10,12 @@ import { useAuthSession } from "./features/auth/useAuthSession";
 import { useCampaignManagementActions } from "./features/campaign/useCampaignManagementActions";
 import { useCampaignDerivedState } from "./features/campaign/useCampaignDerivedState";
 import { useDeleteTokenHotkey } from "./features/campaign/useDeleteTokenHotkey";
+import { useCampaignWorkspaceState } from "./features/campaign/useCampaignWorkspaceState";
 import { useMapEditorState } from "./features/campaign/useMapEditorState";
 import { useRoomActions } from "./features/campaign/useRoomActions";
 import { useCampaignSummariesQuery } from "./features/campaign/useCampaignSummariesQuery";
 import { useRoomRealtimeState } from "./features/campaign/useRoomRealtimeState";
 import { useCampaignUiEffects } from "./features/campaign/useCampaignUiEffects";
-import type { ActorTypeFilter } from "./features/campaign/types";
-import { createClientActorDraft } from "./lib/drafts";
 import { readJson, writeJson } from "./lib/storage";
 import { AuthPage } from "./pages/AuthPage";
 import { useRoomConnection } from "./services/roomConnection";
@@ -30,18 +29,9 @@ export default function App() {
   const [selectedCampaignId, setSelectedCampaignIdState] = useState<string | null>(() =>
     isCampaignRoute ? route.campaignId : readJson<string>(selectedCampaignStorageKey)
   );
-  const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
-  const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
-  const [selectedBoardItemCount, setSelectedBoardItemCount] = useState(0);
   const [createCampaignName, setCreateCampaignName] = useState("");
   const [createCampaignAllowedSourceBooks, setCreateCampaignAllowedSourceBooks] = useState<string[]>([]);
   const [joinCode, setJoinCode] = useState("");
-  const [actorSearch, setActorSearch] = useState("");
-  const [mapActorSearch, setMapActorSearch] = useState("");
-  const [actorTypeFilter, setActorTypeFilter] = useState<ActorTypeFilter>("all");
-  const [mapActorTypeFilter, setMapActorTypeFilter] = useState<ActorTypeFilter>("all");
-  const [actorCreatorKind, setActorCreatorKind] = useState<ActorKind>("character");
-  const [actorCreatorOpen, setActorCreatorOpen] = useState(false);
   const { banner, setBanner, setBannerStatus } = useBannerState();
   const { authMode, authForm, authError, session, setSession, handleAuthFormChange, handleAuthModeChange, handleAuthSubmit } =
     useAuthSession({
@@ -49,10 +39,44 @@ export default function App() {
       setJoinCode,
       onBanner: setBannerStatus
     });
-  const [actorDraft, setActorDraft] = useState<ActorSheet | null>(() => createClientActorDraft("character", session?.user.id));
-  const [inviteDraft, setInviteDraft] = useState({ role: "player" as MemberRole });
-  const [monsterQuery, setMonsterQuery] = useState("");
-  const [selectedMonsterId, setSelectedMonsterId] = useState<string | null>(null);
+  const {
+    selectedMapId,
+    setSelectedMapId,
+    selectedActorId,
+    setSelectedActorId,
+    selectedBoardItemCount,
+    setSelectedBoardItemCount,
+    actorSearch,
+    setActorSearch,
+    mapActorSearch,
+    setMapActorSearch,
+    actorTypeFilter,
+    setActorTypeFilter,
+    mapActorTypeFilter,
+    setMapActorTypeFilter,
+    actorCreatorKind,
+    setActorCreatorKind,
+    actorCreatorOpen,
+    setActorCreatorOpen,
+    actorDraft,
+    setActorDraft,
+    inviteDraft,
+    setInviteDraft,
+    monsterQuery,
+    setMonsterQuery,
+    selectedMonsterId,
+    setSelectedMonsterId,
+    dmFogEnabled,
+    setDmFogEnabled,
+    dmFogUserId,
+    setDmFogUserId,
+    activePopup,
+    setActivePopup,
+    inviteLinkConsumed,
+    setInviteLinkConsumed
+  } = useCampaignWorkspaceState({
+    currentUserId: session?.user.id
+  });
   const {
     mapDraft,
     setMapDraft,
@@ -72,10 +96,6 @@ export default function App() {
     undoEditingMap,
     redoEditingMap
   } = useMapEditorState();
-  const [dmFogEnabled, setDmFogEnabled] = useState(false);
-  const [dmFogUserId, setDmFogUserId] = useState<string | null>(null);
-  const [activePopup, setActivePopup] = useState<"sheet" | null>(null);
-  const [inviteLinkConsumed, setInviteLinkConsumed] = useState<string | null>(null);
 
   useEffect(() => {
     writeJson(selectedCampaignStorageKey, selectedCampaignId);
@@ -152,7 +172,7 @@ export default function App() {
 
     setActivePopup(null);
     void navigate({ name: "campaign", campaignId: selectedCampaignId });
-  }, [navigate, selectedCampaignId]);
+  }, [navigate, selectedCampaignId, setActivePopup]);
 
   const openCampaignBoard = useCallback(() => {
     if (!selectedCampaignId) {
@@ -161,7 +181,7 @@ export default function App() {
 
     setActivePopup(null);
     void navigate({ name: "campaignBoard", campaignId: selectedCampaignId });
-  }, [navigate, selectedCampaignId]);
+  }, [navigate, selectedCampaignId, setActivePopup]);
 
   const {
     campaigns,
@@ -273,7 +293,7 @@ export default function App() {
     setInviteLinkConsumed(route.code);
     setJoinCode(route.code);
     void acceptInvite(route.code);
-  }, [acceptInvite, inviteLinkConsumed, route, session?.token]);
+  }, [acceptInvite, inviteLinkConsumed, route, session?.token, setInviteLinkConsumed]);
 
   useCampaignUiEffects({
     campaign,
@@ -351,13 +371,13 @@ export default function App() {
     setSelectedCampaignId(null);
     setActivePopup(null);
     setBanner(null);
-  }, [setBanner, setSelectedCampaignId, setSession, setSnapshot]);
+  }, [setActivePopup, setBanner, setSelectedCampaignId, setSession, setSnapshot]);
 
   const handleOpenMapEditorForEdit = useCallback(
     (map: CampaignMap) => {
       openMapEditorForEdit(map, (mapId) => setSelectedMapId(mapId));
     },
-    [openMapEditorForEdit]
+    [openMapEditorForEdit, setSelectedMapId]
   );
 
   const saveEditingMap = useCallback(() => {

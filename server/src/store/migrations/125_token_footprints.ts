@@ -1,9 +1,5 @@
 import type { ActorKind } from "../../../../shared/types.js";
-import {
-  clampCreatureTokenSize,
-  clampStaticTokenDimension,
-  normalizeTokenRotation
-} from "../../../../shared/tokenGeometry.js";
+import { clampCreatureTokenSize, clampStaticTokenDimension, normalizeTokenRotation } from "../../../../shared/tokenGeometry.js";
 import { addColumnIfMissing, readAll } from "../helpers.js";
 import type { Migration } from "../types.js";
 
@@ -37,10 +33,8 @@ export const tokenFootprintsMigration: Migration = {
       `
     )) {
       const parsed = parseStaticDimensions(actor.className);
-      const widthSquares =
-        actor.kind === "static" ? clampStaticTokenDimension(parsed?.widthSquares ?? 2) : 1;
-      const lengthSquares =
-        actor.kind === "static" ? clampStaticTokenDimension(parsed?.lengthSquares ?? 4) : 1;
+      const widthSquares = actor.kind === "static" ? clampStaticTokenDimension(parsed?.widthSquares ?? 2) : 1;
+      const lengthSquares = actor.kind === "static" ? clampStaticTokenDimension(parsed?.lengthSquares ?? 4) : 1;
 
       actorDimensionsById.set(actor.id, { widthSquares, lengthSquares });
       await updateActor.run(widthSquares, lengthSquares, actor.id);
@@ -80,13 +74,7 @@ export const tokenFootprintsMigration: Migration = {
         const widthSquares = rotated ? dimensions.lengthSquares : dimensions.widthSquares;
         const heightSquares = rotated ? dimensions.widthSquares : dimensions.lengthSquares;
 
-        await updateToken.run(
-          Math.max(widthSquares, heightSquares),
-          widthSquares,
-          heightSquares,
-          rotationDegrees,
-          token.id
-        );
+        await updateToken.run(Math.max(widthSquares, heightSquares), widthSquares, heightSquares, rotationDegrees, token.id);
         continue;
       }
 

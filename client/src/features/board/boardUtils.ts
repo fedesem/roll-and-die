@@ -1,24 +1,8 @@
-import type {
-  CampaignMap,
-  DrawingStroke,
-  MapWall,
-  MeasurePreview,
-  MeasureSnapMode,
-  Point
-} from "@shared/types";
-import {
-  cellKey,
-  obstacleMidpoint,
-  pointToCell,
-  snapPointToGrid,
-  snapPointToGridIntersection
-} from "@shared/vision";
+import type { CampaignMap, DrawingStroke, MapWall, MeasurePreview, MeasureSnapMode, Point } from "@shared/types";
+import { cellKey, obstacleMidpoint, pointToCell, snapPointToGrid, snapPointToGridIntersection } from "@shared/vision";
 
 import { readJson, writeJson } from "../../lib/storage";
-import {
-  boardViewStorageKeyPrefix,
-  discoveredDrawingsStorageKey
-} from "./constants";
+import { boardViewStorageKeyPrefix, discoveredDrawingsStorageKey } from "./constants";
 import { getTextDrawingBounds } from "./drawingText";
 
 export interface MeasurePalette {
@@ -116,10 +100,7 @@ export function getMeasureGeometry(map: CampaignMap, preview: MeasurePreview) {
     };
   }
 
-  const radius = Math.max(
-    Math.hypot(preview.end.x - preview.start.x, preview.end.y - preview.start.y),
-    map.grid.cellSize * 0.25
-  );
+  const radius = Math.max(Math.hypot(preview.end.x - preview.start.x, preview.end.y - preview.start.y), map.grid.cellSize * 0.25);
   return {
     points: getCirclePolygon(preview.start, radius),
     closed: true,
@@ -146,36 +127,23 @@ export function drawingHasRenderableSpan(drawing: Pick<DrawingStroke, "kind" | "
   return Boolean(start && end && Math.hypot(end.x - start.x, end.y - start.y) >= 2);
 }
 
-export function shouldFillDrawing(
-  drawing: Pick<DrawingStroke, "fillColor" | "fillOpacity" | "kind" | "points" | "text">
-) {
+export function shouldFillDrawing(drawing: Pick<DrawingStroke, "fillColor" | "fillOpacity" | "kind" | "points" | "text">) {
   return drawing.fillOpacity > 0 && drawing.fillColor && drawingHasRenderableSpan(drawing);
 }
 
-export function getDrawingStrokePath(
-  drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">,
-  worldToScreen: (point: Point) => Point
-) {
+export function getDrawingStrokePath(drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">, worldToScreen: (point: Point) => Point) {
   return pointsToSvgPath(getDrawingRenderPoints(drawing).map(worldToScreen), drawing.kind !== "freehand");
 }
 
-export function getDrawingFillPath(
-  drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">,
-  worldToScreen: (point: Point) => Point
-) {
+export function getDrawingFillPath(drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">, worldToScreen: (point: Point) => Point) {
   return pointsToSvgPath(getDrawingRenderPoints(drawing).map(worldToScreen), true);
 }
 
-export function getDrawingHitPath(
-  drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">,
-  worldToScreen: (point: Point) => Point
-) {
+export function getDrawingHitPath(drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">, worldToScreen: (point: Point) => Point) {
   return pointsToSvgPath(getDrawingRenderPoints(drawing).map(worldToScreen), drawing.kind !== "freehand");
 }
 
-export function getDrawingRenderPoints(
-  drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">
-) {
+export function getDrawingRenderPoints(drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">) {
   if (drawing.points.length < 2) {
     return drawing.points;
   }
@@ -204,9 +172,7 @@ export function getDrawingRenderPoints(
   }
 
   if (drawing.kind === "square") {
-    return getSquarePoints(drawing.points, center).map((point) =>
-      rotatePoint(point, center, drawing.rotation)
-    );
+    return getSquarePoints(drawing.points, center).map((point) => rotatePoint(point, center, drawing.rotation));
   }
 
   if (drawing.kind === "text") {
@@ -222,9 +188,7 @@ export function getDrawingRenderPoints(
   return getStarPoints(drawing.points, center, drawing.rotation);
 }
 
-export function getDrawingVisibilityPoints(
-  drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">
-) {
+export function getDrawingVisibilityPoints(drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">) {
   const points = getDrawingRenderPoints(drawing);
 
   if (points.length <= 12) {
@@ -243,15 +207,10 @@ export function getDrawingCenter(drawing: Pick<DrawingStroke, "points">) {
   };
 }
 
-export function getDrawingRotationHandlePoint(
-  drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">
-) {
+export function getDrawingRotationHandlePoint(drawing: Pick<DrawingStroke, "kind" | "points" | "rotation">) {
   const center = getDrawingCenter(drawing);
   const renderPoints = getDrawingRenderPoints(drawing);
-  const outerRadius = renderPoints.reduce(
-    (max, point) => Math.max(max, Math.hypot(point.x - center.x, point.y - center.y)),
-    0
-  );
+  const outerRadius = renderPoints.reduce((max, point) => Math.max(max, Math.hypot(point.x - center.x, point.y - center.y)), 0);
   const anchor = {
     x: center.x,
     y: center.y - (outerRadius + Math.max(18, outerRadius * 0.18))
@@ -281,20 +240,12 @@ export function drawingMatchesOverride(
   });
 }
 
-export function isPointCurrentlyVisible(
-  map: CampaignMap,
-  visibleCells: Set<string>,
-  point: Point
-) {
+export function isPointCurrentlyVisible(map: CampaignMap, visibleCells: Set<string>, point: Point) {
   const cell = pointToCell(map, point);
   return visibleCells.has(cellKey(cell.column, cell.row));
 }
 
-export function isDoorCurrentlyVisible(
-  map: CampaignMap,
-  visibleCells: Set<string>,
-  door: MapWall
-) {
+export function isDoorCurrentlyVisible(map: CampaignMap, visibleCells: Set<string>, door: MapWall) {
   const adjacentCells = getAdjacentDoorCellKeys(map, door);
 
   if (adjacentCells.some((key) => visibleCells.has(key))) {
@@ -337,16 +288,8 @@ export function readBoardView(userId: string, mapId: string) {
   }
 
   const zoom = typeof saved.zoom === "number" ? saved.zoom : null;
-  const center =
-    saved.center &&
-    typeof saved.center.x === "number" &&
-    typeof saved.center.y === "number"
-      ? saved.center
-      : null;
-  const pan =
-    saved.pan && typeof saved.pan.x === "number" && typeof saved.pan.y === "number"
-      ? saved.pan
-      : null;
+  const center = saved.center && typeof saved.center.x === "number" && typeof saved.center.y === "number" ? saved.center : null;
+  const pan = saved.pan && typeof saved.pan.x === "number" && typeof saved.pan.y === "number" ? saved.pan : null;
 
   if (zoom === null || (!center && !pan)) {
     return null;
@@ -359,11 +302,7 @@ export function readBoardView(userId: string, mapId: string) {
   };
 }
 
-export function writeBoardView(
-  userId: string,
-  mapId: string,
-  value: { zoom: number; center: Point; pan: Point }
-) {
+export function writeBoardView(userId: string, mapId: string, value: { zoom: number; center: Point; pan: Point }) {
   writeJson(boardViewStorageKey(userId, mapId), value);
 }
 
@@ -380,10 +319,7 @@ export function readDiscoveredDrawingsMemory() {
       Object.fromEntries(
         Object.entries(maps ?? {})
           .filter(([, drawingIds]) => Array.isArray(drawingIds))
-          .map(([mapId, drawingIds]) => [
-            mapId,
-            drawingIds.filter((drawingId): drawingId is string => typeof drawingId === "string")
-          ])
+          .map(([mapId, drawingIds]) => [mapId, drawingIds.filter((drawingId): drawingId is string => typeof drawingId === "string")])
       )
     ])
   );
@@ -393,12 +329,7 @@ export function writeDiscoveredDrawingsMemory(value: Record<string, Record<strin
   writeJson(discoveredDrawingsStorageKey, value);
 }
 
-export function normalizeSelectionRect(rect: {
-  startX: number;
-  startY: number;
-  currentX: number;
-  currentY: number;
-}) {
+export function normalizeSelectionRect(rect: { startX: number; startY: number; currentX: number; currentY: number }) {
   return {
     x: Math.min(rect.startX, rect.currentX),
     y: Math.min(rect.startY, rect.currentY),
@@ -407,22 +338,14 @@ export function normalizeSelectionRect(rect: {
   };
 }
 
-export function pathBoundsIntersectsRect(
-  points: Point[],
-  rect: { x: number; y: number; width: number; height: number }
-) {
+export function pathBoundsIntersectsRect(points: Point[], rect: { x: number; y: number; width: number; height: number }) {
   if (points.length === 0) {
     return false;
   }
 
   const bounds = getBounds(points);
 
-  return !(
-    bounds.maxX < rect.x ||
-    bounds.minX > rect.x + rect.width ||
-    bounds.maxY < rect.y ||
-    bounds.minY > rect.y + rect.height
-  );
+  return !(bounds.maxX < rect.x || bounds.minX > rect.x + rect.width || bounds.maxY < rect.y || bounds.minY > rect.y + rect.height);
 }
 
 export function clamp(value: number, min: number, max: number) {
@@ -607,9 +530,7 @@ export function pointsToSvgPath(points: Point[], closed: boolean) {
     return "";
   }
 
-  return `${points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ")}${closed ? " Z" : ""}`;
+  return `${points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ")}${closed ? " Z" : ""}`;
 }
 
 export function normalizeDegrees(value: number) {

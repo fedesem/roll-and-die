@@ -1,5 +1,6 @@
 import {
   type CSSProperties,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -13,94 +14,67 @@ import type {
   ActorSheet,
   BoardToken,
   CampaignMap,
-  DrawingKind,
   DrawingStroke,
-  DrawingTextFont,
   MapPing,
   MapViewportRecall,
-  MeasureKind,
   MeasurePreview,
-  MeasureSnapMode,
-  MemberRole,
   Point,
   TokenMovementPreview
 } from "@shared/types";
-import {
-  getActorTokenFootprint,
-  getTokenFootprint,
-  getTokenOccupiedCellKeys,
-  snapTokenToGrid
-} from "@shared/tokenGeometry";
-import {
-  allMapCells,
-  computeVisibleCellsForUser,
-  traceMovementPath,
-  type MovementTrace
-} from "@shared/vision";
+import { getActorTokenFootprint, getTokenFootprint, getTokenOccupiedCellKeys, snapTokenToGrid } from "@shared/tokenGeometry";
+import { allMapCells, computeVisibleCellsForUser, traceMovementPath, type MovementTrace } from "@shared/vision";
 import { BoardToolbar } from "../features/board/BoardToolbar";
 import { BoardTextEditor } from "../features/board/BoardTextEditor";
 import { BoardFogOverlay } from "../features/board/BoardFogOverlay";
 import { FloatingLayer } from "./FloatingLayer";
 import {
-  buildMeasurePreview,
   clamp,
   drawingHasRenderableSpan,
-  drawingMatchesOverride,
   getDrawingCenter,
   getDrawingFillPath,
   getDrawingHitPath,
-  getDrawingRenderPoints,
   getDrawingRotationHandlePoint,
   getDrawingStrokePath,
-  getDrawingVisibilityPoints,
   getMeasureGeometry,
   getSharedMeasurePalette,
   initials,
   isDoorCurrentlyVisible,
-  isPointCurrentlyVisible,
   type MeasurePalette,
-  normalizeSelectionRect,
-  normalizeDegrees,
-  pathBoundsIntersectsRect,
   pointsToSvgPath,
-  readDiscoveredDrawingsMemory,
-  serializeMeasurePreview,
-  shouldFillDrawing,
-  toDegrees,
-  writeDiscoveredDrawingsMemory
+  shouldFillDrawing
 } from "../features/board/boardUtils";
-import {
-  buildTextDrawingPoints,
-  getDrawingTextFontStack,
-  getDrawingTextMetrics,
-  getTextDrawingBounds,
-  normalizeDrawingText
-} from "../features/board/drawingText";
-import {
-  boardGridPreferenceStorageKey,
-  maxViewZoom,
-  minViewZoom,
-  selectionDragThreshold
-} from "../features/board/constants";
+import { getDrawingTextFontStack, getDrawingTextMetrics, getTextDrawingBounds } from "../features/board/drawingText";
+import { boardGridPreferenceStorageKey, maxViewZoom, minViewZoom } from "../features/board/constants";
 import { getTokenStatusOption, TOKEN_STATUS_OPTIONS } from "../features/board/tokenStatus";
+import { useBoardDrawing } from "../features/board/useBoardDrawing";
+import { useBoardMeasure } from "../features/board/useBoardMeasure";
+import { useBoardSelection } from "../features/board/useBoardSelection";
 import { useBoardViewport } from "../features/board/useBoardViewport";
+import type {
+  BoardFogPlayer,
+  BoardMeasurePreviewEntry,
+  BoardMovementPreviewEntry,
+  BoardRole,
+  ContextMenuState,
+  DragState,
+  PanState,
+  RenderableDrawing,
+  Tool
+} from "../features/board/types";
 import type { TokenUpdatePatch } from "../features/campaign/types";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { resolveAssetUrl } from "../lib/assets";
-
-type Tool = "select" | "draw" | "measure";
-type SelectedMapItem = `drawing:${string}`;
 
 interface BoardCanvasProps {
   map?: CampaignMap;
   tokens: BoardToken[];
   actors: ActorSheet[];
   selectedActor?: ActorSheet | null;
-  role: MemberRole;
+  role: BoardRole;
   currentUserId: string;
   playerSeenCells: string[];
   fogPreviewUserId?: string;
-  fogPlayers: Array<{ userId: string; name: string }>;
+  fogPlayers: BoardFogPlayer[];
   dmFogEnabled: boolean;
   dmFogUserId: string | null;
   onSetDmFogEnabled: (value: boolean) => void;
@@ -109,8 +83,8 @@ interface BoardCanvasProps {
   onClearFog: () => Promise<void>;
   onSelectActor: (actorId: string | null) => void;
   onSelectedMapItemCountChange: (count: number) => void;
-  movementPreviews: Array<{ actorId: string; mapId: string; preview: TokenMovementPreview }>;
-  measurePreviews: Array<{ userId: string; mapId: string; preview: MeasurePreview }>;
+  movementPreviews: BoardMovementPreviewEntry[];
+  measurePreviews: BoardMeasurePreviewEntry[];
   pings: MapPing[];
   viewRecall: MapViewportRecall | null;
   onMoveActor: (actorId: string, x: number, y: number) => Promise<void>;
@@ -134,109 +108,7 @@ interface BoardCanvasProps {
   onUpdateToken: (tokenId: string, patch: TokenUpdatePatch) => Promise<void>;
 }
 
-interface DragState {
-  actorId: string;
-  start: Point;
-}
-
-interface DrawingDraftState {
-  id: string;
-  color: string;
-  fillColor: string;
-  fillOpacity: number;
-  kind: DrawingKind;
-  text: string;
-  fontFamily: DrawingTextFont;
-  bold: boolean;
-  italic: boolean;
-  points: Point[];
-  rotation: number;
-  size: number;
-  strokeOpacity: number;
-}
-
-interface TextDraftState {
-  point: Point;
-  screenX: number;
-  screenY: number;
-  text: string;
-}
-
-type RenderableDrawing = Pick<
-  DrawingStroke,
-  "id" | "kind" | "text" | "fontFamily" | "bold" | "italic" | "color" | "strokeOpacity" | "fillColor" | "fillOpacity" | "size" | "rotation" | "points"
->;
-
-interface DrawingMoveState {
-  drawingIds: string[];
-  moved: boolean;
-  origin: Point;
-  snapshots: Record<string, { points: Point[]; rotation: number }>;
-}
-
-interface DrawingRotationState {
-  drawingId: string;
-  baseRotation: number;
-  center: Point;
-  moved: boolean;
-  points: Point[];
-  startAngle: number;
-}
-
-interface MeasuringState {
-  rawStart: Point;
-  rawEnd: Point;
-}
-
-interface PanState {
-  button: number;
-  clientX: number;
-  clientY: number;
-  originX: number;
-  originY: number;
-  menu?:
-    | {
-        kind: "board";
-        point: Point;
-      }
-    | {
-        kind: "token";
-        tokenId: string;
-        actorId: string;
-      };
-  menuX?: number;
-  menuY?: number;
-}
-
-interface SelectionState {
-  additive: boolean;
-  startX: number;
-  startY: number;
-  currentX: number;
-  currentY: number;
-}
-
-type ContextMenuState =
-  | {
-      kind: "board";
-      x: number;
-      y: number;
-      point: Point;
-    }
-  | {
-      kind: "token";
-      x: number;
-      y: number;
-      tokenId: string;
-    };
-
-function getTokenStatusBadgeStyle(
-  index: number,
-  count: number,
-  tokenWidth: number,
-  tokenHeight: number,
-  badgeSize: number
-): CSSProperties {
+function getTokenStatusBadgeStyle(index: number, count: number, tokenWidth: number, tokenHeight: number, badgeSize: number): CSSProperties {
   const slotCount = Math.max(count, 10);
   const angle = -Math.PI / 2 + index * ((Math.PI * 2) / slotCount);
   const isRectangular = Math.abs(tokenWidth - tokenHeight) > 0.0001;
@@ -246,10 +118,8 @@ function getTokenStatusBadgeStyle(
     const rayY = Math.sin(angle);
     const halfWidth = tokenWidth / 2 + badgeSize * 0.58;
     const halfHeight = tokenHeight / 2 + badgeSize * 0.58;
-    const distanceToVertical =
-      Math.abs(rayX) < 0.0001 ? Number.POSITIVE_INFINITY : halfWidth / Math.abs(rayX);
-    const distanceToHorizontal =
-      Math.abs(rayY) < 0.0001 ? Number.POSITIVE_INFINITY : halfHeight / Math.abs(rayY);
+    const distanceToVertical = Math.abs(rayX) < 0.0001 ? Number.POSITIVE_INFINITY : halfWidth / Math.abs(rayX);
+    const distanceToHorizontal = Math.abs(rayY) < 0.0001 ? Number.POSITIVE_INFINITY : halfHeight / Math.abs(rayY);
     const edgeDistance = Math.min(distanceToVertical, distanceToHorizontal);
 
     return {
@@ -315,50 +185,19 @@ export function BoardCanvas({
   const suppressSurfaceClickRef = useRef(false);
   const suppressContextMenuRef = useRef(false);
   const lastPreviewTargetKeyRef = useRef<string | null>(null);
-  const lastMeasurePreviewKeyRef = useRef<string | null>(null);
   const lastSelectedTokenPositionRef = useRef<Point | null>(null);
   const pendingTeleportCenterRef = useRef<Point | null>(null);
   const pendingDoorToggleRef = useRef<string | null>(null);
   const moveActorRef = useRef(onMoveActor);
   const broadcastMovePreviewRef = useRef(onBroadcastMovePreview);
-  const broadcastMeasurePreviewRef = useRef(onBroadcastMeasurePreview);
-  const updateDrawingsRef = useRef(onUpdateDrawings);
-  const drawingOverridesRef = useRef<Record<string, { points: Point[]; rotation: number }>>({});
   const [gridVisible, setGridVisible] = usePersistentState(boardGridPreferenceStorageKey, true);
   const [tool, setTool] = useState<Tool>("select");
-  const [drawKind, setDrawKind] = useState<DrawingKind>("freehand");
-  const [strokeColor, setStrokeColor] = useState("#000000");
-  const [strokeOpacity, setStrokeOpacity] = useState(1);
-  const [fillColor, setFillColor] = useState("#000000");
-  const [fillOpacity, setFillOpacity] = useState(0);
-  const [shapeStrokeSize, setShapeStrokeSize] = useState(4);
-  const [textFontSize, setTextFontSize] = useState(28);
-  const [textFontFamily, setTextFontFamily] = useState<DrawingTextFont>("serif");
-  const [textBold, setTextBold] = useState(false);
-  const [textItalic, setTextItalic] = useState(false);
-  const [measureKind, setMeasureKind] = useState<MeasureKind>("line");
-  const [measureSnapMode, setMeasureSnapMode] = useState<MeasureSnapMode>("center");
-  const [measureBroadcast, setMeasureBroadcast] = useState(true);
-  const [coneAngle, setConeAngle] = useState<45 | 60 | 90>(60);
-  const [beamWidthSquares, setBeamWidthSquares] = useState(1);
-  const [draftDrawing, setDraftDrawing] = useState<DrawingDraftState | null>(null);
-  const [textDraft, setTextDraft] = useState<TextDraftState | null>(null);
-  const [measuring, setMeasuring] = useState<MeasuringState | null>(null);
   const [movePreview, setMovePreview] = useState<MovementTrace | null>(null);
   const [draggingToken, setDraggingToken] = useState<DragState | null>(null);
-  const [movingDrawings, setMovingDrawings] = useState<DrawingMoveState | null>(null);
-  const [rotatingDrawing, setRotatingDrawing] = useState<DrawingRotationState | null>(null);
-  const [drawingOverrides, setDrawingOverrides] = useState<Record<string, { points: Point[]; rotation: number }>>({});
-  const [selectedMapItems, setSelectedMapItems] = useState<SelectedMapItem[]>([]);
   const [panning, setPanning] = useState<PanState | null>(null);
-  const [selectionBox, setSelectionBox] = useState<SelectionState | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [hoveredTeleporterId, setHoveredTeleporterId] = useState<string | null>(null);
   const [optimisticTokenPositions, setOptimisticTokenPositions] = useState<Record<string, Point>>({});
-  const [discoveredDrawingsByViewer, setDiscoveredDrawingsByViewer] = useState<Record<string, Record<string, string[]>>>(() =>
-    readDiscoveredDrawingsMemory()
-  );
-  const activeDrawSize = drawKind === "text" ? textFontSize : shapeStrokeSize;
   const {
     boardRef,
     baseScale,
@@ -383,11 +222,37 @@ export function BoardCanvas({
   const isDungeonMaster = role === "dm";
   const mapFogEnabled = map?.fogEnabled ?? true;
   const playerUserIdSet = useMemo(() => new Set(fogPlayers.map((member) => member.userId)), [fogPlayers]);
-  const fogPreviewActive =
-    isDungeonMaster && mapFogEnabled && typeof fogPreviewUserId === "string" && fogPreviewUserId.length > 0;
+  const fogPreviewActive = isDungeonMaster && mapFogEnabled && typeof fogPreviewUserId === "string" && fogPreviewUserId.length > 0;
   const usesRestrictedVision = mapFogEnabled && (role !== "dm" || fogPreviewActive);
   const visionUserId = fogPreviewUserId ?? currentUserId;
   const discoveryViewerKey = usesRestrictedVision ? visionUserId : "__dm_full__";
+
+  const canControlActor = useCallback((actor: ActorSheet) => role === "dm" || actor.ownerId === currentUserId, [currentUserId, role]);
+  const canEditDrawing = useCallback(
+    (drawing: DrawingStroke) => isDungeonMaster || drawing.ownerId === currentUserId,
+    [currentUserId, isDungeonMaster]
+  );
+  const worldToScreen = useCallback(
+    (point: Point) => ({
+      x: point.x * worldScale + viewPan.x,
+      y: point.y * worldScale + viewPan.y
+    }),
+    [viewPan.x, viewPan.y, worldScale]
+  );
+  const toWorldPoint = useCallback(
+    (clientX: number, clientY: number): Point | null => {
+      if (!boardRef.current) {
+        return null;
+      }
+
+      const rect = boardRef.current.getBoundingClientRect();
+      return {
+        x: (clientX - rect.left - viewPan.x) / worldScale,
+        y: (clientY - rect.top - viewPan.y) / worldScale
+      };
+    },
+    [boardRef, viewPan.x, viewPan.y, worldScale]
+  );
 
   const actorById = useMemo(() => new Map(actors.map((actor) => [actor.id, actor])), [actors]);
   const displayTokens = useMemo(
@@ -403,14 +268,8 @@ export function BoardCanvas({
       ),
     [optimisticTokenPositions, tokens]
   );
-  const visibleTokens = useMemo(
-    () => displayTokens.filter((token) => token.visible && token.mapId === map?.id),
-    [displayTokens, map?.id]
-  );
-  const visibleTokenByActorId = useMemo(
-    () => new Map(visibleTokens.map((token) => [token.actorId, token])),
-    [visibleTokens]
-  );
+  const visibleTokens = useMemo(() => displayTokens.filter((token) => token.visible && token.mapId === map?.id), [displayTokens, map?.id]);
+  const visibleTokenByActorId = useMemo(() => new Map(visibleTokens.map((token) => [token.actorId, token])), [visibleTokens]);
   const selectedToken = useMemo(
     () => (selectedActor ? visibleTokenByActorId.get(selectedActor.id) : undefined),
     [selectedActor, visibleTokenByActorId]
@@ -447,14 +306,9 @@ export function BoardCanvas({
       return visibleTokens;
     }
 
-    return visibleTokens.filter((token) =>
-      getTokenOccupiedCellKeys(map, token).some((cellKey) => currentVisibleCells.has(cellKey))
-    );
+    return visibleTokens.filter((token) => getTokenOccupiedCellKeys(map, token).some((cellKey) => currentVisibleCells.has(cellKey)));
   }, [currentVisibleCells, map, usesRestrictedVision, visibleTokens]);
-  const filteredTokenByActorId = useMemo(
-    () => new Map(filteredTokens.map((token) => [token.actorId, token])),
-    [filteredTokens]
-  );
+  const filteredTokenByActorId = useMemo(() => new Map(filteredTokens.map((token) => [token.actorId, token])), [filteredTokens]);
   const orderedTokens = useMemo(() => {
     return filteredTokens
       .map((token, index) => ({
@@ -470,91 +324,8 @@ export function BoardCanvas({
       }))
       .sort((left, right) => (left.priority === right.priority ? left.index - right.index : left.priority - right.priority))
       .map((entry) => entry.token);
-  }, [actorById, filteredTokens, selectedActor?.id]);
+  }, [actorById, canControlActor, filteredTokens, selectedActor?.id]);
   const renderedTokenById = useMemo(() => new Map(orderedTokens.map((token) => [token.id, token])), [orderedTokens]);
-
-  const discoveredDrawingIds = useMemo(() => {
-    if (!map) {
-      return new Set<string>();
-    }
-
-    const memoryKey = `${map.id}:${map.visibilityVersion}`;
-    return new Set(discoveredDrawingsByViewer[discoveryViewerKey]?.[memoryKey] ?? []);
-  }, [discoveredDrawingsByViewer, discoveryViewerKey, map]);
-
-  const displayDrawings = useMemo(() => {
-    if (!map) {
-      return [] as DrawingStroke[];
-    }
-
-    return map.drawings.map((drawing) =>
-      drawingOverrides[drawing.id]
-        ? {
-            ...drawing,
-            points: drawingOverrides[drawing.id].points,
-            rotation: drawingOverrides[drawing.id].rotation
-          }
-        : drawing
-    );
-  }, [drawingOverrides, map]);
-
-  const drawingBuckets = useMemo(() => {
-    if (!map) {
-      return { underFog: [] as DrawingStroke[], overFog: [] as DrawingStroke[], memory: [] as DrawingStroke[] };
-    }
-
-    if (!usesRestrictedVision) {
-      return {
-        underFog: displayDrawings,
-        overFog: [] as DrawingStroke[],
-        memory: [] as DrawingStroke[]
-      };
-    }
-
-    const underFog: DrawingStroke[] = [];
-    const overFog: DrawingStroke[] = [];
-    const memory: DrawingStroke[] = [];
-
-    for (const stroke of displayDrawings) {
-      if (stroke.ownerId && playerUserIdSet.has(stroke.ownerId)) {
-        overFog.push(stroke);
-        continue;
-      }
-
-      const visible = getDrawingVisibilityPoints(stroke).some((point) => isPointCurrentlyVisible(map, currentVisibleCells, point));
-
-      if (visible) {
-        underFog.push(stroke);
-        continue;
-      }
-
-      if (discoveredDrawingIds.has(stroke.id)) {
-        memory.push(stroke);
-      }
-    }
-
-    return { underFog, overFog, memory };
-  }, [currentVisibleCells, discoveredDrawingIds, displayDrawings, map, playerUserIdSet, usesRestrictedVision]);
-
-  const selectableDrawings = useMemo(() => {
-    const seen = new Set<string>();
-    const entries = [...drawingBuckets.underFog, ...drawingBuckets.overFog, ...drawingBuckets.memory];
-    return entries.filter((drawing) => {
-      if (seen.has(drawing.id)) {
-        return false;
-      }
-
-      seen.add(drawing.id);
-      return canEditDrawing(drawing);
-    });
-  }, [currentUserId, drawingBuckets.memory, drawingBuckets.overFog, drawingBuckets.underFog, isDungeonMaster]);
-
-  const selectedDrawings = useMemo(() => {
-    const selectedIds = new Set(selectedMapItems.map((entry) => entry.slice("drawing:".length)));
-    return selectableDrawings.filter((drawing) => selectedIds.has(drawing.id));
-  }, [selectableDrawings, selectedMapItems]);
-
-  const selectedDrawing = selectedDrawings.length === 1 ? selectedDrawings[0] : null;
   const visibleObstacles = useMemo(() => {
     if (!map) {
       return [];
@@ -581,22 +352,93 @@ export function BoardCanvas({
 
     return map.teleporters;
   }, [isDungeonMaster, map]);
-
-  const localMeasurePreview = useMemo(() => {
-    if (!map || !measuring) {
-      return null;
-    }
-
-    return buildMeasurePreview(
-      map,
-      measuring.rawStart,
-      measuring.rawEnd,
-      measureKind,
-      measureSnapMode,
-      coneAngle,
-      beamWidthSquares
-    );
-  }, [beamWidthSquares, coneAngle, map, measureKind, measureSnapMode, measuring]);
+  const {
+    drawKind,
+    strokeColor,
+    setStrokeColor,
+    strokeOpacity,
+    setStrokeOpacity,
+    fillColor,
+    setFillColor,
+    fillOpacity,
+    setFillOpacity,
+    textFontSize,
+    textFontFamily,
+    setTextFontFamily,
+    textBold,
+    setTextBold,
+    textItalic,
+    setTextItalic,
+    draftDrawing,
+    textDraft,
+    setTextDraft,
+    setMovingDrawings,
+    setRotatingDrawing,
+    activeDrawSize,
+    drawingBuckets,
+    selectableDrawings,
+    handleDrawKindChange,
+    handleDrawSizeChange,
+    beginDrawing,
+    beginTextDraft,
+    updateDraftDrawing,
+    commitDraftDrawing,
+    placeTextDrawing,
+    clearInk
+  } = useBoardDrawing({
+    map,
+    tool,
+    currentUserId,
+    currentVisibleCells,
+    discoveryViewerKey,
+    playerUserIdSet,
+    usesRestrictedVision,
+    canEditDrawing,
+    toWorldPoint,
+    onCreateDrawing,
+    onUpdateDrawings,
+    onClearDrawings
+  });
+  const {
+    selectedMapItems,
+    setSelectedMapItems,
+    selectionBox,
+    setSelectionBox,
+    normalizedSelectionBox,
+    selectedDrawing,
+    updateMapItemSelection,
+    selectDrawingsInBox,
+    resetSelection
+  } = useBoardSelection({
+    map,
+    selectableDrawings,
+    worldToScreen,
+    onSelectedMapItemCountChange,
+    onDeleteDrawings
+  });
+  const {
+    measureKind,
+    setMeasureKind,
+    measureSnapMode,
+    setMeasureSnapMode,
+    measureBroadcast,
+    setMeasureBroadcast,
+    coneAngle,
+    setConeAngle,
+    beamWidthSquares,
+    setBeamWidthSquares,
+    setMeasuring,
+    localMeasurePreview,
+    visibleMeasurePreviews,
+    beginMeasure
+  } = useBoardMeasure({
+    map,
+    tool,
+    currentUserId,
+    measurePreviews,
+    onBroadcastMeasurePreview,
+    toWorldPoint
+  });
 
   const visibleMovementPreviews = useMemo(
     () =>
@@ -619,10 +461,12 @@ export function BoardCanvas({
         const preview = concealTeleporterTraceForPlayers(entry.preview, map, isDungeonMaster);
 
         return preview
-          ? [{
-              ...entry,
-              preview
-            }]
+          ? [
+              {
+                ...entry,
+                preview
+              }
+            ]
           : [];
       }),
     [isDungeonMaster, map, visibleMovementPreviews]
@@ -639,50 +483,13 @@ export function BoardCanvas({
   const moveArrowHeadSize = clamp(12 * worldScale, 8, 28);
   const moveLabelFontSize = clamp(14 * worldScale, 12, 28);
   const moveLabelOffset = clamp(12 * worldScale, 10, 24);
-  const normalizedSelectionBox = selectionBox ? normalizeSelectionRect(selectionBox) : null;
-  const contextMenuToken = contextMenu?.kind === "token" ? renderedTokenById.get(contextMenu.tokenId) ?? null : null;
-  const visibleMeasurePreviews = useMemo(
-    () =>
-      measurePreviews.filter((entry) => {
-        if (!map || entry.mapId !== map.id) {
-          return false;
-        }
-
-        return entry.userId !== currentUserId;
-      }),
-    [currentUserId, map, measurePreviews]
-  );
+  const contextMenuToken = contextMenu?.kind === "token" ? (renderedTokenById.get(contextMenu.tokenId) ?? null) : null;
   const visiblePings = useMemo(() => pings.filter((entry) => entry.mapId === map?.id), [map?.id, pings]);
-
-  useEffect(() => {
-    writeDiscoveredDrawingsMemory(discoveredDrawingsByViewer);
-  }, [discoveredDrawingsByViewer]);
 
   useEffect(() => {
     moveActorRef.current = onMoveActor;
     broadcastMovePreviewRef.current = onBroadcastMovePreview;
-    broadcastMeasurePreviewRef.current = onBroadcastMeasurePreview;
-    updateDrawingsRef.current = onUpdateDrawings;
-  }, [onBroadcastMeasurePreview, onBroadcastMovePreview, onMoveActor, onUpdateDrawings]);
-
-  useEffect(() => {
-    drawingOverridesRef.current = drawingOverrides;
-  }, [drawingOverrides]);
-
-  useEffect(() => {
-    if (tool !== "draw" || drawKind !== "text") {
-      setTextDraft(null);
-    }
-
-    if (drawKind === "text") {
-      setDraftDrawing(null);
-    }
-  }, [drawKind, tool]);
-
-  useEffect(() => {
-    setDraftDrawing(null);
-    setTextDraft(null);
-  }, [map?.id]);
+  }, [onBroadcastMovePreview, onMoveActor]);
 
   useEffect(() => {
     setOptimisticTokenPositions((current) => {
@@ -707,28 +514,6 @@ export function BoardCanvas({
       return changed ? next : current;
     });
   }, [tokens]);
-
-  useEffect(() => {
-    if (!map || Object.keys(drawingOverrides).length === 0) {
-      return;
-    }
-
-    setDrawingOverrides((current) => {
-      let changed = false;
-      const next = { ...current };
-
-      for (const [drawingId, override] of Object.entries(current)) {
-        const persisted = map.drawings.find((entry) => entry.id === drawingId);
-
-        if (!persisted || drawingMatchesOverride(persisted, override)) {
-          delete next[drawingId];
-          changed = true;
-        }
-      }
-
-      return changed ? next : current;
-    });
-  }, [drawingOverrides, map]);
 
   useEffect(() => {
     if (!map || !selectedActor || !selectedToken || !canControlActor(selectedActor)) {
@@ -800,7 +585,7 @@ export function BoardCanvas({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [draggingToken, isDungeonMaster, map, panning, selectedActor, selectedMapItems.length, selectedToken, tool]);
+  }, [canControlActor, draggingToken, isDungeonMaster, map, panning, selectedActor, selectedMapItems.length, selectedToken, tool]);
 
   useEffect(() => {
     if (!boardRef.current) {
@@ -823,7 +608,7 @@ export function BoardCanvas({
     return () => {
       node.removeEventListener("wheel", handleNativeWheel);
     };
-  }, [map?.id]);
+  }, [boardRef, map?.id]);
 
   useEffect(() => {
     if (!map || !viewRecall || role === "dm") {
@@ -842,14 +627,9 @@ export function BoardCanvas({
   }, [contextMenu, renderedTokenById]);
 
   useEffect(() => {
-    setSelectedMapItems([]);
+    resetSelection();
     setMovePreview(null);
     setDraggingToken(null);
-    setDraftDrawing(null);
-    setMovingDrawings(null);
-    setRotatingDrawing(null);
-    setDrawingOverrides({});
-    setSelectionBox(null);
     setContextMenu(null);
     setMeasuring(null);
     setHoveredTeleporterId(null);
@@ -858,7 +638,7 @@ export function BoardCanvas({
     lastSelectedTokenPositionRef.current = null;
     pendingTeleportCenterRef.current = null;
     pendingDoorToggleRef.current = null;
-  }, [map?.id]);
+  }, [map?.id, resetSelection, setMeasuring]);
 
   useEffect(() => {
     if (!map || !selectedActor || !selectedToken || draggingToken || !canControlActor(selectedActor)) {
@@ -891,13 +671,7 @@ export function BoardCanvas({
     }
 
     lastSelectedTokenPositionRef.current = nextPoint;
-  }, [draggingToken, map, selectedActor, selectedToken, setViewPan, viewportSize.height, viewportSize.width, worldScale]);
-
-  useEffect(() => {
-    if (tool !== "measure") {
-      setMeasuring(null);
-    }
-  }, [tool]);
+  }, [canControlActor, draggingToken, map, selectedActor, selectedToken, setViewPan, viewportSize.height, viewportSize.width, worldScale]);
 
   useEffect(() => {
     const pendingDoorId = pendingDoorToggleRef.current;
@@ -913,43 +687,6 @@ export function BoardCanvas({
     pendingDoorToggleRef.current = null;
     void onToggleDoor(pendingDoorId);
   }, [draggingToken, onToggleDoor, optimisticTokenPositions]);
-
-  useEffect(() => {
-    if (!map || !usesRestrictedVision) {
-      return;
-    }
-
-    setDiscoveredDrawingsByViewer((current) => {
-      const viewerMemory = current[discoveryViewerKey] ?? {};
-      const memoryKey = `${map.id}:${map.visibilityVersion}`;
-      const currentMapEntries = viewerMemory[memoryKey] ?? [];
-      const nextIds = new Set(currentMapEntries.filter((id) => displayDrawings.some((stroke) => stroke.id === id)));
-      let changed = nextIds.size !== currentMapEntries.length;
-
-      for (const stroke of displayDrawings) {
-        if (!getDrawingVisibilityPoints(stroke).some((point) => isPointCurrentlyVisible(map, currentVisibleCells, point))) {
-          continue;
-        }
-
-        if (!nextIds.has(stroke.id)) {
-          nextIds.add(stroke.id);
-          changed = true;
-        }
-      }
-
-      if (!changed) {
-        return current;
-      }
-
-      return {
-        ...current,
-        [discoveryViewerKey]: {
-          ...viewerMemory,
-          [memoryKey]: Array.from(nextIds)
-        }
-      };
-    });
-  }, [currentVisibleCells, discoveryViewerKey, displayDrawings, map, usesRestrictedVision]);
 
   useEffect(() => {
     const activeMap = map;
@@ -1004,13 +741,12 @@ export function BoardCanvas({
     function handleWindowPointerUp(event: PointerEvent) {
       const point = toWorldPoint(event.clientX, event.clientY);
       const snappedTarget = point ? snapTokenToGrid(currentMap, point, draggedFootprint) : null;
-      const trace =
-        point
-          ? traceMovementPath(currentMap, currentDraggingToken.start, point, {
-              ignoreWalls: isDungeonMaster,
-              footprint: draggedFootprint
-            })
-          : null;
+      const trace = point
+        ? traceMovementPath(currentMap, currentDraggingToken.start, point, {
+            ignoreWalls: isDungeonMaster,
+            footprint: draggedFootprint
+          })
+        : null;
 
       suppressSurfaceClickRef.current = true;
       setDraggingToken(null);
@@ -1054,198 +790,7 @@ export function BoardCanvas({
         void broadcastMovePreviewRef.current(currentDraggingToken.actorId, null);
       }
     };
-  }, [draggingToken, isDungeonMaster, map, visibleTokenByActorId]);
-
-  useEffect(() => {
-    if (!measuring || !map) {
-      return;
-    }
-
-    function handleWindowPointerMove(event: PointerEvent) {
-      const point = toWorldPoint(event.clientX, event.clientY);
-
-      if (!point) {
-        return;
-      }
-
-      setMeasuring((current) => (current ? { ...current, rawEnd: point } : current));
-    }
-
-    function handleWindowPointerUp() {
-      setMeasuring(null);
-    }
-
-    window.addEventListener("pointermove", handleWindowPointerMove);
-    window.addEventListener("pointerup", handleWindowPointerUp, { once: true });
-
-    return () => {
-      window.removeEventListener("pointermove", handleWindowPointerMove);
-      window.removeEventListener("pointerup", handleWindowPointerUp);
-    };
-  }, [map, measuring]);
-
-  useEffect(() => {
-    const nextPreview = measureBroadcast ? localMeasurePreview : null;
-    const nextKey = nextPreview ? serializeMeasurePreview(nextPreview) : null;
-
-    if (nextKey === lastMeasurePreviewKeyRef.current) {
-      return;
-    }
-
-    lastMeasurePreviewKeyRef.current = nextKey;
-    void broadcastMeasurePreviewRef.current(nextPreview);
-  }, [localMeasurePreview, measureBroadcast]);
-
-  useEffect(
-    () => () => {
-      if (lastMeasurePreviewKeyRef.current !== null) {
-        void broadcastMeasurePreviewRef.current(null);
-      }
-    },
-    []
-  );
-
-  useEffect(() => {
-    const activeMap = map;
-    const activeMove = movingDrawings;
-
-    if (!activeMove || !activeMap) {
-      return;
-    }
-
-    const currentMap = activeMap;
-    const currentMove = activeMove;
-
-    function handleWindowPointerMove(event: PointerEvent) {
-      const point = toWorldPoint(event.clientX, event.clientY);
-
-      if (!point) {
-        return;
-      }
-
-      const deltaX = point.x - currentMove.origin.x;
-      const deltaY = point.y - currentMove.origin.y;
-      const moved = Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5;
-
-      setMovingDrawings((current) => (current ? { ...current, moved: current.moved || moved } : current));
-      setDrawingOverrides(
-        Object.fromEntries(
-          currentMove.drawingIds.map((drawingId) => {
-            const snapshot = currentMove.snapshots[drawingId];
-            return [
-              drawingId,
-              {
-                points: snapshot.points.map((entry) => ({ x: entry.x + deltaX, y: entry.y + deltaY })),
-                rotation: snapshot.rotation
-              }
-            ];
-          })
-        )
-      );
-    }
-
-    function handleWindowPointerUp() {
-      const overrides = Object.entries(drawingOverridesRef.current)
-        .filter(([drawingId]) => currentMove.drawingIds.includes(drawingId))
-        .map(([id, value]) => ({
-          id,
-          points: value.points,
-          rotation: value.rotation
-        }));
-
-      const moved = overrides.some((override) => {
-        const snapshot = currentMove.snapshots[override.id];
-        return (
-          snapshot &&
-          (snapshot.rotation !== override.rotation ||
-            snapshot.points.length !== override.points.length ||
-            snapshot.points.some((point, index) => {
-              const next = override.points[index];
-              return !next || Math.abs(point.x - next.x) > 0.001 || Math.abs(point.y - next.y) > 0.001;
-            }))
-        );
-      });
-
-      if (moved && overrides.length > 0) {
-        void updateDrawingsRef.current(currentMap.id, overrides);
-      } else {
-        setDrawingOverrides((current) =>
-          Object.fromEntries(Object.entries(current).filter(([drawingId]) => !currentMove.drawingIds.includes(drawingId)))
-        );
-      }
-      setMovingDrawings(null);
-    }
-
-    window.addEventListener("pointermove", handleWindowPointerMove);
-    window.addEventListener("pointerup", handleWindowPointerUp, { once: true });
-
-    return () => {
-      window.removeEventListener("pointermove", handleWindowPointerMove);
-      window.removeEventListener("pointerup", handleWindowPointerUp);
-    };
-  }, [map, movingDrawings]);
-
-  useEffect(() => {
-    const activeMap = map;
-    const activeRotation = rotatingDrawing;
-
-    if (!activeRotation || !activeMap) {
-      return;
-    }
-
-    const currentMap = activeMap;
-    const currentRotation = activeRotation;
-
-    function handleWindowPointerMove(event: PointerEvent) {
-      const point = toWorldPoint(event.clientX, event.clientY);
-
-      if (!point) {
-        return;
-      }
-
-      const angle = Math.atan2(point.y - currentRotation.center.y, point.x - currentRotation.center.x);
-      const nextRotation = currentRotation.baseRotation + toDegrees(angle - currentRotation.startAngle);
-      const moved = Math.abs(nextRotation - currentRotation.baseRotation) > 0.5;
-
-      setRotatingDrawing((current) => (current ? { ...current, moved: current.moved || moved } : current));
-      setDrawingOverrides((current) => ({
-        ...current,
-        [currentRotation.drawingId]: {
-          points: currentRotation.points,
-          rotation: normalizeDegrees(nextRotation)
-        }
-      }));
-    }
-
-    function handleWindowPointerUp() {
-      const override = drawingOverridesRef.current[currentRotation.drawingId];
-
-      if (override && Math.abs(override.rotation - currentRotation.baseRotation) > 0.5) {
-        void updateDrawingsRef.current(currentMap.id, [
-          {
-            id: currentRotation.drawingId,
-            points: override.points,
-            rotation: override.rotation
-          }
-        ]);
-      } else {
-        setDrawingOverrides((current) => {
-          const next = { ...current };
-          delete next[currentRotation.drawingId];
-          return next;
-        });
-      }
-      setRotatingDrawing(null);
-    }
-
-    window.addEventListener("pointermove", handleWindowPointerMove);
-    window.addEventListener("pointerup", handleWindowPointerUp, { once: true });
-
-    return () => {
-      window.removeEventListener("pointermove", handleWindowPointerMove);
-      window.removeEventListener("pointerup", handleWindowPointerUp);
-    };
-  }, [map, rotatingDrawing]);
+  }, [draggingToken, isDungeonMaster, map, toWorldPoint, visibleTokenByActorId]);
 
   useEffect(() => {
     const activePan = panning;
@@ -1284,7 +829,7 @@ export function BoardCanvas({
         currentPan.menu
       ) {
         if (currentPan.menu.kind === "token") {
-          setSelectedMapItems([]);
+          resetSelection();
           onSelectActor(currentPan.menu.actorId);
           setContextMenu({
             kind: "token",
@@ -1313,7 +858,7 @@ export function BoardCanvas({
       window.removeEventListener("pointermove", handleWindowPointerMove);
       window.removeEventListener("pointerup", handleWindowPointerUp);
     };
-  }, [onSelectActor, panning]);
+  }, [onSelectActor, panning, resetSelection, setViewPan]);
 
   useEffect(() => {
     if (!panning) {
@@ -1328,71 +873,6 @@ export function BoardCanvas({
     };
   }, [panning]);
 
-  useEffect(() => {
-    onSelectedMapItemCountChange(selectedMapItems.length);
-  }, [onSelectedMapItemCountChange, selectedMapItems.length]);
-
-  useEffect(() => {
-    const activeMap = map;
-
-    if (selectedMapItems.length === 0 || !activeMap) {
-      return;
-    }
-
-    const currentMap = activeMap;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Delete" && event.key !== "Backspace") {
-        return;
-      }
-
-      const target = event.target as HTMLElement | null;
-      const tagName = target?.tagName;
-
-      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || target?.isContentEditable) {
-        return;
-      }
-
-      event.preventDefault();
-      const drawingIds = selectedMapItems.map((entry) => entry.slice("drawing:".length));
-
-      void onDeleteDrawings(currentMap.id, drawingIds);
-      setSelectedMapItems([]);
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [map, onDeleteDrawings, selectedMapItems]);
-
-  function canControlActor(actor: ActorSheet) {
-    return role === "dm" || actor.ownerId === currentUserId;
-  }
-
-  function canEditDrawing(drawing: DrawingStroke) {
-    return isDungeonMaster || drawing.ownerId === currentUserId;
-  }
-
-  function worldToScreen(point: Point) {
-    return {
-      x: point.x * worldScale + viewPan.x,
-      y: point.y * worldScale + viewPan.y
-    };
-  }
-
-  function toWorldPoint(clientX: number, clientY: number): Point | null {
-    if (!boardRef.current) {
-      return null;
-    }
-
-    const rect = boardRef.current.getBoundingClientRect();
-    return {
-      x: (clientX - rect.left - viewPan.x) / worldScale,
-      y: (clientY - rect.top - viewPan.y) / worldScale
-    };
-  }
-
   function toLocalPoint(clientX: number, clientY: number) {
     if (!boardRef.current) {
       return null;
@@ -1405,53 +885,13 @@ export function BoardCanvas({
     };
   }
 
-  function updateMapItemSelection(key: SelectedMapItem, additive: boolean) {
-    setSelectedMapItems((current) => {
-      if (!additive) {
-        return [key];
-      }
-
-      return current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key];
-    });
-  }
-
-  function selectDrawingsInBox(selection: SelectionState) {
-    if (!map) {
-      return;
-    }
-
-    const rect = normalizeSelectionRect(selection);
-    const dragged = rect.width >= selectionDragThreshold || rect.height >= selectionDragThreshold;
-
-    if (!dragged) {
-      return;
-    }
-
-    const nextSelected = selectableDrawings
-      .filter((drawing) => pathBoundsIntersectsRect(getDrawingRenderPoints(drawing).map(worldToScreen), rect))
-      .map((drawing) => `drawing:${drawing.id}` satisfies SelectedMapItem);
-
-    setSelectedMapItems((current) =>
-      selection.additive ? Array.from(new Set([...current, ...nextSelected])) : nextSelected
-    );
-    suppressSurfaceClickRef.current = true;
-  }
-
   function handleEmptyBoardClick() {
     setContextMenu(null);
 
     if (tool === "select") {
-      setSelectedMapItems([]);
+      resetSelection();
       onSelectActor(null);
     }
-  }
-
-  function beginMeasure(point: Point) {
-    setContextMenu(null);
-    setMeasuring({
-      rawStart: point,
-      rawEnd: point
-    });
   }
 
   async function handleBoardClick(event: ReactMouseEvent<HTMLDivElement>) {
@@ -1596,31 +1036,11 @@ export function BoardCanvas({
         return;
       }
 
-      setDraftDrawing(null);
-      setTextDraft((current) => ({
-        point,
-        screenX: localPoint.x,
-        screenY: localPoint.y,
-        text: current?.text ?? ""
-      }));
+      beginTextDraft(point, localPoint.x, localPoint.y);
       return;
     }
 
-    setDraftDrawing({
-      id: "draft-shape",
-      color: strokeColor,
-      strokeOpacity,
-      fillColor,
-      fillOpacity,
-      kind: drawKind,
-      text: "",
-      fontFamily: textFontFamily,
-      bold: textBold,
-      italic: textItalic,
-      points: [point],
-      rotation: 0,
-      size: activeDrawSize
-    });
+    beginDrawing(point);
   }
 
   function handleBoardPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
@@ -1654,40 +1074,14 @@ export function BoardCanvas({
     }
 
     if (tool === "draw" && draftDrawing) {
-      setDraftDrawing((current) => {
-        if (!current) {
-          return current;
-        }
-
-        if (current.kind !== "freehand") {
-          return {
-            ...current,
-            points: [current.points[0] ?? point, point]
-          };
-        }
-
-        const previous = current.points[current.points.length - 1];
-
-        if (!previous) {
-          return {
-            ...current,
-            points: [point]
-          };
-        }
-
-        return Math.hypot(point.x - previous.x, point.y - previous.y) < 4
-          ? current
-          : {
-              ...current,
-              points: [...current.points, point]
-            };
-      });
+      updateDraftDrawing(point);
     }
   }
 
   async function handleBoardPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
     if (selectionBox) {
-      selectDrawingsInBox(selectionBox);
+      const selected = selectDrawingsInBox(selectionBox);
+      suppressSurfaceClickRef.current = selected;
       setSelectionBox(null);
       return;
     }
@@ -1697,37 +1091,7 @@ export function BoardCanvas({
     }
 
     const point = toWorldPoint(event.clientX, event.clientY);
-    const points =
-      draftDrawing.kind === "freehand"
-        ? point && draftDrawing.points[draftDrawing.points.length - 1] !== point
-          ? [...draftDrawing.points, point]
-          : draftDrawing.points
-        : draftDrawing.points.length === 1
-          ? [draftDrawing.points[0], point ?? draftDrawing.points[0]]
-          : draftDrawing.points;
-
-    const stroke: DrawingStroke = {
-      id: `drw_${crypto.randomUUID().slice(0, 8)}`,
-      ownerId: currentUserId,
-      kind: draftDrawing.kind,
-      text: draftDrawing.text,
-      fontFamily: draftDrawing.fontFamily,
-      bold: draftDrawing.bold,
-      italic: draftDrawing.italic,
-      color: draftDrawing.color,
-      strokeOpacity: draftDrawing.strokeOpacity,
-      fillColor: draftDrawing.fillColor,
-      fillOpacity: draftDrawing.fillOpacity,
-      size: draftDrawing.size,
-      rotation: draftDrawing.rotation,
-      points
-    };
-
-    if (drawingHasRenderableSpan(stroke)) {
-      await onCreateDrawing(map.id, stroke);
-    }
-
-    setDraftDrawing(null);
+    await commitDraftDrawing(point);
   }
 
   function handleWheel(event: ReactWheelEvent<HTMLDivElement>) {
@@ -1764,18 +1128,6 @@ export function BoardCanvas({
     });
   }
 
-  async function clearInk() {
-    if (!map) {
-      return;
-    }
-
-    if (!window.confirm("Clear all drawings from this map?")) {
-      return;
-    }
-
-    await onClearDrawings(map.id);
-  }
-
   function handleDrawingPointerDown(drawing: DrawingStroke, event: ReactPointerEvent<SVGPathElement>) {
     if (event.button !== 0 || tool !== "select" || !map || !canEditDrawing(drawing)) {
       return;
@@ -1785,7 +1137,7 @@ export function BoardCanvas({
     setContextMenu(null);
     onSelectActor(null);
     const additive = event.metaKey || event.ctrlKey || event.shiftKey;
-    const key = `drawing:${drawing.id}` satisfies SelectedMapItem;
+    const key = `drawing:${drawing.id}` as const;
 
     if (additive) {
       updateMapItemSelection(key, true);
@@ -1799,9 +1151,7 @@ export function BoardCanvas({
       return;
     }
 
-    const ids = selectedMapItems.includes(key)
-      ? selectedMapItems.map((entry) => entry.slice("drawing:".length))
-      : [drawing.id];
+    const ids = selectedMapItems.includes(key) ? selectedMapItems.map((entry) => entry.slice("drawing:".length)) : [drawing.id];
     const snapshots = Object.fromEntries(
       selectableDrawings
         .filter((entry) => ids.includes(entry.id))
@@ -1854,7 +1204,7 @@ export function BoardCanvas({
       return;
     }
 
-    setSelectedMapItems([]);
+    resetSelection();
 
     const actor = actorById.get(token.actorId);
 
@@ -1880,7 +1230,7 @@ export function BoardCanvas({
 
   async function handleTokenRotate(token: BoardToken) {
     await onUpdateToken(token.id, {
-      rotationDegrees: (((token.rotationDegrees + 90) % 360) || 0) as BoardToken["rotationDegrees"]
+      rotationDegrees: ((token.rotationDegrees + 90) % 360 || 0) as BoardToken["rotationDegrees"]
     });
   }
 
@@ -1918,56 +1268,6 @@ export function BoardCanvas({
     }
 
     void onToggleDoorLock(doorId);
-  }
-
-  function handleDrawKindChange(kind: DrawingKind) {
-    setDrawKind(kind);
-    setSelectedMapItems([]);
-
-    if (kind !== "text") {
-      setTextDraft(null);
-    }
-  }
-
-  function handleDrawSizeChange(value: number) {
-    if (drawKind === "text") {
-      setTextFontSize(value);
-      return;
-    }
-
-    setShapeStrokeSize(value);
-  }
-
-  async function placeTextDrawing() {
-    if (!map || !textDraft) {
-      return;
-    }
-
-    const text = normalizeDrawingText(textDraft.text);
-
-    if (!text.trim()) {
-      return;
-    }
-
-    const stroke: DrawingStroke = {
-      id: `drw_${crypto.randomUUID().slice(0, 8)}`,
-      ownerId: currentUserId,
-      kind: "text",
-      text,
-      fontFamily: textFontFamily,
-      bold: textBold,
-      italic: textItalic,
-      color: strokeColor,
-      strokeOpacity,
-      fillColor,
-      fillOpacity,
-      size: textFontSize,
-      rotation: 0,
-      points: buildTextDrawingPoints(textDraft.point, text, textFontSize, textFontFamily, textBold, textItalic)
-    };
-
-    await onCreateDrawing(map.id, stroke);
-    setTextDraft(null);
   }
 
   function renderTextDrawing(stroke: RenderableDrawing, opacityMultiplier = 1, draft = false) {
@@ -2132,9 +1432,7 @@ export function BoardCanvas({
     );
   }
 
-  const textEditorMetrics = textDraft
-    ? getDrawingTextMetrics(textDraft.text, textFontSize, textFontFamily, textBold, textItalic)
-    : null;
+  const textEditorMetrics = textDraft ? getDrawingTextMetrics(textDraft.text, textFontSize, textFontFamily, textBold, textItalic) : null;
 
   return (
     <section className="board-panel">
@@ -2166,7 +1464,10 @@ export function BoardCanvas({
         measureBroadcast={measureBroadcast}
         onMeasureBroadcastChange={setMeasureBroadcast}
         drawKind={drawKind}
-        onDrawKindChange={handleDrawKindChange}
+        onDrawKindChange={(kind) => {
+          handleDrawKindChange(kind);
+          resetSelection();
+        }}
         strokeColor={strokeColor}
         onStrokeColorChange={setStrokeColor}
         strokeOpacity={strokeOpacity}
@@ -2207,7 +1508,7 @@ export function BoardCanvas({
           onPointerUp={(event) => void handleBoardPointerUp(event)}
           onPointerLeave={(event) => {
             if (selectionBox) {
-              selectDrawingsInBox(selectionBox);
+              suppressSurfaceClickRef.current = selectDrawingsInBox(selectionBox);
               setSelectionBox(null);
             }
             if (tool === "draw") {
@@ -2233,24 +1534,29 @@ export function BoardCanvas({
           )}
           {gridStyle && <div className="board-grid" style={gridStyle} />}
 
-          <svg className="board-overlay" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
+          <svg
+            className="board-overlay"
+            width={viewportSize.width}
+            height={viewportSize.height}
+            viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
+          >
             {drawingBuckets.underFog.map((stroke) => renderDrawingStroke(stroke))}
             {visibleObstacles
               .filter((wall) => wall.kind !== "door")
               .map((wall) => {
-              const start = worldToScreen(wall.start);
-              const end = worldToScreen(wall.end);
-              return (
-                <line
-                  key={wall.id}
-                  x1={start.x}
-                  y1={start.y}
-                  x2={end.x}
-                  y2={end.y}
-                  className={`board-wall kind-${wall.kind} ${wall.isOpen ? "is-open" : ""}`}
-                />
-              );
-            })}
+                const start = worldToScreen(wall.start);
+                const end = worldToScreen(wall.end);
+                return (
+                  <line
+                    key={wall.id}
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    className={`board-wall kind-${wall.kind} ${wall.isOpen ? "is-open" : ""}`}
+                  />
+                );
+              })}
             {visibleTeleporters.map((teleporter) => {
               const pointA = worldToScreen(teleporter.pointA);
               const pointB = worldToScreen(teleporter.pointB);
@@ -2304,7 +1610,12 @@ export function BoardCanvas({
             worldScale={worldScale}
           />
 
-          <svg className="board-overlay" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
+          <svg
+            className="board-overlay"
+            width={viewportSize.width}
+            height={viewportSize.height}
+            viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
+          >
             <defs>
               <marker
                 id="move-arrowhead"
@@ -2321,9 +1632,7 @@ export function BoardCanvas({
             </defs>
             {drawingBuckets.memory.map((stroke) => renderDrawingStroke(stroke, 0.82))}
             {drawingBuckets.overFog.map((stroke) => renderDrawingStroke(stroke))}
-            {draftDrawing && drawingHasRenderableSpan(draftDrawing) && (
-              renderDrawingStroke(draftDrawing, 1, true)
-            )}
+            {draftDrawing && drawingHasRenderableSpan(draftDrawing) && renderDrawingStroke(draftDrawing, 1, true)}
             {normalizedSelectionBox && (
               <rect
                 x={normalizedSelectionBox.x}
@@ -2344,27 +1653,23 @@ export function BoardCanvas({
                 {(() => {
                   const end = worldToScreen(displayMovePreview.end);
                   return (
-                    <circle
-                      cx={end.x}
-                      cy={end.y}
-                      r={Math.max(8, map.grid.cellSize * worldScale * 0.12)}
-                      className="board-target-ring"
-                    />
+                    <circle cx={end.x} cy={end.y} r={Math.max(8, map.grid.cellSize * worldScale * 0.12)} className="board-target-ring" />
                   );
                 })()}
-                {previewLabelPoint && (() => {
-                  const labelPoint = worldToScreen(previewLabelPoint);
-                  return (
-                    <text
-                      x={labelPoint.x + moveLabelOffset}
-                      y={labelPoint.y - moveLabelOffset}
-                      className="board-move-label"
-                      style={{ fontSize: `${moveLabelFontSize}px` }}
-                    >
-                      {displayMovePreview.steps} sq
-                    </text>
-                  );
-                })()}
+                {previewLabelPoint &&
+                  (() => {
+                    const labelPoint = worldToScreen(previewLabelPoint);
+                    return (
+                      <text
+                        x={labelPoint.x + moveLabelOffset}
+                        y={labelPoint.y - moveLabelOffset}
+                        className="board-move-label"
+                        style={{ fontSize: `${moveLabelFontSize}px` }}
+                      >
+                        {displayMovePreview.steps} sq
+                      </text>
+                    );
+                  })()}
               </>
             )}
             {displayMovementPreviews.map((entry) => {
@@ -2392,17 +1697,17 @@ export function BoardCanvas({
             })}
             {localMeasurePreview && renderMeasure(localMeasurePreview, "measure:local", localMeasurePalette)}
             {visibleMeasurePreviews.map((entry) =>
-              renderMeasure(
-                entry.preview,
-                `measure:${entry.userId}`,
-                getSharedMeasurePalette(entry.userId),
-                true
-              )
+              renderMeasure(entry.preview, `measure:${entry.userId}`, getSharedMeasurePalette(entry.userId), true)
             )}
           </svg>
 
           {((tool === "select" && selectableDrawings.length > 0) || visibleDoors.length > 0 || visibleTeleporters.length > 0) && (
-            <svg className="board-interaction-layer" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
+            <svg
+              className="board-interaction-layer"
+              width={viewportSize.width}
+              height={viewportSize.height}
+              viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
+            >
               {tool === "select" &&
                 selectableDrawings.map((stroke) => (
                   <path
@@ -2425,9 +1730,7 @@ export function BoardCanvas({
                       fill="transparent"
                       pointerEvents="all"
                       onPointerEnter={() => setHoveredTeleporterId(teleporter.id)}
-                      onPointerLeave={() =>
-                        setHoveredTeleporterId((current) => (current === teleporter.id ? null : current))
-                      }
+                      onPointerLeave={() => setHoveredTeleporterId((current) => (current === teleporter.id ? null : current))}
                     />
                   );
                 })
@@ -2474,25 +1777,28 @@ export function BoardCanvas({
             />
           )}
 
-          {tool === "select" && selectedDrawing && canEditDrawing(selectedDrawing) && (() => {
-            const handlePoint = getDrawingRotationHandlePoint(selectedDrawing);
-            const screen = worldToScreen(handlePoint);
-            const handleSize = Math.max(16, 16 * worldScale);
+          {tool === "select" &&
+            selectedDrawing &&
+            canEditDrawing(selectedDrawing) &&
+            (() => {
+              const handlePoint = getDrawingRotationHandlePoint(selectedDrawing);
+              const screen = worldToScreen(handlePoint);
+              const handleSize = Math.max(16, 16 * worldScale);
 
-            return (
-              <button
-                type="button"
-                className="board-rotate-handle"
-                style={{
-                  left: screen.x,
-                  top: screen.y,
-                  width: handleSize,
-                  height: handleSize
-                }}
-                onPointerDown={handleRotateHandlePointerDown}
-              />
-            );
-          })()}
+              return (
+                <button
+                  type="button"
+                  className="board-rotate-handle"
+                  style={{
+                    left: screen.x,
+                    top: screen.y,
+                    width: handleSize,
+                    height: handleSize
+                  }}
+                  onPointerDown={handleRotateHandlePointerDown}
+                />
+              );
+            })()}
 
           <div className="board-token-layer" style={tokenLayerStyle}>
             {orderedTokens.map((token) => {
@@ -2500,9 +1806,7 @@ export function BoardCanvas({
               const footprint = getTokenFootprint(token);
               const width = map.grid.cellSize * footprint.widthSquares;
               const height = map.grid.cellSize * footprint.heightSquares;
-              const isQuarterTurn =
-                token.actorKind === "static" &&
-                (token.rotationDegrees === 90 || token.rotationDegrees === 270);
+              const isQuarterTurn = token.actorKind === "static" && (token.rotationDegrees === 90 || token.rotationDegrees === 270);
               const bodyWidth = isQuarterTurn ? height : width;
               const bodyHeight = isQuarterTurn ? width : height;
               const badgeOrbitSize = Math.max(width, height);
@@ -2539,10 +1843,7 @@ export function BoardCanvas({
                       height: token.actorKind === "static" ? bodyHeight : undefined,
                       left: token.actorKind === "static" ? "50%" : undefined,
                       top: token.actorKind === "static" ? "50%" : undefined,
-                      transform:
-                        token.actorKind === "static"
-                          ? `translate(-50%, -50%) rotate(${token.rotationDegrees}deg)`
-                          : undefined
+                      transform: token.actorKind === "static" ? `translate(-50%, -50%) rotate(${token.rotationDegrees}deg)` : undefined
                     }}
                   >
                     {token.imageUrl ? (
@@ -2595,7 +1896,12 @@ export function BoardCanvas({
           </div>
           {visibleDoors.length > 0 && (
             <>
-              <svg className="board-door-foreground-layer" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
+              <svg
+                className="board-door-foreground-layer"
+                width={viewportSize.width}
+                height={viewportSize.height}
+                viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
+              >
                 {visibleDoors.map((wall) => {
                   const start = worldToScreen(wall.start);
                   const end = worldToScreen(wall.end);
@@ -2612,7 +1918,12 @@ export function BoardCanvas({
                   );
                 })}
               </svg>
-              <svg className="board-door-interaction-layer" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
+              <svg
+                className="board-door-interaction-layer"
+                width={viewportSize.width}
+                height={viewportSize.height}
+                viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
+              >
                 {visibleDoors.map((wall) => {
                   const start = worldToScreen(wall.start);
                   const end = worldToScreen(wall.end);
@@ -2772,9 +2083,7 @@ function concealTeleporterTraceForPlayers(
   }
 
   const teleportEntryIndex = preview.points.findIndex(
-    (point) =>
-      Math.abs(point.x - preview.teleportEntry!.x) < 0.0001 &&
-      Math.abs(point.y - preview.teleportEntry!.y) < 0.0001
+    (point) => Math.abs(point.x - preview.teleportEntry!.x) < 0.0001 && Math.abs(point.y - preview.teleportEntry!.y) < 0.0001
   );
 
   if (teleportEntryIndex <= 0) {

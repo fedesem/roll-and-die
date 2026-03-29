@@ -62,12 +62,7 @@ export function CampaignMapManager({
                   icon={Eye}
                 />
                 {role === "dm" && onStartEditMap ? (
-                  <CampaignActionButton
-                    title="Edit map"
-                    aria-label="Edit map"
-                    onClick={() => onStartEditMap(map)}
-                    icon={Pencil}
-                  />
+                  <CampaignActionButton title="Edit map" aria-label="Edit map" onClick={() => onStartEditMap(map)} icon={Pencil} />
                 ) : null}
                 {role === "dm" && onOpenActors ? (
                   <CampaignActionButton

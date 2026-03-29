@@ -1,3 +1,5 @@
+import { lazy, Suspense } from "react";
+
 import type {
   ActorKind,
   ActorSheet,
@@ -15,15 +17,28 @@ import type {
 } from "@shared/types";
 
 import type { AppRoute } from "../appRouteState";
-import { AdminPanel } from "../components/AdminPanel";
 import { CampaignCreatePage } from "../pages/CampaignCreatePage";
-import { CampaignHubPage } from "../pages/CampaignHubPage";
 import { CampaignJoinPage } from "../pages/CampaignJoinPage";
 import { CampaignLoadingPage } from "../pages/CampaignLoadingPage";
-import { CampaignPage } from "../pages/CampaignPage";
+import type { CampaignPageProps } from "../pages/CampaignPage";
 import { CampaignsPage } from "../pages/CampaignsPage";
 import type { ActorTypeFilter, AvailableActorEntry, BannerState, CurrentMapRosterEntry } from "../features/campaign/types";
 import type { RoomStatus } from "../services/roomConnection";
+
+const AdminPanel = lazy(async () => {
+  const module = await import("../components/AdminPanel");
+  return { default: module.AdminPanel };
+});
+
+const CampaignHubPage = lazy(async () => {
+  const module = await import("../pages/CampaignHubPage");
+  return { default: module.CampaignHubPage };
+});
+
+const CampaignPage = lazy(async () => {
+  const module = await import("../pages/CampaignPage");
+  return { default: module.CampaignPage };
+});
 
 interface AppRouteContentProps {
   route: AppRoute;
@@ -140,7 +155,16 @@ interface AppRouteContentProps {
   updateToken: CampaignPageProps["onUpdateToken"];
 }
 
-type CampaignPageProps = Parameters<typeof CampaignPage>[0];
+function RouteChunkFallback() {
+  return (
+    <main className="px-4 py-6 lg:px-8">
+      <section className="rounded-none border border-amber-200/10 bg-slate-950/72 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.24)] backdrop-blur-xl">
+        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-amber-200/55">Loading</p>
+        <p className="mt-3 text-sm leading-6 text-slate-400">Preparing the route workspace.</p>
+      </section>
+    </main>
+  );
+}
 
 export function AppRouteContent({
   route,
@@ -246,12 +270,14 @@ export function AppRouteContent({
 }: AppRouteContentProps) {
   if (route.name === "admin") {
     return (
-      <AdminPanel
-        token={session.token}
-        currentUserId={session.user.id}
-        onStatus={(tone, text) => setBanner({ tone, text })}
-        onRefreshSourceBooks={() => refreshCampaignSourceBooks().then(() => undefined)}
-      />
+      <Suspense fallback={<RouteChunkFallback />}>
+        <AdminPanel
+          token={session.token}
+          currentUserId={session.user.id}
+          onStatus={(tone, text) => setBanner({ tone, text })}
+          onRefreshSourceBooks={() => refreshCampaignSourceBooks().then(() => undefined)}
+        />
+      </Suspense>
     );
   }
 
@@ -300,7 +326,79 @@ export function AppRouteContent({
 
   if (route.name === "campaign") {
     return (
-      <CampaignHubPage
+      <Suspense fallback={<RouteChunkFallback />}>
+        <CampaignHubPage
+          token={session.token}
+          campaign={snapshot.campaign}
+          compendium={snapshot.compendium}
+          role={role}
+          currentUserId={session.user.id}
+          activeMap={activeMap}
+          selectedMap={selectedMap}
+          selectedActor={selectedActor}
+          activePopup={activePopup}
+          editingMap={editingMap}
+          mapEditorMode={mapEditorMode}
+          filteredSelectedMapRoster={filteredSelectedMapRoster}
+          availableActors={availableActors}
+          selectedMapAvailableActors={selectedMapReusableActors}
+          actorSearch={actorSearch}
+          actorTypeFilter={actorTypeFilter}
+          actorCreatorKind={actorCreatorKind}
+          actorCreatorOpen={actorCreatorOpen}
+          actorDraft={actorDraft}
+          monsterQuery={monsterQuery}
+          filteredCatalog={filteredCatalog}
+          selectedMonsterTemplate={selectedMonsterTemplate}
+          inviteDraft={inviteDraft}
+          canUndoEditingMap={canUndoEditingMap}
+          canRedoEditingMap={canRedoEditingMap}
+          canPersistEditingMap={canPersistEditingMap}
+          onOpenBoard={openCampaignBoard}
+          onSetActivePopup={setActivePopup}
+          onSelectMap={setSelectedMapId}
+          onSelectActor={setSelectedActorId}
+          onRoll={rollFromSheet}
+          onSaveActor={saveActor}
+          onActorSearchChange={setActorSearch}
+          onActorTypeFilterChange={setActorTypeFilter}
+          onActorCreatorOpenChange={setActorCreatorOpen}
+          onActorCreatorKindChange={setActorCreatorKind}
+          onCreateActor={createActor}
+          onMonsterQueryChange={setMonsterQuery}
+          onSelectMonster={(monsterId) => setSelectedMonsterId(monsterId)}
+          onCreateMonsterActor={(monster) => void createMonsterActor(monster)}
+          onCreateMapActor={async (draft, mapId) => {
+            await createActor(draft, { mapId });
+          }}
+          onCreateMapMonsterActor={async (monster, mapId) => {
+            await createMonsterActor(monster, { mapId });
+          }}
+          onAssignActorToMap={(actorId, mapId) => void assignActorToMap(actorId, mapId)}
+          onRemoveActorFromMap={(actorId, mapId) => void removeActorFromMap(actorId, mapId)}
+          onDeleteActor={(actor) => void deleteActor(actor)}
+          onInviteDraftChange={setInviteDraft}
+          onCreateInvite={() => void createInvite()}
+          onRemoveInvite={(inviteId) => void removeInvite(inviteId)}
+          onShowMap={showMap}
+          onStartCreateMap={openMapEditorForCreate}
+          onStartEditMap={openMapEditorForEdit}
+          onChangeEditingMap={changeEditingMap}
+          onSaveEditingMap={saveEditingMap}
+          onReloadEditingMap={reloadEditingMap}
+          onUndoEditingMap={undoEditingMap}
+          onRedoEditingMap={redoEditingMap}
+          onSetEditingMapActive={setEditingMapActive}
+          onBackToMapsList={() => setMapEditorMode(null)}
+          onMapUploadError={(message) => setBanner({ tone: "error", text: message })}
+        />
+      </Suspense>
+    );
+  }
+
+  return (
+    <Suspense fallback={<RouteChunkFallback />}>
+      <CampaignPage
         token={session.token}
         campaign={snapshot.campaign}
         compendium={snapshot.compendium}
@@ -310,49 +408,40 @@ export function AppRouteContent({
         selectedMap={selectedMap}
         selectedActor={selectedActor}
         activePopup={activePopup}
-        editingMap={editingMap}
-        mapEditorMode={mapEditorMode}
-        filteredSelectedMapRoster={filteredSelectedMapRoster}
-        availableActors={availableActors}
+        boardSeenCells={boardSeenCells}
+        fogPreviewUserId={fogPreviewUserId}
+        playerMembers={playerMembers}
+        dmFogEnabled={dmFogEnabled}
+        dmFogUserId={dmFogUserId}
         selectedMapAvailableActors={selectedMapReusableActors}
-        actorSearch={actorSearch}
-        actorTypeFilter={actorTypeFilter}
         actorCreatorKind={actorCreatorKind}
-        actorCreatorOpen={actorCreatorOpen}
-        actorDraft={actorDraft}
-        monsterQuery={monsterQuery}
         filteredCatalog={filteredCatalog}
         selectedMonsterTemplate={selectedMonsterTemplate}
-        inviteDraft={inviteDraft}
+        movementPreviews={movementPreviews}
+        measurePreviews={measurePreviews}
+        mapPings={mapPings}
+        viewRecall={viewRecall}
+        filteredCurrentMapRoster={filteredCurrentMapRoster}
+        filteredSelectedMapRoster={filteredSelectedMapRoster}
+        editingMap={editingMap}
+        mapEditorMode={mapEditorMode}
         canUndoEditingMap={canUndoEditingMap}
         canRedoEditingMap={canRedoEditingMap}
         canPersistEditingMap={canPersistEditingMap}
-        onOpenBoard={openCampaignBoard}
         onSetActivePopup={setActivePopup}
+        onOpenCampaignHome={openCampaignHome}
         onSelectMap={setSelectedMapId}
         onSelectActor={setSelectedActorId}
-        onRoll={rollFromSheet}
-        onSaveActor={saveActor}
-        onActorSearchChange={setActorSearch}
-        onActorTypeFilterChange={setActorTypeFilter}
-        onActorCreatorOpenChange={setActorCreatorOpen}
+        onSetDmFogEnabled={setDmFogEnabled}
+        onSetDmFogUserId={setDmFogUserId}
         onActorCreatorKindChange={setActorCreatorKind}
-        onCreateActor={createActor}
         onMonsterQueryChange={setMonsterQuery}
         onSelectMonster={(monsterId) => setSelectedMonsterId(monsterId)}
-        onCreateMonsterActor={(monster) => void createMonsterActor(monster)}
-        onCreateMapActor={async (draft, mapId) => {
-          await createActor(draft, { mapId });
-        }}
-        onCreateMapMonsterActor={async (monster, mapId) => {
-          await createMonsterActor(monster, { mapId });
-        }}
+        onResetFog={resetFog}
+        onClearFog={clearFog}
+        onSelectedMapItemCountChange={setSelectedBoardItemCount}
         onAssignActorToMap={(actorId, mapId) => void assignActorToMap(actorId, mapId)}
         onRemoveActorFromMap={(actorId, mapId) => void removeActorFromMap(actorId, mapId)}
-        onDeleteActor={(actor) => void deleteActor(actor)}
-        onInviteDraftChange={setInviteDraft}
-        onCreateInvite={() => void createInvite()}
-        onRemoveInvite={(inviteId) => void removeInvite(inviteId)}
         onShowMap={showMap}
         onStartCreateMap={openMapEditorForCreate}
         onStartEditMap={openMapEditorForEdit}
@@ -364,87 +453,28 @@ export function AppRouteContent({
         onSetEditingMapActive={setEditingMapActive}
         onBackToMapsList={() => setMapEditorMode(null)}
         onMapUploadError={(message) => setBanner({ tone: "error", text: message })}
+        onCreateMapActor={async (draft, mapId) => {
+          await createActor(draft, { mapId });
+        }}
+        onCreateMapMonsterActor={async (monster, mapId) => {
+          await createMonsterActor(monster, { mapId });
+        }}
+        onMoveActor={moveActor}
+        onBroadcastMovePreview={broadcastMovePreview}
+        onBroadcastMeasurePreview={broadcastMeasurePreview}
+        onToggleDoor={toggleDoor}
+        onToggleDoorLock={toggleDoorLock}
+        onCreateDrawing={createDrawing}
+        onUpdateDrawings={updateDrawings}
+        onDeleteDrawings={deleteDrawings}
+        onClearDrawings={clearDrawings}
+        onPing={pingMap}
+        onPingAndRecall={pingAndRecallMap}
+        onSendChat={sendChat}
+        onSaveActor={saveActor}
+        onRoll={rollFromSheet}
+        onUpdateToken={updateToken}
       />
-    );
-  }
-
-  return (
-    <CampaignPage
-      token={session.token}
-      campaign={snapshot.campaign}
-      compendium={snapshot.compendium}
-      role={role}
-      currentUserId={session.user.id}
-      activeMap={activeMap}
-      selectedMap={selectedMap}
-      selectedActor={selectedActor}
-      activePopup={activePopup}
-      boardSeenCells={boardSeenCells}
-      fogPreviewUserId={fogPreviewUserId}
-      playerMembers={playerMembers}
-      dmFogEnabled={dmFogEnabled}
-      dmFogUserId={dmFogUserId}
-      selectedMapAvailableActors={selectedMapReusableActors}
-      actorCreatorKind={actorCreatorKind}
-      filteredCatalog={filteredCatalog}
-      selectedMonsterTemplate={selectedMonsterTemplate}
-      movementPreviews={movementPreviews}
-      measurePreviews={measurePreviews}
-      mapPings={mapPings}
-      viewRecall={viewRecall}
-      filteredCurrentMapRoster={filteredCurrentMapRoster}
-      filteredSelectedMapRoster={filteredSelectedMapRoster}
-      editingMap={editingMap}
-      mapEditorMode={mapEditorMode}
-      canUndoEditingMap={canUndoEditingMap}
-      canRedoEditingMap={canRedoEditingMap}
-      canPersistEditingMap={canPersistEditingMap}
-      onSetActivePopup={setActivePopup}
-      onOpenCampaignHome={openCampaignHome}
-      onSelectMap={setSelectedMapId}
-      onSelectActor={setSelectedActorId}
-      onSetDmFogEnabled={setDmFogEnabled}
-      onSetDmFogUserId={setDmFogUserId}
-      onActorCreatorKindChange={setActorCreatorKind}
-      onMonsterQueryChange={setMonsterQuery}
-      onSelectMonster={(monsterId) => setSelectedMonsterId(monsterId)}
-      onResetFog={resetFog}
-      onClearFog={clearFog}
-      onSelectedMapItemCountChange={setSelectedBoardItemCount}
-      onAssignActorToMap={(actorId, mapId) => void assignActorToMap(actorId, mapId)}
-      onRemoveActorFromMap={(actorId, mapId) => void removeActorFromMap(actorId, mapId)}
-      onShowMap={showMap}
-      onStartCreateMap={openMapEditorForCreate}
-      onStartEditMap={openMapEditorForEdit}
-      onChangeEditingMap={changeEditingMap}
-      onSaveEditingMap={saveEditingMap}
-      onReloadEditingMap={reloadEditingMap}
-      onUndoEditingMap={undoEditingMap}
-      onRedoEditingMap={redoEditingMap}
-      onSetEditingMapActive={setEditingMapActive}
-      onBackToMapsList={() => setMapEditorMode(null)}
-      onMapUploadError={(message) => setBanner({ tone: "error", text: message })}
-      onCreateMapActor={async (draft, mapId) => {
-        await createActor(draft, { mapId });
-      }}
-      onCreateMapMonsterActor={async (monster, mapId) => {
-        await createMonsterActor(monster, { mapId });
-      }}
-      onMoveActor={moveActor}
-      onBroadcastMovePreview={broadcastMovePreview}
-      onBroadcastMeasurePreview={broadcastMeasurePreview}
-      onToggleDoor={toggleDoor}
-      onToggleDoorLock={toggleDoorLock}
-      onCreateDrawing={createDrawing}
-      onUpdateDrawings={updateDrawings}
-      onDeleteDrawings={deleteDrawings}
-      onClearDrawings={clearDrawings}
-      onPing={pingMap}
-      onPingAndRecall={pingAndRecallMap}
-      onSendChat={sendChat}
-      onSaveActor={saveActor}
-      onRoll={rollFromSheet}
-      onUpdateToken={updateToken}
-    />
+    </Suspense>
   );
 }

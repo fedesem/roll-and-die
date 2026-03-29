@@ -115,13 +115,7 @@ function ActorOwnerBadge({ ownerName }: { ownerName: string }) {
   );
 }
 
-function MetaIconBadge({
-  icon: Icon,
-  label
-}: {
-  icon: typeof User;
-  label: string;
-}) {
+function MetaIconBadge({ icon: Icon, label }: { icon: typeof User; label: string }) {
   return (
     <span className="badge subtle actor-meta-icon-badge" title={label} aria-label={label}>
       <Icon />

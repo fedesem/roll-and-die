@@ -9,10 +9,7 @@ export const logger = pino({
 
 export function requestLogger(request: Request, response: Response, next: NextFunction) {
   const existing = request.header("x-request-id");
-  const requestId =
-    typeof existing === "string" && existing.trim().length > 0
-      ? existing
-      : `req_${randomUUID().slice(0, 8)}`;
+  const requestId = typeof existing === "string" && existing.trim().length > 0 ? existing : `req_${randomUUID().slice(0, 8)}`;
 
   response.setHeader("x-request-id", requestId);
 
@@ -34,8 +31,7 @@ export function requestLogger(request: Request, response: Response, next: NextFu
 
   response.on("finish", () => {
     const durationMs = Date.now() - startedAt;
-    const level =
-      response.statusCode >= 500 ? "error" : response.statusCode >= 400 ? "warn" : "info";
+    const level = response.statusCode >= 500 ? "error" : response.statusCode >= 400 ? "warn" : "info";
 
     request.log[level](
       {

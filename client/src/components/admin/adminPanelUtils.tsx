@@ -45,15 +45,7 @@ export const tabIcons = {
   skills: BookText
 } satisfies Record<AdminTab, LucideIcon>;
 
-export function AdminField({
-  label,
-  wide,
-  children
-}: {
-  label: string;
-  wide?: boolean;
-  children: ReactNode;
-}) {
+export function AdminField({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
   return (
     <label className={`admin-field${wide ? " admin-field-wide" : ""}`}>
       <span>{label}</span>
@@ -169,34 +161,36 @@ export function countForTab(tab: AdminTab, counts: Record<AdminTab, number>) {
 export function getImportExample(tab: CompendiumTab) {
   switch (tab) {
     case "spells":
-      return JSON.stringify({
-        spell: [
-          {
-            name: "Acid Splash",
-            source: "XPHB",
-            page: 241,
-            level: 0,
-            school: "C",
-            time: [{ number: 1, unit: "action" }],
-            range: { type: "point", distance: { type: "feet", amount: 60 } },
-            components: { v: true, s: true },
-            duration: [{ type: "instant" }],
-            entries: [
-              "You hurl a bubble of acid. Choose one creature you can see within range, or choose two creatures you can see within range that are within 5 feet of each other."
-            ],
-            entriesHigherLevel: [
-              "The damage increases by {@damage 1d6} when you reach levels 5, 11, and 17."
-            ],
-            classes: {
-              fromClassList: [
-                { name: "Artificer", source: "TCE" },
-                { name: "Sorcerer", source: "PHB" },
-                { name: "Wizard", source: "PHB" }
-              ]
+      return JSON.stringify(
+        {
+          spell: [
+            {
+              name: "Acid Splash",
+              source: "XPHB",
+              page: 241,
+              level: 0,
+              school: "C",
+              time: [{ number: 1, unit: "action" }],
+              range: { type: "point", distance: { type: "feet", amount: 60 } },
+              components: { v: true, s: true },
+              duration: [{ type: "instant" }],
+              entries: [
+                "You hurl a bubble of acid. Choose one creature you can see within range, or choose two creatures you can see within range that are within 5 feet of each other."
+              ],
+              entriesHigherLevel: ["The damage increases by {@damage 1d6} when you reach levels 5, 11, and 17."],
+              classes: {
+                fromClassList: [
+                  { name: "Artificer", source: "TCE" },
+                  { name: "Sorcerer", source: "PHB" },
+                  { name: "Wizard", source: "PHB" }
+                ]
+              }
             }
-          }
-        ]
-      }, null, 2);
+          ]
+        },
+        null,
+        2
+      );
     case "monsters":
       return JSON.stringify(
         [
@@ -242,12 +236,7 @@ export function getImportExample(tab: CompendiumTab) {
                 headerEntries: [
                   "The aarakocra casts one of the following spells, requiring no Material components and using Wisdom as the spellcasting ability (spell save {@dc 13}):"
                 ],
-                will: [
-                  "{@spell Elementalism|XPHB}",
-                  "{@spell Gust of Wind|XPHB}",
-                  "{@spell Mage Hand|XPHB}",
-                  "{@spell Message|XPHB}"
-                ],
+                will: ["{@spell Elementalism|XPHB}", "{@spell Gust of Wind|XPHB}", "{@spell Mage Hand|XPHB}", "{@spell Message|XPHB}"],
                 daily: {
                   "1": ["{@spell Lightning Bolt|XPHB}"]
                 },
@@ -258,9 +247,7 @@ export function getImportExample(tab: CompendiumTab) {
             action: [
               {
                 name: "Multiattack",
-                entries: [
-                  "The aarakocra makes two Wind Staff attacks, and it can use Spellcasting to cast {@spell Gust of Wind|XPHB}."
-                ]
+                entries: ["The aarakocra makes two Wind Staff attacks, and it can use Spellcasting to cast {@spell Gust of Wind|XPHB}."]
               },
               {
                 name: "Wind Staff",
@@ -280,232 +267,273 @@ export function getImportExample(tab: CompendiumTab) {
         2
       );
     case "feats":
-      return JSON.stringify({
-        feat: [
-          {
-            name: "Spell Sniper",
-            source: "XPHB",
-            page: 208,
-            category: "G",
-            prerequisite: [
-              { level: 4, other: "Spellcasting or Pact Magic Feature" }
-            ],
-            ability: [
-              {
-                choose: {
-                  from: ["int", "wis", "cha"],
-                  amount: 1
+      return JSON.stringify(
+        {
+          feat: [
+            {
+              name: "Spell Sniper",
+              source: "XPHB",
+              page: 208,
+              category: "G",
+              prerequisite: [{ level: 4, other: "Spellcasting or Pact Magic Feature" }],
+              ability: [
+                {
+                  choose: {
+                    from: ["int", "wis", "cha"],
+                    amount: 1
+                  }
                 }
-              }
-            ],
-            entries: [
-              "You gain the following benefits.",
-              {
-                type: "entries",
-                name: "Ability Score Increase",
-                entries: [
-                  "Increase your Intelligence, Wisdom, or Charisma by 1, to a maximum of 20."
-                ]
-              }
-            ]
-          }
-        ]
-      }, null, 2);
+              ],
+              entries: [
+                "You gain the following benefits.",
+                {
+                  type: "entries",
+                  name: "Ability Score Increase",
+                  entries: ["Increase your Intelligence, Wisdom, or Charisma by 1, to a maximum of 20."]
+                }
+              ]
+            }
+          ]
+        },
+        null,
+        2
+      );
     case "classes":
-      return JSON.stringify({
-        class: [
-          {
-            name: "Barbarian",
-            source: "XPHB",
-            page: 56,
-            hd: { faces: 12 },
-            proficiency: ["str", "con"],
-            primaryAbility: [{ str: true }],
-            classFeatures: [
-              [{ classFeature: "Rage|Barbarian|XPHB|1" }],
-              [{ classFeature: "Danger Sense|Barbarian|XPHB|2" }]
-            ],
-            classTableGroups: [
-              {
-                title: "Barbarian Features",
-                colLabels: ["Level", "Features"],
-                rows: [
-                  ["1", "Rage, Unarmored Defense"],
-                  ["2", "Danger Sense, Reckless Attack"]
-                ]
-              }
-            ]
-          }
-        ],
-        classFeature: [
-          {
-            name: "Rage",
-            className: "Barbarian",
-            source: "XPHB",
-            level: 1,
-            entries: ["You can imbue yourself with a primal power called Rage."]
-          },
-          {
-            name: "Danger Sense",
-            className: "Barbarian",
-            source: "XPHB",
-            level: 2,
-            entries: ["You gain an uncanny sense of when things aren't as they should be."]
-          }
-        ]
-      }, null, 2);
+      return JSON.stringify(
+        {
+          class: [
+            {
+              name: "Barbarian",
+              source: "XPHB",
+              page: 56,
+              hd: { faces: 12 },
+              proficiency: ["str", "con"],
+              primaryAbility: [{ str: true }],
+              classFeatures: [[{ classFeature: "Rage|Barbarian|XPHB|1" }], [{ classFeature: "Danger Sense|Barbarian|XPHB|2" }]],
+              classTableGroups: [
+                {
+                  title: "Barbarian Features",
+                  colLabels: ["Level", "Features"],
+                  rows: [
+                    ["1", "Rage, Unarmored Defense"],
+                    ["2", "Danger Sense, Reckless Attack"]
+                  ]
+                }
+              ]
+            }
+          ],
+          classFeature: [
+            {
+              name: "Rage",
+              className: "Barbarian",
+              source: "XPHB",
+              level: 1,
+              entries: ["You can imbue yourself with a primal power called Rage."]
+            },
+            {
+              name: "Danger Sense",
+              className: "Barbarian",
+              source: "XPHB",
+              level: 2,
+              entries: ["You gain an uncanny sense of when things aren't as they should be."]
+            }
+          ]
+        },
+        null,
+        2
+      );
     case "books":
-      return JSON.stringify({
-        book: [
-          {
-            name: "Player's Handbook (2014)",
-            id: "PHB",
-            group: "core",
-            published: "2014-08-19",
-            author: "Wizards RPG Team"
-          }
-        ]
-      }, null, 2);
+      return JSON.stringify(
+        {
+          book: [
+            {
+              name: "Player's Handbook (2014)",
+              id: "PHB",
+              group: "core",
+              published: "2014-08-19",
+              author: "Wizards RPG Team"
+            }
+          ]
+        },
+        null,
+        2
+      );
     case "variantRules":
-      return JSON.stringify({
-        variantrule: [
-          {
-            name: "Darkness",
-            source: "XPHB",
-            page: 363,
-            ruleType: "Variant Rule",
-            entries: [
-              "A creature with {@sense Darkvision} can't see through this darkness, and nonmagical light can't illuminate it."
-            ]
-          }
-        ]
-      }, null, 2);
+      return JSON.stringify(
+        {
+          variantrule: [
+            {
+              name: "Darkness",
+              source: "XPHB",
+              page: 363,
+              ruleType: "Variant Rule",
+              entries: ["A creature with {@sense Darkvision} can't see through this darkness, and nonmagical light can't illuminate it."]
+            }
+          ]
+        },
+        null,
+        2
+      );
     case "conditions":
-      return JSON.stringify({
-        condition: [
-          {
-            name: "Blinded",
-            source: "XPHB",
-            page: 361,
-            entries: [
-              "While you have the Blinded condition, you experience the following effects.",
-              {
-                type: "entries",
-                entries: [
-                  {
-                    type: "entries",
-                    name: "Can't See",
-                    entries: ["You can't see and automatically fail any ability check that requires sight."]
-                  },
-                  {
-                    type: "entries",
-                    name: "Attacks Affected",
-                    entries: ["{@action Attack|XPHB} rolls against you have {@variantrule Advantage|XPHB}, and your attack rolls have {@variantrule Disadvantage|XPHB}."]
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      }, null, 2);
+      return JSON.stringify(
+        {
+          condition: [
+            {
+              name: "Blinded",
+              source: "XPHB",
+              page: 361,
+              entries: [
+                "While you have the Blinded condition, you experience the following effects.",
+                {
+                  type: "entries",
+                  entries: [
+                    {
+                      type: "entries",
+                      name: "Can't See",
+                      entries: ["You can't see and automatically fail any ability check that requires sight."]
+                    },
+                    {
+                      type: "entries",
+                      name: "Attacks Affected",
+                      entries: [
+                        "{@action Attack|XPHB} rolls against you have {@variantrule Advantage|XPHB}, and your attack rolls have {@variantrule Disadvantage|XPHB}."
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        null,
+        2
+      );
     case "optionalFeatures":
-      return JSON.stringify({
-        optionalfeature: [
-          {
-            name: "Agonizing Blast",
-            source: "XPHB",
-            page: 155,
-            featureType: ["EI"],
-            prerequisite: [
-              {
-                level: {
-                  level: 2,
-                  class: {
-                    name: "Warlock",
-                    source: "XPHB"
+      return JSON.stringify(
+        {
+          optionalfeature: [
+            {
+              name: "Agonizing Blast",
+              source: "XPHB",
+              page: 155,
+              featureType: ["EI"],
+              prerequisite: [
+                {
+                  level: {
+                    level: 2,
+                    class: {
+                      name: "Warlock",
+                      source: "XPHB"
+                    }
                   }
                 }
-              }
-            ],
-            entries: [
-              "Choose one of your known warlock cantrips that deals damage. You can add your Charisma modifier to that spell's damage rolls."
-            ]
-          }
-        ]
-      }, null, 2);
+              ],
+              entries: [
+                "Choose one of your known warlock cantrips that deals damage. You can add your Charisma modifier to that spell's damage rolls."
+              ]
+            }
+          ]
+        },
+        null,
+        2
+      );
     case "actions":
-      return JSON.stringify({
-        action: [
-          {
-            name: "Disengage",
-            source: "PHB",
-            page: 192,
-            time: [{ number: 1, unit: "action" }],
-            entries: ["If you take the Disengage action, your movement doesn't provoke opportunity attacks for the rest of the turn."]
-          }
-        ]
-      }, null, 2);
+      return JSON.stringify(
+        {
+          action: [
+            {
+              name: "Disengage",
+              source: "PHB",
+              page: 192,
+              time: [{ number: 1, unit: "action" }],
+              entries: ["If you take the Disengage action, your movement doesn't provoke opportunity attacks for the rest of the turn."]
+            }
+          ]
+        },
+        null,
+        2
+      );
     case "backgrounds":
-      return JSON.stringify({
-        background: [
-          {
-            name: "Acolyte",
-            source: "PHB",
-            page: 127,
-            entries: ["You have spent your life in the service of a temple."],
-            skillProficiencies: [{ insight: true, religion: true }]
-          }
-        ]
-      }, null, 2);
+      return JSON.stringify(
+        {
+          background: [
+            {
+              name: "Acolyte",
+              source: "PHB",
+              page: 127,
+              entries: ["You have spent your life in the service of a temple."],
+              skillProficiencies: [{ insight: true, religion: true }]
+            }
+          ]
+        },
+        null,
+        2
+      );
     case "items":
-      return JSON.stringify({
-        item: [
-          {
-            name: "Alchemy Jug",
-            source: "DMG",
-            page: 150,
-            type: "W",
-            rarity: "uncommon",
-            entries: ["This ceramic jug appears to be able to hold a gallon of liquid and weighs 12 pounds whether full or empty."]
-          }
-        ]
-      }, null, 2);
+      return JSON.stringify(
+        {
+          item: [
+            {
+              name: "Alchemy Jug",
+              source: "DMG",
+              page: 150,
+              type: "W",
+              rarity: "uncommon",
+              entries: ["This ceramic jug appears to be able to hold a gallon of liquid and weighs 12 pounds whether full or empty."]
+            }
+          ]
+        },
+        null,
+        2
+      );
     case "languages":
-      return JSON.stringify({
-        language: [
-          {
-            name: "Abyssal",
-            source: "PHB",
-            page: 123,
-            type: "exotic",
-            script: "Infernal",
-            typicalSpeakers: ["Demons"]
-          }
-        ]
-      }, null, 2);
+      return JSON.stringify(
+        {
+          language: [
+            {
+              name: "Abyssal",
+              source: "PHB",
+              page: 123,
+              type: "exotic",
+              script: "Infernal",
+              typicalSpeakers: ["Demons"]
+            }
+          ]
+        },
+        null,
+        2
+      );
     case "races":
-      return JSON.stringify({
-        race: [
-          {
-            name: "Aarakocra",
-            source: "DMG",
-            page: 282,
-            size: ["M"],
-            entries: ["You can speak, read, and write Auran."]
-          }
-        ]
-      }, null, 2);
+      return JSON.stringify(
+        {
+          race: [
+            {
+              name: "Aarakocra",
+              source: "DMG",
+              page: 282,
+              size: ["M"],
+              entries: ["You can speak, read, and write Auran."]
+            }
+          ]
+        },
+        null,
+        2
+      );
     case "skills":
-      return JSON.stringify({
-        skill: [
-          {
-            name: "Arcana",
-            source: "PHB",
-            page: 177,
-            ability: "int",
-            entries: ["Your Intelligence (Arcana) check measures your ability to recall lore about spells and magic items."]
-          }
-        ]
-      }, null, 2);
+      return JSON.stringify(
+        {
+          skill: [
+            {
+              name: "Arcana",
+              source: "PHB",
+              page: 177,
+              ability: "int",
+              entries: ["Your Intelligence (Arcana) check measures your ability to recall lore about spells and magic items."]
+            }
+          ]
+        },
+        null,
+        2
+      );
   }
 }

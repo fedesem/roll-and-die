@@ -21,9 +21,13 @@ export async function apiRequest<TResponse = unknown>(path: string, options: Req
   const binaryRequestBody = isBinaryRequestBody(requestBody);
   const requestHeaders =
     requestBody instanceof FormData
-      ? options.headers ?? {}
+      ? (options.headers ?? {})
       : {
-          ...(options.contentType ? { "Content-Type": options.contentType } : binaryRequestBody ? {} : { "Content-Type": "application/json" }),
+          ...(options.contentType
+            ? { "Content-Type": options.contentType }
+            : binaryRequestBody
+              ? {}
+              : { "Content-Type": "application/json" }),
           ...(options.headers ?? {})
         };
   const response = await fetch(`${apiBase}${path}`, {

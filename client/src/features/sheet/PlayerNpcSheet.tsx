@@ -1,17 +1,4 @@
-import {
-  Backpack,
-  BookOpen,
-  Brain,
-  Footprints,
-  ImagePlus,
-  Plus,
-  ScrollText,
-  Shield,
-  Sparkles,
-  Sword,
-  WandSparkles,
-  X
-} from "lucide-react";
+import { Backpack, BookOpen, Brain, Footprints, ImagePlus, Plus, ScrollText, Shield, Sparkles, Sword, WandSparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 
 import type {
@@ -76,9 +63,7 @@ interface PlayerNpcSheetProps {
   onRoll: (notation: string, label: string) => Promise<void>;
 }
 
-type PickerState =
-  | { kind: "class" | "learn-spell" | "prepare-spell" | "feat" | "trait"; query: string }
-  | null;
+type PickerState = { kind: "class" | "learn-spell" | "prepare-spell" | "feat" | "trait"; query: string } | null;
 
 const sectionDefaults: Record<SheetSectionId, { column: number; order: number }> = {
   info: { column: 1, order: 0 },
@@ -99,15 +84,7 @@ const sectionDefaults: Record<SheetSectionId, { column: number; order: number }>
 
 const resetOptions = ["", "Short Rest", "Long Rest"] as const;
 
-export function PlayerNpcSheet({
-  token,
-  actor,
-  compendium,
-  role,
-  currentUserId,
-  onSave,
-  onRoll
-}: PlayerNpcSheetProps) {
+export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, onSave, onRoll }: PlayerNpcSheetProps) {
   const [draft, setDraft] = useState<ActorSheet>(() => cloneActor(actor));
   const [picker, setPicker] = useState<PickerState>(null);
   const [layoutEditing, setLayoutEditing] = useState(false);
@@ -130,21 +107,12 @@ export function PlayerNpcSheet({
 
   const normalizedLayout = useMemo(() => ensureLayout(draft.layout), [draft.layout]);
   const totalActorLevel = useMemo(() => totalLevel(draft), [draft]);
-  const proficiencyBonus = useMemo(
-    () => proficiencyBonusForLevel(totalActorLevel),
-    [totalActorLevel]
-  );
+  const proficiencyBonus = useMemo(() => proficiencyBonusForLevel(totalActorLevel), [totalActorLevel]);
   const armorClass = useMemo(() => derivedArmorClass(draft), [draft]);
   const speed = useMemo(() => derivedSpeed(draft), [draft]);
   const spellSave = useMemo(() => spellSaveDc({ ...draft, proficiencyBonus }), [draft, proficiencyBonus]);
-  const spellAttack = useMemo(
-    () => spellAttackBonus({ ...draft, proficiencyBonus }),
-    [draft, proficiencyBonus]
-  );
-  const classFeatures = useMemo(
-    () => availableClassFeatures(draft, compendium.classes),
-    [compendium.classes, draft]
-  );
+  const spellAttack = useMemo(() => spellAttackBonus({ ...draft, proficiencyBonus }), [draft, proficiencyBonus]);
+  const classFeatures = useMemo(() => availableClassFeatures(draft, compendium.classes), [compendium.classes, draft]);
   const filteredSpells = useMemo(() => {
     const query = normalizeKey(picker?.query ?? "");
 
@@ -153,8 +121,8 @@ export function PlayerNpcSheet({
       .filter((entry) =>
         !query
           ? true
-          : [entry.name, entry.school, entry.level === "cantrip" ? "cantrip" : `${entry.level}`].some(
-              (value) => value.toLowerCase().includes(query)
+          : [entry.name, entry.school, entry.level === "cantrip" ? "cantrip" : `${entry.level}`].some((value) =>
+              value.toLowerCase().includes(query)
             )
       );
   }, [compendium.spells, draft.classes, picker?.query]);
@@ -164,11 +132,7 @@ export function PlayerNpcSheet({
     return compendium.feats
       .filter((entry) => featMatchesClassFilter(entry, draft.classes))
       .filter((entry) =>
-        !query
-          ? true
-          : [entry.name, entry.category, entry.prerequisites].some((value) =>
-              value.toLowerCase().includes(query)
-            )
+        !query ? true : [entry.name, entry.category, entry.prerequisites].some((value) => value.toLowerCase().includes(query))
       );
   }, [compendium.feats, draft.classes, picker?.query]);
   const filteredClasses = useMemo(() => {
@@ -182,11 +146,7 @@ export function PlayerNpcSheet({
     const query = normalizeKey(picker?.query ?? "");
 
     return classFeatures.filter((entry) =>
-      !query
-        ? true
-        : [entry.name, entry.className, entry.description].some((value) =>
-            value.toLowerCase().includes(query)
-          )
+      !query ? true : [entry.name, entry.className, entry.description].some((value) => value.toLowerCase().includes(query))
     );
   }, [classFeatures, picker?.query]);
 
@@ -242,79 +202,60 @@ export function PlayerNpcSheet({
   function updateSkill(index: number, patch: Partial<SkillEntry>) {
     updateDraft((current) => ({
       ...current,
-      skills: current.skills.map((entry, currentIndex) =>
-        currentIndex === index ? { ...entry, ...patch } : entry
-      )
+      skills: current.skills.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
     }));
   }
 
   function updateClass(index: number, patch: Partial<ActorClassEntry>) {
     updateDraft((current) => ({
       ...current,
-      classes: current.classes.map((entry, currentIndex) =>
-        currentIndex === index ? { ...entry, ...patch } : entry
-      )
+      classes: current.classes.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
     }));
   }
 
   function updateSpellSlot(index: number, patch: Partial<SpellSlotTrack>) {
     updateDraft((current) => ({
       ...current,
-      spellSlots: current.spellSlots.map((entry, currentIndex) =>
-        currentIndex === index ? { ...entry, ...patch } : entry
-      )
+      spellSlots: current.spellSlots.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
     }));
   }
 
   function updateAttack(index: number, patch: Partial<AttackEntry>) {
     updateDraft((current) => ({
       ...current,
-      attacks: current.attacks.map((entry, currentIndex) =>
-        currentIndex === index ? { ...entry, ...patch } : entry
-      )
+      attacks: current.attacks.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
     }));
   }
 
   function updateArmor(index: number, patch: Partial<ArmorEntry>) {
     updateDraft((current) => ({
       ...current,
-      armorItems: current.armorItems.map((entry, currentIndex) =>
-        currentIndex === index ? { ...entry, ...patch } : entry
-      )
+      armorItems: current.armorItems.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
     }));
   }
 
   function updateResource(index: number, patch: Partial<ResourceEntry>) {
     updateDraft((current) => ({
       ...current,
-      resources: current.resources.map((entry, currentIndex) =>
-        currentIndex === index ? { ...entry, ...patch } : entry
-      )
+      resources: current.resources.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
     }));
   }
 
   function updateInventory(index: number, patch: Partial<InventoryEntry>) {
     updateDraft((current) => ({
       ...current,
-      inventory: current.inventory.map((entry, currentIndex) =>
-        currentIndex === index ? { ...entry, ...patch } : entry
-      )
+      inventory: current.inventory.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
     }));
   }
 
   function updateBonus(index: number, patch: Partial<ActorBonusEntry>) {
     updateDraft((current) => ({
       ...current,
-      bonuses: current.bonuses.map((entry, currentIndex) =>
-        currentIndex === index ? { ...entry, ...patch } : entry
-      )
+      bonuses: current.bonuses.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
     }));
   }
 
-  function removeArrayItem<K extends "classes" | "attacks" | "armorItems" | "resources" | "inventory" | "bonuses">(
-    key: K,
-    index: number
-  ) {
+  function removeArrayItem<K extends "classes" | "attacks" | "armorItems" | "resources" | "inventory" | "bonuses">(key: K, index: number) {
     updateDraft((current) => ({
       ...current,
       [key]: current[key].filter((_, currentIndex) => currentIndex !== index)
@@ -338,7 +279,7 @@ export function PlayerNpcSheet({
     });
   }
 
-  function updateCurrency(key: typeof currencyOrder[number], value: number) {
+  function updateCurrency(key: (typeof currencyOrder)[number], value: number) {
     updateDraft((current) => ({
       ...current,
       currency: {
@@ -391,9 +332,7 @@ export function PlayerNpcSheet({
   function learnSpell(spell: SpellEntry) {
     updateDraft((current) => ({
       ...current,
-      spells: current.spells.includes(spell.name)
-        ? current.spells
-        : [...current.spells, spell.name]
+      spells: current.spells.includes(spell.name) ? current.spells : [...current.spells, spell.name]
     }));
     setPicker(null);
   }
@@ -401,12 +340,8 @@ export function PlayerNpcSheet({
   function prepareSpell(spell: SpellEntry) {
     updateDraft((current) => ({
       ...current,
-      spells: current.spells.includes(spell.name)
-        ? current.spells
-        : [...current.spells, spell.name],
-      preparedSpells: current.preparedSpells.includes(spell.name)
-        ? current.preparedSpells
-        : [...current.preparedSpells, spell.name]
+      spells: current.spells.includes(spell.name) ? current.spells : [...current.spells, spell.name],
+      preparedSpells: current.preparedSpells.includes(spell.name) ? current.preparedSpells : [...current.preparedSpells, spell.name]
     }));
     setPicker(null);
   }
@@ -428,9 +363,7 @@ export function PlayerNpcSheet({
   }
 
   function startShortRest() {
-    setHitDiceSelections(
-      Object.fromEntries(draft.classes.map((entry) => [entry.id, 0]))
-    );
+    setHitDiceSelections(Object.fromEntries(draft.classes.map((entry) => [entry.id, 0])));
     setShortRestOpen(true);
   }
 
@@ -452,10 +385,7 @@ export function PlayerNpcSheet({
       };
     });
 
-    nextDraft.hitPoints.current = Math.min(
-      nextDraft.hitPoints.max,
-      nextDraft.hitPoints.current + healing
-    );
+    nextDraft.hitPoints.current = Math.min(nextDraft.hitPoints.max, nextDraft.hitPoints.current + healing);
     nextDraft.resources = nextDraft.resources.map((resource) =>
       /short rest/i.test(resource.resetOn)
         ? {
@@ -483,22 +413,14 @@ export function PlayerNpcSheet({
     await saveCurrent(nextDraft);
   }
 
-  function renderSection(
-    sectionId: SheetSectionId,
-    title: string,
-    icon: ReactNode,
-    children: ReactNode,
-    action?: ReactNode
-  ) {
+  function renderSection(sectionId: SheetSectionId, title: string, icon: ReactNode, children: ReactNode, action?: ReactNode) {
     return (
       <article className="border border-amber-800/50 bg-zinc-950/90 shadow-[0_0_0_1px_rgba(0,0,0,0.18)]">
         <header className="flex items-start justify-between border-b border-amber-800/30 px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="text-amber-400">{icon}</span>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.28em] text-amber-400/80">
-                {title}
-              </p>
+              <p className="text-[11px] uppercase tracking-[0.28em] text-amber-400/80">{title}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -510,9 +432,7 @@ export function PlayerNpcSheet({
                     key={direction}
                     type="button"
                     className="border border-zinc-800 px-2 py-1 text-[10px] uppercase tracking-[0.22em] text-zinc-300 transition hover:border-amber-700/70 hover:text-amber-50"
-                    onClick={() =>
-                      updateField("layout", moveLayoutSection(normalizedLayout, sectionId, direction))
-                    }
+                    onClick={() => updateField("layout", moveLayoutSection(normalizedLayout, sectionId, direction))}
                   >
                     {direction[0]}
                   </button>
@@ -554,9 +474,7 @@ export function PlayerNpcSheet({
               className={inputClass}
               value={draft.creatureSize}
               disabled={!canEdit}
-              onChange={(event) =>
-                updateField("creatureSize", event.target.value as ActorCreatureSize)
-              }
+              onChange={(event) => updateField("creatureSize", event.target.value as ActorCreatureSize)}
             >
               {CREATURE_SIZE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -595,9 +513,7 @@ export function PlayerNpcSheet({
               className={inputClass}
               value={draft.spellcastingAbility}
               disabled={!canEdit}
-              onChange={(event) =>
-                updateField("spellcastingAbility", event.target.value as AbilityKey)
-              }
+              onChange={(event) => updateField("spellcastingAbility", event.target.value as AbilityKey)}
             >
               {abilityOrder.map((entry) => (
                 <option key={entry.key} value={entry.key}>
@@ -678,11 +594,7 @@ export function PlayerNpcSheet({
               <p className="mt-1 text-sm text-zinc-400">Multiclass hit dice and spellcasting are derived from these entries.</p>
             </div>
             {canEdit && (
-              <button
-                type="button"
-                className={toolbarGhostButton}
-                onClick={() => setPicker({ kind: "class", query: "" })}
-              >
+              <button type="button" className={toolbarGhostButton} onClick={() => setPicker({ kind: "class", query: "" })}>
                 <Plus size={14} />
                 Add Class
               </button>
@@ -728,10 +640,7 @@ export function PlayerNpcSheet({
                       disabled={!canEdit}
                       onChange={(event) =>
                         updateClass(index, {
-                          usedHitDice: Math.max(
-                            0,
-                            Math.min(entry.level, Number(event.target.value || 0))
-                          )
+                          usedHitDice: Math.max(0, Math.min(entry.level, Number(event.target.value || 0)))
                         })
                       }
                     />
@@ -757,11 +666,7 @@ export function PlayerNpcSheet({
                   </Field>
                   {canEdit && (
                     <div className="flex items-end justify-end">
-                      <button
-                        type="button"
-                        className={iconDeleteButton}
-                        onClick={() => removeArrayItem("classes", index)}
-                      >
+                      <button type="button" className={iconDeleteButton} onClick={() => removeArrayItem("classes", index)}>
                         <X size={14} />
                       </button>
                     </div>
@@ -796,9 +701,7 @@ export function PlayerNpcSheet({
                 <button
                   type="button"
                   className={rollButton}
-                  onClick={() =>
-                    void onRoll(buildNotation(draft.initiative), `${draft.name} initiative`)
-                  }
+                  onClick={() => void onRoll(buildNotation(draft.initiative), `${draft.name} initiative`)}
                 >
                   Roll
                 </button>
@@ -855,16 +758,8 @@ export function PlayerNpcSheet({
 
         <div className="grid gap-3 md:grid-cols-3">
           <StatBox label="Hit Dice" value={draft.hitDice} />
-          <StatBox
-            label="Spell Save DC"
-            value={String(spellSave)}
-            detail={draft.spellcastingAbility.toUpperCase()}
-          />
-          <StatBox
-            label="Spell Attack"
-            value={formatModifier(spellAttack)}
-            detail={draft.spellcastingAbility.toUpperCase()}
-          />
+          <StatBox label="Spell Save DC" value={String(spellSave)} detail={draft.spellcastingAbility.toUpperCase()} />
+          <StatBox label="Spell Attack" value={formatModifier(spellAttack)} detail={draft.spellcastingAbility.toUpperCase()} />
         </div>
       </div>
     );
@@ -882,24 +777,14 @@ export function PlayerNpcSheet({
           const saveTotal = savingThrowTotal({ ...draft, proficiencyBonus }, entry.key);
 
           return (
-            <div
-              key={entry.key}
-              className="space-y-3 border border-amber-800/30 bg-zinc-900/70 px-3 py-3"
-            >
+            <div key={entry.key} className="space-y-3 border border-amber-800/30 bg-zinc-900/70 px-3 py-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-medium tracking-[0.18em] text-amber-50">
-                  {entry.label}
-                </h4>
+                <h4 className="text-sm font-medium tracking-[0.18em] text-amber-50">{entry.label}</h4>
                 <button
                   type="button"
                   className={rollTextButton}
                   disabled={!canRoll}
-                  onClick={() =>
-                    void onRoll(
-                      buildNotation(modifier),
-                      `${draft.name} ${entry.label} check`
-                    )
-                  }
+                  onClick={() => void onRoll(buildNotation(modifier), `${draft.name} ${entry.label} check`)}
                 >
                   {formatModifier(modifier)}
                 </button>
@@ -919,12 +804,7 @@ export function PlayerNpcSheet({
                   type="button"
                   className={rollTextButton}
                   disabled={!canRoll}
-                  onClick={() =>
-                    void onRoll(
-                      buildNotation(saveTotal),
-                      `${draft.name} ${entry.label} save`
-                    )
-                  }
+                  onClick={() => void onRoll(buildNotation(saveTotal), `${draft.name} ${entry.label} save`)}
                 >
                   Save {formatModifier(saveTotal)}
                 </button>
@@ -943,25 +823,18 @@ export function PlayerNpcSheet({
       <BookOpen size={16} />,
       <div className="space-y-2">
         {draft.skills.map((entry, index) => (
-          <div
-            key={entry.id}
-            className="grid gap-3 border-b border-amber-900/20 py-2 md:grid-cols-[80px,1fr,100px,80px]"
-          >
+          <div key={entry.id} className="grid gap-3 border-b border-amber-900/20 py-2 md:grid-cols-[80px,1fr,100px,80px]">
             <button
               type="button"
               className="text-left text-sm font-semibold text-amber-300 transition hover:text-amber-200 disabled:text-zinc-500"
               disabled={!canRoll}
-              onClick={() =>
-                void onRoll(buildNotation(skillTotal({ ...draft, proficiencyBonus }, entry)), `${draft.name} ${entry.name}`)
-              }
+              onClick={() => void onRoll(buildNotation(skillTotal({ ...draft, proficiencyBonus }, entry)), `${draft.name} ${entry.name}`)}
             >
               {formatModifier(skillTotal({ ...draft, proficiencyBonus }, entry))}
             </button>
             <div>
               <p className="text-sm text-amber-50">{entry.name}</p>
-              <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">
-                {entry.ability.toUpperCase()}
-              </p>
+              <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">{entry.ability.toUpperCase()}</p>
             </div>
             <div className="flex items-center gap-2">
               <DotToggle
@@ -984,9 +857,7 @@ export function PlayerNpcSheet({
                 className={inputClass}
                 value={entry.ability}
                 disabled={!canEdit}
-                onChange={(event) =>
-                  updateSkill(index, { ability: event.target.value as AbilityKey })
-                }
+                onChange={(event) => updateSkill(index, { ability: event.target.value as AbilityKey })}
               >
                 {abilityOrder.map((ability) => (
                   <option key={ability.key} value={ability.key}>
@@ -1024,9 +895,7 @@ export function PlayerNpcSheet({
                   type="number"
                   value={entry.attackBonus}
                   disabled={!canEdit}
-                  onChange={(event) =>
-                    updateAttack(index, { attackBonus: Number(event.target.value || 0) })
-                  }
+                  onChange={(event) => updateAttack(index, { attackBonus: Number(event.target.value || 0) })}
                 />
               </Field>
               <Field label="Damage">
@@ -1042,18 +911,12 @@ export function PlayerNpcSheet({
                   type="button"
                   className={rollButton}
                   disabled={!canRoll}
-                  onClick={() =>
-                    void onRoll(buildNotation(entry.attackBonus), `${draft.name} ${entry.name}`)
-                  }
+                  onClick={() => void onRoll(buildNotation(entry.attackBonus), `${draft.name} ${entry.name}`)}
                 >
                   Roll
                 </button>
                 {canEdit && (
-                  <button
-                    type="button"
-                    className={iconDeleteButton}
-                    onClick={() => removeArrayItem("attacks", index)}
-                  >
+                  <button type="button" className={iconDeleteButton} onClick={() => removeArrayItem("attacks", index)}>
                     <X size={14} />
                   </button>
                 )}
@@ -1149,9 +1012,7 @@ export function PlayerNpcSheet({
                   type="number"
                   value={entry.armorClass}
                   disabled={!canEdit}
-                  onChange={(event) =>
-                    updateArmor(index, { armorClass: Number(event.target.value || 0) })
-                  }
+                  onChange={(event) => updateArmor(index, { armorClass: Number(event.target.value || 0) })}
                 />
               </Field>
               <Field label="Bonus">
@@ -1171,11 +1032,7 @@ export function PlayerNpcSheet({
                   onToggle={() => updateArmor(index, { equipped: !entry.equipped })}
                 />
                 {canEdit && (
-                  <button
-                    type="button"
-                    className={iconDeleteButton}
-                    onClick={() => removeArrayItem("armorItems", index)}
-                  >
+                  <button type="button" className={iconDeleteButton} onClick={() => removeArrayItem("armorItems", index)}>
                     <X size={14} />
                   </button>
                 )}
@@ -1191,8 +1048,7 @@ export function PlayerNpcSheet({
                   placeholder="No cap"
                   onChange={(event) =>
                     updateArmor(index, {
-                      maxDexBonus:
-                        event.target.value === "" ? null : Number(event.target.value || 0)
+                      maxDexBonus: event.target.value === "" ? null : Number(event.target.value || 0)
                     })
                   }
                 />
@@ -1285,11 +1141,7 @@ export function PlayerNpcSheet({
               </Field>
               <div className="flex items-end justify-end">
                 {canEdit && (
-                  <button
-                    type="button"
-                    className={iconDeleteButton}
-                    onClick={() => removeArrayItem("resources", index)}
-                  >
+                  <button type="button" className={iconDeleteButton} onClick={() => removeArrayItem("resources", index)}>
                     <X size={14} />
                   </button>
                 )}
@@ -1303,18 +1155,14 @@ export function PlayerNpcSheet({
                     type="number"
                     value={entry.current}
                     disabled={!canEdit}
-                    onChange={(event) =>
-                      updateResource(index, { current: Number(event.target.value || 0) })
-                    }
+                    onChange={(event) => updateResource(index, { current: Number(event.target.value || 0) })}
                   />
                   <input
                     className={inputClass}
                     type="number"
                     value={entry.max}
                     disabled={!canEdit}
-                    onChange={(event) =>
-                      updateResource(index, { max: Number(event.target.value || 0) })
-                    }
+                    onChange={(event) => updateResource(index, { max: Number(event.target.value || 0) })}
                   />
                 </div>
               </Field>
@@ -1413,9 +1261,7 @@ export function PlayerNpcSheet({
                     type="number"
                     value={entry.quantity}
                     disabled={!canEdit}
-                    onChange={(event) =>
-                      updateInventory(index, { quantity: Number(event.target.value || 0) })
-                    }
+                    onChange={(event) => updateInventory(index, { quantity: Number(event.target.value || 0) })}
                   />
                 </Field>
                 <div className="flex items-end gap-2">
@@ -1426,11 +1272,7 @@ export function PlayerNpcSheet({
                     onToggle={() => updateInventory(index, { equipped: !entry.equipped })}
                   />
                   {canEdit && (
-                    <button
-                      type="button"
-                      className={iconDeleteButton}
-                      onClick={() => removeArrayItem("inventory", index)}
-                    >
+                    <button type="button" className={iconDeleteButton} onClick={() => removeArrayItem("inventory", index)}>
                       <X size={14} />
                     </button>
                   )}
@@ -1484,7 +1326,8 @@ export function PlayerNpcSheet({
       <Footprints size={16} />,
       <div className="space-y-3">
         <p className="text-sm text-zinc-400">
-          Gear and buff bonuses can be positive or negative and are applied automatically to AC, speed, ability scores, skills, or saving throws.
+          Gear and buff bonuses can be positive or negative and are applied automatically to AC, speed, ability scores, skills, or saving
+          throws.
         </p>
         {draft.bonuses.map((entry, index) => (
           <div key={entry.id} className="space-y-3 border border-amber-800/30 bg-zinc-950/70 p-3">
@@ -1548,11 +1391,7 @@ export function PlayerNpcSheet({
                   onToggle={() => updateBonus(index, { enabled: !entry.enabled })}
                 />
                 {canEdit && (
-                  <button
-                    type="button"
-                    className={iconDeleteButton}
-                    onClick={() => removeArrayItem("bonuses", index)}
-                  >
+                  <button type="button" className={iconDeleteButton} onClick={() => removeArrayItem("bonuses", index)}>
                     <X size={14} />
                   </button>
                 )}
@@ -1677,19 +1516,11 @@ export function PlayerNpcSheet({
         <div className="flex flex-wrap items-center gap-2">
           {canEdit && (
             <>
-              <button
-                type="button"
-                className={toolbarGhostButton}
-                onClick={() => setPicker({ kind: "learn-spell", query: "" })}
-              >
+              <button type="button" className={toolbarGhostButton} onClick={() => setPicker({ kind: "learn-spell", query: "" })}>
                 <Plus size={14} />
                 Learn
               </button>
-              <button
-                type="button"
-                className={toolbarGhostButton}
-                onClick={() => setPicker({ kind: "prepare-spell", query: "" })}
-              >
+              <button type="button" className={toolbarGhostButton} onClick={() => setPicker({ kind: "prepare-spell", query: "" })}>
                 <Plus size={14} />
                 Prepare
               </button>
@@ -1699,9 +1530,7 @@ export function PlayerNpcSheet({
             type="button"
             className={rollButton}
             disabled={!canRoll}
-            onClick={() =>
-              void onRoll(buildNotation(spellAttack), `${draft.name} spell attack`)
-            }
+            onClick={() => void onRoll(buildNotation(spellAttack), `${draft.name} spell attack`)}
           >
             Roll Spell Attack
           </button>
@@ -1739,11 +1568,7 @@ export function PlayerNpcSheet({
       <Sparkles size={16} />,
       <div className="space-y-3">
         {canEdit && (
-          <button
-            type="button"
-            className={toolbarGhostButton}
-            onClick={() => setPicker({ kind: "feat", query: "" })}
-          >
+          <button type="button" className={toolbarGhostButton} onClick={() => setPicker({ kind: "feat", query: "" })}>
             <Plus size={14} />
             Add Feat
           </button>
@@ -1751,25 +1576,16 @@ export function PlayerNpcSheet({
 
         <div className="space-y-2">
           {draft.feats.map((entry) => (
-            <div
-              key={entry}
-              className="flex items-center justify-between border border-amber-800/30 bg-zinc-950/70 px-3 py-3"
-            >
+            <div key={entry} className="flex items-center justify-between border border-amber-800/30 bg-zinc-950/70 px-3 py-3">
               <span className="text-sm text-amber-50">{entry}</span>
               {canEdit && (
-                <button
-                  type="button"
-                  className={iconDeleteButton}
-                  onClick={() => toggleTextSelection("feats", entry)}
-                >
+                <button type="button" className={iconDeleteButton} onClick={() => toggleTextSelection("feats", entry)}>
                   <X size={14} />
                 </button>
               )}
             </div>
           ))}
-          {draft.feats.length === 0 && (
-            <p className="text-sm text-zinc-500">No feats selected.</p>
-          )}
+          {draft.feats.length === 0 && <p className="text-sm text-zinc-500">No feats selected.</p>}
         </div>
       </div>
     );
@@ -1782,11 +1598,7 @@ export function PlayerNpcSheet({
       <BookOpen size={16} />,
       <div className="space-y-3">
         {canEdit && (
-          <button
-            type="button"
-            className={toolbarGhostButton}
-            onClick={() => setPicker({ kind: "trait", query: "" })}
-          >
+          <button type="button" className={toolbarGhostButton} onClick={() => setPicker({ kind: "trait", query: "" })}>
             <Plus size={14} />
             Add Feature
           </button>
@@ -1794,25 +1606,16 @@ export function PlayerNpcSheet({
 
         <div className="space-y-2">
           {draft.features.map((entry) => (
-            <div
-              key={entry}
-              className="flex items-center justify-between border border-amber-800/30 bg-zinc-950/70 px-3 py-3"
-            >
+            <div key={entry} className="flex items-center justify-between border border-amber-800/30 bg-zinc-950/70 px-3 py-3">
               <span className="text-sm text-amber-50">{entry}</span>
               {canEdit && (
-                <button
-                  type="button"
-                  className={iconDeleteButton}
-                  onClick={() => toggleTextSelection("features", entry)}
-                >
+                <button type="button" className={iconDeleteButton} onClick={() => toggleTextSelection("features", entry)}>
                   <X size={14} />
                 </button>
               )}
             </div>
           ))}
-          {draft.features.length === 0 && (
-            <p className="text-sm text-zinc-500">No class features selected.</p>
-          )}
+          {draft.features.length === 0 && <p className="text-sm text-zinc-500">No class features selected.</p>}
         </div>
       </div>
     );
@@ -1859,9 +1662,7 @@ export function PlayerNpcSheet({
           key={entry.id}
           title={entry.name}
           subtitle={`${entry.level === "cantrip" ? "Cantrip" : `Level ${entry.level}`} • ${entry.school}`}
-          onSelect={() =>
-            picker.kind === "learn-spell" ? learnSpell(entry) : prepareSpell(entry)
-          }
+          onSelect={() => (picker.kind === "learn-spell" ? learnSpell(entry) : prepareSpell(entry))}
         />
       ));
     } else if (picker.kind === "feat") {
@@ -1920,46 +1721,22 @@ export function PlayerNpcSheet({
       <div className="flex flex-wrap items-center justify-between gap-3 border border-amber-800/40 bg-zinc-950 px-4 py-3">
         <div className="flex items-center gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-amber-400/80">
-              {draft.kind === "npc" ? "NPC Sheet" : "Character Sheet"}
-            </p>
+            <p className="text-xs uppercase tracking-[0.3em] text-amber-400/80">{draft.kind === "npc" ? "NPC Sheet" : "Character Sheet"}</p>
             <h2 className="mt-1 text-2xl font-semibold text-amber-50">{draft.name}</h2>
           </div>
-          <span className="border border-amber-800/40 px-2 py-1 text-xs uppercase tracking-[0.22em] text-zinc-300">
-            {draft.kind}
-          </span>
+          <span className="border border-amber-800/40 px-2 py-1 text-xs uppercase tracking-[0.22em] text-zinc-300">{draft.kind}</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className={toolbarGhostButton}
-            disabled={!canEdit || saving}
-            onClick={() => void saveCurrent()}
-          >
+          <button type="button" className={toolbarGhostButton} disabled={!canEdit || saving} onClick={() => void saveCurrent()}>
             {saving ? "Saving…" : "Save"}
           </button>
-          <button
-            type="button"
-            className={toolbarGhostButton}
-            disabled={!canEdit || draft.classes.length === 0}
-            onClick={startShortRest}
-          >
+          <button type="button" className={toolbarGhostButton} disabled={!canEdit || draft.classes.length === 0} onClick={startShortRest}>
             Short Rest
           </button>
-          <button
-            type="button"
-            className={toolbarGhostButton}
-            disabled={!canEdit}
-            onClick={() => void handleLongRest()}
-          >
+          <button type="button" className={toolbarGhostButton} disabled={!canEdit} onClick={() => void handleLongRest()}>
             Long Rest
           </button>
-          <button
-            type="button"
-            className={toolbarGhostButton}
-            disabled={!canEdit}
-            onClick={() => setLayoutEditing((current) => !current)}
-          >
+          <button type="button" className={toolbarGhostButton} disabled={!canEdit} onClick={() => setLayoutEditing((current) => !current)}>
             {layoutEditing ? "Finish Layout" : "Edit Layout"}
           </button>
         </div>
@@ -1984,9 +1761,7 @@ export function PlayerNpcSheet({
           classes={draft.classes}
           constitutionModifier={abilityModifierTotal(draft, "con")}
           selections={hitDiceSelections}
-          onChange={(classId, nextValue) =>
-            setHitDiceSelections((current) => ({ ...current, [classId]: nextValue }))
-          }
+          onChange={(classId, nextValue) => setHitDiceSelections((current) => ({ ...current, [classId]: nextValue }))}
           onCancel={() => setShortRestOpen(false)}
           onConfirm={() => void confirmShortRest()}
         />
@@ -2007,10 +1782,7 @@ function requiresTargetKey(targetType: ActorBonusEntry["targetType"]) {
   return targetType === "ability" || targetType === "skill" || targetType === "savingThrow";
 }
 
-function renderBonusTargetOptions(
-  targetType: ActorBonusEntry["targetType"],
-  skills: SkillEntry[]
-) {
+function renderBonusTargetOptions(targetType: ActorBonusEntry["targetType"], skills: SkillEntry[]) {
   if (targetType === "ability" || targetType === "savingThrow") {
     return abilityOrder.map((entry) => (
       <option key={entry.key} value={entry.key}>
@@ -2073,23 +1845,13 @@ function rollDie(faces: number) {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="space-y-1.5 text-sm text-zinc-300">
-      <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">
-        {label}
-      </span>
+      <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">{label}</span>
       {children}
     </label>
   );
 }
 
-function StatBox({
-  label,
-  value,
-  detail
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-}) {
+function StatBox({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return (
     <div className="space-y-1 border border-amber-800/30 bg-zinc-900/70 px-3 py-3">
       <p className="text-[11px] uppercase tracking-[0.22em] text-amber-400/80">{label}</p>
@@ -2099,17 +1861,7 @@ function StatBox({
   );
 }
 
-function DotToggle({
-  active,
-  disabled,
-  onToggle,
-  label
-}: {
-  active: boolean;
-  disabled?: boolean;
-  onToggle: () => void;
-  label?: string;
-}) {
+function DotToggle({ active, disabled, onToggle, label }: { active: boolean; disabled?: boolean; onToggle: () => void; label?: string }) {
   return (
     <button
       type="button"
@@ -2118,9 +1870,7 @@ function DotToggle({
       className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-amber-500/70 transition hover:border-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
       onClick={onToggle}
     >
-      <span
-        className={`h-2.5 w-2.5 rounded-full ${active ? "bg-amber-400" : "bg-transparent"}`}
-      />
+      <span className={`h-2.5 w-2.5 rounded-full ${active ? "bg-amber-400" : "bg-transparent"}`} />
     </button>
   );
 }
@@ -2168,9 +1918,7 @@ function DotTrack({
             className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-amber-500/70 transition hover:border-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
             onClick={() => onChange(isActive && active === nextValue ? nextValue - 1 : nextValue)}
           >
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${isActive ? "bg-amber-400" : "bg-transparent"}`}
-            />
+            <span className={`h-2.5 w-2.5 rounded-full ${isActive ? "bg-amber-400" : "bg-transparent"}`} />
           </button>
         );
       })}
@@ -2178,15 +1926,7 @@ function DotTrack({
   );
 }
 
-function PickerRow({
-  title,
-  subtitle,
-  onSelect
-}: {
-  title: string;
-  subtitle: string;
-  onSelect: () => void;
-}) {
+function PickerRow({ title, subtitle, onSelect }: { title: string; subtitle: string; onSelect: () => void }) {
   return (
     <button
       type="button"
@@ -2214,9 +1954,7 @@ function SpellGroupCard({
   return (
     <div className="space-y-3 border border-amber-800/30 bg-zinc-950/70 p-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium uppercase tracking-[0.22em] text-amber-400/80">
-          {title}
-        </h4>
+        <h4 className="text-sm font-medium uppercase tracking-[0.22em] text-amber-400/80">{title}</h4>
       </div>
       {groups.length === 0 ? (
         <p className="text-sm text-zinc-500">None selected.</p>

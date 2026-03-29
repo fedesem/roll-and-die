@@ -1,12 +1,4 @@
-import type {
-  ActorKind,
-  ActorSheet,
-  BoardToken,
-  CampaignMap,
-  CampaignSourceBook,
-  CampaignSummary,
-  MemberRole
-} from "@shared/types";
+import type { ActorKind, ActorSheet, BoardToken, CampaignMap, CampaignSourceBook, CampaignSummary, MemberRole } from "@shared/types";
 import {
   acceptInviteBodySchema,
   actorResponseSchema,

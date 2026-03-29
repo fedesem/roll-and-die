@@ -112,7 +112,18 @@ export function MapConfigurator({
       backgroundSize: `${cell}px ${cell}px`,
       backgroundPosition: `${viewportSize.width / 2 + viewPan.x + map.grid.offsetX * renderScale}px ${viewportSize.height / 2 + viewPan.y + map.grid.offsetY * renderScale}px`
     };
-  }, [map.grid.cellSize, map.grid.color, map.grid.offsetX, map.grid.offsetY, map.grid.show, renderScale, viewPan.x, viewPan.y, viewportSize.height, viewportSize.width]);
+  }, [
+    map.grid.cellSize,
+    map.grid.color,
+    map.grid.offsetX,
+    map.grid.offsetY,
+    map.grid.show,
+    renderScale,
+    viewPan.x,
+    viewPan.y,
+    viewportSize.height,
+    viewportSize.width
+  ]);
 
   const backgroundRect = useMemo(
     () => ({
@@ -268,16 +279,17 @@ export function MapConfigurator({
       }
 
       event.preventDefault();
-      const selectedWalls = new Set(
-        selectedItemIds.filter((id) => id.startsWith("wall:")).map((id) => id.slice("wall:".length))
-      );
+      const selectedWalls = new Set(selectedItemIds.filter((id) => id.startsWith("wall:")).map((id) => id.slice("wall:".length)));
       const selectedTeleporters = new Set(
-        selectedItemIds
-          .filter((id) => id.startsWith("teleporter:"))
-          .map((id) => id.slice("teleporter:".length))
+        selectedItemIds.filter((id) => id.startsWith("teleporter:")).map((id) => id.slice("teleporter:".length))
       );
       const nextWalls =
-        selectedWalls.size > 0 ? mergeAdjacentWalls(map.walls.filter((wall) => !selectedWalls.has(wall.id)), map.grid.cellSize) : map.walls;
+        selectedWalls.size > 0
+          ? mergeAdjacentWalls(
+              map.walls.filter((wall) => !selectedWalls.has(wall.id)),
+              map.grid.cellSize
+            )
+          : map.walls;
       const nextTeleporters =
         selectedTeleporters.size > 0 ? map.teleporters.filter((teleporter) => !selectedTeleporters.has(teleporter.id)) : map.teleporters;
 
@@ -345,10 +357,7 @@ export function MapConfigurator({
     }
 
     try {
-      const [uploadedAsset, dimensions] = await Promise.all([
-        uploadImageAsset(token, "maps", file),
-        readImageDimensionsFromFile(file)
-      ]);
+      const [uploadedAsset, dimensions] = await Promise.all([uploadImageAsset(token, "maps", file), readImageDimensionsFromFile(file)]);
 
       onChange({
         ...map,
@@ -421,9 +430,7 @@ export function MapConfigurator({
   }
 
   function toggleItemSelection(itemId: string) {
-    setSelectedItemIds((current) =>
-      current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId]
-    );
+    setSelectedItemIds((current) => (current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId]));
   }
 
   function handlePreviewPointerDownCapture(event: ReactPointerEvent<HTMLDivElement>) {
@@ -508,13 +515,7 @@ export function MapConfigurator({
     }
 
     const point = toWorldPoint(event.clientX, event.clientY);
-    setHoverPoint(
-      point
-        ? editorMode === "teleporter"
-          ? snapPointToGrid(map, point)
-          : snapPointToGridIntersection(map, point)
-        : null
-    );
+    setHoverPoint(point ? (editorMode === "teleporter" ? snapPointToGrid(map, point) : snapPointToGridIntersection(map, point)) : null);
   }
 
   function handlePreviewPointerUp() {
@@ -527,16 +528,17 @@ export function MapConfigurator({
 
     if (dragged) {
       suppressClickRef.current = true;
-      setSelectedItemIds(
-        [
-          ...map.walls
-            .filter((wall) => segmentBoundsIntersectsRect(worldToScreen(wall.start), worldToScreen(wall.end), box))
-            .map((wall) => `wall:${wall.id}`),
-          ...map.teleporters
-            .filter((teleporter) => pointIntersectsRect(worldToScreen(teleporter.pointA), box) || pointIntersectsRect(worldToScreen(teleporter.pointB), box))
-            .map((teleporter) => `teleporter:${teleporter.id}`)
-        ]
-      );
+      setSelectedItemIds([
+        ...map.walls
+          .filter((wall) => segmentBoundsIntersectsRect(worldToScreen(wall.start), worldToScreen(wall.end), box))
+          .map((wall) => `wall:${wall.id}`),
+        ...map.teleporters
+          .filter(
+            (teleporter) =>
+              pointIntersectsRect(worldToScreen(teleporter.pointA), box) || pointIntersectsRect(worldToScreen(teleporter.pointB), box)
+          )
+          .map((teleporter) => `teleporter:${teleporter.id}`)
+      ]);
     }
 
     setSelectionBox(null);
@@ -663,14 +665,8 @@ export function MapConfigurator({
       return;
     }
 
-    const selectedWalls = new Set(
-      itemIds.filter((id) => id.startsWith("wall:")).map((id) => id.slice("wall:".length))
-    );
-    const selectedTeleporters = new Set(
-      itemIds
-        .filter((id) => id.startsWith("teleporter:"))
-        .map((id) => id.slice("teleporter:".length))
-    );
+    const selectedWalls = new Set(itemIds.filter((id) => id.startsWith("wall:")).map((id) => id.slice("wall:".length)));
+    const selectedTeleporters = new Set(itemIds.filter((id) => id.startsWith("teleporter:")).map((id) => id.slice("teleporter:".length)));
 
     if (selectedWalls.size > 0) {
       updateWalls(map.walls.filter((wall) => !selectedWalls.has(wall.id)));
@@ -708,11 +704,11 @@ export function MapConfigurator({
           ? teleporterAnchor
             ? "Click the destination cell to finish the teleporter pair. Right click ends the current pair without leaving the teleporter tool."
             : "Click one cell, then another, to create a numbered teleporter pair. Right click ends the current pair without leaving the teleporter tool."
-        : obstacleAnchor
-          ? `Click the next snapped border point to continue the ${obstacleLabel(editorMode).toLowerCase()}. Right click ends the chain and keeps the tool active.`
-          : editorMode === "door" || editorMode === "transparent" || editorMode === "opaque"
-            ? `Click two snapped border points to place a ${obstacleLabel(editorMode).toLowerCase()}, or click a wall section to replace one square with it. Right click keeps the tool active.`
-            : `Click two snapped border points to place a ${obstacleLabel(editorMode).toLowerCase()}. Right click keeps the tool active.`;
+          : obstacleAnchor
+            ? `Click the next snapped border point to continue the ${obstacleLabel(editorMode).toLowerCase()}. Right click ends the chain and keeps the tool active.`
+            : editorMode === "door" || editorMode === "transparent" || editorMode === "opaque"
+              ? `Click two snapped border points to place a ${obstacleLabel(editorMode).toLowerCase()}, or click a wall section to replace one square with it. Right click keeps the tool active.`
+              : `Click two snapped border points to place a ${obstacleLabel(editorMode).toLowerCase()}. Right click keeps the tool active.`;
 
   return (
     <div className="map-editor">
@@ -914,7 +910,12 @@ export function MapConfigurator({
             )}
             {gridStyle && <div className="map-preview-grid" style={gridStyle} />}
 
-            <svg className="map-preview-overlay" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
+            <svg
+              className="map-preview-overlay"
+              width={viewportSize.width}
+              height={viewportSize.height}
+              viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
+            >
               {map.walls.map((wall) => {
                 const start = worldToScreen(wall.start);
                 const end = worldToScreen(wall.end);
@@ -927,7 +928,7 @@ export function MapConfigurator({
                     y2={end.y}
                     className={`map-preview-wall kind-${wall.kind} ${wall.isOpen ? "is-open" : ""} ${wall.isLocked ? "is-locked" : ""} ${selectedItemIds.includes(`wall:${wall.id}`) ? "is-selected" : ""}`}
                   />
-                  );
+                );
               })}
               {map.teleporters.map((teleporter) => {
                 const pointA = worldToScreen(teleporter.pointA);
@@ -1017,42 +1018,47 @@ export function MapConfigurator({
               )}
             </svg>
 
-            <svg className="map-preview-hit-layer" width={viewportSize.width} height={viewportSize.height} viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}>
+            <svg
+              className="map-preview-hit-layer"
+              width={viewportSize.width}
+              height={viewportSize.height}
+              viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
+            >
               {(editorMode === "select" || editorMode === "door" || editorMode === "transparent" || editorMode === "opaque") &&
                 map.walls.map((wall) => {
-                const start = worldToScreen(wall.start);
-                const end = worldToScreen(wall.end);
-                return (
-                  <line
-                    key={wall.id}
-                    x1={start.x}
-                    y1={start.y}
-                    x2={end.x}
-                    y2={end.y}
-                    className="map-preview-hit"
-                    strokeWidth={18}
-                    onClick={(event) => {
-                      event.stopPropagation();
+                  const start = worldToScreen(wall.start);
+                  const end = worldToScreen(wall.end);
+                  return (
+                    <line
+                      key={wall.id}
+                      x1={start.x}
+                      y1={start.y}
+                      x2={end.x}
+                      y2={end.y}
+                      className="map-preview-hit"
+                      strokeWidth={18}
+                      onClick={(event) => {
+                        event.stopPropagation();
 
-                      if (editorMode === "select") {
-                        toggleItemSelection(`wall:${wall.id}`);
-                        return;
-                      }
-
-                      if (editorMode === "door" || editorMode === "transparent" || editorMode === "opaque") {
-                        const point = toWorldPoint(event.clientX, event.clientY);
-
-                        if (!point) {
+                        if (editorMode === "select") {
+                          toggleItemSelection(`wall:${wall.id}`);
                           return;
                         }
 
-                        updateWalls(replaceWallSection(map.walls, wall.id, point, editorMode, map.grid.cellSize));
-                        setSelectedItemIds([`wall:${wall.id}`]);
-                      }
-                    }}
-                  />
-                );
-              })}
+                        if (editorMode === "door" || editorMode === "transparent" || editorMode === "opaque") {
+                          const point = toWorldPoint(event.clientX, event.clientY);
+
+                          if (!point) {
+                            return;
+                          }
+
+                          updateWalls(replaceWallSection(map.walls, wall.id, point, editorMode, map.grid.cellSize));
+                          setSelectedItemIds([`wall:${wall.id}`]);
+                        }
+                      }}
+                    />
+                  );
+                })}
               {map.teleporters.flatMap((teleporter) =>
                 [teleporter.pointA, teleporter.pointB].map((point, index) => {
                   const screen = worldToScreen(point);
@@ -1071,9 +1077,7 @@ export function MapConfigurator({
                         }
                       }}
                       onPointerEnter={() => setHoveredTeleporterId(teleporter.id)}
-                      onPointerLeave={() =>
-                        setHoveredTeleporterId((current) => (current === teleporter.id ? null : current))
-                      }
+                      onPointerLeave={() => setHoveredTeleporterId((current) => (current === teleporter.id ? null : current))}
                     />
                   );
                 })
@@ -1107,43 +1111,94 @@ export function MapConfigurator({
               </label>
               <label className="span-two">
                 Background URL
-                <input value={map.backgroundUrl} disabled={disabled} onChange={(event) => onChange({ ...map, backgroundUrl: event.target.value })} />
+                <input
+                  value={map.backgroundUrl}
+                  disabled={disabled}
+                  onChange={(event) => onChange({ ...map, backgroundUrl: event.target.value })}
+                />
               </label>
               <label>
                 Image Width
-                <input type="number" value={map.width} disabled={disabled} onChange={(event) => onChange({ ...map, width: Number(event.target.value || 0) })} />
+                <input
+                  type="number"
+                  value={map.width}
+                  disabled={disabled}
+                  onChange={(event) => onChange({ ...map, width: Number(event.target.value || 0) })}
+                />
               </label>
               <label>
                 Image Height
-                <input type="number" value={map.height} disabled={disabled} onChange={(event) => onChange({ ...map, height: Number(event.target.value || 0) })} />
+                <input
+                  type="number"
+                  value={map.height}
+                  disabled={disabled}
+                  onChange={(event) => onChange({ ...map, height: Number(event.target.value || 0) })}
+                />
               </label>
               <label>
                 Image Offset X
-                <input type="number" value={map.backgroundOffsetX} disabled={disabled} onChange={(event) => onChange({ ...map, backgroundOffsetX: Number(event.target.value || 0) })} />
+                <input
+                  type="number"
+                  value={map.backgroundOffsetX}
+                  disabled={disabled}
+                  onChange={(event) => onChange({ ...map, backgroundOffsetX: Number(event.target.value || 0) })}
+                />
               </label>
               <label>
                 Image Offset Y
-                <input type="number" value={map.backgroundOffsetY} disabled={disabled} onChange={(event) => onChange({ ...map, backgroundOffsetY: Number(event.target.value || 0) })} />
+                <input
+                  type="number"
+                  value={map.backgroundOffsetY}
+                  disabled={disabled}
+                  onChange={(event) => onChange({ ...map, backgroundOffsetY: Number(event.target.value || 0) })}
+                />
               </label>
               <label>
                 Image Scale
-                <input type="number" step="0.01" value={map.backgroundScale} disabled={disabled} onChange={(event) => onChange({ ...map, backgroundScale: Number(event.target.value || 0) })} />
+                <input
+                  type="number"
+                  step="0.01"
+                  value={map.backgroundScale}
+                  disabled={disabled}
+                  onChange={(event) => onChange({ ...map, backgroundScale: Number(event.target.value || 0) })}
+                />
               </label>
               <label>
                 Grid Cell
-                <input type="number" value={map.grid.cellSize} disabled={disabled} onChange={(event) => updateGrid("cellSize", Number(event.target.value || 0))} />
+                <input
+                  type="number"
+                  value={map.grid.cellSize}
+                  disabled={disabled}
+                  onChange={(event) => updateGrid("cellSize", Number(event.target.value || 0))}
+                />
               </label>
               <label>
                 Board Scale
-                <input type="number" step="0.1" value={map.grid.scale} disabled={disabled} onChange={(event) => updateGrid("scale", Number(event.target.value || 0))} />
+                <input
+                  type="number"
+                  step="0.1"
+                  value={map.grid.scale}
+                  disabled={disabled}
+                  onChange={(event) => updateGrid("scale", Number(event.target.value || 0))}
+                />
               </label>
               <label>
                 Grid Offset X
-                <input type="number" value={map.grid.offsetX} disabled={disabled} onChange={(event) => updateGrid("offsetX", Number(event.target.value || 0))} />
+                <input
+                  type="number"
+                  value={map.grid.offsetX}
+                  disabled={disabled}
+                  onChange={(event) => updateGrid("offsetX", Number(event.target.value || 0))}
+                />
               </label>
               <label>
                 Grid Offset Y
-                <input type="number" value={map.grid.offsetY} disabled={disabled} onChange={(event) => updateGrid("offsetY", Number(event.target.value || 0))} />
+                <input
+                  type="number"
+                  value={map.grid.offsetY}
+                  disabled={disabled}
+                  onChange={(event) => updateGrid("offsetY", Number(event.target.value || 0))}
+                />
               </label>
               <label>
                 Grid Color
@@ -1158,7 +1213,12 @@ export function MapConfigurator({
                 </div>
               </label>
               <label className="checkbox-row">
-                <input type="checkbox" checked={map.grid.show} disabled={disabled} onChange={(event) => updateGrid("show", event.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={map.grid.show}
+                  disabled={disabled}
+                  onChange={(event) => updateGrid("show", event.target.checked)}
+                />
                 Show grid
               </label>
               <label className="checkbox-row">
@@ -1187,10 +1247,7 @@ function resolvePreviewScale(map: CampaignMap, viewportSize: ViewportSize) {
   const basisHeight = Math.max(map.height, map.grid.cellSize * 10);
 
   return clamp(
-    Math.max(
-      Math.min((viewportSize.width - 40) / basisWidth, (viewportSize.height - 40) / basisHeight) * 1.45,
-      map.grid.scale
-    ),
+    Math.max(Math.min((viewportSize.width - 40) / basisWidth, (viewportSize.height - 40) / basisHeight) * 1.45, map.grid.scale),
     0.18,
     2.6
   );
@@ -1228,7 +1285,11 @@ function toColorInputValue(value: string) {
 
   if (rgbaMatch) {
     return `#${[rgbaMatch[1], rgbaMatch[2], rgbaMatch[3]]
-      .map((entry) => Math.max(0, Math.min(255, Number(entry))).toString(16).padStart(2, "0"))
+      .map((entry) =>
+        Math.max(0, Math.min(255, Number(entry)))
+          .toString(16)
+          .padStart(2, "0")
+      )
       .join("")}`;
   }
 
@@ -1289,12 +1350,7 @@ function replaceWallSection(
   return mergeAdjacentWalls(nextWalls, cellSize);
 }
 
-function splitWallSection(
-  wall: MapWall,
-  point: Point,
-  kind: Extract<MapWallKind, "door" | "transparent" | "opaque">,
-  cellSize: number
-) {
+function splitWallSection(wall: MapWall, point: Point, kind: Extract<MapWallKind, "door" | "transparent" | "opaque">, cellSize: number) {
   const horizontal = Math.abs(wall.start.y - wall.end.y) < 0.0001;
   const vertical = Math.abs(wall.start.x - wall.end.x) < 0.0001;
 

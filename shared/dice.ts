@@ -73,10 +73,7 @@ export function validateRollNotation(input: string) {
   return tokenizeRollExpression(normalizeRollNotation(input)) !== null;
 }
 
-export function evaluateRollNotation(
-  input: string,
-  rollDie: (sides: number) => number
-): RollEvaluation | null {
+export function evaluateRollNotation(input: string, rollDie: (sides: number) => number): RollEvaluation | null {
   const notation = normalizeRollNotation(input);
   const tokens = tokenizeRollExpression(notation);
 

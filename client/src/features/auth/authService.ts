@@ -1,10 +1,5 @@
 import type { AuthPayload } from "@shared/types";
-import {
-  authPayloadResponseSchema,
-  currentUserResponseSchema,
-  loginBodySchema,
-  registerBodySchema
-} from "@shared/contracts/auth";
+import { authPayloadResponseSchema, currentUserResponseSchema, loginBodySchema, registerBodySchema } from "@shared/contracts/auth";
 
 import { apiRequest } from "../../api";
 

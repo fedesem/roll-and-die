@@ -57,7 +57,7 @@ export function useCampaignDerivedState({
   const selectedActor = useMemo(() => selectSelectedActor(campaign, selectedActorId), [campaign, selectedActorId]);
   const activeMapTokens = useMemo(() => selectMapTokens(campaign, activeMap), [campaign, activeMap]);
   const selectedMapTokens = useMemo(() => selectMapTokens(campaign, selectedMap), [campaign, selectedMap]);
-  const fogPreviewUserId = role === "dm" && dmFogEnabled ? dmFogUserId ?? undefined : undefined;
+  const fogPreviewUserId = role === "dm" && dmFogEnabled ? (dmFogUserId ?? undefined) : undefined;
   const boardSeenCells = useMemo(
     () => selectBoardSeenCells({ activeMap, role, fogPreviewUserId, campaign, snapshot }),
     [activeMap, campaign, fogPreviewUserId, role, snapshot]

@@ -7,12 +7,7 @@ interface CampaignsPageProps {
   onOpenJoinCampaign: () => void;
 }
 
-export function CampaignsPage({
-  campaigns,
-  onOpenCampaign,
-  onOpenCreateCampaign,
-  onOpenJoinCampaign
-}: CampaignsPageProps) {
+export function CampaignsPage({ campaigns, onOpenCampaign, onOpenCreateCampaign, onOpenJoinCampaign }: CampaignsPageProps) {
   return (
     <main className="grid gap-5 px-4 py-6 lg:px-8">
       <section className="rounded-none border border-amber-200/10 bg-slate-950/72 p-6 shadow-[0_20px_70px_rgba(0,0,0,0.24)] backdrop-blur-xl">
@@ -22,10 +17,18 @@ export function CampaignsPage({
             <h2 className="mt-2 font-serif text-2xl text-amber-50">Your campaigns</h2>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button className="inline-flex h-11 items-center justify-center rounded-none border border-white/12 bg-white/5 px-4 text-sm font-semibold text-slate-100 transition hover:border-amber-200/18 hover:bg-white/8" type="button" onClick={onOpenJoinCampaign}>
+            <button
+              className="inline-flex h-11 items-center justify-center rounded-none border border-white/12 bg-white/5 px-4 text-sm font-semibold text-slate-100 transition hover:border-amber-200/18 hover:bg-white/8"
+              type="button"
+              onClick={onOpenJoinCampaign}
+            >
               Join campaign
             </button>
-            <button className="inline-flex h-11 items-center justify-center rounded-none border border-amber-200/20 bg-amber-300/18 px-4 text-sm font-semibold text-amber-50 transition hover:bg-amber-300/24" type="button" onClick={onOpenCreateCampaign}>
+            <button
+              className="inline-flex h-11 items-center justify-center rounded-none border border-amber-200/20 bg-amber-300/18 px-4 text-sm font-semibold text-amber-50 transition hover:bg-amber-300/24"
+              type="button"
+              onClick={onOpenCreateCampaign}
+            >
               Create campaign
             </button>
           </div>
@@ -43,12 +46,16 @@ export function CampaignsPage({
             >
               <div className="flex items-start justify-between gap-3">
                 <strong className="font-serif text-lg text-amber-50">{entry.name}</strong>
-                <span className="rounded-none border border-amber-200/18 bg-amber-300/14 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-amber-100">{entry.role}</span>
+                <span className="rounded-none border border-amber-200/18 bg-amber-300/14 px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-amber-100">
+                  {entry.role}
+                </span>
               </div>
               <p className="mt-3 text-sm leading-6 text-slate-300">
                 {entry.memberCount} members • {entry.actorCount} actors • {entry.mapCount} maps
               </p>
-              <small className="mt-3 block text-xs uppercase tracking-[0.18em] text-slate-500">{new Date(entry.createdAt).toLocaleString()}</small>
+              <small className="mt-3 block text-xs uppercase tracking-[0.18em] text-slate-500">
+                {new Date(entry.createdAt).toLocaleString()}
+              </small>
             </button>
           ))}
           {campaigns.length === 0 && (

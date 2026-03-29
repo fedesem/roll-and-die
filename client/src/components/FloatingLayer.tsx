@@ -70,9 +70,7 @@ export function FloatingLayer({
     setStyle({
       position: "fixed",
       left: Math.min(Math.max(margin, preferredLeft), maxLeft),
-      top: shouldUseTop
-        ? Math.min(Math.max(margin, topStart), maxTop)
-        : Math.min(Math.max(margin, bottomStart), maxTop),
+      top: shouldUseTop ? Math.min(Math.max(margin, topStart), maxTop) : Math.min(Math.max(margin, bottomStart), maxTop),
       visibility: "visible",
       zIndex
     });
@@ -102,9 +100,7 @@ export function FloatingLayer({
       setStyle({
         position: "fixed",
         left: Math.min(Math.max(margin, preferredLeft), maxLeft),
-        top: shouldUseTop
-          ? Math.min(Math.max(margin, topStart), maxTop)
-          : Math.min(Math.max(margin, bottomStart), maxTop),
+        top: shouldUseTop ? Math.min(Math.max(margin, topStart), maxTop) : Math.min(Math.max(margin, bottomStart), maxTop),
         visibility: "visible",
         zIndex
       });
@@ -123,13 +119,7 @@ export function FloatingLayer({
   }
 
   return createPortal(
-    <div
-      ref={panelRef}
-      className={className}
-      style={style}
-      onPointerEnter={onPointerEnter}
-      onPointerLeave={onPointerLeave}
-    >
+    <div ref={panelRef} className={className} style={style} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
       {children}
     </div>,
     document.body

@@ -27,15 +27,7 @@ describe("boardUtils measure helpers", () => {
   it("snaps measure previews to the configured grid mode and serializes them", () => {
     const map = createBoardMap();
 
-    const preview = buildMeasurePreview(
-      map,
-      { x: 10, y: 12 },
-      { x: 88, y: 86 },
-      "line",
-      "center",
-      60,
-      2
-    );
+    const preview = buildMeasurePreview(map, { x: 10, y: 12 }, { x: 88, y: 86 }, "line", "center", 60, 2);
 
     expect(preview).toEqual<MeasurePreview>({
       kind: "line",

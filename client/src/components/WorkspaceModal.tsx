@@ -36,13 +36,7 @@ type WorkspaceModalProps =
 
 function getSizeClass(size: WorkspaceModalSize) {
   const sizeClass =
-    size === "compact"
-      ? "max-w-3xl"
-      : size === "wide"
-        ? "max-w-6xl"
-        : size === "full"
-          ? "max-w-[min(96vw,120rem)]"
-          : "max-w-5xl";
+    size === "compact" ? "max-w-3xl" : size === "wide" ? "max-w-6xl" : size === "full" ? "max-w-[min(96vw,120rem)]" : "max-w-5xl";
 
   return sizeClass;
 }

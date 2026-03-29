@@ -49,12 +49,7 @@ export function CampaignMapEditor({
       {role === "dm" ? (
         <div className="inline-form compact map-editor-savebar">
           {mapEditorMode === "edit" ? (
-            <button
-              className="accent-button"
-              type="button"
-              disabled={editingMap.id === activeMap?.id}
-              onClick={onSetEditingMapActive}
-            >
+            <button className="accent-button" type="button" disabled={editingMap.id === activeMap?.id} onClick={onSetEditingMapActive}>
               {editingMap.id === activeMap?.id ? "Current Board" : "Set Active Board"}
             </button>
           ) : null}

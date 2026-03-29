@@ -1,32 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  FilePlus2,
-  Map,
-  MapPinned,
-  ScrollText,
-  Skull,
-  Square,
-  Trash2,
-  User,
-  Users
-} from "lucide-react";
+import { FilePlus2, Map, MapPinned, ScrollText, Skull, Square, Trash2, User, Users } from "lucide-react";
 
-import type {
-  ActorKind,
-  ActorSheet,
-  CampaignMap,
-  CampaignMember,
-  CampaignSnapshot,
-  MemberRole,
-  MonsterTemplate
-} from "@shared/types";
+import type { ActorKind, ActorSheet, CampaignMap, CampaignMember, CampaignSnapshot, MemberRole, MonsterTemplate } from "@shared/types";
 
 import { CharacterSheet } from "./CharacterSheet";
 import { RulesText } from "./admin/AdminPreview";
-import type {
-  ActorTypeFilter,
-  AvailableActorEntry
-} from "../features/campaign/types";
+import type { ActorTypeFilter, AvailableActorEntry } from "../features/campaign/types";
 import { CampaignActionButton } from "./CampaignActionButton";
 import { MonsterCatalogOption, MonsterStatBlock } from "./monster/MonsterStatBlock";
 
@@ -102,68 +81,60 @@ export function CampaignActorManager({
   const availableHeading = role === "dm" ? "Available actors" : "Your actors";
   const monsterLabel = role === "dm" ? "Monster" : "Monster summon / familiar";
   const monsterActionLabel = role === "dm" ? "Add to roster" : "Create summon / familiar";
-  const filteredActors = useMemo(
-    () => {
-      if (role !== "dm") {
-        return availableActors;
-      }
+  const filteredActors = useMemo(() => {
+    if (role !== "dm") {
+      return availableActors;
+    }
 
-      return availableActors.filter((entry) => {
-        if (ownerFilter === "__unowned__") {
-          if (entry.actor.ownerId) {
-            return false;
-          }
-        } else if (ownerFilter === "__dm__") {
-          if (entry.ownerRole !== "dm") {
-            return false;
-          }
-        } else if (ownerFilter === "__players__") {
-          if (entry.ownerRole !== "player") {
-            return false;
-          }
-        } else if (ownerFilter !== "__all__" && entry.actor.ownerId !== ownerFilter) {
+    return availableActors.filter((entry) => {
+      if (ownerFilter === "__unowned__") {
+        if (entry.actor.ownerId) {
           return false;
         }
-
-        if (mapFilter === "__all__") {
-          return true;
+      } else if (ownerFilter === "__dm__") {
+        if (entry.ownerRole !== "dm") {
+          return false;
         }
-
-        if (mapFilter === "__unassigned__") {
-          return entry.activeMaps.length === 0;
+      } else if (ownerFilter === "__players__") {
+        if (entry.ownerRole !== "player") {
+          return false;
         }
+      } else if (ownerFilter !== "__all__" && entry.actor.ownerId !== ownerFilter) {
+        return false;
+      }
 
-        return entry.activeMaps.some((map) => map.id === mapFilter);
-      });
-    },
-    [availableActors, mapFilter, ownerFilter, role]
-  );
+      if (mapFilter === "__all__") {
+        return true;
+      }
+
+      if (mapFilter === "__unassigned__") {
+        return entry.activeMaps.length === 0;
+      }
+
+      return entry.activeMaps.some((map) => map.id === mapFilter);
+    });
+  }, [availableActors, mapFilter, ownerFilter, role]);
   const monsterSourceOptions = useMemo(() => uniqueMonsterSourceOptions(filteredCatalog), [filteredCatalog]);
   const monsterCrOptions = useMemo(() => uniqueMonsterValues(filteredCatalog.map((monster) => monster.challengeRating)), [filteredCatalog]);
   const monsterTypeOptions = useMemo(() => uniqueMonsterValues(filteredCatalog.map((monster) => monster.creatureType)), [filteredCatalog]);
   const filteredMonsterCatalog = useMemo(
-    () => filterAndSortMonsterCatalog(filteredCatalog, {
-      source: monsterSourceFilter,
-      challengeRating: monsterCrFilter,
-      creatureType: monsterTypeFilter,
-      sort: monsterSort
-    }),
+    () =>
+      filterAndSortMonsterCatalog(filteredCatalog, {
+        source: monsterSourceFilter,
+        challengeRating: monsterCrFilter,
+        creatureType: monsterTypeFilter,
+        sort: monsterSort
+      }),
     [filteredCatalog, monsterCrFilter, monsterSort, monsterSourceFilter, monsterTypeFilter]
   );
   const shouldCapInitialMonsterList =
-    monsterQuery.trim().length === 0 &&
-    monsterSourceFilter.length === 0 &&
-    monsterCrFilter.length === 0 &&
-    monsterTypeFilter.length === 0;
+    monsterQuery.trim().length === 0 && monsterSourceFilter.length === 0 && monsterCrFilter.length === 0 && monsterTypeFilter.length === 0;
   const displayedMonsterCatalog = useMemo(
     () => (shouldCapInitialMonsterList ? filteredMonsterCatalog.slice(0, 20) : filteredMonsterCatalog),
     [filteredMonsterCatalog, shouldCapInitialMonsterList]
   );
   const visibleSelectedMonsterTemplate = useMemo(
-    () =>
-      displayedMonsterCatalog.find((monster) => monster.id === selectedMonsterTemplate?.id) ??
-      displayedMonsterCatalog[0] ??
-      null,
+    () => displayedMonsterCatalog.find((monster) => monster.id === selectedMonsterTemplate?.id) ?? displayedMonsterCatalog[0] ?? null,
     [displayedMonsterCatalog, selectedMonsterTemplate]
   );
 
@@ -196,10 +167,7 @@ export function CampaignActorManager({
               value={actorSearch}
               onChange={(event) => onActorSearchChange(event.target.value)}
             />
-            <select
-              value={actorTypeFilter}
-              onChange={(event) => onActorTypeFilterChange(event.target.value as ActorTypeFilter)}
-            >
+            <select value={actorTypeFilter} onChange={(event) => onActorTypeFilterChange(event.target.value as ActorTypeFilter)}>
               <option value="all">All types</option>
               <option value="character">Characters</option>
               <option value="npc">NPCs</option>
@@ -229,11 +197,7 @@ export function CampaignActorManager({
           </div>
         ) : (
           <div className="actor-filter-row">
-            <input
-              placeholder="Search your actors"
-              value={actorSearch}
-              onChange={(event) => onActorSearchChange(event.target.value)}
-            />
+            <input placeholder="Search your actors" value={actorSearch} onChange={(event) => onActorSearchChange(event.target.value)} />
           </div>
         )}
         <div className="actor-list-scroll">
@@ -250,15 +214,17 @@ export function CampaignActorManager({
                         <ActorMetaIconBadge icon={iconForActorKind(actor.kind)} label={actor.kind} />
                         {role === "dm" ? <ActorOwnerBadge ownerName={ownerName} /> : null}
                         {role === "dm" && onCurrentMap ? <ActorMetaIconBadge icon={MapPinned} label="Assigned" /> : null}
-                        {role === "dm"
-                          ? isOnAllMaps
-                            ? <ActorMetaIconBadge icon={Map} label="All maps" />
-                            : activeMaps.map((map) => (
-                                <span key={map.id} className="badge map-badge">
-                                  {map.name}
-                                </span>
-                              ))
-                          : null}
+                        {role === "dm" ? (
+                          isOnAllMaps ? (
+                            <ActorMetaIconBadge icon={Map} label="All maps" />
+                          ) : (
+                            activeMaps.map((map) => (
+                              <span key={map.id} className="badge map-badge">
+                                {map.name}
+                              </span>
+                            ))
+                          )
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -284,9 +250,7 @@ export function CampaignActorManager({
               );
             })}
             {filteredActors.length === 0 && (
-              <p className="empty-state">
-                {role === "dm" ? "No actors match that search." : "You do not have any actors yet."}
-              </p>
+              <p className="empty-state">{role === "dm" ? "No actors match that search." : "You do not have any actors yet."}</p>
             )}
           </div>
         </div>
@@ -310,134 +274,133 @@ export function CampaignActorManager({
         </div>
         {role === "dm" ? (
           <p className="empty-state">
-            Create DM-owned actors from the Maps tab after selecting the map you want to edit. Player-owned actors still
-            appear here in the general roster.
+            Create DM-owned actors from the Maps tab after selecting the map you want to edit. Player-owned actors still appear here in the
+            general roster.
           </p>
-        ) : actorCreatorOpen && (
-          <div className="stack-form">
-            <div className="inline-form compact">
-              <select
-                value={actorCreatorKind}
-                onChange={(event) => onActorCreatorKindChange(event.target.value as ActorKind)}
-              >
-                <option value="character">Character</option>
-                <option value="monster">{monsterLabel}</option>
-              </select>
-            </div>
-
-            {actorCreatorKind === "monster" ? (
-              <div className="popup-grid monster-browser">
-                <section className="sheet-panel monster-browser-list-panel">
-                  <input
-                    placeholder="Search monsters"
-                    value={monsterQuery}
-                    onChange={(event) => onMonsterQueryChange(event.target.value)}
-                  />
-                  <div className="grid gap-3 md:grid-cols-4">
-                    <label className="grid gap-2 text-sm text-slate-300">
-                      <span>Source</span>
-                      <select value={monsterSourceFilter} onChange={(event) => setMonsterSourceFilter(event.target.value)}>
-                        <option value="">All sources</option>
-                        {monsterSourceOptions.map((option) => (
-                          <option key={option.value} value={option.value} title={option.label}>
-                            {option.value}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="grid gap-2 text-sm text-slate-300">
-                      <span>CR</span>
-                      <select value={monsterCrFilter} onChange={(event) => setMonsterCrFilter(event.target.value)}>
-                        <option value="">All CR</option>
-                        {monsterCrOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="grid gap-2 text-sm text-slate-300">
-                      <span>Type</span>
-                      <select value={monsterTypeFilter} onChange={(event) => setMonsterTypeFilter(event.target.value)}>
-                        <option value="">All monster types</option>
-                        {monsterTypeOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="grid gap-2 text-sm text-slate-300">
-                      <span>Sort</span>
-                      <select value={monsterSort} onChange={(event) => setMonsterSort(event.target.value as MonsterListSort)}>
-                        <option value="name-asc">Name A-Z</option>
-                        <option value="source-asc">Source A-Z</option>
-                        <option value="cr-asc">CR Low-High</option>
-                        <option value="cr-desc">CR High-Low</option>
-                      </select>
-                    </label>
-                  </div>
-                  <div className="actor-list-scroll actor-creation-results">
-                    <div className="monster-list">
-                      {displayedMonsterCatalog.map((monster) => (
-                        <MonsterCatalogOption
-                          key={monster.id}
-                          monster={monster}
-                          selected={visibleSelectedMonsterTemplate?.id === monster.id}
-                          onSelect={() => onSelectMonster(monster.id)}
-                        />
-                      ))}
-                      {displayedMonsterCatalog.length === 0 ? <p className="empty-state">No monsters match those filters.</p> : null}
-                      {shouldCapInitialMonsterList && filteredMonsterCatalog.length > displayedMonsterCatalog.length ? (
-                        <p className="empty-state">Showing the first 20 monsters. Search for it to find more.</p>
-                      ) : null}
-                    </div>
-                  </div>
-                </section>
-                <section className="sheet-panel monster-preview-card monster-browser-preview-panel">
-                  {visibleSelectedMonsterTemplate ? (
-                    <MonsterStatBlock
-                      monster={visibleSelectedMonsterTemplate}
-                      eyebrow="Preview"
-                      renderText={(text) => (
-                        <RulesText
-                          text={text}
-                          spellEntries={compendium.spells}
-                          featEntries={compendium.feats}
-                          classEntries={compendium.classes}
-                          variantRuleEntries={compendium.variantRules}
-                          conditionEntries={compendium.conditions}
-                        />
-                      )}
-                      action={(
-                        <CampaignActionButton
-                          onClick={() => onCreateMonsterActor(visibleSelectedMonsterTemplate)}
-                          icon={FilePlus2}
-                          tone="accent"
-                        >
-                          {monsterActionLabel}
-                        </CampaignActionButton>
-                      )}
-                    />
-                  ) : (
-                    <p className="empty-state">Select a monster to preview its stat block.</p>
-                  )}
-                </section>
+        ) : (
+          actorCreatorOpen && (
+            <div className="stack-form">
+              <div className="inline-form compact">
+                <select value={actorCreatorKind} onChange={(event) => onActorCreatorKindChange(event.target.value as ActorKind)}>
+                  <option value="character">Character</option>
+                  <option value="monster">{monsterLabel}</option>
+                </select>
               </div>
-            ) : (
-              actorDraft && (
-                <CharacterSheet
-                  token={token}
-                  actor={actorDraft}
-                  compendium={compendium}
-                  role={role}
-                  currentUserId={currentUserId}
-                  onSave={onCreateActor}
-                  onRoll={onRoll}
-                />
-              )
-            )}
-          </div>
+
+              {actorCreatorKind === "monster" ? (
+                <div className="popup-grid monster-browser">
+                  <section className="sheet-panel monster-browser-list-panel">
+                    <input
+                      placeholder="Search monsters"
+                      value={monsterQuery}
+                      onChange={(event) => onMonsterQueryChange(event.target.value)}
+                    />
+                    <div className="grid gap-3 md:grid-cols-4">
+                      <label className="grid gap-2 text-sm text-slate-300">
+                        <span>Source</span>
+                        <select value={monsterSourceFilter} onChange={(event) => setMonsterSourceFilter(event.target.value)}>
+                          <option value="">All sources</option>
+                          {monsterSourceOptions.map((option) => (
+                            <option key={option.value} value={option.value} title={option.label}>
+                              {option.value}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="grid gap-2 text-sm text-slate-300">
+                        <span>CR</span>
+                        <select value={monsterCrFilter} onChange={(event) => setMonsterCrFilter(event.target.value)}>
+                          <option value="">All CR</option>
+                          {monsterCrOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="grid gap-2 text-sm text-slate-300">
+                        <span>Type</span>
+                        <select value={monsterTypeFilter} onChange={(event) => setMonsterTypeFilter(event.target.value)}>
+                          <option value="">All monster types</option>
+                          {monsterTypeOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="grid gap-2 text-sm text-slate-300">
+                        <span>Sort</span>
+                        <select value={monsterSort} onChange={(event) => setMonsterSort(event.target.value as MonsterListSort)}>
+                          <option value="name-asc">Name A-Z</option>
+                          <option value="source-asc">Source A-Z</option>
+                          <option value="cr-asc">CR Low-High</option>
+                          <option value="cr-desc">CR High-Low</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div className="actor-list-scroll actor-creation-results">
+                      <div className="monster-list">
+                        {displayedMonsterCatalog.map((monster) => (
+                          <MonsterCatalogOption
+                            key={monster.id}
+                            monster={monster}
+                            selected={visibleSelectedMonsterTemplate?.id === monster.id}
+                            onSelect={() => onSelectMonster(monster.id)}
+                          />
+                        ))}
+                        {displayedMonsterCatalog.length === 0 ? <p className="empty-state">No monsters match those filters.</p> : null}
+                        {shouldCapInitialMonsterList && filteredMonsterCatalog.length > displayedMonsterCatalog.length ? (
+                          <p className="empty-state">Showing the first 20 monsters. Search for it to find more.</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </section>
+                  <section className="sheet-panel monster-preview-card monster-browser-preview-panel">
+                    {visibleSelectedMonsterTemplate ? (
+                      <MonsterStatBlock
+                        monster={visibleSelectedMonsterTemplate}
+                        eyebrow="Preview"
+                        renderText={(text) => (
+                          <RulesText
+                            text={text}
+                            spellEntries={compendium.spells}
+                            featEntries={compendium.feats}
+                            classEntries={compendium.classes}
+                            variantRuleEntries={compendium.variantRules}
+                            conditionEntries={compendium.conditions}
+                          />
+                        )}
+                        action={
+                          <CampaignActionButton
+                            onClick={() => onCreateMonsterActor(visibleSelectedMonsterTemplate)}
+                            icon={FilePlus2}
+                            tone="accent"
+                          >
+                            {monsterActionLabel}
+                          </CampaignActionButton>
+                        }
+                      />
+                    ) : (
+                      <p className="empty-state">Select a monster to preview its stat block.</p>
+                    )}
+                  </section>
+                </div>
+              ) : (
+                actorDraft && (
+                  <CharacterSheet
+                    token={token}
+                    actor={actorDraft}
+                    compendium={compendium}
+                    role={role}
+                    currentUserId={currentUserId}
+                    onSave={onCreateActor}
+                    onRoll={onRoll}
+                  />
+                )
+              )}
+            </div>
+          )
         )}
       </section>
     </div>
@@ -465,9 +428,13 @@ function compareMonsterEntries(left: MonsterTemplate, right: MonsterTemplate, so
     case "source-asc":
       return left.source.localeCompare(right.source) || left.name.localeCompare(right.name);
     case "cr-asc":
-      return parseChallengeRating(left.challengeRating) - parseChallengeRating(right.challengeRating) || left.name.localeCompare(right.name);
+      return (
+        parseChallengeRating(left.challengeRating) - parseChallengeRating(right.challengeRating) || left.name.localeCompare(right.name)
+      );
     case "cr-desc":
-      return parseChallengeRating(right.challengeRating) - parseChallengeRating(left.challengeRating) || left.name.localeCompare(right.name);
+      return (
+        parseChallengeRating(right.challengeRating) - parseChallengeRating(left.challengeRating) || left.name.localeCompare(right.name)
+      );
     case "name-asc":
     default:
       return left.name.localeCompare(right.name);
@@ -529,13 +496,7 @@ function ActorOwnerBadge({ ownerName }: { ownerName: string }) {
   );
 }
 
-function ActorMetaIconBadge({
-  icon: Icon,
-  label
-}: {
-  icon: typeof User;
-  label: string;
-}) {
+function ActorMetaIconBadge({ icon: Icon, label }: { icon: typeof User; label: string }) {
   return (
     <span className="badge subtle actor-meta-icon-badge" title={label} aria-label={label}>
       <Icon />

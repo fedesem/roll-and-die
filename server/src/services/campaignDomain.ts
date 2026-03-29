@@ -323,18 +323,10 @@ export function createDefaultMap(name: string): CampaignMap {
   };
 }
 
-export function createDefaultActor(
-  campaignId: string,
-  userId: string,
-  name: string,
-  kind: ActorKind,
-  role: MemberRole
-): ActorSheet {
+export function createDefaultActor(campaignId: string, userId: string, name: string, kind: ActorKind, role: MemberRole): ActorSheet {
   const abilities = defaultAbilities();
   const defaultClass =
-    kind === "character" || kind === "npc"
-      ? [createActorClassEntry(kind === "npc" ? "Supporting Role" : "Adventurer", 1, 8, null)]
-      : [];
+    kind === "character" || kind === "npc" ? [createActorClassEntry(kind === "npc" ? "Supporting Role" : "Adventurer", 1, 8, null)] : [];
 
   const actor: ActorSheet = {
     id: createId("act"),
@@ -344,14 +336,7 @@ export function createDefaultActor(
     kind,
     creatureSize: "medium",
     imageUrl: "",
-    className:
-      kind === "npc"
-        ? "Supporting Role"
-        : kind === "monster"
-          ? "Monster"
-          : kind === "static"
-            ? "2 x 4"
-            : "Adventurer",
+    className: kind === "npc" ? "Supporting Role" : kind === "monster" ? "Monster" : kind === "static" ? "2 x 4" : "Adventurer",
     species: kind === "monster" ? "Bestiary" : kind === "static" ? "Vehicle" : "Human",
     background: kind === "monster" ? "" : kind === "static" ? "500 kg" : "Wayfarer",
     alignment: "Neutral",
@@ -419,25 +404,14 @@ export function createDefaultActor(
     ],
     currency: { pp: 0, gp: 15, ep: 0, sp: 5, cp: 12 },
     notes: "",
-    color:
-      kind === "npc"
-        ? "#d98f46"
-        : kind === "monster"
-          ? "#ae4a39"
-          : kind === "static"
-            ? "#6e8897"
-            : "#8cae75"
+    color: kind === "npc" ? "#d98f46" : kind === "monster" ? "#ae4a39" : kind === "static" ? "#6e8897" : "#8cae75"
   };
 
   finalizeDerivedActor(actor);
   return actor;
 }
 
-export function createMonsterActor(
-  campaignId: string,
-  userId: string,
-  template: MonsterTemplate
-): ActorSheet {
+export function createMonsterActor(campaignId: string, userId: string, template: MonsterTemplate): ActorSheet {
   const dexModifier = Math.floor((template.abilities.dex - 10) / 2);
   const proficiencyBonus = template.proficiencyBonus;
 
@@ -505,14 +479,10 @@ export function createMonsterActor(
     notes: [
       template.traits.length > 0 ? `Traits:\n${template.traits.join("\n")}` : "",
       template.bonusActions.length > 0
-        ? `Bonus Actions:\n${template.bonusActions
-            .map((entry) => `${entry.name}: ${entry.description}`)
-            .join("\n")}`
+        ? `Bonus Actions:\n${template.bonusActions.map((entry) => `${entry.name}: ${entry.description}`).join("\n")}`
         : "",
       template.reactions.length > 0
-        ? `Reactions:\n${template.reactions
-            .map((entry) => `${entry.name}: ${entry.description}`)
-            .join("\n")}`
+        ? `Reactions:\n${template.reactions.map((entry) => `${entry.name}: ${entry.description}`).join("\n")}`
         : ""
     ]
       .filter(Boolean)
@@ -524,12 +494,7 @@ export function createMonsterActor(
   return actor;
 }
 
-export function createSystemMessage(
-  id: string,
-  user: UserProfile,
-  campaignId: string,
-  text: string
-): ChatMessage {
+export function createSystemMessage(id: string, user: UserProfile, campaignId: string, text: string): ChatMessage {
   return {
     id,
     campaignId,
@@ -563,13 +528,7 @@ export function hasMapAssignment(campaign: Campaign, actorId: string, mapId: str
   return isActorAssignedToMap(campaign, actor, mapId);
 }
 
-export function canToggleDoor(
-  role: MemberRole,
-  userId: string,
-  campaign: Campaign,
-  map: CampaignMap,
-  door: MapWall
-) {
+export function canToggleDoor(role: MemberRole, userId: string, campaign: Campaign, map: CampaignMap, door: MapWall) {
   if (door.isLocked) {
     return false;
   }
@@ -592,10 +551,14 @@ export function canToggleDoor(
       return false;
     }
 
-    return getFootprintSamplePoints(map, { x: token.x, y: token.y }, {
-      widthSquares: token.widthSquares,
-      heightSquares: token.heightSquares
-    }).some((point) => distancePointToSegment(point, door.start, door.end) <= interactionRange);
+    return getFootprintSamplePoints(
+      map,
+      { x: token.x, y: token.y },
+      {
+        widthSquares: token.widthSquares,
+        heightSquares: token.heightSquares
+      }
+    ).some((point) => distancePointToSegment(point, door.start, door.end) <= interactionRange);
   });
 }
 
@@ -665,10 +628,7 @@ export function sanitizeMeasurePreview(preview: MeasurePreview, map: CampaignMap
       snapMode
     ),
     snapMode,
-    coneAngle:
-      preview.coneAngle === 45 || preview.coneAngle === 60 || preview.coneAngle === 90
-        ? preview.coneAngle
-        : 60,
+    coneAngle: preview.coneAngle === 45 || preview.coneAngle === 60 || preview.coneAngle === 90 ? preview.coneAngle : 60,
     beamWidthSquares: getOptionalNumber(preview.beamWidthSquares, 1, 1, 12)
   };
 }
@@ -684,47 +644,35 @@ export function applyMapPatch(map: CampaignMap, patch: Record<string, unknown> |
   map.fogEnabled = typeof patch.fogEnabled === "boolean" ? patch.fogEnabled : map.fogEnabled;
   map.grid = {
     show:
-      typeof patch.grid === "object" &&
-      patch.grid !== null &&
-      typeof (patch.grid as { show?: unknown }).show === "boolean"
+      typeof patch.grid === "object" && patch.grid !== null && typeof (patch.grid as { show?: unknown }).show === "boolean"
         ? (patch.grid as { show: boolean }).show
         : map.grid.show,
     cellSize: getOptionalNumber(
-      typeof patch.grid === "object" && patch.grid !== null
-        ? (patch.grid as { cellSize?: unknown }).cellSize
-        : undefined,
+      typeof patch.grid === "object" && patch.grid !== null ? (patch.grid as { cellSize?: unknown }).cellSize : undefined,
       map.grid.cellSize,
       16,
       512
     ),
     scale: getOptionalNumber(
-      typeof patch.grid === "object" && patch.grid !== null
-        ? (patch.grid as { scale?: unknown }).scale
-        : undefined,
+      typeof patch.grid === "object" && patch.grid !== null ? (patch.grid as { scale?: unknown }).scale : undefined,
       map.grid.scale,
       0.2,
       4
     ),
     offsetX: getOptionalNumber(
-      typeof patch.grid === "object" && patch.grid !== null
-        ? (patch.grid as { offsetX?: unknown }).offsetX
-        : undefined,
+      typeof patch.grid === "object" && patch.grid !== null ? (patch.grid as { offsetX?: unknown }).offsetX : undefined,
       map.grid.offsetX,
       -50000,
       50000
     ),
     offsetY: getOptionalNumber(
-      typeof patch.grid === "object" && patch.grid !== null
-        ? (patch.grid as { offsetY?: unknown }).offsetY
-        : undefined,
+      typeof patch.grid === "object" && patch.grid !== null ? (patch.grid as { offsetY?: unknown }).offsetY : undefined,
       map.grid.offsetY,
       -50000,
       50000
     ),
     color: getOptionalString(
-      typeof patch.grid === "object" && patch.grid !== null
-        ? (patch.grid as { color?: unknown }).color
-        : undefined,
+      typeof patch.grid === "object" && patch.grid !== null ? (patch.grid as { color?: unknown }).color : undefined,
       map.grid.color
     )
   };
@@ -776,12 +724,7 @@ function defaultSkills(): SkillEntry[] {
   }));
 }
 
-function createActorClassEntry(
-  name: string,
-  level: number,
-  hitDieFaces: number,
-  spellcastingAbility: AbilityKey | null
-): ActorClassEntry {
+function createActorClassEntry(name: string, level: number, hitDieFaces: number, spellcastingAbility: AbilityKey | null): ActorClassEntry {
   return {
     id: createId("cls"),
     compendiumId: "",
@@ -847,8 +790,7 @@ function distancePointToSegment(point: Point, start: Point, end: Point) {
     return Math.hypot(point.x - start.x, point.y - start.y);
   }
 
-  const projection =
-    ((point.x - start.x) * deltaX + (point.y - start.y) * deltaY) / lengthSquared;
+  const projection = ((point.x - start.x) * deltaX + (point.y - start.y) * deltaY) / lengthSquared;
   const t = Math.min(1, Math.max(0, projection));
   const projectedX = start.x + deltaX * t;
   const projectedY = start.y + deltaY * t;
@@ -890,14 +832,7 @@ function normalizeStringArray(value: unknown, fallback: string[]) {
 function parseAbilityKey(value: unknown, fallback: AbilityKey): AbilityKey;
 function parseAbilityKey(value: unknown, fallback: AbilityKey | null): AbilityKey | null;
 function parseAbilityKey(value: unknown, fallback: AbilityKey | null) {
-  return value === "str" ||
-    value === "dex" ||
-    value === "con" ||
-    value === "int" ||
-    value === "wis" ||
-    value === "cha"
-    ? value
-    : fallback;
+  return value === "str" || value === "dex" || value === "con" || value === "int" || value === "wis" || value === "cha" ? value : fallback;
 }
 
 function sanitizeAbilities(value: unknown, fallback: AbilityScores): AbilityScores {
@@ -1076,13 +1011,7 @@ function sanitizeInventory(value: unknown, fallback: InventoryEntry[]): Inventor
       return {
         id: typeof item.id === "string" ? item.id : createId("inv"),
         name: getOptionalString(item.name, "Item"),
-        type:
-          item.type === "reagent" ||
-          item.type === "loot" ||
-          item.type === "consumable" ||
-          item.type === "gear"
-            ? item.type
-            : "gear",
+        type: item.type === "reagent" || item.type === "loot" || item.type === "consumable" || item.type === "gear" ? item.type : "gear",
         quantity: getOptionalNumber(item.quantity, 1, 0, 999),
         equipped: typeof item.equipped === "boolean" ? item.equipped : false,
         notes: getOptionalString(item.notes, "")
@@ -1180,11 +1109,7 @@ function getAbilityModifier(score: number) {
   return Math.floor((score - 10) / 2);
 }
 
-function getBonusTotal(
-  actor: ActorSheet,
-  targetType: ActorBonusEntry["targetType"],
-  targetKey = ""
-) {
+function getBonusTotal(actor: ActorSheet, targetType: ActorBonusEntry["targetType"], targetKey = "") {
   const normalizedKey = targetKey.trim().toLowerCase();
 
   return actor.bonuses.reduce((total, entry) => {
@@ -1205,32 +1130,24 @@ function formatHitDice(actor: ActorSheet) {
     return actor.hitDice;
   }
 
-  return actor.classes
-    .map((entry) => `d${entry.hitDieFaces} ${Math.max(entry.level - entry.usedHitDice, 0)}/${entry.level}`)
-    .join(" • ");
+  return actor.classes.map((entry) => `d${entry.hitDieFaces} ${Math.max(entry.level - entry.usedHitDice, 0)}/${entry.level}`).join(" • ");
 }
 
 function deriveArmorClass(actor: ActorSheet) {
   const dexModifier = getAbilityModifier(actor.abilities.dex);
   const equippedArmor = actor.armorItems.filter((entry) => entry.equipped && entry.kind === "armor");
-  const equippedShields = actor.armorItems.filter(
-    (entry) => entry.equipped && entry.kind === "shield"
-  );
+  const equippedShields = actor.armorItems.filter((entry) => entry.equipped && entry.kind === "shield");
   const bestArmorBase =
     equippedArmor.length > 0
       ? Math.max(
           ...equippedArmor.map((entry) => {
-            const dexCap =
-              entry.maxDexBonus === null ? dexModifier : Math.min(dexModifier, entry.maxDexBonus);
+            const dexCap = entry.maxDexBonus === null ? dexModifier : Math.min(dexModifier, entry.maxDexBonus);
             return entry.armorClass + Math.max(dexCap, -10) + entry.bonus;
           })
         )
       : 10 + dexModifier;
 
-  const shieldBonus = equippedShields.reduce(
-    (total, entry) => total + entry.armorClass + entry.bonus,
-    0
-  );
+  const shieldBonus = equippedShields.reduce((total, entry) => total + entry.armorClass + entry.bonus, 0);
 
   return bestArmorBase + shieldBonus + getBonusTotal(actor, "armorClass");
 }
@@ -1302,9 +1219,7 @@ function sanitizeWalls(value: unknown, fallback: MapWall[]) {
 
       const wall = entry as MapWall;
       const kind =
-        wall.kind === "transparent" || wall.kind === "opaque" || wall.kind === "door" || wall.kind === "wall"
-          ? wall.kind
-          : "wall";
+        wall.kind === "transparent" || wall.kind === "opaque" || wall.kind === "door" || wall.kind === "wall" ? wall.kind : "wall";
 
       return {
         id: typeof wall.id === "string" ? wall.id : createId("wall"),
@@ -1357,11 +1272,7 @@ export function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {
 
   return value
     .map((entry): DrawingStroke | null => {
-      if (
-        !entry ||
-        typeof entry !== "object" ||
-        !Array.isArray((entry as Partial<DrawingStroke>).points)
-      ) {
+      if (!entry || typeof entry !== "object" || !Array.isArray((entry as Partial<DrawingStroke>).points)) {
         return null;
       }
 
@@ -1382,10 +1293,7 @@ export function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {
 
       const text = typeof stroke.text === "string" ? stroke.text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").slice(0, 4000) : "";
       const fontFamily =
-        stroke.fontFamily === "sans" ||
-        stroke.fontFamily === "mono" ||
-        stroke.fontFamily === "script" ||
-        stroke.fontFamily === "serif"
+        stroke.fontFamily === "sans" || stroke.fontFamily === "mono" || stroke.fontFamily === "script" || stroke.fontFamily === "serif"
           ? stroke.fontFamily
           : "serif";
       const bold = Boolean(stroke.bold);
@@ -1397,23 +1305,16 @@ export function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {
 
       return {
         id: typeof stroke.id === "string" ? stroke.id : createId("drw"),
-        ownerId:
-          typeof stroke.ownerId === "string" && stroke.ownerId ? stroke.ownerId : undefined,
+        ownerId: typeof stroke.ownerId === "string" && stroke.ownerId ? stroke.ownerId : undefined,
         kind,
         text,
         fontFamily,
         bold,
         italic,
         color: typeof stroke.color === "string" ? stroke.color : "#d9a641",
-        strokeOpacity:
-          typeof stroke.strokeOpacity === "number"
-            ? Math.min(1, Math.max(0, stroke.strokeOpacity))
-            : 1,
+        strokeOpacity: typeof stroke.strokeOpacity === "number" ? Math.min(1, Math.max(0, stroke.strokeOpacity)) : 1,
         fillColor: typeof stroke.fillColor === "string" ? stroke.fillColor : "",
-        fillOpacity:
-          typeof stroke.fillOpacity === "number"
-            ? Math.min(1, Math.max(0, stroke.fillOpacity))
-            : 0.22,
+        fillOpacity: typeof stroke.fillOpacity === "number" ? Math.min(1, Math.max(0, stroke.fillOpacity)) : 0.22,
         size:
           typeof stroke.size === "number"
             ? kind === "text"
@@ -1422,10 +1323,7 @@ export function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {
             : kind === "text"
               ? 28
               : 4,
-        rotation:
-          typeof stroke.rotation === "number"
-            ? Math.min(360, Math.max(-360, stroke.rotation))
-            : 0,
+        rotation: typeof stroke.rotation === "number" ? Math.min(360, Math.max(-360, stroke.rotation)) : 0,
         points
       };
     })
@@ -1438,10 +1336,7 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   actor.imageUrl = getOptionalString(patch.imageUrl, actor.imageUrl);
   actor.className = getOptionalString(patch.className, actor.className);
   actor.species = getOptionalString(patch.species, actor.species);
-  actor.creatureSize =
-    actor.kind === "static"
-      ? "medium"
-      : normalizeCreatureSize(patch.creatureSize, actor.creatureSize);
+  actor.creatureSize = actor.kind === "static" ? "medium" : normalizeCreatureSize(patch.creatureSize, actor.creatureSize);
   actor.background = getOptionalString(patch.background, actor.background);
   actor.alignment = getOptionalString(patch.alignment, actor.alignment);
   actor.level = getOptionalNumber(patch.level, actor.level, 1, 20);
@@ -1451,22 +1346,13 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   actor.armorClass = getOptionalNumber(patch.armorClass, actor.armorClass, 0, 40);
   actor.initiative = getOptionalNumber(patch.initiative, actor.initiative, -10, 20);
   actor.speed = getOptionalNumber(patch.speed, actor.speed, 0, 120);
-  actor.proficiencyBonus = getOptionalNumber(
-    patch.proficiencyBonus,
-    actor.proficiencyBonus,
-    0,
-    10
-  );
+  actor.proficiencyBonus = getOptionalNumber(patch.proficiencyBonus, actor.proficiencyBonus, 0, 10);
   actor.inspiration = typeof patch.inspiration === "boolean" ? patch.inspiration : actor.inspiration;
   actor.visionRange = getOptionalNumber(patch.visionRange, actor.visionRange, 1, 24);
   actor.tokenWidthSquares =
-    actor.kind === "static"
-      ? clampStaticTokenDimension(getOptionalNumber(patch.tokenWidthSquares, actor.tokenWidthSquares, 1, 12))
-      : 1;
+    actor.kind === "static" ? clampStaticTokenDimension(getOptionalNumber(patch.tokenWidthSquares, actor.tokenWidthSquares, 1, 12)) : 1;
   actor.tokenLengthSquares =
-    actor.kind === "static"
-      ? clampStaticTokenDimension(getOptionalNumber(patch.tokenLengthSquares, actor.tokenLengthSquares, 1, 12))
-      : 1;
+    actor.kind === "static" ? clampStaticTokenDimension(getOptionalNumber(patch.tokenLengthSquares, actor.tokenLengthSquares, 1, 12)) : 1;
   actor.hitPoints = sanitizeHitPoints(patch.hitPoints, actor.hitPoints);
   actor.hitDice = getOptionalString(patch.hitDice, actor.hitDice);
   actor.abilities = sanitizeAbilities(patch.abilities, actor.abilities);

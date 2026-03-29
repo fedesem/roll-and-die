@@ -59,10 +59,7 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
     }
   }, [messages]);
 
-  const visibleMessages = useMemo(
-    () => messages.slice(Math.max(0, messages.length - visibleCount)),
-    [messages, visibleCount]
-  );
+  const visibleMessages = useMemo(() => messages.slice(Math.max(0, messages.length - visibleCount)), [messages, visibleCount]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -142,9 +139,7 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
     }
 
     setError(null);
-    if (
-      draftHistoryRef.current[draftHistoryRef.current.length - 1] !== nextDraft
-    ) {
+    if (draftHistoryRef.current[draftHistoryRef.current.length - 1] !== nextDraft) {
       draftHistoryRef.current.push(nextDraft);
     }
     historyIndexRef.current = -1;
@@ -168,8 +163,7 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
         historyDraftRef.current = draft;
       }
 
-      historyIndexRef.current =
-        historyIndexRef.current <= 0 ? history.length - 1 : historyIndexRef.current - 1;
+      historyIndexRef.current = historyIndexRef.current <= 0 ? history.length - 1 : historyIndexRef.current - 1;
       setDraft(history[historyIndexRef.current] ?? "");
       setError(null);
       return;
@@ -177,13 +171,8 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
 
     if (event.key === "ArrowDown" && historyIndexRef.current !== -1) {
       event.preventDefault();
-      historyIndexRef.current =
-        historyIndexRef.current >= history.length - 1 ? -1 : historyIndexRef.current + 1;
-      setDraft(
-        historyIndexRef.current === -1
-          ? historyDraftRef.current
-          : (history[historyIndexRef.current] ?? "")
-      );
+      historyIndexRef.current = historyIndexRef.current >= history.length - 1 ? -1 : historyIndexRef.current + 1;
+      setDraft(historyIndexRef.current === -1 ? historyDraftRef.current : (history[historyIndexRef.current] ?? ""));
       setError(null);
     }
   }
@@ -210,9 +199,7 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
         )}
 
         {showLoadingHint && messages.length === 0 && (
-          <p className="mb-2 text-center text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">
-            Loading chat...
-          </p>
+          <p className="mb-2 text-center text-[0.7rem] uppercase tracking-[0.16em] text-slate-500">Loading chat...</p>
         )}
 
         {visibleMessages.map((message) => (
@@ -231,11 +218,7 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
               <span>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
             </header>
 
-            {message.roll ? (
-              <CompactRollMessage message={message} />
-            ) : (
-              <p className="leading-5 text-slate-200">{message.text}</p>
-            )}
+            {message.roll ? <CompactRollMessage message={message} /> : <p className="leading-5 text-slate-200">{message.text}</p>}
           </article>
         ))}
       </div>
@@ -255,7 +238,11 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
             }}
             onKeyDown={handleDraftKeyDown}
           />
-          <button className="inline-flex h-11 w-11 items-center justify-center rounded-none border border-amber-200/20 bg-amber-300/18 text-amber-50 transition hover:bg-amber-300/24" type="submit" aria-label="Send message">
+          <button
+            className="inline-flex h-11 w-11 items-center justify-center rounded-none border border-amber-200/20 bg-amber-300/18 text-amber-50 transition hover:bg-amber-300/24"
+            type="submit"
+            aria-label="Send message"
+          >
             <SendHorizontal size={15} />
           </button>
         </div>
@@ -307,10 +294,7 @@ function CompactRollMessage({ message }: { message: ChatMessage }) {
         <span className="min-w-0 flex-1 flex-wrap items-center gap-1.5 text-[0.74rem] text-amber-50/80">
           <span className="flex flex-wrap items-center gap-1.5">
             {parts.map((part, index) => (
-              <RollPartView
-                key={part.type === "dice" ? `${part.label}-${index}` : `${part.type}-${index}`}
-                part={part}
-              />
+              <RollPartView key={part.type === "dice" ? `${part.label}-${index}` : `${part.type}-${index}`} part={part} />
             ))}
           </span>
         </span>
@@ -334,14 +318,9 @@ function RollPartView({ part }: { part: RollPart }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
       <span>{part.label}</span>
-      <span
-        className="inline-flex flex-wrap items-center gap-1 rounded-none border border-white/10 bg-slate-950/55 px-1.5 py-0.5"
-      >
+      <span className="inline-flex flex-wrap items-center gap-1 rounded-none border border-white/10 bg-slate-950/55 px-1.5 py-0.5">
         {part.values.map((value, index) => (
-          <span
-            key={`${part.label}-${value}-${index}`}
-            className={getRollValueClassName(value, part.sides)}
-          >
+          <span key={`${part.label}-${value}-${index}`} className={getRollValueClassName(value, part.sides)}>
             {value}
           </span>
         ))}

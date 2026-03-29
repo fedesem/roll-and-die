@@ -17,27 +17,21 @@ export function getDrawingTextFontStack(fontFamily: DrawingTextFont) {
   }
 
   if (fontFamily === "mono") {
-    return "\"Courier New\", Courier, monospace";
+    return '"Courier New", Courier, monospace';
   }
 
   if (fontFamily === "script") {
-    return "Georgia, \"Palatino Linotype\", \"Book Antiqua\", serif";
+    return 'Georgia, "Palatino Linotype", "Book Antiqua", serif';
   }
 
-  return "\"Times New Roman\", Times, serif";
+  return '"Times New Roman", Times, serif';
 }
 
 export function normalizeDrawingText(value: string) {
   return value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }
 
-export function getDrawingTextMetrics(
-  text: string,
-  size: number,
-  fontFamily: DrawingTextFont,
-  bold = false,
-  italic = false
-) {
+export function getDrawingTextMetrics(text: string, size: number, fontFamily: DrawingTextFont, bold = false, italic = false) {
   const normalizedText = normalizeDrawingText(text);
   const normalizedSize = clamp(size, 12, 96);
   const lines = normalizedText.length > 0 ? normalizedText.split("\n") : [""];
@@ -52,7 +46,9 @@ export function getDrawingTextMetrics(
   }
 
   const widestLine = lines.reduce((max, line) => {
-    const measuredWidth = context ? context.measureText(line || "M").width : Math.max(normalizedSize * 0.66, line.length * normalizedSize * 0.58);
+    const measuredWidth = context
+      ? context.measureText(line || "M").width
+      : Math.max(normalizedSize * 0.66, line.length * normalizedSize * 0.58);
     return Math.max(max, measuredWidth);
   }, normalizedSize * 0.66);
 

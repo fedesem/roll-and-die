@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type {
-  ActorSheet,
-  BoardToken,
-  Campaign,
-  CampaignMap,
-  CampaignSnapshot
-} from "@shared/types";
+import type { ActorSheet, BoardToken, Campaign, CampaignMap, CampaignSnapshot } from "@shared/types";
 
 import { createClientActorDraft, createClientMapDraft } from "../src/lib/drafts.ts";
 import {

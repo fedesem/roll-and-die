@@ -14,16 +14,7 @@ import {
 } from "./admin/AdminPreview";
 import styles from "./AdminPanel.module.css";
 import { useAdminOverviewQuery } from "../features/admin/useAdminOverviewQuery";
-import {
-  clearCompendiumItems,
-  createCompendiumItem,
-  deleteAdminUser,
-  deleteCompendiumItem,
-  demoteAdminUser,
-  importMonsterTokenArchive,
-  importCompendiumItems,
-  promoteAdminUser
-} from "../features/admin/adminService";
+import { useAdminPanelActions } from "../features/admin/useAdminPanelActions";
 import {
   classFormToEntry,
   createClassForm,
@@ -40,7 +31,6 @@ import {
   type SpellFormState
 } from "../lib/adminDrafts";
 import { toErrorMessage } from "../lib/errors";
-import { uploadImageAsset } from "../services/assetService";
 import {
   AdminField,
   buildPreview,
@@ -170,6 +160,17 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
     token,
     onError: (message) => onStatus("error", message)
   });
+  const {
+    promoteUser: promoteUserAction,
+    demoteUser: demoteUserAction,
+    deleteUser,
+    createItem,
+    importItems,
+    deleteItem,
+    clearItems,
+    uploadTokenImage,
+    importTokenArchive
+  } = useAdminPanelActions({ token });
 
   useEffect(() => {
     if (tab === "users" && mode !== "list") {
@@ -411,7 +412,23 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
         races,
         skills
       }),
-    [actions, backgrounds, books, classes, conditions, feats, items, languages, monsters, optionalFeatures, races, skills, spells, tab, variantRules]
+    [
+      actions,
+      backgrounds,
+      books,
+      classes,
+      conditions,
+      feats,
+      items,
+      languages,
+      monsters,
+      optionalFeatures,
+      races,
+      skills,
+      spells,
+      tab,
+      variantRules
+    ]
   );
   const currentTypeOptions = useMemo(
     () =>
@@ -431,7 +448,23 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
         races,
         skills
       }),
-    [actions, backgrounds, books, classes, conditions, feats, items, languages, monsters, optionalFeatures, races, skills, spells, tab, variantRules]
+    [
+      actions,
+      backgrounds,
+      books,
+      classes,
+      conditions,
+      feats,
+      items,
+      languages,
+      monsters,
+      optionalFeatures,
+      races,
+      skills,
+      spells,
+      tab,
+      variantRules
+    ]
   );
   const currentSecondaryTypeOptions = useMemo(
     () =>
@@ -445,7 +478,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
 
   async function promoteUser(userId: string) {
     try {
-      await promoteAdminUser(token, userId);
+      await promoteUserAction(userId);
       onStatus("info", "User promoted to administrator.");
       await refreshOverview();
     } catch (error) {
@@ -455,7 +488,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
 
   async function demoteUser(userId: string) {
     try {
-      await demoteAdminUser(token, userId);
+      await demoteUserAction(userId);
       onStatus("info", "User demoted.");
       await refreshOverview();
     } catch (error) {
@@ -465,7 +498,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
 
   async function removeUser(userId: string) {
     try {
-      await deleteAdminUser(token, userId);
+      await deleteUser(userId);
       setSelectedIds((current) => ({ ...current, users: null }));
       onStatus("info", "User deleted.");
       await refreshOverview();
@@ -476,7 +509,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
 
   async function createEntry(kind: CompendiumTab, entry: unknown, reset: () => void) {
     try {
-      const created = await createCompendiumItem(token, kind, entry);
+      const created = await createItem(kind, entry);
 
       reset();
       setSelectedIds((current) => ({ ...current, [kind]: created.id }));
@@ -500,7 +533,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
       }
 
       const payload = JSON.parse(file.content) as unknown;
-      await importCompendiumItems(token, kind, payload);
+      await importItems(kind, payload);
 
       setImportFiles((current) => ({ ...current, [kind]: null }));
       setMode("list");
@@ -516,7 +549,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
 
   async function removeCompendiumEntry(kind: CompendiumTab, itemId: string) {
     try {
-      await deleteCompendiumItem(token, kind, itemId);
+      await deleteItem(kind, itemId);
       setSelectedIds((current) => ({ ...current, [kind]: null }));
       onStatus("info", `${singularLabel(kind)} deleted.`);
       if (kind === "books") {
@@ -534,7 +567,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
     }
 
     try {
-      await clearCompendiumItems(token, kind);
+      await clearItems(kind);
       setSelectedIds((current) => ({ ...current, [kind]: null }));
       onStatus("info", `${labelForTab(kind)} cleared.`);
       if (kind === "books") {
@@ -565,7 +598,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
     }
 
     try {
-      const { url } = await uploadImageAsset(token, "tokens", file);
+      const { url } = await uploadTokenImage(file);
       setMonsterForm((current) => ({ ...current, imageUrl: url }));
     } catch (error) {
       onStatus("error", toErrorMessage(error));
@@ -604,7 +637,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
 
     try {
       setMonsterTokenArchiveUploading(true);
-      const result = await importMonsterTokenArchive(token, file);
+      const result = await importTokenArchive(file);
       onStatus("info", formatMonsterTokenArchiveSummary(file.name, result));
       await refreshOverview();
     } catch (error) {
@@ -1507,7 +1540,17 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                         </button>
                       </form>
                     )}
-                    {["variantRules", "conditions", "optionalFeatures", "actions", "backgrounds", "items", "languages", "races", "skills"].includes(tab) && (
+                    {[
+                      "variantRules",
+                      "conditions",
+                      "optionalFeatures",
+                      "actions",
+                      "backgrounds",
+                      "items",
+                      "languages",
+                      "races",
+                      "skills"
+                    ].includes(tab) && (
                       <PreviewPlaceholder
                         title={`${singularLabel(tab)} add`}
                         message="Use Import mode for these reference libraries. The backend now supports direct imports for the matching 5etools JSON files."
@@ -2152,7 +2195,10 @@ function readObjectArray(value: unknown) {
 function renderReferenceRows(
   entries: CompendiumReferenceEntry[],
   selected: CompendiumReferenceEntry | null,
-  kind: Extract<CompendiumTab, "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<
+    CompendiumTab,
+    "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills"
+  >,
   setSelectedIds: Dispatch<SetStateAction<Record<AdminTab, string | null>>>,
   sourceBookNameById: Map<string, string>
 ) {

@@ -1,38 +1,43 @@
 import { addColumnIfMissing, tableExists } from "../helpers.js";
 import type { Migration } from "../types.js";
 const defaultLayoutJson = JSON.stringify([
-    { sectionId: "info", column: 1, order: 0 },
-    { sectionId: "abilities", column: 1, order: 1 },
-    { sectionId: "skills", column: 1, order: 2 },
-    { sectionId: "combat", column: 2, order: 3 },
-    { sectionId: "attacks", column: 2, order: 4 },
-    { sectionId: "armor", column: 2, order: 5 },
-    { sectionId: "resources", column: 2, order: 6 },
-    { sectionId: "spellSlots", column: 3, order: 7 },
-    { sectionId: "spells", column: 3, order: 8 },
-    { sectionId: "feats", column: 3, order: 9 },
-    { sectionId: "traits", column: 3, order: 10 },
-    { sectionId: "items", column: 2, order: 11 },
-    { sectionId: "notes", column: 3, order: 12 }
+  { sectionId: "info", column: 1, order: 0 },
+  { sectionId: "abilities", column: 1, order: 1 },
+  { sectionId: "skills", column: 1, order: 2 },
+  { sectionId: "combat", column: 2, order: 3 },
+  { sectionId: "attacks", column: 2, order: 4 },
+  { sectionId: "armor", column: 2, order: 5 },
+  { sectionId: "resources", column: 2, order: 6 },
+  { sectionId: "spellSlots", column: 3, order: 7 },
+  { sectionId: "spells", column: 3, order: 8 },
+  { sectionId: "feats", column: 3, order: 9 },
+  { sectionId: "traits", column: 3, order: 10 },
+  { sectionId: "items", column: 2, order: 11 },
+  { sectionId: "notes", column: 3, order: 12 }
 ]);
 export const actorSheet2024Migration: Migration = {
-    version: 113,
-    name: "actor_sheet_2024",
-    up(database) {
-        if (!tableExists(database, "actors")) {
-            return;
-        }
-        addColumnIfMissing(database, "actors", "prepared_spells_json", "TEXT NOT NULL DEFAULT '[]'");
-        addColumnIfMissing(database, "actors", "layout_json", "TEXT NOT NULL DEFAULT '[]'");
-        addColumnIfMissing(database, "actor_armor_items", "kind", "TEXT NOT NULL DEFAULT 'armor' CHECK (kind IN ('armor', 'shield'))");
-        addColumnIfMissing(database, "actor_armor_items", "max_dex_bonus", "INTEGER");
-        addColumnIfMissing(database, "actor_armor_items", "bonus", "INTEGER NOT NULL DEFAULT 0");
-        addColumnIfMissing(database, "actor_armor_items", "equipped", "INTEGER NOT NULL DEFAULT 0");
-        addColumnIfMissing(database, "actor_resources", "restore_amount", "INTEGER NOT NULL DEFAULT 0");
-        addColumnIfMissing(database, "actor_inventory", "item_type", "TEXT NOT NULL DEFAULT 'gear' CHECK (item_type IN ('gear', 'reagent', 'loot', 'consumable'))");
-        addColumnIfMissing(database, "actor_inventory", "equipped", "INTEGER NOT NULL DEFAULT 0");
-        addColumnIfMissing(database, "actor_inventory", "notes", "TEXT NOT NULL DEFAULT ''");
-        database.exec(`
+  version: 113,
+  name: "actor_sheet_2024",
+  up(database) {
+    if (!tableExists(database, "actors")) {
+      return;
+    }
+    addColumnIfMissing(database, "actors", "prepared_spells_json", "TEXT NOT NULL DEFAULT '[]'");
+    addColumnIfMissing(database, "actors", "layout_json", "TEXT NOT NULL DEFAULT '[]'");
+    addColumnIfMissing(database, "actor_armor_items", "kind", "TEXT NOT NULL DEFAULT 'armor' CHECK (kind IN ('armor', 'shield'))");
+    addColumnIfMissing(database, "actor_armor_items", "max_dex_bonus", "INTEGER");
+    addColumnIfMissing(database, "actor_armor_items", "bonus", "INTEGER NOT NULL DEFAULT 0");
+    addColumnIfMissing(database, "actor_armor_items", "equipped", "INTEGER NOT NULL DEFAULT 0");
+    addColumnIfMissing(database, "actor_resources", "restore_amount", "INTEGER NOT NULL DEFAULT 0");
+    addColumnIfMissing(
+      database,
+      "actor_inventory",
+      "item_type",
+      "TEXT NOT NULL DEFAULT 'gear' CHECK (item_type IN ('gear', 'reagent', 'loot', 'consumable'))"
+    );
+    addColumnIfMissing(database, "actor_inventory", "equipped", "INTEGER NOT NULL DEFAULT 0");
+    addColumnIfMissing(database, "actor_inventory", "notes", "TEXT NOT NULL DEFAULT ''");
+    database.exec(`
       CREATE TABLE IF NOT EXISTS actor_classes (
         actor_id TEXT NOT NULL REFERENCES actors(id) ON DELETE CASCADE,
         id TEXT NOT NULL,
@@ -60,7 +65,7 @@ export const actorSheet2024Migration: Migration = {
         PRIMARY KEY (actor_id, id)
       );
     `);
-        database.exec(`
+    database.exec(`
       UPDATE actors
       SET prepared_spells_json = COALESCE((
         SELECT json_group_array(value)
@@ -85,7 +90,7 @@ export const actorSheet2024Migration: Migration = {
       SET equipped = 1
       WHERE equipped = 0;
     `);
-        database.exec(`
+    database.exec(`
       INSERT OR IGNORE INTO actor_classes (
         actor_id, id, sort_order, compendium_id, name, source, level, hit_die_faces, used_hit_dice, spellcasting_ability
       )
@@ -113,5 +118,5 @@ export const actorSheet2024Migration: Migration = {
       FROM actors
       WHERE kind IN ('character', 'npc');
     `);
-    }
+  }
 };

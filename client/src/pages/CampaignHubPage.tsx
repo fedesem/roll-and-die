@@ -2,14 +2,7 @@ import { useState } from "react";
 
 import { ArrowRight, Castle, Map as MapIcon, Swords, Users } from "lucide-react";
 
-import type {
-  ActorKind,
-  ActorSheet,
-  CampaignMap,
-  CampaignSnapshot,
-  MemberRole,
-  MonsterTemplate
-} from "@shared/types";
+import type { ActorKind, ActorSheet, CampaignMap, CampaignSnapshot, MemberRole, MonsterTemplate } from "@shared/types";
 
 import { CampaignActorManager } from "../components/CampaignActorManager";
 import { CampaignMapActorCreator } from "../components/CampaignMapActorCreator";
@@ -19,11 +12,7 @@ import { CampaignMapRoster } from "../components/CampaignMapRoster";
 import { CampaignRoomManager } from "../components/CampaignRoomManager";
 import { CharacterSheet } from "../components/CharacterSheet";
 import { WorkspaceModal, type WorkspaceModalView } from "../components/WorkspaceModal";
-import type {
-  ActorTypeFilter,
-  AvailableActorEntry,
-  CurrentMapRosterEntry
-} from "../features/campaign/types";
+import type { ActorTypeFilter, AvailableActorEntry, CurrentMapRosterEntry } from "../features/campaign/types";
 
 type ActivePopup = "sheet" | null;
 type DashboardSection = "room" | "actors" | "maps";
@@ -258,9 +247,7 @@ export function CampaignHubPage({
                     <MapIcon size={14} />
                     <span>Board</span>
                   </div>
-                  <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">
-                    {activeMap?.name ?? "No active map"}
-                  </p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-500">{activeMap?.name ?? "No active map"}</p>
                 </div>
                 <div className="rounded-none border border-white/10 bg-white/[0.04] px-3 py-3">
                   <div className="flex items-center gap-2 text-amber-100">

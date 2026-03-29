@@ -259,9 +259,7 @@ function applyCampaignPatch(current: CampaignSnapshot | null, patch: RoomCampaig
   }
 
   if (patch.mapAssignmentsRemoved?.length) {
-    const removedAssignmentKeys = new Set(
-      patch.mapAssignmentsRemoved.map((entry) => `${entry.mapId}:${entry.actorId}`)
-    );
+    const removedAssignmentKeys = new Set(patch.mapAssignmentsRemoved.map((entry) => `${entry.mapId}:${entry.actorId}`));
     nextCampaign.mapAssignments = nextCampaign.mapAssignments.filter(
       (assignment) => !removedAssignmentKeys.has(`${assignment.mapId}:${assignment.actorId}`)
     );

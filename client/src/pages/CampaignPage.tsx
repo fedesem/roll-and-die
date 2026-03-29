@@ -26,16 +26,12 @@ import { CampaignMapRoster } from "../components/CampaignMapRoster";
 import { CharacterSheet } from "../components/CharacterSheet";
 import { ChatPanel } from "../components/ChatPanel";
 import { WorkspaceModal, type WorkspaceModalView } from "../components/WorkspaceModal";
-import type {
-  AvailableActorEntry,
-  CurrentMapRosterEntry,
-  TokenUpdatePatch
-} from "../features/campaign/types";
+import type { AvailableActorEntry, CurrentMapRosterEntry, TokenUpdatePatch } from "../features/campaign/types";
 import { resolveAssetUrl } from "../lib/assets";
 
 type ActivePopup = "sheet" | null;
 
-interface CampaignPageProps {
+export interface CampaignPageProps {
   token: string;
   campaign: CampaignSnapshot["campaign"];
   compendium: CampaignSnapshot["compendium"];
@@ -98,10 +94,7 @@ interface CampaignPageProps {
   onToggleDoor: (doorId: string) => Promise<void>;
   onToggleDoorLock: (doorId: string) => Promise<void>;
   onCreateDrawing: (mapId: string, stroke: DrawingStroke) => Promise<void>;
-  onUpdateDrawings: (
-    mapId: string,
-    drawings: Array<{ id: string; points: Point[]; rotation: number }>
-  ) => Promise<void>;
+  onUpdateDrawings: (mapId: string, drawings: Array<{ id: string; points: Point[]; rotation: number }>) => Promise<void>;
   onDeleteDrawings: (mapId: string, drawingIds: string[]) => Promise<void>;
   onClearDrawings: (mapId: string) => Promise<void>;
   onPing: (point: Point) => Promise<void>;
@@ -319,7 +312,10 @@ export function CampaignPage({
                             onSelectActor(actor.id);
                           }}
                         >
-                          <span className={`overlay-token-dot ${imageUrl ? "has-image" : ""}`} style={{ background: imageUrl ? "transparent" : color }}>
+                          <span
+                            className={`overlay-token-dot ${imageUrl ? "has-image" : ""}`}
+                            style={{ background: imageUrl ? "transparent" : color }}
+                          >
                             {imageUrl ? (
                               <img src={resolveAssetUrl(imageUrl)} alt={label} />
                             ) : (

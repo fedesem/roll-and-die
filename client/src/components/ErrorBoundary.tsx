@@ -34,10 +34,16 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <p className="mt-3 text-sm leading-6 text-slate-400">
             Reload the app to recover. If the problem persists, check the browser console for the captured stack trace.
           </p>
-          <button type="button" className="mt-5 inline-flex h-11 items-center justify-center rounded-none border border-amber-200/20 bg-amber-300/18 px-5 text-sm font-semibold text-amber-50 transition hover:bg-amber-300/24" onClick={() => window.location.reload()}>
+          <button
+            type="button"
+            className="mt-5 inline-flex h-11 items-center justify-center rounded-none border border-amber-200/20 bg-amber-300/18 px-5 text-sm font-semibold text-amber-50 transition hover:bg-amber-300/24"
+            onClick={() => window.location.reload()}
+          >
             Reload
           </button>
-          <pre className="mt-5 overflow-auto rounded-none border border-white/8 bg-white/[0.03] p-4 text-sm text-rose-200">{this.state.error.message}</pre>
+          <pre className="mt-5 overflow-auto rounded-none border border-white/8 bg-white/[0.03] p-4 text-sm text-rose-200">
+            {this.state.error.message}
+          </pre>
         </section>
       </main>
     );

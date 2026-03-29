@@ -81,10 +81,9 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
   if (kind === "classes" && Array.isArray(object.class)) {
     const subclassEntries = readObjectArray(object.subclass);
     const classFeatureLookup = new Map(
-      [
-        ...readObjectArray(object.classFeature),
-        ...readObjectArray(object.subclassFeature)
-      ].map((entry) => [getCompendiumEntityKey(entry), entry] as const)
+      [...readObjectArray(object.classFeature), ...readObjectArray(object.subclassFeature)].map(
+        (entry) => [getCompendiumEntityKey(entry), entry] as const
+      )
     );
 
     return object.class.map((entry) => ({
@@ -115,10 +114,7 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
   }
 
   if (kind === "items") {
-    return [
-      ...readObjectArray(object.item),
-      ...readObjectArray(object.baseitem)
-    ];
+    return [...readObjectArray(object.item), ...readObjectArray(object.baseitem)];
   }
 
   if (kind === "languages" && Array.isArray(object.language)) {
@@ -126,10 +122,7 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
   }
 
   if (kind === "races") {
-    return [
-      ...readObjectArray(object.race),
-      ...readObjectArray(object.subrace)
-    ].filter(isImportableRaceReferenceEntry);
+    return [...readObjectArray(object.race), ...readObjectArray(object.subrace)].filter(isImportableRaceReferenceEntry);
   }
 
   if (kind === "skills" && Array.isArray(object.skill)) {
@@ -181,7 +174,13 @@ export function importGeneratedSpellLookupIntoSpells(spells: SpellEntry[], input
 export function isGeneratedSubclassLookupImport(input: unknown) {
   const root = asOptionalObject(input);
 
-  if (!root || Array.isArray(root.class) || Array.isArray(root.subclass) || Array.isArray(root.classFeature) || Array.isArray(root.subclassFeature)) {
+  if (
+    !root ||
+    Array.isArray(root.class) ||
+    Array.isArray(root.subclass) ||
+    Array.isArray(root.classFeature) ||
+    Array.isArray(root.subclassFeature)
+  ) {
     return false;
   }
 
@@ -198,17 +197,13 @@ export function importGeneratedSubclassLookupIntoClasses(classes: ClassEntry[], 
   let imported = 0;
 
   classes.forEach((entry) => {
-    const subclasses = lookupData.subclassesByClassKey.get(
-      createGeneratedSubclassLookupKey(getSpellSourceCode(entry.source), entry.name)
-    );
+    const subclasses = lookupData.subclassesByClassKey.get(createGeneratedSubclassLookupKey(getSpellSourceCode(entry.source), entry.name));
 
     if (!subclasses || subclasses.length === 0) {
       return;
     }
 
-    const existingKeys = new Set(
-      entry.subclasses.map((subclass) => `${subclass.source.toLowerCase()}|${subclass.name.toLowerCase()}`)
-    );
+    const existingKeys = new Set(entry.subclasses.map((subclass) => `${subclass.source.toLowerCase()}|${subclass.name.toLowerCase()}`));
 
     subclasses.forEach((subclass) => {
       const key = `${subclass.source.toLowerCase()}|${subclass.name.toLowerCase()}`;
@@ -247,10 +242,7 @@ function sanitizeSpellEntry(input: unknown): SpellEntry {
 
   const components = asObject(object.components ?? {}, "Spell components");
   const classReferences = readObjectArray(object.classReferences).map(sanitizeSpellClassReference);
-  const classes = uniqueStrings([
-    ...readStringArray(object.classes),
-    ...classReferences.map(formatSpellClassReferenceDisplay)
-  ]);
+  const classes = uniqueStrings([...readStringArray(object.classes), ...classReferences.map(formatSpellClassReferenceDisplay)]);
   const description = requireString(object.description, "Spell description");
   const higherLevelDescription = readString(object.higherLevelDescription);
   const fullDescription =
@@ -487,19 +479,22 @@ function sanitizeClassEntry(input: unknown): ClassEntry {
       source: readString(entry.source),
       reference: readString(entry.reference)
     })),
-    subclasses: readObjectArray(object.subclasses).map((entry) => sanitizeClassSubclassEntry(entry, readString(object.name), readString(object.source))),
+    subclasses: readObjectArray(object.subclasses).map((entry) =>
+      sanitizeClassSubclassEntry(entry, readString(object.name), readString(object.source))
+    ),
     tables: readObjectArray(object.tables).map((entry) => ({
       name: requireString(entry.name, "Class table name"),
       columns: readStringArray(entry.columns),
-      rows: Array.isArray(entry.rows)
-        ? entry.rows.map((row) => (Array.isArray(row) ? row.map((cell) => String(cell ?? "")) : []))
-        : []
+      rows: Array.isArray(entry.rows) ? entry.rows.map((row) => (Array.isArray(row) ? row.map((cell) => String(cell ?? "")) : [])) : []
     }))
   };
 }
 
 function sanitizeReferenceEntry(
-  kind: Extract<CompendiumKind, "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<
+    CompendiumKind,
+    "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills"
+  >,
   input: unknown
 ): CompendiumReferenceEntry {
   const object = asObject(input, `${kind} entry`);
@@ -538,7 +533,7 @@ function sanitizeExternalSpellEntry(object: Record<string, unknown>): SpellEntry
   const fullDescription = [description, higherLevel].filter(Boolean).join("\n\n");
   const classReferences = parseExternalSpellClassReferences(object.classes);
   const material = components.m;
-  const materialObject = typeof material === "object" && material !== null ? material as Record<string, unknown> : null;
+  const materialObject = typeof material === "object" && material !== null ? (material as Record<string, unknown>) : null;
 
   return {
     id: readString(object.id) || createId("spl"),
@@ -586,7 +581,7 @@ function sanitizeExternalFeatEntry(object: Record<string, unknown>): FeatEntry {
 function sanitizeExternalClassEntry(object: Record<string, unknown>): ClassEntry {
   const lookupObject =
     typeof object.__classFeatureLookup === "object" && object.__classFeatureLookup !== null
-      ? object.__classFeatureLookup as Record<string, unknown>
+      ? (object.__classFeatureLookup as Record<string, unknown>)
       : {};
 
   const lookup = new Map(
@@ -615,12 +610,7 @@ function sanitizeExternalClassEntry(object: Record<string, unknown>): ClassEntry
     },
     features: parseExternalClassFeatures(object.classFeatures, lookup, requireString(object.name, "Class name"), readString(object.source)),
     subclasses: subclassEntries.map((entry) =>
-      sanitizeExternalClassSubclassEntry(
-        entry,
-        lookup,
-        requireString(object.name, "Class name"),
-        readString(object.source)
-      )
+      sanitizeExternalClassSubclassEntry(entry, lookup, requireString(object.name, "Class name"), readString(object.source))
     ),
     tables: parseExternalClassTables(object.classTableGroups)
   };
@@ -793,9 +783,7 @@ function readStringArray(value: unknown) {
 }
 
 function readObjectArray(value: unknown) {
-  return Array.isArray(value)
-    ? value.filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null)
-    : [];
+  return Array.isArray(value) ? value.filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null) : [];
 }
 
 function isImportableRaceReferenceEntry(entry: Record<string, unknown>) {
@@ -821,14 +809,7 @@ function isSubclassForClassEntry(subclassEntry: Record<string, unknown>, classEn
 }
 
 function parseAbilityOrNull(value: unknown): AbilityKey | null {
-  return value === "str" ||
-    value === "dex" ||
-    value === "con" ||
-    value === "int" ||
-    value === "wis" ||
-    value === "cha"
-    ? value
-    : null;
+  return value === "str" || value === "dex" || value === "con" || value === "int" || value === "wis" || value === "cha" ? value : null;
 }
 
 function parseSpellLevel(value: unknown): SpellLevel {
@@ -869,7 +850,15 @@ function parseCastingTimeUnit(value: unknown): SpellCastingTimeUnit {
 }
 
 function parseRangeType(value: unknown): SpellRangeType {
-  if (value === "feet" || value === "self" || value === "self emanation" || value === "touch" || value === "sight" || value === "unlimited" || value === "special") {
+  if (
+    value === "feet" ||
+    value === "self" ||
+    value === "self emanation" ||
+    value === "touch" ||
+    value === "sight" ||
+    value === "unlimited" ||
+    value === "special"
+  ) {
     return value;
   }
 
@@ -1033,9 +1022,8 @@ function parseExternalDurationValue(durationEntry: Record<string, unknown>) {
 
 function parseExternalSpellClassReferences(value: unknown): SpellClassReference[] {
   if (Array.isArray(value)) {
-    return uniqueBy(
-      readStringArray(value).map(createBaseSpellClassReference),
-      (entry) => [entry.kind, entry.name.toLowerCase(), entry.className.toLowerCase()].join("|")
+    return uniqueBy(readStringArray(value).map(createBaseSpellClassReference), (entry) =>
+      [entry.kind, entry.name.toLowerCase(), entry.className.toLowerCase()].join("|")
     );
   }
 
@@ -1046,20 +1034,24 @@ function parseExternalSpellClassReferences(value: unknown): SpellClassReference[
   }
 
   const references = [
-    ...readObjectArray(object.fromClassList).map((entry) => sanitizeSpellClassReference({
-      name: readString(entry.name),
-      source: readString(entry.source),
-      kind: "class",
-      className: readString(entry.name),
-      classSource: readString(entry.source)
-    })),
-    ...readObjectArray(object.fromClassListVariant).map((entry) => sanitizeSpellClassReference({
-      name: readString(entry.name),
-      source: readString(entry.source),
-      kind: "classVariant",
-      className: readString(entry.name),
-      classSource: readString(entry.source)
-    })),
+    ...readObjectArray(object.fromClassList).map((entry) =>
+      sanitizeSpellClassReference({
+        name: readString(entry.name),
+        source: readString(entry.source),
+        kind: "class",
+        className: readString(entry.name),
+        classSource: readString(entry.source)
+      })
+    ),
+    ...readObjectArray(object.fromClassListVariant).map((entry) =>
+      sanitizeSpellClassReference({
+        name: readString(entry.name),
+        source: readString(entry.source),
+        kind: "classVariant",
+        className: readString(entry.name),
+        classSource: readString(entry.source)
+      })
+    ),
     ...readObjectArray(object.fromSubclass).map((entry) => buildSubclassSpellClassReference(entry, "subclass")),
     ...readObjectArray(object.fromSubclassVariant).map((entry) => buildSubclassSpellClassReference(entry, "subclassVariant"))
   ]
@@ -1067,7 +1059,9 @@ function parseExternalSpellClassReferences(value: unknown): SpellClassReference[
     .filter((entry) => entry.name);
 
   return uniqueBy(references, (entry) =>
-    [entry.kind, entry.name.toLowerCase(), entry.source.toLowerCase(), entry.className.toLowerCase(), entry.classSource.toLowerCase()].join("|")
+    [entry.kind, entry.name.toLowerCase(), entry.source.toLowerCase(), entry.className.toLowerCase(), entry.classSource.toLowerCase()].join(
+      "|"
+    )
   );
 }
 
@@ -1131,10 +1125,7 @@ function parseGeneratedSpellLookupReferences(lookupObject: Record<string, unknow
   );
 }
 
-function parseGeneratedSpellLookupClassReferences(
-  value: unknown,
-  kind: "class" | "classVariant"
-): SpellClassReference[] {
+function parseGeneratedSpellLookupClassReferences(value: unknown, kind: "class" | "classVariant"): SpellClassReference[] {
   const sources = asOptionalObject(value);
 
   if (!sources) {
@@ -1161,10 +1152,7 @@ function parseGeneratedSpellLookupClassReferences(
   });
 }
 
-function parseGeneratedSpellLookupSubclassReferences(
-  value: unknown,
-  kind: "subclass" | "subclassVariant"
-): SpellClassReference[] {
+function parseGeneratedSpellLookupSubclassReferences(value: unknown, kind: "subclass" | "subclassVariant"): SpellClassReference[] {
   const classSources = asOptionalObject(value);
 
   if (!classSources) {
@@ -1266,16 +1254,10 @@ function readGeneratedSubclassLookupData(value: unknown) {
 }
 
 function mergeSpellClassReferences(existing: SpellClassReference[], incoming: SpellClassReference[]) {
-  const exactEntries = uniqueBy(
-    [...incoming, ...existing],
-    (entry) =>
-      [
-        entry.kind,
-        entry.name.toLowerCase(),
-        entry.source.toLowerCase(),
-        entry.className.toLowerCase(),
-        entry.classSource.toLowerCase()
-      ].join("|")
+  const exactEntries = uniqueBy([...incoming, ...existing], (entry) =>
+    [entry.kind, entry.name.toLowerCase(), entry.source.toLowerCase(), entry.className.toLowerCase(), entry.classSource.toLowerCase()].join(
+      "|"
+    )
   );
   const richKeys = new Set(
     exactEntries
@@ -1446,9 +1428,12 @@ function parseExternalClassFeatures(
 function parseExternalClassTables(value: unknown) {
   return readObjectArray(value).map((entry) => ({
     name: readString(entry.title) || readString(entry.name) || "Class Table",
-    columns: readArray(entry.colLabels).map((label) => renderTableCell(label)).filter(Boolean),
-    rows: readArray(Array.isArray(entry.rows) && entry.rows.length > 0 ? entry.rows : entry.rowsSpellProgression)
-      .map((row) => (Array.isArray(row) ? row.map((cell) => renderTableCell(cell)) : []))
+    columns: readArray(entry.colLabels)
+      .map((label) => renderTableCell(label))
+      .filter(Boolean),
+    rows: readArray(Array.isArray(entry.rows) && entry.rows.length > 0 ? entry.rows : entry.rowsSpellProgression).map((row) =>
+      Array.isArray(row) ? row.map((cell) => renderTableCell(cell)) : []
+    )
   }));
 }
 
@@ -1469,10 +1454,7 @@ function resolveExternalClassFeatureEntry(
 
   const object = value as Record<string, unknown>;
   const reference =
-    readString(object.classFeature) ||
-    readString(object.subclassFeature) ||
-    readString(object.feature) ||
-    readString(object.ref);
+    readString(object.classFeature) || readString(object.subclassFeature) || readString(object.feature) || readString(object.ref);
 
   if (reference) {
     return buildExternalClassFeatureFromReference(reference, lookup, className, classSource, fallbackLevel);
@@ -1538,10 +1520,7 @@ function findExternalClassFeatureData(
   reference: ReturnType<typeof parseExternalClassFeatureReference>,
   lookup: Map<string, Record<string, unknown>>
 ) {
-  const key = [reference.name, reference.className, reference.source, reference.level ?? ""]
-    .filter(Boolean)
-    .join("|")
-    .toLowerCase();
+  const key = [reference.name, reference.className, reference.source, reference.level ?? ""].filter(Boolean).join("|").toLowerCase();
 
   const directMatch = lookup.get(key);
   if (directMatch) {
@@ -1553,35 +1532,37 @@ function findExternalClassFeatureData(
   const normalizedSource = reference.source.toLowerCase();
   const normalizedClassSource = reference.classSource.toLowerCase();
 
-  return Array.from(lookup.values()).find((entry) => {
-    const entryName = readString(entry.name).toLowerCase();
-    const entryClassName = readString(entry.className).toLowerCase();
-    const entrySource = readString(entry.source).toLowerCase();
-    const entryClassSource = readString(entry.classSource).toLowerCase();
-    const entryLevel = readExternalClassFeatureLevel(entry.level);
+  return (
+    Array.from(lookup.values()).find((entry) => {
+      const entryName = readString(entry.name).toLowerCase();
+      const entryClassName = readString(entry.className).toLowerCase();
+      const entrySource = readString(entry.source).toLowerCase();
+      const entryClassSource = readString(entry.classSource).toLowerCase();
+      const entryLevel = readExternalClassFeatureLevel(entry.level);
 
-    if (entryName !== normalizedName) {
-      return false;
-    }
+      if (entryName !== normalizedName) {
+        return false;
+      }
 
-    if (normalizedClassName && entryClassName && entryClassName !== normalizedClassName) {
-      return false;
-    }
+      if (normalizedClassName && entryClassName && entryClassName !== normalizedClassName) {
+        return false;
+      }
 
-    if (reference.level !== null && entryLevel !== null && entryLevel !== reference.level) {
-      return false;
-    }
+      if (reference.level !== null && entryLevel !== null && entryLevel !== reference.level) {
+        return false;
+      }
 
-    if (normalizedSource && entrySource && entrySource !== normalizedSource) {
-      return false;
-    }
+      if (normalizedSource && entrySource && entrySource !== normalizedSource) {
+        return false;
+      }
 
-    if (normalizedClassSource && entryClassSource && entryClassSource !== normalizedClassSource) {
-      return false;
-    }
+      if (normalizedClassSource && entryClassSource && entryClassSource !== normalizedClassSource) {
+        return false;
+      }
 
-    return true;
-  }) ?? null;
+      return true;
+    }) ?? null
+  );
 }
 
 function readExternalClassFeatureLevel(value: unknown) {
@@ -1642,19 +1623,16 @@ function readPrimaryAbilities(value: unknown) {
 }
 
 function getCompendiumEntityKey(entry: Record<string, unknown>) {
-  const level =
-    typeof entry.level === "number" && Number.isFinite(entry.level)
-      ? String(entry.level)
-      : readString(entry.level);
+  const level = typeof entry.level === "number" && Number.isFinite(entry.level) ? String(entry.level) : readString(entry.level);
 
-  return [readString(entry.name), readString(entry.className), readString(entry.source), level]
-    .filter(Boolean)
-    .join("|")
-    .toLowerCase();
+  return [readString(entry.name), readString(entry.className), readString(entry.source), level].filter(Boolean).join("|").toLowerCase();
 }
 
 function readReferenceCategory(
-  kind: Extract<CompendiumKind, "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<
+    CompendiumKind,
+    "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills"
+  >,
   object: Record<string, unknown>
 ) {
   switch (kind) {
@@ -1665,14 +1643,16 @@ function readReferenceCategory(
     case "optionalFeatures":
       return formatOptionalFeatureTypeCategory(object.featureType);
     case "actions":
-      return readObjectArray(object.time)
-        .map((entry) => {
-          const number = clampNumber(entry.number, 0, 24, 0);
-          const unit = readString(entry.unit);
-          return number > 0 && unit ? `${number} ${unit}` : unit;
-        })
-        .filter(Boolean)
-        .join(", ") || "Action";
+      return (
+        readObjectArray(object.time)
+          .map((entry) => {
+            const number = clampNumber(entry.number, 0, 24, 0);
+            const unit = readString(entry.unit);
+            return number > 0 && unit ? `${number} ${unit}` : unit;
+          })
+          .filter(Boolean)
+          .join(", ") || "Action"
+      );
     case "backgrounds":
       return "Background";
     case "items":
@@ -1687,7 +1667,10 @@ function readReferenceCategory(
 }
 
 function readReferenceDescription(
-  kind: Extract<CompendiumKind, "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<
+    CompendiumKind,
+    "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills"
+  >,
   object: Record<string, unknown>
 ) {
   const entries = readReferenceEntriesText(object);
@@ -1707,9 +1690,7 @@ function readReferenceDescription(
         entries,
         readString(object.origin) ? `Origin: ${readString(object.origin)}` : "",
         readString(object.script) ? `Script: ${readString(object.script)}` : "",
-        readStringArray(object.typicalSpeakers).length > 0
-          ? `Typical Speakers: ${readStringArray(object.typicalSpeakers).join(", ")}`
-          : ""
+        readStringArray(object.typicalSpeakers).length > 0 ? `Typical Speakers: ${readStringArray(object.typicalSpeakers).join(", ")}` : ""
       ].filter(Boolean);
 
       return details.join("\n") || requireString(object.name, "Language description");
@@ -1718,29 +1699,21 @@ function readReferenceDescription(
 }
 
 function readReferenceEntriesText(object: Record<string, unknown>) {
-  return (
-    joinEntries(object.entries) ||
-    joinEntries(object.additionalEntries) ||
-    readString(object.description)
-  );
+  return joinEntries(object.entries) || joinEntries(object.additionalEntries) || readString(object.description);
 }
 
 function readReferenceTags(
-  kind: Extract<CompendiumKind, "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills">,
+  kind: Extract<
+    CompendiumKind,
+    "variantRules" | "conditions" | "optionalFeatures" | "actions" | "backgrounds" | "items" | "languages" | "races" | "skills"
+  >,
   object: Record<string, unknown>
 ) {
   switch (kind) {
     case "variantRules":
-      return uniqueStrings([
-        readString(object.ruleType),
-        readString(object.type),
-        readString(object.category)
-      ]);
+      return uniqueStrings([readString(object.ruleType), readString(object.type), readString(object.category)]);
     case "conditions":
-      return uniqueStrings([
-        readString(object.type),
-        readString(object.category)
-      ]);
+      return uniqueStrings([readString(object.type), readString(object.category)]);
     case "optionalFeatures":
       return readOptionalFeatureTypeTags(object.featureType);
     case "actions":
@@ -1759,11 +1732,7 @@ function readReferenceTags(
         readString(object.reqAttune)
       ]);
     case "languages":
-      return uniqueStrings([
-        readString(object.type),
-        readString(object.script),
-        ...readStringArray(object.typicalSpeakers)
-      ]);
+      return uniqueStrings([readString(object.type), readString(object.script), ...readStringArray(object.typicalSpeakers)]);
     case "races":
       return uniqueStrings([
         ...readStringArray(object.traitTags),
@@ -1803,13 +1772,11 @@ function readOptionalFeatureTypeLabels(value: unknown) {
     AI: "Artificer Infusion"
   };
 
-  return uniqueStrings(
-    readStringArray(value).map((entry) => mapping[entry] ?? entry)
-  );
+  return uniqueStrings(readStringArray(value).map((entry) => mapping[entry] ?? entry));
 }
 
 function asOptionalObject(value: unknown) {
-  return typeof value === "object" && value !== null ? value as Record<string, unknown> : null;
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
 }
 
 function buildMonsterMetaLine(object: Record<string, unknown>) {
@@ -1832,9 +1799,7 @@ function sanitizeExternalSpellcastingTrait(input: Record<string, unknown>) {
   const name = requireString(input.name, "Spellcasting trait name");
   const headers = readStringArray(input.headerEntries);
   const groups = readSpellcastingGroups(input);
-  const spellsLine = groups.length > 0
-    ? groups.map((group) => `${group.label}: ${group.spells.join(", ")}`).join("\n")
-    : "";
+  const spellsLine = groups.length > 0 ? groups.map((group) => `${group.label}: ${group.spells.join(", ")}`).join("\n") : "";
   return [name, ...headers, spellsLine].filter(Boolean).join("\n");
 }
 
@@ -2130,12 +2095,7 @@ function parseMonsterProficiencyBonus(value: unknown, challengeRatingValue: unkn
   return 2;
 }
 
-function parseExternalInitiative(
-  value: unknown,
-  dexterity: unknown,
-  proficiencyBonusValue: unknown,
-  challengeRatingValue: unknown
-) {
+function parseExternalInitiative(value: unknown, dexterity: unknown, proficiencyBonusValue: unknown, challengeRatingValue: unknown) {
   const dexModifier = Math.floor((clampNumber(dexterity, 1, 30, 10) - 10) / 2);
 
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -2152,8 +2112,7 @@ function parseExternalInitiative(
       return parseSignedNumber(object.bonus);
     }
 
-    const proficiencyMultiplier =
-      typeof object.proficiency === "number" && Number.isFinite(object.proficiency) ? object.proficiency : 0;
+    const proficiencyMultiplier = typeof object.proficiency === "number" && Number.isFinite(object.proficiency) ? object.proficiency : 0;
     const proficiencyBonus = parseMonsterProficiencyBonus(proficiencyBonusValue, challengeRatingValue);
     return clampNumber(dexModifier + proficiencyMultiplier * proficiencyBonus, -20, 50, dexModifier);
   }

@@ -55,7 +55,7 @@ export function selectBoardSeenCells({
   }
 
   if (role === "dm") {
-    return fogPreviewUserId ? campaign?.exploration[fogPreviewUserId]?.[activeMap.id] ?? [] : [];
+    return fogPreviewUserId ? (campaign?.exploration[fogPreviewUserId]?.[activeMap.id] ?? []) : [];
   }
 
   return snapshot?.playerVision[activeMap.id] ?? [];
@@ -121,9 +121,7 @@ export function selectVisibleMapTokens({
   }
 
   return activeMapTokens.filter((token) => {
-    return getTokenOccupiedCellKeys(activeMap, token).some(
-      (cellKey) => visibleCells.has(cellKey) || seenCells.has(cellKey)
-    );
+    return getTokenOccupiedCellKeys(activeMap, token).some((cellKey) => visibleCells.has(cellKey) || seenCells.has(cellKey));
   });
 }
 
@@ -229,11 +227,7 @@ export function buildCurrentMapRoster({
   });
 }
 
-export function filterCurrentMapRoster(
-  roster: CurrentMapRosterEntry[],
-  typeFilter: ActorTypeFilter,
-  query: string
-) {
+export function filterCurrentMapRoster(roster: CurrentMapRosterEntry[], typeFilter: ActorTypeFilter, query: string) {
   const normalizedQuery = query.trim().toLowerCase();
 
   return roster.filter(({ actor, actorKind, label }) => {
@@ -245,9 +239,7 @@ export function filterCurrentMapRoster(
       return true;
     }
 
-    return [label, actorKind, actor?.name ?? "", actor?.species ?? ""].some((value) =>
-      value.toLowerCase().includes(normalizedQuery)
-    );
+    return [label, actorKind, actor?.name ?? "", actor?.species ?? ""].some((value) => value.toLowerCase().includes(normalizedQuery));
   });
 }
 
@@ -283,12 +275,10 @@ export function selectAvailableActors({
         return true;
       }
 
-      return [actor.name, actor.kind, actor.species, actor.className].some((value) =>
-        value.toLowerCase().includes(normalizedQuery)
-      );
+      return [actor.name, actor.kind, actor.species, actor.className].some((value) => value.toLowerCase().includes(normalizedQuery));
     })
     .map((actor) => {
-      const owner = actor.ownerId ? campaign.members.find((member) => member.userId === actor.ownerId) ?? null : null;
+      const owner = actor.ownerId ? (campaign.members.find((member) => member.userId === actor.ownerId) ?? null) : null;
       const activeMaps = getActorAssignedMaps(campaign, actor);
 
       return {
@@ -318,9 +308,7 @@ export function filterMonsterCatalog(snapshot: CampaignSnapshot | null, query: s
   }
 
   return snapshot.catalog.filter((monster) =>
-    [monster.name, monster.source, monster.challengeRating].some((field) =>
-      field.toLowerCase().includes(normalizedQuery)
-    )
+    [monster.name, monster.source, monster.challengeRating].some((field) => field.toLowerCase().includes(normalizedQuery))
   );
 }
 

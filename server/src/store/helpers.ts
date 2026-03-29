@@ -1,81 +1,86 @@
 import type { DatabaseSync, SQLInputValue } from "./types.js";
 const nestedTransactionCounters = new WeakMap<DatabaseSync, number>();
 function createSavepointName(database: DatabaseSync) {
-    const nextCounter = (nestedTransactionCounters.get(database) ?? 0) + 1;
-    nestedTransactionCounters.set(database, nextCounter);
-    return `nested_txn_${nextCounter}`;
+  const nextCounter = (nestedTransactionCounters.get(database) ?? 0) + 1;
+  nestedTransactionCounters.set(database, nextCounter);
+  return `nested_txn_${nextCounter}`;
 }
 export function runInTransaction<T>(database: DatabaseSync, task: () => Promise<T> | T) {
-    if (nestedTransactionCounters.has(database)) {
-        const savepointName = createSavepointName(database);
-        return database
-            .exec(`SAVEPOINT ${savepointName}`)
-            .then(() => Promise.resolve(task()))
-            .then((result) => database.exec(`RELEASE SAVEPOINT ${savepointName}`).then(() => result))
-            .catch((error) => database
-            .exec(`ROLLBACK TO SAVEPOINT ${savepointName}`)
-            .then(() => database.exec(`RELEASE SAVEPOINT ${savepointName}`))
-            .then(() => {
-            throw error;
-        }));
-    }
-    nestedTransactionCounters.set(database, 1);
+  if (nestedTransactionCounters.has(database)) {
+    const savepointName = createSavepointName(database);
     return database
-        .exec("BEGIN IMMEDIATE")
-        .then(() => Promise.resolve(task()))
-        .then((result) => database.exec("COMMIT").then(() => result))
-        .catch((error) => database.exec("ROLLBACK").then(() => {
-        throw error;
-    }, () => {
-        throw error;
-    }))
-        .finally(() => {
-        nestedTransactionCounters.delete(database);
+      .exec(`SAVEPOINT ${savepointName}`)
+      .then(() => Promise.resolve(task()))
+      .then((result) => database.exec(`RELEASE SAVEPOINT ${savepointName}`).then(() => result))
+      .catch((error) =>
+        database
+          .exec(`ROLLBACK TO SAVEPOINT ${savepointName}`)
+          .then(() => database.exec(`RELEASE SAVEPOINT ${savepointName}`))
+          .then(() => {
+            throw error;
+          })
+      );
+  }
+  nestedTransactionCounters.set(database, 1);
+  return database
+    .exec("BEGIN IMMEDIATE")
+    .then(() => Promise.resolve(task()))
+    .then((result) => database.exec("COMMIT").then(() => result))
+    .catch((error) =>
+      database.exec("ROLLBACK").then(
+        () => {
+          throw error;
+        },
+        () => {
+          throw error;
+        }
+      )
+    )
+    .finally(() => {
+      nestedTransactionCounters.delete(database);
     });
 }
 export async function addColumnIfMissing(database: DatabaseSync, tableName: string, columnName: string, definition: string) {
-    const columns = await readAll<{
-        name: string;
-    }>(database, `PRAGMA table_info(${tableName})`);
-    if (columns.some((column) => column.name === columnName)) {
-        return;
-    }
-    await database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+  const columns = await readAll<{
+    name: string;
+  }>(database, `PRAGMA table_info(${tableName})`);
+  if (columns.some((column) => column.name === columnName)) {
+    return;
+  }
+  await database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
 }
 export async function tableExists(database: DatabaseSync, tableName: string) {
-    const row = await database
-        .prepare("SELECT 1 as found FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")
-        .get<{
-        found: number;
-    }>(tableName);
-    return Boolean(row?.found);
+  const row = await database.prepare("SELECT 1 as found FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1").get<{
+    found: number;
+  }>(tableName);
+  return Boolean(row?.found);
 }
 export async function readCount(database: DatabaseSync, table: string) {
-    const row = await database.prepare(`SELECT COUNT(*) as count FROM ${table}`).get<{
-        count: number;
-    }>();
-    return row?.count ?? 0;
+  const row = await database.prepare(`SELECT COUNT(*) as count FROM ${table}`).get<{
+    count: number;
+  }>();
+  return row?.count ?? 0;
 }
 export function readAll<T>(database: DatabaseSync, sql: string, ...params: SQLInputValue[]) {
-    return database.prepare(sql).all<T>(...params);
+  return database.prepare(sql).all<T>(...params);
 }
 export function parseCellKey(key: string) {
-    const [columnText, rowText] = key.split(":");
-    const column = Number(columnText);
-    const row = Number(rowText);
-    if (!Number.isInteger(column) || !Number.isInteger(row)) {
-        return null;
-    }
-    return { column, row };
+  const [columnText, rowText] = key.split(":");
+  const column = Number(columnText);
+  const row = Number(rowText);
+  if (!Number.isInteger(column) || !Number.isInteger(row)) {
+    return null;
+  }
+  return { column, row };
 }
 export function toBoolean(value: number) {
-    return value === 1;
+  return value === 1;
 }
 export function toIntegerBoolean(value: boolean) {
-    return value ? 1 : 0;
+  return value ? 1 : 0;
 }
 export async function rebuildActorChildTables(database: DatabaseSync) {
-    await database.exec(`
+  await database.exec(`
     ALTER TABLE actor_skills RENAME TO actor_skills_old;
     CREATE TABLE actor_skills (
       actor_id TEXT NOT NULL REFERENCES actors(id) ON DELETE CASCADE,

@@ -4,9 +4,7 @@ export const drawingMetadataMigration: Migration = {
   version: 105,
   name: "drawing_metadata",
   async up(database) {
-    const columns = new Set(
-      (await database.prepare("PRAGMA table_info(map_drawings)").all<{ name: string }>()).map((row) => row.name)
-    );
+    const columns = new Set((await database.prepare("PRAGMA table_info(map_drawings)").all<{ name: string }>()).map((row) => row.name));
 
     if (!columns.has("owner_id")) {
       await database.exec("ALTER TABLE map_drawings ADD COLUMN owner_id TEXT;");

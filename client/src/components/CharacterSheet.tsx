@@ -19,15 +19,7 @@ interface CharacterSheetProps {
   onRoll: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
 }
 
-export function CharacterSheet({
-  token,
-  actor,
-  compendium,
-  role,
-  currentUserId,
-  onSave,
-  onRoll
-}: CharacterSheetProps) {
+export function CharacterSheet({ token, actor, compendium, role, currentUserId, onSave, onRoll }: CharacterSheetProps) {
   const [draft, setDraft] = useState<ActorSheet | null>(actor ? cloneActor(actor) : null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -58,9 +50,7 @@ export function CharacterSheet({
     return (
       <section className="border border-amber-800/40 bg-zinc-950 px-6 py-8 text-zinc-200">
         <h2 className="text-2xl font-semibold text-amber-50">Interactive Sheet</h2>
-        <p className="mt-3 text-sm text-zinc-400">
-          Select a character, NPC, monster, or static actor to open its sheet.
-        </p>
+        <p className="mt-3 text-sm text-zinc-400">Select a character, NPC, monster, or static actor to open its sheet.</p>
       </section>
     );
   }
@@ -70,8 +60,7 @@ export function CharacterSheet({
       <section className="border border-amber-800/40 bg-zinc-950 px-6 py-8 text-zinc-200">
         <h2 className="text-2xl font-semibold text-amber-50">Sheet Locked</h2>
         <p className="mt-3 text-sm text-zinc-400">
-          Players can only open sheets for actors they own. The DM can open every sheet in
-          the campaign.
+          Players can only open sheets for actors they own. The DM can open every sheet in the campaign.
         </p>
       </section>
     );
@@ -124,16 +113,7 @@ interface SimpleActorSheetProps {
   onSave: (actor: ActorSheet) => Promise<void>;
 }
 
-function SimpleActorSheet({
-  token,
-  actor,
-  canEdit,
-  saving,
-  imageError,
-  onDraftChange,
-  onImageError,
-  onSave
-}: SimpleActorSheetProps) {
+function SimpleActorSheet({ token, actor, canEdit, saving, imageError, onDraftChange, onImageError, onSave }: SimpleActorSheetProps) {
   const isStaticActor = actor.kind === "static";
   const isCreatureActor = !isStaticActor;
 
@@ -343,9 +323,7 @@ function SimpleActorSheet({
         <article className="space-y-4 border border-amber-800/40 bg-zinc-950 p-4">
           <header className="flex items-center gap-2 border-b border-amber-800/30 pb-3">
             <ScrollText size={16} className="text-amber-400" />
-            <p className="text-xs uppercase tracking-[0.28em] text-amber-400/80">
-              Details
-            </p>
+            <p className="text-xs uppercase tracking-[0.28em] text-amber-400/80">Details</p>
           </header>
 
           <div className="grid gap-3 md:grid-cols-3">
@@ -373,23 +351,13 @@ function SimpleActorSheet({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="space-y-1.5 text-sm text-zinc-300">
-      <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">
-        {label}
-      </span>
+      <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">{label}</span>
       {children}
     </label>
   );
 }
 
-function StatBox({
-  label,
-  value,
-  detail
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-}) {
+function StatBox({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return (
     <div className="space-y-1 border border-amber-800/30 bg-zinc-900/70 px-3 py-3">
       <p className="text-[11px] uppercase tracking-[0.22em] text-amber-400/80">{label}</p>

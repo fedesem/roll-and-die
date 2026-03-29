@@ -18,13 +18,7 @@ import {
   Type
 } from "lucide-react";
 
-import type {
-  DrawingKind,
-  DrawingTextFont,
-  MeasureKind,
-  MeasureSnapMode,
-  Point
-} from "@shared/types";
+import type { DrawingKind, DrawingTextFont, MeasureKind, MeasureSnapMode, Point } from "@shared/types";
 import { drawingTextFontOptions, drawingTextSizeOptions } from "./drawingText";
 
 interface BoardToolbarProps {
@@ -193,12 +187,7 @@ export function BoardToolbar({
                   >
                     {dmFogEnabled ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
-                  <button
-                    type="button"
-                    className="icon-action-button"
-                    title="Reset remembered fog"
-                    onClick={onResetFog}
-                  >
+                  <button type="button" className="icon-action-button" title="Reset remembered fog" onClick={onResetFog}>
                     <RotateCcw size={15} />
                   </button>
                 </div>
@@ -276,10 +265,7 @@ export function BoardToolbar({
           {measureKind === "cone" && (
             <label>
               Angle
-              <select
-                value={coneAngle}
-                onChange={(event) => onConeAngleChange(Number(event.target.value) as 45 | 60 | 90)}
-              >
+              <select value={coneAngle} onChange={(event) => onConeAngleChange(Number(event.target.value) as 45 | 60 | 90)}>
                 <option value="45">45°</option>
                 <option value="60">60°</option>
                 <option value="90">90°</option>
@@ -300,11 +286,7 @@ export function BoardToolbar({
             </label>
           )}
           <label className="board-inline-toggle">
-            <input
-              type="checkbox"
-              checked={measureBroadcast}
-              onChange={(event) => onMeasureBroadcastChange(event.target.checked)}
-            />
+            <input type="checkbox" checked={measureBroadcast} onChange={(event) => onMeasureBroadcastChange(event.target.checked)} />
             Broadcast
           </label>
         </div>
@@ -336,20 +318,10 @@ export function BoardToolbar({
             >
               <Square size={14} />
             </button>
-            <button
-              type="button"
-              className={drawKind === "star" ? "is-active" : ""}
-              title="Star"
-              onClick={() => onDrawKindChange("star")}
-            >
+            <button type="button" className={drawKind === "star" ? "is-active" : ""} title="Star" onClick={() => onDrawKindChange("star")}>
               <Star size={14} />
             </button>
-            <button
-              type="button"
-              className={drawKind === "text" ? "is-active" : ""}
-              title="Text"
-              onClick={() => onDrawKindChange("text")}
-            >
+            <button type="button" className={drawKind === "text" ? "is-active" : ""} title="Text" onClick={() => onDrawKindChange("text")}>
               <Type size={14} />
             </button>
           </div>
@@ -441,13 +413,7 @@ export function BoardToolbar({
               <label className="board-draw-size-control">
                 <span>Size</span>
                 <span className="board-draw-size-value">{Math.round(drawSize)}</span>
-                <input
-                  type="range"
-                  min="1"
-                  max="16"
-                  value={drawSize}
-                  onChange={(event) => onDrawSizeChange(Number(event.target.value))}
-                />
+                <input type="range" min="1" max="16" value={drawSize} onChange={(event) => onDrawSizeChange(Number(event.target.value))} />
               </label>
             </>
           )}

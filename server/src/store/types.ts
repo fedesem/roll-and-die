@@ -1,10 +1,6 @@
 import { basename, resolve } from "node:path";
 
-import type {
-  Campaign,
-  CompendiumData,
-  UserProfile
-} from "../../../shared/types.js";
+import type { Campaign, CompendiumData, UserProfile } from "../../../shared/types.js";
 
 export type SQLInputValue = Buffer | Uint8Array | string | number | bigint | null;
 

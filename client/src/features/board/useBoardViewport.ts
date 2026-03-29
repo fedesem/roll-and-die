@@ -19,13 +19,7 @@ interface UseBoardViewportOptions {
   viewRecall: MapViewportRecall | null;
 }
 
-export function useBoardViewport({
-  map,
-  currentUserId,
-  gridVisible,
-  role,
-  viewRecall
-}: UseBoardViewportOptions) {
+export function useBoardViewport({ map, currentUserId, gridVisible, role, viewRecall }: UseBoardViewportOptions) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const initializedMapIdRef = useRef<string | null>(null);
   const appliedRecallIdRef = useRef<string | null>(null);

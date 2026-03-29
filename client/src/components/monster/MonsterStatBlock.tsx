@@ -5,7 +5,7 @@ import type { MonsterActionEntry, MonsterTemplate } from "@shared/types";
 import { resolveAssetUrl } from "../../lib/assets";
 
 const ABILITY_KEYS = ["str", "dex", "con", "int", "wis", "cha"] as const;
-const titleFontStyle = { fontFamily: "\"Palatino Linotype\", Georgia, serif" } as const;
+const titleFontStyle = { fontFamily: '"Palatino Linotype", Georgia, serif' } as const;
 
 type PreviewMonster = MonsterTemplate | Omit<MonsterTemplate, "id">;
 
@@ -95,10 +95,7 @@ export function MonsterStatBlock({
                 {monster.name}
               </h3>
               {monster.source ? (
-                <span
-                  className="text-sm font-semibold uppercase tracking-[0.14em] text-sky-300"
-                  title={sourceTitle ?? monster.source}
-                >
+                <span className="text-sm font-semibold uppercase tracking-[0.14em] text-sky-300" title={sourceTitle ?? monster.source}>
                   {monster.source}
                 </span>
               ) : null}
@@ -134,9 +131,7 @@ export function MonsterStatBlock({
                 <p className="mt-1 font-semibold text-stone-100">{formatSigned(monster.proficiencyBonus)}</p>
               </div>
             </div>
-            {monster.xp > 0 ? (
-              <p className="text-sm text-stone-300/90">{monster.xp.toLocaleString()} XP</p>
-            ) : null}
+            {monster.xp > 0 ? <p className="text-sm text-stone-300/90">{monster.xp.toLocaleString()} XP</p> : null}
           </div>
         </div>
 
@@ -160,9 +155,7 @@ export function MonsterStatBlock({
               value={monster.skills.map((skill) => `${skill.name} ${formatSigned(skill.bonus)}`).join(", ")}
             />
           ) : null}
-          {monster.resistances.length > 0 ? (
-            <MonsterInfoLine label="Resistances" value={monster.resistances.join(", ")} />
-          ) : null}
+          {monster.resistances.length > 0 ? <MonsterInfoLine label="Resistances" value={monster.resistances.join(", ")} /> : null}
           {monster.vulnerabilities.length > 0 ? (
             <MonsterInfoLine label="Vulnerabilities" value={monster.vulnerabilities.join(", ")} />
           ) : null}
@@ -209,9 +202,7 @@ function MonsterTokenAvatar({ monster, size }: { monster: PreviewMonster; size: 
 
   return (
     <div
-      className={`overflow-hidden rounded-full shadow-[0_16px_36px_rgba(0,0,0,0.34)] ${
-        resolvedImageUrl ? "border-0" : "border-4"
-      } ${
+      className={`overflow-hidden rounded-full shadow-[0_16px_36px_rgba(0,0,0,0.34)] ${resolvedImageUrl ? "border-0" : "border-4"} ${
         size === "large" ? "h-28 w-28 min-w-[7rem]" : "h-14 w-14 min-w-[3.5rem]"
       }`}
       style={{ borderColor: monster.color || "#d35b49", backgroundColor: "rgba(15, 23, 42, 0.96)" }}
@@ -248,15 +239,7 @@ function MonsterInfoLine({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MonsterTextSection({
-  title,
-  items,
-  renderText
-}: {
-  title: string;
-  items: string[];
-  renderText: (text: string) => ReactNode;
-}) {
+function MonsterTextSection({ title, items, renderText }: { title: string; items: string[]; renderText: (text: string) => ReactNode }) {
   if (items.length === 0) {
     return null;
   }
@@ -270,9 +253,7 @@ function MonsterTextSection({
       </div>
       <div className="grid gap-3 text-[1rem] leading-8 text-stone-100">
         {items.map((item, index) => (
-          <p key={`${title}-${index}`}>
-            {renderText(item)}
-          </p>
+          <p key={`${title}-${index}`}>{renderText(item)}</p>
         ))}
       </div>
     </section>
@@ -302,8 +283,7 @@ function MonsterActionSection({
       <div className="grid gap-3 text-[1rem] leading-8 text-stone-100">
         {items.map((item) => (
           <p key={`${title}-${item.name}`}>
-            <span className="font-semibold italic text-stone-50">{item.name}.</span>{" "}
-            {renderText(item.description)}
+            <span className="font-semibold italic text-stone-50">{item.name}.</span> {renderText(item.description)}
           </p>
         ))}
       </div>
@@ -311,15 +291,7 @@ function MonsterActionSection({
   );
 }
 
-function MonsterChip({
-  children,
-  tone,
-  title
-}: {
-  children: ReactNode;
-  tone: "accent" | "muted" | "source";
-  title?: string;
-}) {
+function MonsterChip({ children, tone, title }: { children: ReactNode; tone: "accent" | "muted" | "source"; title?: string }) {
   const toneClass =
     tone === "accent"
       ? "border-amber-300/40 bg-amber-200/10 text-amber-100"

@@ -46,8 +46,7 @@ function normalizeCampaign(campaign: Campaign): Campaign {
       return Array.from(
         new Set(
           value.filter(
-            (entry): entry is (typeof TOKEN_STATUS_MARKERS)[number] =>
-              typeof entry === "string" && tokenStatusMarkerSet.has(entry)
+            (entry): entry is (typeof TOKEN_STATUS_MARKERS)[number] => typeof entry === "string" && tokenStatusMarkerSet.has(entry)
           )
         )
       );
@@ -116,20 +115,19 @@ function normalizeCampaign(campaign: Campaign): Campaign {
       )
     : [];
   const normalizedAssignments = Array.isArray((campaign as Partial<Campaign>).mapAssignments)
-    ? ((campaign as Partial<Campaign>).mapAssignments ?? [])
-        .filter(
-          (assignment): assignment is Campaign["mapAssignments"][number] =>
-            Boolean(assignment) &&
-            typeof assignment?.actorId === "string" &&
-            typeof assignment?.mapId === "string"
-        )
+    ? ((campaign as Partial<Campaign>).mapAssignments ?? []).filter(
+        (assignment): assignment is Campaign["mapAssignments"][number] =>
+          Boolean(assignment) && typeof assignment?.actorId === "string" && typeof assignment?.mapId === "string"
+      )
     : derivedAssignments;
 
   return {
     ...campaign,
     activeMapId,
     allowedSourceBooks: Array.isArray((campaign as Partial<Campaign>).allowedSourceBooks)
-      ? (campaign as Partial<Campaign>).allowedSourceBooks!.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+      ? (campaign as Partial<Campaign>).allowedSourceBooks!.filter(
+          (entry): entry is string => typeof entry === "string" && entry.trim().length > 0
+        )
       : [],
     exploration: campaign.exploration ?? {},
     actors: Array.isArray(campaign.actors)
@@ -138,14 +136,8 @@ function normalizeCampaign(campaign: Campaign): Campaign {
           imageUrl: actor.imageUrl ?? "",
           visionRange: actor.visionRange ?? 6,
           creatureSize: normalizeCreatureSize(actor.creatureSize),
-          tokenWidthSquares:
-            actor.kind === "static"
-              ? clampStaticTokenDimension(actor.tokenWidthSquares ?? 2)
-              : 1,
-          tokenLengthSquares:
-            actor.kind === "static"
-              ? clampStaticTokenDimension(actor.tokenLengthSquares ?? 4)
-              : 1,
+          tokenWidthSquares: actor.kind === "static" ? clampStaticTokenDimension(actor.tokenWidthSquares ?? 2) : 1,
+          tokenLengthSquares: actor.kind === "static" ? clampStaticTokenDimension(actor.tokenLengthSquares ?? 4) : 1,
           classes: Array.isArray(actor.classes) ? actor.classes : [],
           preparedSpells: Array.isArray(actor.preparedSpells) ? actor.preparedSpells : [],
           bonuses: Array.isArray(actor.bonuses) ? actor.bonuses : [],
@@ -177,9 +169,7 @@ function normalizeCampaign(campaign: Campaign): Campaign {
       : [],
     maps,
     mapAssignments: Array.from(
-      new Map(
-        normalizedAssignments.map((assignment) => [`${assignment.mapId}:${assignment.actorId}`, assignment])
-      ).values()
+      new Map(normalizedAssignments.map((assignment) => [`${assignment.mapId}:${assignment.actorId}`, assignment])).values()
     ),
     tokens: Array.isArray(campaign.tokens)
       ? campaign.tokens.map((token) => ({
@@ -200,8 +190,11 @@ function normalizeCampaign(campaign: Campaign): Campaign {
           imageUrl:
             typeof token.imageUrl === "string"
               ? token.imageUrl
-              : campaign.actors.find((actor) => actor.id === token.actorId)?.imageUrl ?? "",
-          statusMarkers: normalizeStatusMarkers((token as Campaign["tokens"][number] & { statusMarker?: unknown }).statusMarkers ?? (token as Campaign["tokens"][number] & { statusMarker?: unknown }).statusMarker)
+              : (campaign.actors.find((actor) => actor.id === token.actorId)?.imageUrl ?? ""),
+          statusMarkers: normalizeStatusMarkers(
+            (token as Campaign["tokens"][number] & { statusMarker?: unknown }).statusMarkers ??
+              (token as Campaign["tokens"][number] & { statusMarker?: unknown }).statusMarker
+          )
         }))
       : [],
     chat: Array.isArray(campaign.chat) ? campaign.chat : [],

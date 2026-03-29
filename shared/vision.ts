@@ -1,13 +1,4 @@
-import type {
-  ActorSheet,
-  BoardToken,
-  CampaignMap,
-  CellKey,
-  MapWall,
-  MemberRole,
-  Point,
-  TokenFootprint
-} from "./types.js";
+import type { ActorSheet, BoardToken, CampaignMap, CellKey, MapWall, MemberRole, Point, TokenFootprint } from "./types.js";
 import {
   getFootprintOccupiedCellKeys,
   getFootprintSamplePoints,
@@ -204,12 +195,7 @@ export function canTraverseSegment(start: Point, end: Point, walls: WallCollisio
   return isSegmentPassable(start, end, walls, "movement");
 }
 
-function isSegmentPassable(
-  start: Point,
-  end: Point,
-  walls: WallCollisionSource,
-  mode: "view" | "movement"
-) {
+function isSegmentPassable(start: Point, end: Point, walls: WallCollisionSource, mode: "view" | "movement") {
   const sharedCornerHits = new Map<string, number>();
 
   for (const wall of getCandidateWalls(walls, start, end)) {
@@ -248,12 +234,7 @@ function isSegmentPassable(
   return true;
 }
 
-export function traceMovementPath(
-  map: CampaignMap,
-  start: Point,
-  target: Point,
-  options: MovementOptions = {}
-): MovementTrace {
+export function traceMovementPath(map: CampaignMap, start: Point, target: Point, options: MovementOptions = {}): MovementTrace {
   const indexedWalls = getWallSpatialIndex(map);
   const footprint = options.footprint ?? { widthSquares: 1, heightSquares: 1 };
   const startCell = getTokenGridPosition(map, start, footprint);
@@ -275,10 +256,7 @@ export function traceMovementPath(
     const previousPoint = getTokenGridCenter(map, previous.column, previous.row, footprint);
     const nextPoint = getTokenGridCenter(map, next.column, next.row, footprint);
 
-    if (
-      !options.ignoreWalls &&
-      !canTraverseFootprintStep(map, previousPoint, nextPoint, indexedWalls, footprint)
-    ) {
+    if (!options.ignoreWalls && !canTraverseFootprintStep(map, previousPoint, nextPoint, indexedWalls, footprint)) {
       blocked = true;
       break;
     }
@@ -309,12 +287,7 @@ export function traceMovementPath(
   };
 }
 
-export function isFootprintPassableAt(
-  map: CampaignMap,
-  center: Point,
-  walls: WallCollisionSource,
-  footprint: TokenFootprint
-) {
+export function isFootprintPassableAt(map: CampaignMap, center: Point, walls: WallCollisionSource, footprint: TokenFootprint) {
   if (
     footprint.widthSquares < 1 ||
     footprint.heightSquares < 1 ||
@@ -371,13 +344,7 @@ function obstacleBlocksMode(wall: MapWall, mode: "view" | "movement") {
   return mode === "view" ? obstacleBlocksVision(wall) : obstacleBlocksMovement(wall);
 }
 
-function canTraverseFootprintStep(
-  map: CampaignMap,
-  start: Point,
-  end: Point,
-  walls: WallCollisionSource,
-  footprint: TokenFootprint
-) {
+function canTraverseFootprintStep(map: CampaignMap, start: Point, end: Point, walls: WallCollisionSource, footprint: TokenFootprint) {
   const startSamples = getFootprintSamplePoints(map, start, footprint);
   const endSamples = getFootprintSamplePoints(map, end, footprint);
 
@@ -479,11 +446,7 @@ export function findTeleporterDestination(teleporters: CampaignMap["teleporters"
   return null;
 }
 
-type SegmentIntersection =
-  | { kind: "none" }
-  | { kind: "touch"; point: Point }
-  | { kind: "cross"; point: Point }
-  | { kind: "overlap" };
+type SegmentIntersection = { kind: "none" } | { kind: "touch"; point: Point } | { kind: "cross"; point: Point } | { kind: "overlap" };
 
 function describeSegmentIntersection(a: Point, b: Point, c: Point, d: Point): SegmentIntersection {
   const ab = subtractPoint(b, a);
@@ -518,9 +481,7 @@ function describeSegmentIntersection(a: Point, b: Point, c: Point, d: Point): Se
   const intersectsRayInterior = ua > epsilon && ua < 1 - epsilon;
   const intersectsWallInterior = ub > epsilon && ub < 1 - epsilon;
 
-  return intersectsRayInterior && intersectsWallInterior
-    ? { kind: "cross", point }
-    : { kind: "touch", point };
+  return intersectsRayInterior && intersectsWallInterior ? { kind: "cross", point } : { kind: "touch", point };
 }
 
 function subtractPoint(a: Point, b: Point): Point {
@@ -536,12 +497,8 @@ function crossProduct(a: Point, b: Point) {
 
 function boundingBoxesOverlap(a: Point, b: Point, c: Point, d: Point) {
   const epsilon = 0.0001;
-  const overlapX =
-    Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) >=
-    Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)) - epsilon;
-  const overlapY =
-    Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) >=
-    Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)) - epsilon;
+  const overlapX = Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) >= Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)) - epsilon;
+  const overlapY = Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) >= Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)) - epsilon;
 
   return overlapX && overlapY;
 }

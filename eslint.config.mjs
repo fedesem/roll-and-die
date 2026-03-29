@@ -108,8 +108,8 @@ export default tseslint.config(
           default: "allow",
           rules: [
             {
-              from: ["pages", "components"],
-              disallow: ["services"]
+              from: { type: ["pages", "components"] },
+              disallow: { to: { type: "services" } }
             }
           ]
         }
@@ -126,22 +126,10 @@ export default tseslint.config(
             {
               group: ["**/api", "**/api.ts"],
               message: "Use feature services or hooks instead of calling apiRequest from pages or UI components."
-            }
-          ]
-        }
-      ]
-    }
-  },
-  {
-    files: ["client/src/pages/**/*.{ts,tsx}"],
-    rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          patterns: [
+            },
             {
               group: ["**/features/**/*Service", "**/features/**/*Service.ts"],
-              message: "Pages should orchestrate through feature hooks instead of importing service modules directly."
+              message: "UI layers should orchestrate through feature hooks instead of importing feature services directly."
             }
           ]
         }

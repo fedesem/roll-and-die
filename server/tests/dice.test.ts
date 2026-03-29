@@ -1,12 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  evaluateRollNotation,
-  isRollCommand,
-  parseDiceToken,
-  parseRollCommand,
-  validateRollNotation
-} from "../../shared/dice.ts";
+import { evaluateRollNotation, isRollCommand, parseDiceToken, parseRollCommand, validateRollNotation } from "../../shared/dice.ts";
 
 vi.mock("node:crypto", () => ({
   randomUUID: () => "roll-id"
@@ -73,9 +67,7 @@ describe("server rollDice", () => {
   });
 
   it("returns a complete DiceRoll payload using deterministic random values", async () => {
-    vi.spyOn(Math, "random")
-      .mockReturnValueOnce(0)
-      .mockReturnValueOnce(0.5);
+    vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValueOnce(0.5);
 
     const { rollDice } = await import("../src/dice.ts");
     const roll = rollDice(" 2d6 + 1 ", "Longsword");
@@ -94,8 +86,6 @@ describe("server rollDice", () => {
   it("throws a user-friendly message for invalid notations", async () => {
     const { rollDice } = await import("../src/dice.ts");
 
-    expect(() => rollDice("abc", "Bad Roll")).toThrowError(
-      "Use roll expressions like 1d20+2, 2d8*2, or 3d6+2d4."
-    );
+    expect(() => rollDice("abc", "Bad Roll")).toThrowError("Use roll expressions like 1d20+2, 2d8*2, or 3d6+2d4.");
   });
 });

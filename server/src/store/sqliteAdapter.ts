@@ -106,10 +106,9 @@ export class SqlitePersistenceAdapter {
           `);
 
           const applied = new Set(
-            (await readAll<{ version: number }>(
-              migrationConnection,
-              "SELECT version FROM schema_migrations ORDER BY version"
-            )).map((row) => row.version)
+            (await readAll<{ version: number }>(migrationConnection, "SELECT version FROM schema_migrations ORDER BY version")).map(
+              (row) => row.version
+            )
           );
 
           for (const migration of migrations) {

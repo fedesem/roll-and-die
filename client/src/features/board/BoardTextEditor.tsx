@@ -1,9 +1,4 @@
-import {
-  useLayoutEffect,
-  useRef,
-  type ClipboardEvent as ReactClipboardEvent,
-  type KeyboardEvent as ReactKeyboardEvent
-} from "react";
+import { useLayoutEffect, useRef, type ClipboardEvent as ReactClipboardEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 interface BoardTextEditorProps {
   x: number;
@@ -199,7 +194,13 @@ function withAlpha(color: string, opacity: number) {
     return normalizedOpacity > 0 ? color : "transparent";
   }
 
-  const expanded = hex.length === 3 ? hex.split("").map((character) => `${character}${character}`).join("") : hex;
+  const expanded =
+    hex.length === 3
+      ? hex
+          .split("")
+          .map((character) => `${character}${character}`)
+          .join("")
+      : hex;
   const alpha = Math.round(normalizedOpacity * 255)
     .toString(16)
     .padStart(2, "0");

@@ -40,19 +40,12 @@ export function createClientActorDraft(kind: ActorKind, currentUserId?: string):
   return {
     id: `draft_${crypto.randomUUID().slice(0, 8)}`,
     campaignId: "",
-    ownerId: kind === "character" ? currentUserId ?? "draft-owner" : undefined,
+    ownerId: kind === "character" ? (currentUserId ?? "draft-owner") : undefined,
     name: kind === "static" ? "New Static Actor" : "New Actor",
     kind,
     creatureSize: "medium",
     imageUrl: "",
-    className:
-      kind === "npc"
-        ? "Supporting Role"
-        : kind === "monster"
-          ? "Monster"
-          : kind === "static"
-            ? "2 x 4"
-            : "Adventurer",
+    className: kind === "npc" ? "Supporting Role" : kind === "monster" ? "Monster" : kind === "static" ? "2 x 4" : "Adventurer",
     species: kind === "monster" ? "Bestiary" : kind === "static" ? "Vehicle" : "Human",
     background: kind === "monster" ? "" : kind === "static" ? "500 kg" : "Wayfarer",
     alignment: "Neutral",
@@ -151,13 +144,6 @@ export function createClientActorDraft(kind: ActorKind, currentUserId?: string):
     ],
     currency: { pp: 0, gp: 15, ep: 0, sp: 5, cp: 12 },
     notes: "",
-    color:
-      kind === "npc"
-        ? "#d98f46"
-        : kind === "monster"
-          ? "#ae4a39"
-          : kind === "static"
-            ? "#6e8897"
-            : "#8cae75"
+    color: kind === "npc" ? "#d98f46" : kind === "monster" ? "#ae4a39" : kind === "static" ? "#6e8897" : "#8cae75"
   };
 }

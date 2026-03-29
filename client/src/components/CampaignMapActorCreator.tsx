@@ -64,9 +64,7 @@ export function CampaignMapActorCreator({
       return true;
     }
 
-    return [actor.name, actor.kind, actor.species, actor.className].some((value) =>
-      value.toLowerCase().includes(normalizedQuery)
-    );
+    return [actor.name, actor.kind, actor.species, actor.className].some((value) => value.toLowerCase().includes(normalizedQuery));
   });
 
   async function handleCreateActor() {
@@ -138,7 +136,7 @@ export function CampaignMapActorCreator({
                     conditionEntries={compendium.conditions}
                   />
                 )}
-                action={(
+                action={
                   <CampaignActionButton
                     onClick={() => void onCreateMonsterActor(selectedMonsterTemplate, selectedMap.id)}
                     icon={FilePlus2}
@@ -146,7 +144,7 @@ export function CampaignMapActorCreator({
                   >
                     Create on map
                   </CampaignActionButton>
-                )}
+                }
               />
             ) : (
               <p className="empty-state">Select a monster to preview its stat block.</p>
@@ -156,12 +154,7 @@ export function CampaignMapActorCreator({
       ) : (
         <div className="inline-form compact">
           <input placeholder="Actor name" value={newActorName} onChange={(event) => setNewActorName(event.target.value)} />
-          <CampaignActionButton
-            disabled={!newActorName.trim()}
-            onClick={() => void handleCreateActor()}
-            icon={FilePlus2}
-            tone="accent"
-          >
+          <CampaignActionButton disabled={!newActorName.trim()} onClick={() => void handleCreateActor()} icon={FilePlus2} tone="accent">
             Create on map
           </CampaignActionButton>
         </div>
@@ -176,15 +169,8 @@ export function CampaignMapActorCreator({
           <span className="badge subtle">{reusableActors.length}</span>
         </div>
         <div className="actor-filter-row">
-          <input
-            placeholder="Search existing actors"
-            value={existingSearch}
-            onChange={(event) => setExistingSearch(event.target.value)}
-          />
-          <select
-            value={existingTypeFilter}
-            onChange={(event) => setExistingTypeFilter(event.target.value as ActorTypeFilter)}
-          >
+          <input placeholder="Search existing actors" value={existingSearch} onChange={(event) => setExistingSearch(event.target.value)} />
+          <select value={existingTypeFilter} onChange={(event) => setExistingTypeFilter(event.target.value as ActorTypeFilter)}>
             <option value="all">All types</option>
             <option value="character">Characters</option>
             <option value="npc">NPCs</option>

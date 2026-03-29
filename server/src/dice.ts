@@ -1,11 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import {
-  evaluateRollNotation,
-  normalizeRollNotation,
-  parseRollCommand,
-  validateRollNotation
-} from "../../shared/dice.js";
+import { evaluateRollNotation, normalizeRollNotation, parseRollCommand, validateRollNotation } from "../../shared/dice.js";
 import type { DiceRoll } from "../../shared/types.js";
 
 export { normalizeRollNotation, parseRollCommand, validateRollNotation };

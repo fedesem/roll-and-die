@@ -53,20 +53,14 @@ export function formatModifier(value: number) {
 }
 
 export function totalLevel(actor: ActorSheet) {
-  return actor.classes.length > 0
-    ? actor.classes.reduce((sum, entry) => sum + entry.level, 0)
-    : actor.level;
+  return actor.classes.length > 0 ? actor.classes.reduce((sum, entry) => sum + entry.level, 0) : actor.level;
 }
 
 export function proficiencyBonusForLevel(level: number) {
   return Math.min(6, 2 + Math.floor((Math.max(level, 1) - 1) / 4));
 }
 
-export function bonusTotal(
-  actor: ActorSheet,
-  targetType: ActorBonusEntry["targetType"],
-  targetKey = ""
-) {
+export function bonusTotal(actor: ActorSheet, targetType: ActorBonusEntry["targetType"], targetKey = "") {
   const normalizedKey = normalizeKey(targetKey);
 
   return actor.bonuses.reduce((sum, entry) => {
@@ -91,19 +85,13 @@ export function abilityModifierTotal(actor: ActorSheet, ability: AbilityKey) {
 }
 
 export function savingThrowTotal(actor: ActorSheet, ability: AbilityKey) {
-  return (
-    abilityModifierTotal(actor, ability) +
-    actor.proficiencyBonus +
-    bonusTotal(actor, "savingThrow", ability)
-  );
+  return abilityModifierTotal(actor, ability) + actor.proficiencyBonus + bonusTotal(actor, "savingThrow", ability);
 }
 
 export function skillTotal(actor: ActorSheet, skill: SkillEntry) {
   const proficiencyMultiplier = skill.expertise ? 2 : skill.proficient ? 1 : 0;
   return (
-    abilityModifierTotal(actor, skill.ability) +
-    proficiencyMultiplier * actor.proficiencyBonus +
-    bonusTotal(actor, "skill", skill.name)
+    abilityModifierTotal(actor, skill.ability) + proficiencyMultiplier * actor.proficiencyBonus + bonusTotal(actor, "skill", skill.name)
   );
 }
 
@@ -120,18 +108,13 @@ export function derivedArmorClass(actor: ActorSheet) {
     armorItems.length > 0
       ? Math.max(
           ...armorItems.map((entry) => {
-            const dexContribution =
-              entry.maxDexBonus === null ? dexModifier : Math.min(dexModifier, entry.maxDexBonus);
+            const dexContribution = entry.maxDexBonus === null ? dexModifier : Math.min(dexModifier, entry.maxDexBonus);
             return entry.armorClass + dexContribution + entry.bonus;
           })
         )
       : 10 + dexModifier;
 
-  return (
-    bestArmor +
-    shieldItems.reduce((sum, entry) => sum + entry.armorClass + entry.bonus, 0) +
-    bonusTotal(actor, "armorClass")
-  );
+  return bestArmor + shieldItems.reduce((sum, entry) => sum + entry.armorClass + entry.bonus, 0) + bonusTotal(actor, "armorClass");
 }
 
 export function spellAttackBonus(actor: ActorSheet) {
@@ -152,9 +135,7 @@ export function spellMatchesClassFilter(spell: SpellEntry, classes: ActorClassEn
   return (
     spell.classes.some((entry) => normalizedNames.has(normalizeKey(entry))) ||
     spell.classReferences.some(
-      (entry) =>
-        normalizedNames.has(normalizeKey(entry.className)) ||
-        normalizedNames.has(normalizeKey(entry.name))
+      (entry) => normalizedNames.has(normalizeKey(entry.className)) || normalizedNames.has(normalizeKey(entry.name))
     )
   );
 }
@@ -172,10 +153,7 @@ export function featMatchesClassFilter(feat: FeatEntry, classes: ActorClassEntry
   return classes.some((entry) => normalizedPrerequisites.includes(normalizeKey(entry.name)));
 }
 
-export function findCompendiumClass(
-  actorClass: ActorClassEntry,
-  classes: ClassEntry[]
-): ClassEntry | undefined {
+export function findCompendiumClass(actorClass: ActorClassEntry, classes: ClassEntry[]): ClassEntry | undefined {
   return (
     classes.find((entry) => actorClass.compendiumId && entry.id === actorClass.compendiumId) ??
     classes.find(
@@ -228,11 +206,7 @@ export function sortLayout(layout: ActorSheet["layout"]) {
   return [...layout].sort((left, right) => left.order - right.order);
 }
 
-export function moveLayoutSection(
-  layout: ActorSheet["layout"],
-  sectionId: string,
-  direction: "up" | "down" | "left" | "right"
-) {
+export function moveLayoutSection(layout: ActorSheet["layout"], sectionId: string, direction: "up" | "down" | "left" | "right") {
   const sorted = sortLayout(layout);
   const index = sorted.findIndex((entry) => entry.sectionId === sectionId);
 

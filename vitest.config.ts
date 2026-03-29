@@ -12,8 +12,31 @@ export default defineConfig({
     }
   },
   test: {
-    environment: "node",
-    environmentMatchGlobs: [["client/tests/**/*.{test,spec}.{ts,tsx}", "jsdom"]],
-    include: ["client/tests/**/*.{test,spec}.{ts,tsx}", "server/tests/**/*.test.ts"]
+    projects: [
+      {
+        resolve: {
+          alias: {
+            "@shared": path.resolve(rootDir, "shared")
+          }
+        },
+        test: {
+          name: "client",
+          environment: "jsdom",
+          include: ["client/tests/**/*.{test,spec}.{ts,tsx}"]
+        }
+      },
+      {
+        resolve: {
+          alias: {
+            "@shared": path.resolve(rootDir, "shared")
+          }
+        },
+        test: {
+          name: "server",
+          environment: "node",
+          include: ["server/tests/**/*.test.ts"]
+        }
+      }
+    ]
   }
 });

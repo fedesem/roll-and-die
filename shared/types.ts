@@ -1,13 +1,7 @@
 export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 export type MemberRole = "dm" | "player";
 export type ActorKind = "character" | "npc" | "monster" | "static";
-export type ActorCreatureSize =
-  | "tiny"
-  | "small"
-  | "medium"
-  | "large"
-  | "huge"
-  | "gargantuan";
+export type ActorCreatureSize = "tiny" | "small" | "medium" | "large" | "huge" | "gargantuan";
 export type ChatMessageKind = "message" | "roll" | "system";
 export type CellKey = string;
 export type TokenRotation = 0 | 90 | 180 | 270;

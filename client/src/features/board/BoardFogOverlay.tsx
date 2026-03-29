@@ -62,8 +62,8 @@ export function BoardFogOverlay({
     }
 
     const cellSize = map.grid.cellSize;
-    const left = (-viewPan.x) / worldScale;
-    const top = (-viewPan.y) / worldScale;
+    const left = -viewPan.x / worldScale;
+    const top = -viewPan.y / worldScale;
     const right = (width - viewPan.x) / worldScale;
     const bottom = (height - viewPan.y) / worldScale;
     const minColumn = Math.floor((left - map.grid.offsetX) / cellSize) - 2;
@@ -80,10 +80,8 @@ export function BoardFogOverlay({
           return;
         }
 
-        const startX =
-          (map.grid.offsetX + runStartColumn * cellSize) * worldScale + viewPan.x;
-        const endX =
-          (map.grid.offsetX + (endColumn + 1) * cellSize) * worldScale + viewPan.x;
+        const startX = (map.grid.offsetX + runStartColumn * cellSize) * worldScale + viewPan.x;
+        const endX = (map.grid.offsetX + (endColumn + 1) * cellSize) * worldScale + viewPan.x;
         const startY = (map.grid.offsetY + row * cellSize) * worldScale + viewPan.y;
         const endY = (map.grid.offsetY + (row + 1) * cellSize) * worldScale + viewPan.y;
 
@@ -106,17 +104,7 @@ export function BoardFogOverlay({
 
       flushRun(maxColumn);
     }
-  }, [
-    map,
-    seenCells,
-    usesRestrictedVision,
-    viewPan.x,
-    viewPan.y,
-    viewportSize.height,
-    viewportSize.width,
-    visibleCells,
-    worldScale
-  ]);
+  }, [map, seenCells, usesRestrictedVision, viewPan.x, viewPan.y, viewportSize.height, viewportSize.width, visibleCells, worldScale]);
 
   return <canvas ref={canvasRef} className="board-fog-layer" aria-hidden="true" />;
 }

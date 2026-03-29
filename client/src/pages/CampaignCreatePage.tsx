@@ -29,7 +29,11 @@ export function CampaignCreatePage({
             <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-amber-200/55">Create</p>
             <h2 className="mt-2 font-serif text-2xl text-amber-50">New campaign room</h2>
           </div>
-          <button className="inline-flex h-11 items-center justify-center rounded-none border border-white/12 bg-white/5 px-4 text-sm font-semibold text-slate-100 transition hover:border-amber-200/18 hover:bg-white/8" type="button" onClick={onBack}>
+          <button
+            className="inline-flex h-11 items-center justify-center rounded-none border border-white/12 bg-white/5 px-4 text-sm font-semibold text-slate-100 transition hover:border-amber-200/18 hover:bg-white/8"
+            type="button"
+            onClick={onBack}
+          >
             Back to campaigns
           </button>
         </div>
@@ -109,7 +113,9 @@ export function CampaignCreatePage({
             </div>
           </div>
         ) : (
-          <p className="mt-5 text-sm leading-6 text-slate-400">No imported compendium books yet. New campaigns will start without a restricted book list.</p>
+          <p className="mt-5 text-sm leading-6 text-slate-400">
+            No imported compendium books yet. New campaigns will start without a restricted book list.
+          </p>
         )}
         {createBlocked ? <p className="mt-3 text-sm text-amber-100/80">Select at least one book to create a restricted campaign.</p> : null}
       </section>

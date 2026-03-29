@@ -70,7 +70,10 @@
   padding: 0.48rem 0.86rem;
   background: transparent;
   color: #d8d1bf;
-  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
 }
 
 .modeTab:hover {

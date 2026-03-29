@@ -13,10 +13,7 @@ interface UseCampaignSummariesQueryOptions {
   onError: (message: string) => void;
 }
 
-export function useCampaignSummariesQuery({
-  token,
-  onError
-}: UseCampaignSummariesQueryOptions) {
+export function useCampaignSummariesQuery({ token, onError }: UseCampaignSummariesQueryOptions) {
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: token ? queryKeys.campaigns(token) : ["campaigns", "anonymous"],
