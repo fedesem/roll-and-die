@@ -1,57 +1,38 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import type {
-  ActorKind,
-  ActorSheet,
-  AuthPayload,
-  CampaignMap,
-  CampaignSourceBook,
-  MemberRole
-} from "@shared/types";
+import type { ActorKind, ActorSheet, CampaignMap, CampaignSourceBook, MemberRole } from "@shared/types";
 
-import { AdminPanel } from "./components/AdminPanel";
+import { AppRouteContent } from "./app/AppRouteContent";
+import { useAppRoute } from "./appRouteState";
 import { AppTopbar } from "./components/AppTopbar";
-import { toAuthErrorMessage } from "./features/auth/authErrors";
-import { fetchCurrentUser, login, register } from "./features/auth/authService";
+import { useBannerState } from "./features/app/useBannerState";
+import { useAuthSession } from "./features/auth/useAuthSession";
 import { useCampaignManagementActions } from "./features/campaign/useCampaignManagementActions";
 import { useCampaignDerivedState } from "./features/campaign/useCampaignDerivedState";
 import { useDeleteTokenHotkey } from "./features/campaign/useDeleteTokenHotkey";
+import { useMapEditorState } from "./features/campaign/useMapEditorState";
 import { useRoomActions } from "./features/campaign/useRoomActions";
 import { useCampaignSummariesQuery } from "./features/campaign/useCampaignSummariesQuery";
 import { useRoomRealtimeState } from "./features/campaign/useRoomRealtimeState";
 import { useCampaignUiEffects } from "./features/campaign/useCampaignUiEffects";
-import type { ActorTypeFilter, BannerState } from "./features/campaign/types";
-import { usePersistentState } from "./hooks/usePersistentState";
-import { createClientActorDraft, createClientMapDraft, cloneMap } from "./lib/drafts";
+import type { ActorTypeFilter } from "./features/campaign/types";
+import { createClientActorDraft } from "./lib/drafts";
 import { readJson, writeJson } from "./lib/storage";
-import { AuthPage, type AuthMode } from "./pages/AuthPage";
-import { CampaignCreatePage } from "./pages/CampaignCreatePage";
-import { CampaignHubPage } from "./pages/CampaignHubPage";
-import { CampaignJoinPage } from "./pages/CampaignJoinPage";
-import { CampaignLoadingPage } from "./pages/CampaignLoadingPage";
-import { CampaignPage } from "./pages/CampaignPage";
-import { CampaignsPage } from "./pages/CampaignsPage";
-import { useAppRouter } from "./router";
+import { AuthPage } from "./pages/AuthPage";
 import { useRoomConnection } from "./services/roomConnection";
 
-const sessionStorageKey = "dnd-board-session";
 const selectedCampaignStorageKey = "dnd-board-selected-campaign";
 
 export default function App() {
-  const { route, navigate } = useAppRouter();
+  const { route, navigate } = useAppRoute();
   const isCampaignRoute = route.name === "campaign" || route.name === "campaignBoard";
   const isCampaignBoardRoute = route.name === "campaignBoard";
-  const [authMode, setAuthMode] = useState<AuthMode>("login");
-  const [authForm, setAuthForm] = useState({ name: "", email: "", password: "" });
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [session, setSession] = usePersistentState<AuthPayload | null>(sessionStorageKey, null);
   const [selectedCampaignId, setSelectedCampaignIdState] = useState<string | null>(() =>
     isCampaignRoute ? route.campaignId : readJson<string>(selectedCampaignStorageKey)
   );
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null);
   const [selectedActorId, setSelectedActorId] = useState<string | null>(null);
   const [selectedBoardItemCount, setSelectedBoardItemCount] = useState(0);
-  const [banner, setBanner] = useState<BannerState | null>(null);
   const [createCampaignName, setCreateCampaignName] = useState("");
   const [createCampaignAllowedSourceBooks, setCreateCampaignAllowedSourceBooks] = useState<string[]>([]);
   const [joinCode, setJoinCode] = useState("");
@@ -61,34 +42,40 @@ export default function App() {
   const [mapActorTypeFilter, setMapActorTypeFilter] = useState<ActorTypeFilter>("all");
   const [actorCreatorKind, setActorCreatorKind] = useState<ActorKind>("character");
   const [actorCreatorOpen, setActorCreatorOpen] = useState(false);
+  const { banner, setBanner, setBannerStatus } = useBannerState();
+  const { authMode, authForm, authError, session, setSession, handleAuthFormChange, handleAuthModeChange, handleAuthSubmit } =
+    useAuthSession({
+      route,
+      setJoinCode,
+      onBanner: setBannerStatus
+    });
   const [actorDraft, setActorDraft] = useState<ActorSheet | null>(() => createClientActorDraft("character", session?.user.id));
   const [inviteDraft, setInviteDraft] = useState({ role: "player" as MemberRole });
   const [monsterQuery, setMonsterQuery] = useState("");
   const [selectedMonsterId, setSelectedMonsterId] = useState<string | null>(null);
-  const [mapDraft, setMapDraft] = useState<CampaignMap | null>(null);
-  const [newMapDraft, setNewMapDraft] = useState<CampaignMap>(() => createClientMapDraft("New Map"));
-  const [mapEditorMode, setMapEditorMode] = useState<"create" | "edit" | null>(null);
-  const [mapEditorPast, setMapEditorPast] = useState<CampaignMap[]>([]);
-  const [mapEditorFuture, setMapEditorFuture] = useState<CampaignMap[]>([]);
-  const [mapEditorBaseline, setMapEditorBaseline] = useState<CampaignMap | null>(null);
+  const {
+    mapDraft,
+    setMapDraft,
+    newMapDraft,
+    setNewMapDraft,
+    mapEditorMode,
+    setMapEditorMode,
+    editingMap,
+    canUndoEditingMap,
+    canRedoEditingMap,
+    canPersistEditingMap,
+    resetMapEditorHistory,
+    openMapEditorForCreate,
+    openMapEditorForEdit,
+    changeEditingMap,
+    reloadEditingMap,
+    undoEditingMap,
+    redoEditingMap
+  } = useMapEditorState();
   const [dmFogEnabled, setDmFogEnabled] = useState(false);
   const [dmFogUserId, setDmFogUserId] = useState<string | null>(null);
   const [activePopup, setActivePopup] = useState<"sheet" | null>(null);
   const [inviteLinkConsumed, setInviteLinkConsumed] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!banner) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setBanner((current) => (current === banner ? null : current));
-    }, 10000);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [banner]);
 
   useEffect(() => {
     writeJson(selectedCampaignStorageKey, selectedCampaignId);
@@ -99,10 +86,6 @@ export default function App() {
       setSelectedCampaignIdState((current) => (current === route.campaignId ? current : route.campaignId));
     }
   }, [route]);
-
-  const setBannerStatus = useCallback((tone: BannerState["tone"], text: string) => {
-    setBanner({ tone, text });
-  }, []);
 
   const handleRealtimeError = useCallback(
     (message: string) => {
@@ -157,7 +140,7 @@ export default function App() {
   const setSelectedCampaignId = useCallback(
     (nextCampaignId: string | null, options?: { replace?: boolean }) => {
       setSelectedCampaignIdState(nextCampaignId);
-      navigate(nextCampaignId ? { name: "campaign", campaignId: nextCampaignId } : { name: "campaigns" }, options);
+      void navigate(nextCampaignId ? { name: "campaign", campaignId: nextCampaignId } : { name: "campaigns" }, options);
     },
     [navigate]
   );
@@ -168,7 +151,7 @@ export default function App() {
     }
 
     setActivePopup(null);
-    navigate({ name: "campaign", campaignId: selectedCampaignId });
+    void navigate({ name: "campaign", campaignId: selectedCampaignId });
   }, [navigate, selectedCampaignId]);
 
   const openCampaignBoard = useCallback(() => {
@@ -177,7 +160,7 @@ export default function App() {
     }
 
     setActivePopup(null);
-    navigate({ name: "campaignBoard", campaignId: selectedCampaignId });
+    void navigate({ name: "campaignBoard", campaignId: selectedCampaignId });
   }, [navigate, selectedCampaignId]);
 
   const {
@@ -277,27 +260,8 @@ export default function App() {
   });
 
   useEffect(() => {
-    if (!session?.token) {
-      return;
-    }
-
-    void fetchCurrentUser(session.token)
-      .then((user) => {
-        setSession((current) =>
-          current && current.token === session.token
-            ? {
-                ...current,
-                user
-              }
-            : current
-        );
-      })
-      .catch(() => undefined);
-  }, [session?.token, setSession]);
-
-  useEffect(() => {
     if (route.name === "admin" && session && !session.user.isAdmin) {
-      navigate({ name: "campaigns" }, { replace: true });
+      void navigate({ name: "campaigns" }, { replace: true });
     }
   }, [navigate, route.name, session]);
 
@@ -341,55 +305,6 @@ export default function App() {
     setActivePopup
   });
 
-  const editingMap = mapEditorMode === "create" ? newMapDraft : mapEditorMode === "edit" ? mapDraft : null;
-  const canUndoEditingMap = mapEditorPast.length > 0;
-  const canRedoEditingMap = mapEditorFuture.length > 0;
-  const canPersistEditingMap =
-    Boolean(editingMap) && Boolean(mapEditorBaseline) && JSON.stringify(editingMap) !== JSON.stringify(mapEditorBaseline);
-
-  function replaceEditingMap(nextMap: CampaignMap) {
-    if (mapEditorMode === "create") {
-      setNewMapDraft(nextMap);
-      return;
-    }
-
-    setMapDraft(nextMap);
-  }
-
-  function resetMapEditorHistory(baseMap: CampaignMap) {
-    setMapEditorBaseline(cloneMap(baseMap));
-    setMapEditorPast([]);
-    setMapEditorFuture([]);
-  }
-
-  async function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    try {
-      const payload = await (authMode === "login" ? login(authForm) : register(authForm));
-
-      setSession(payload);
-      setAuthError(null);
-      setBanner({ tone: "info", text: authMode === "login" ? "Signed in." : "Account created." });
-      setAuthForm({ name: "", email: "", password: "" });
-      if (route.name === "campaignJoin" && route.code) {
-        setJoinCode(route.code);
-      }
-    } catch (error) {
-      const message = toAuthErrorMessage(authMode, error);
-      setAuthError(message);
-      setBanner({ tone: "error", text: message });
-    }
-  }
-
-  function handleLogout() {
-    setSession(null);
-    setSnapshot(null);
-    setSelectedCampaignId(null);
-    setActivePopup(null);
-    setBanner(null);
-  }
-
   useDeleteTokenHotkey({
     role,
     activeMap,
@@ -430,80 +345,22 @@ export default function App() {
     onStatus: setBannerStatus
   });
 
-  function handleAuthFormChange(field: "name" | "email" | "password", value: string) {
-    setAuthError(null);
-    setAuthForm((current) => ({
-      ...current,
-      [field]: value
-    }));
-  }
+  const handleLogout = useCallback(() => {
+    setSession(null);
+    setSnapshot(null);
+    setSelectedCampaignId(null);
+    setActivePopup(null);
+    setBanner(null);
+  }, [setBanner, setSelectedCampaignId, setSession, setSnapshot]);
 
-  function handleAuthModeChange(mode: AuthMode) {
-    setAuthError(null);
-    setAuthMode(mode);
-  }
+  const handleOpenMapEditorForEdit = useCallback(
+    (map: CampaignMap) => {
+      openMapEditorForEdit(map, (mapId) => setSelectedMapId(mapId));
+    },
+    [openMapEditorForEdit]
+  );
 
-  function openMapEditorForCreate() {
-    const nextMap = createClientMapDraft("New Map");
-    setNewMapDraft(nextMap);
-    setMapEditorMode("create");
-    resetMapEditorHistory(nextMap);
-  }
-
-  function openMapEditorForEdit(map: CampaignMap) {
-    setSelectedMapId(map.id);
-    const nextMap = cloneMap(map);
-    setMapDraft(nextMap);
-    setMapEditorMode("edit");
-    resetMapEditorHistory(nextMap);
-  }
-
-  function changeEditingMap(nextMap: CampaignMap) {
-    if (!editingMap) {
-      return;
-    }
-
-    if (JSON.stringify(editingMap) === JSON.stringify(nextMap)) {
-      return;
-    }
-
-    setMapEditorPast((current) => [...current, cloneMap(editingMap)]);
-    setMapEditorFuture([]);
-    replaceEditingMap(nextMap);
-  }
-
-  function reloadEditingMap() {
-    if (!mapEditorBaseline) {
-      return;
-    }
-
-    replaceEditingMap(cloneMap(mapEditorBaseline));
-    resetMapEditorHistory(mapEditorBaseline);
-  }
-
-  function undoEditingMap() {
-    if (!editingMap || mapEditorPast.length === 0) {
-      return;
-    }
-
-    const previous = mapEditorPast[mapEditorPast.length - 1];
-    setMapEditorPast((current) => current.slice(0, -1));
-    setMapEditorFuture((current) => [cloneMap(editingMap), ...current]);
-    replaceEditingMap(cloneMap(previous));
-  }
-
-  function redoEditingMap() {
-    if (!editingMap || mapEditorFuture.length === 0) {
-      return;
-    }
-
-    const [next, ...rest] = mapEditorFuture;
-    setMapEditorFuture(rest);
-    setMapEditorPast((current) => [...current, cloneMap(editingMap)]);
-    replaceEditingMap(cloneMap(next));
-  }
-
-  function saveEditingMap() {
+  const saveEditingMap = useCallback(() => {
     if (!canPersistEditingMap || !editingMap) {
       return;
     }
@@ -518,7 +375,7 @@ export default function App() {
       resetMapEditorHistory(mapDraft);
       void saveMap(mapDraft);
     }
-  }
+  }, [canPersistEditingMap, createMap, editingMap, mapDraft, mapEditorMode, newMapDraft, resetMapEditorHistory, saveMap]);
 
   if (!session) {
     return (
@@ -544,198 +401,116 @@ export default function App() {
         role={isCampaignRoute ? role : undefined}
         roomStatus={roomStatus}
         showRoomStatus={isCampaignRoute && Boolean(campaign)}
-        onOpenAdmin={() => navigate({ name: "admin" })}
-        onOpenCampaigns={() => navigate({ name: "campaigns" })}
+        onOpenAdmin={() => void navigate({ name: "admin" })}
+        onOpenCampaigns={() => void navigate({ name: "campaigns" })}
         onLogout={handleLogout}
       />
 
-      {route.name === "admin" ? (
-        <AdminPanel
-          token={session.token}
-          currentUserId={session.user.id}
-          onStatus={setBannerStatus}
-          onRefreshSourceBooks={() => refreshCampaignSourceBooks().then(() => undefined)}
-        />
-      ) : route.name === "campaignCreate" ? (
-        <CampaignCreatePage
-          campaignSourceBooks={campaignSourceBooks}
-          createCampaignName={createCampaignName}
-          createCampaignAllowedSourceBooks={createCampaignAllowedSourceBooks}
-          onCreateCampaignNameChange={setCreateCampaignName}
-          onCreateCampaignAllowedSourceBooksChange={setCreateCampaignAllowedSourceBooks}
-          onCreateCampaign={() => void createCampaign()}
-          onBack={() => navigate({ name: "campaigns" })}
-        />
-      ) : route.name === "campaignJoin" ? (
-        <CampaignJoinPage
-          joinCode={joinCode}
-          hasInviteLink={Boolean(route.code)}
-          onJoinCodeChange={setJoinCode}
-          onAcceptInvite={() => void acceptInvite()}
-          onBack={() => navigate({ name: "campaigns" })}
-        />
-      ) : route.name === "campaigns" || !selectedCampaignId ? (
-        <CampaignsPage
-          campaigns={campaigns}
-          onOpenCampaign={(campaignId) => setSelectedCampaignId(campaignId)}
-          onOpenCreateCampaign={() => navigate({ name: "campaignCreate" })}
-          onOpenJoinCampaign={() => navigate({ name: "campaignJoin" })}
-        />
-      ) : !isCampaignRoute || !snapshot ? (
-        <CampaignLoadingPage roomStatus={roomStatus} />
-      ) : route.name === "campaign" ? (
-        <CampaignHubPage
-          token={session.token}
-          campaign={snapshot.campaign}
-          compendium={snapshot.compendium}
-          role={role}
-          currentUserId={session.user.id}
-          activeMap={activeMap}
-          selectedMap={selectedMap ?? undefined}
-          selectedActor={selectedActor}
-          activePopup={activePopup}
-          editingMap={editingMap}
-          mapEditorMode={mapEditorMode}
-          filteredSelectedMapRoster={filteredSelectedMapRoster}
-          availableActors={availableActors}
-          selectedMapAvailableActors={selectedMapReusableActors}
-          actorSearch={actorSearch}
-          actorTypeFilter={actorTypeFilter}
-          actorCreatorKind={actorCreatorKind}
-          actorCreatorOpen={actorCreatorOpen}
-          actorDraft={actorDraft}
-          monsterQuery={monsterQuery}
-          filteredCatalog={filteredCatalog}
-          selectedMonsterTemplate={selectedMonsterTemplate}
-          inviteDraft={inviteDraft}
-          canUndoEditingMap={canUndoEditingMap}
-          canRedoEditingMap={canRedoEditingMap}
-          canPersistEditingMap={canPersistEditingMap}
-          onOpenBoard={openCampaignBoard}
-          onSetActivePopup={setActivePopup}
-          onSelectMap={setSelectedMapId}
-          onSelectActor={setSelectedActorId}
-          onRoll={rollFromSheet}
-          onSaveActor={saveActor}
-          onActorSearchChange={setActorSearch}
-          onActorTypeFilterChange={setActorTypeFilter}
-          onActorCreatorOpenChange={setActorCreatorOpen}
-          onActorCreatorKindChange={setActorCreatorKind}
-          onCreateActor={createActor}
-          onMonsterQueryChange={setMonsterQuery}
-          onSelectMonster={setSelectedMonsterId}
-          onCreateMonsterActor={(monster) => void createMonsterActor(monster)}
-          onCreateMapActor={async (draft, mapId) => {
-            await createActor(draft, { mapId });
-          }}
-          onCreateMapMonsterActor={async (monster, mapId) => {
-            await createMonsterActor(monster, { mapId });
-          }}
-          onAssignActorToMap={(actorId, mapId) => void assignActorToMap(actorId, mapId)}
-          onRemoveActorFromMap={(actorId, mapId) => void removeActorFromMap(actorId, mapId)}
-          onDeleteActor={(actor) => void deleteActor(actor)}
-          onInviteDraftChange={setInviteDraft}
-          onCreateInvite={() => void createInvite()}
-          onRemoveInvite={(inviteId) => void removeInvite(inviteId)}
-          onShowMap={showMap}
-          onStartCreateMap={openMapEditorForCreate}
-          onStartEditMap={openMapEditorForEdit}
-          onChangeEditingMap={changeEditingMap}
-          onSaveEditingMap={saveEditingMap}
-          onReloadEditingMap={reloadEditingMap}
-          onUndoEditingMap={undoEditingMap}
-          onRedoEditingMap={redoEditingMap}
-          onSetEditingMapActive={setEditingMapActive}
-          onBackToMapsList={() => setMapEditorMode(null)}
-          onMapUploadError={(message) => setBanner({ tone: "error", text: message })}
-        />
-      ) : (
-        <CampaignPage
-          token={session.token}
-          campaign={snapshot.campaign}
-          compendium={snapshot.compendium}
-          role={role}
-          currentUserId={session.user.id}
-          activeMap={activeMap}
-          selectedMap={selectedMap ?? undefined}
-          selectedActor={selectedActor}
-          activePopup={activePopup}
-          boardSeenCells={boardSeenCells}
-          fogPreviewUserId={fogPreviewUserId}
-          playerMembers={playerMembers}
-          dmFogEnabled={dmFogEnabled}
-          dmFogUserId={dmFogUserId}
-          selectedMapAvailableActors={selectedMapReusableActors}
-          actorCreatorKind={actorCreatorKind}
-          filteredCatalog={filteredCatalog}
-          selectedMonsterTemplate={selectedMonsterTemplate}
-          movementPreviews={movementPreviews}
-          measurePreviews={measurePreviews}
-          mapPings={mapPings}
-          viewRecall={viewportRecall}
-          filteredCurrentMapRoster={filteredCurrentMapRoster}
-          filteredSelectedMapRoster={filteredSelectedMapRoster}
-          editingMap={editingMap}
-          mapEditorMode={mapEditorMode}
-          canUndoEditingMap={canUndoEditingMap}
-          canRedoEditingMap={canRedoEditingMap}
-          canPersistEditingMap={canPersistEditingMap}
-          onSetActivePopup={setActivePopup}
-          onOpenCampaignHome={openCampaignHome}
-          onSelectMap={setSelectedMapId}
-          onSelectActor={setSelectedActorId}
-          onSetDmFogEnabled={setDmFogEnabled}
-          onSetDmFogUserId={setDmFogUserId}
-          onActorCreatorKindChange={setActorCreatorKind}
-          onMonsterQueryChange={setMonsterQuery}
-          onSelectMonster={setSelectedMonsterId}
-          onResetFog={resetFog}
-          onClearFog={clearFog}
-          onSelectedMapItemCountChange={setSelectedBoardItemCount}
-          onAssignActorToMap={(actorId, mapId) => void assignActorToMap(actorId, mapId)}
-          onRemoveActorFromMap={(actorId, mapId) => void removeActorFromMap(actorId, mapId)}
-          onShowMap={showMap}
-          onStartCreateMap={openMapEditorForCreate}
-          onStartEditMap={openMapEditorForEdit}
-          onChangeEditingMap={changeEditingMap}
-          onSaveEditingMap={saveEditingMap}
-          onReloadEditingMap={reloadEditingMap}
-          onUndoEditingMap={undoEditingMap}
-          onRedoEditingMap={redoEditingMap}
-          onSetEditingMapActive={setEditingMapActive}
-          onBackToMapsList={() => setMapEditorMode(null)}
-          onMapUploadError={(message) => setBanner({ tone: "error", text: message })}
-          onCreateMapActor={async (draft, mapId) => {
-            await createActor(draft, { mapId });
-          }}
-          onCreateMapMonsterActor={async (monster, mapId) => {
-            await createMonsterActor(monster, { mapId });
-          }}
-          onMoveActor={moveActor}
-          onBroadcastMovePreview={broadcastMovePreview}
-          onBroadcastMeasurePreview={broadcastMeasurePreview}
-          onToggleDoor={toggleDoor}
-          onToggleDoorLock={toggleDoorLock}
-          onCreateDrawing={createDrawing}
-          onUpdateDrawings={updateDrawings}
-          onDeleteDrawings={deleteDrawings}
-          onClearDrawings={clearDrawings}
-          onPing={pingMap}
-          onPingAndRecall={pingAndRecallMap}
-          onSendChat={sendChat}
-          onSaveActor={saveActor}
-          onRoll={rollFromSheet}
-          onUpdateToken={updateToken}
-        />
-      )}
+      <AppRouteContent
+        route={route}
+        selectedCampaignId={selectedCampaignId}
+        snapshot={snapshot}
+        roomStatus={roomStatus}
+        session={session}
+        campaignSourceBooks={campaignSourceBooks}
+        createCampaignName={createCampaignName}
+        createCampaignAllowedSourceBooks={createCampaignAllowedSourceBooks}
+        joinCode={joinCode}
+        campaigns={campaigns}
+        role={role}
+        activeMap={activeMap}
+        selectedMap={selectedMap ?? undefined}
+        selectedActor={selectedActor}
+        activePopup={activePopup}
+        editingMap={editingMap}
+        mapEditorMode={mapEditorMode}
+        filteredSelectedMapRoster={filteredSelectedMapRoster}
+        availableActors={availableActors}
+        selectedMapReusableActors={selectedMapReusableActors}
+        actorSearch={actorSearch}
+        actorTypeFilter={actorTypeFilter}
+        actorCreatorKind={actorCreatorKind}
+        actorCreatorOpen={actorCreatorOpen}
+        actorDraft={actorDraft}
+        monsterQuery={monsterQuery}
+        filteredCatalog={filteredCatalog}
+        selectedMonsterTemplate={selectedMonsterTemplate}
+        inviteDraft={inviteDraft}
+        canUndoEditingMap={canUndoEditingMap}
+        canRedoEditingMap={canRedoEditingMap}
+        canPersistEditingMap={canPersistEditingMap}
+        boardSeenCells={boardSeenCells}
+        fogPreviewUserId={fogPreviewUserId}
+        playerMembers={playerMembers}
+        dmFogEnabled={dmFogEnabled}
+        dmFogUserId={dmFogUserId}
+        movementPreviews={movementPreviews}
+        measurePreviews={measurePreviews}
+        mapPings={mapPings}
+        viewRecall={viewportRecall}
+        filteredCurrentMapRoster={filteredCurrentMapRoster}
+        navigate={navigate}
+        refreshCampaignSourceBooks={refreshCampaignSourceBooks}
+        setCreateCampaignName={setCreateCampaignName}
+        setCreateCampaignAllowedSourceBooks={setCreateCampaignAllowedSourceBooks}
+        setJoinCode={setJoinCode}
+        setSelectedCampaignId={setSelectedCampaignId}
+        setActivePopup={setActivePopup}
+        setSelectedMapId={setSelectedMapId}
+        setSelectedActorId={setSelectedActorId}
+        setActorSearch={setActorSearch}
+        setActorTypeFilter={setActorTypeFilter}
+        setActorCreatorOpen={setActorCreatorOpen}
+        setActorCreatorKind={setActorCreatorKind}
+        setMonsterQuery={setMonsterQuery}
+        setSelectedMonsterId={(value) => setSelectedMonsterId(value)}
+        setMapEditorMode={setMapEditorMode}
+        setInviteDraft={setInviteDraft}
+        setBanner={setBanner}
+        setSelectedBoardItemCount={setSelectedBoardItemCount}
+        setDmFogEnabled={setDmFogEnabled}
+        setDmFogUserId={setDmFogUserId}
+        openCampaignBoard={openCampaignBoard}
+        openCampaignHome={openCampaignHome}
+        createCampaign={createCampaign}
+        acceptInvite={acceptInvite}
+        createActor={createActor}
+        createInvite={createInvite}
+        removeInvite={removeInvite}
+        createMonsterActor={createMonsterActor}
+        assignActorToMap={assignActorToMap}
+        removeActorFromMap={removeActorFromMap}
+        deleteActor={deleteActor}
+        saveActor={saveActor}
+        showMap={showMap}
+        openMapEditorForCreate={openMapEditorForCreate}
+        openMapEditorForEdit={handleOpenMapEditorForEdit}
+        changeEditingMap={changeEditingMap}
+        saveEditingMap={saveEditingMap}
+        reloadEditingMap={reloadEditingMap}
+        undoEditingMap={undoEditingMap}
+        redoEditingMap={redoEditingMap}
+        setEditingMapActive={setEditingMapActive}
+        resetFog={resetFog}
+        clearFog={clearFog}
+        moveActor={moveActor}
+        broadcastMovePreview={broadcastMovePreview}
+        broadcastMeasurePreview={broadcastMeasurePreview}
+        toggleDoor={toggleDoor}
+        toggleDoorLock={toggleDoorLock}
+        createDrawing={createDrawing}
+        updateDrawings={updateDrawings}
+        deleteDrawings={deleteDrawings}
+        clearDrawings={clearDrawings}
+        pingMap={pingMap}
+        pingAndRecallMap={pingAndRecallMap}
+        sendChat={sendChat}
+        rollFromSheet={rollFromSheet}
+        updateToken={updateToken}
+      />
 
       {banner && (
-        <button
-          type="button"
-          className={`toast ${banner.tone}`}
-          onClick={() => setBanner(null)}
-          aria-label="Dismiss notification"
-        >
+        <button type="button" className={`toast ${banner.tone}`} onClick={() => setBanner(null)} aria-label="Dismiss notification">
           {banner.text}
         </button>
       )}
@@ -743,10 +518,7 @@ export default function App() {
   );
 }
 
-function syncSelectedCampaignSourceBooks(
-  current: string[],
-  availableBooks: CampaignSourceBook[]
-) {
+function syncSelectedCampaignSourceBooks(current: string[], availableBooks: CampaignSourceBook[]) {
   const availableSources = availableBooks.map((entry) => entry.source);
 
   if (availableSources.length === 0) {

@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 
 export type AppRoute =
   | { name: "campaigns" }
@@ -8,7 +10,7 @@ export type AppRoute =
   | { name: "campaign"; campaignId: string }
   | { name: "campaignBoard"; campaignId: string };
 
-function parseRoute(pathname: string): AppRoute {
+export function parseAppRoute(pathname: string): AppRoute {
   if (pathname === "/" || pathname === "/campaigns") {
     return { name: "campaigns" };
   }
@@ -42,10 +44,11 @@ function parseRoute(pathname: string): AppRoute {
   if (match?.[1]) {
     return { name: "campaign", campaignId: decodeURIComponent(match[1]) };
   }
+
   return { name: "campaigns" };
 }
 
-function routeToPath(route: AppRoute) {
+export function appRouteToPath(route: AppRoute) {
   if (route.name === "campaign") {
     return `/campaign/${encodeURIComponent(route.campaignId)}`;
   }
@@ -69,30 +72,22 @@ function routeToPath(route: AppRoute) {
   return "/campaigns";
 }
 
-export function useAppRouter() {
-  const [route, setRoute] = useState<AppRoute>(() => parseRoute(window.location.pathname));
+export function useAppRoute() {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname
+  });
+  const route = parseAppRoute(pathname);
+  const navigateTo = useNavigate();
 
-  useEffect(() => {
-    const handlePopState = () => {
-      setRoute(parseRoute(window.location.pathname));
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, []);
-
-  const navigate = useCallback((nextRoute: AppRoute, options?: { replace?: boolean }) => {
-    const nextPath = routeToPath(nextRoute);
-
-    if (window.location.pathname !== nextPath) {
-      const method = options?.replace ? "replaceState" : "pushState";
-      window.history[method]({}, "", nextPath);
-    }
-
-    setRoute(nextRoute);
-  }, []);
+  const navigate = useCallback(
+    (nextRoute: AppRoute, options?: { replace?: boolean }) => {
+      return navigateTo({
+        to: appRouteToPath(nextRoute),
+        replace: options?.replace
+      });
+    },
+    [navigateTo]
+  );
 
   return { route, navigate };
 }

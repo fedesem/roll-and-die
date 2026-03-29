@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import js from "@eslint/js";
 import eslintConfigPrettier from "eslint-config-prettier";
+import boundaries from "eslint-plugin-boundaries";
+import importPlugin from "eslint-plugin-import";
 import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
@@ -30,16 +32,13 @@ export default tseslint.config(
     files: ["client/**/*.{ts,tsx,mts,cts}", "server/**/*.ts", "shared/**/*.ts"],
     languageOptions: {
       parserOptions: {
-        project: [
-          "./client/tsconfig.json",
-          "./client/tsconfig.test.json",
-          "./server/tsconfig.json",
-          "./server/tsconfig.test.json"
-        ],
+        project: ["./client/tsconfig.json", "./client/tsconfig.test.json", "./server/tsconfig.json", "./server/tsconfig.test.json"],
         tsconfigRootDir
       }
     },
     plugins: {
+      boundaries,
+      import: importPlugin,
       "unused-imports": unusedImports
     },
     rules: {
@@ -57,6 +56,7 @@ export default tseslint.config(
           fixStyle: "separate-type-imports"
         }
       ],
+      "import/no-cycle": "error",
       "unused-imports/no-unused-imports": "error",
       "unused-imports/no-unused-vars": [
         "warn",
@@ -78,7 +78,18 @@ export default tseslint.config(
         ...globals.es2022
       }
     },
+    settings: {
+      "boundaries/elements": [
+        { type: "pages", pattern: "client/src/pages/*" },
+        { type: "components", pattern: "client/src/components/*" },
+        { type: "features", pattern: "client/src/features/*" },
+        { type: "services", pattern: "client/src/services/*" },
+        { type: "lib", pattern: "client/src/lib/*" }
+      ]
+    },
     plugins: {
+      boundaries,
+      import: importPlugin,
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh
     },
@@ -90,7 +101,57 @@ export default tseslint.config(
         {
           allowConstantExport: true
         }
+      ],
+      "boundaries/dependencies": [
+        "error",
+        {
+          default: "allow",
+          rules: [
+            {
+              from: ["pages", "components"],
+              disallow: ["services"]
+            }
+          ]
+        }
       ]
+    }
+  },
+  {
+    files: ["client/src/pages/**/*.{ts,tsx}", "client/src/components/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/api", "**/api.ts"],
+              message: "Use feature services or hooks instead of calling apiRequest from pages or UI components."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    files: ["client/src/pages/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/features/**/*Service", "**/features/**/*Service.ts"],
+              message: "Pages should orchestrate through feature hooks instead of importing service modules directly."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    files: ["**/*.d.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off"
     }
   },
   {

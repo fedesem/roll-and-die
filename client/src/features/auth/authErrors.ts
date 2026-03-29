@@ -1,4 +1,4 @@
-import type { AuthMode } from "../../pages/AuthPage";
+import type { AuthMode } from "./types";
 
 import { toErrorMessage } from "../../lib/errors";
 
