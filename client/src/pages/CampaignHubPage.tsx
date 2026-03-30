@@ -18,7 +18,7 @@ type ActivePopup = "sheet" | null;
 type DashboardSection = "room" | "actors" | "maps";
 type MapDialogState = { kind: "create" } | { kind: "edit" | "actors"; mapId: string } | null;
 
-interface CampaignHubPageProps {
+export interface CampaignHubPageProps {
   token: string;
   campaign: CampaignSnapshot["campaign"];
   compendium: CampaignSnapshot["compendium"];
