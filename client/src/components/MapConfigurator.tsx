@@ -13,6 +13,7 @@ import { DoorOpen, EyeOff, MousePointer2, Move, Radio, RotateCcw, Square, Trash2
 import type { CampaignMap, MapTeleporter, MapWall, MapWallKind, Point } from "@shared/types";
 import { snapPointToGrid, snapPointToGridIntersection } from "@shared/vision";
 import { resolveAssetUrl } from "../lib/assets";
+import { createGridStyle } from "../lib/gridStyle";
 import { readImageDimensionsFromFile } from "../lib/media";
 import { uploadImageAsset } from "../services/assetService";
 
@@ -102,16 +103,17 @@ export function MapConfigurator({
       return undefined;
     }
 
-    const cell = map.grid.cellSize * renderScale;
-
-    return {
-      backgroundImage: `
-        linear-gradient(to right, ${map.grid.color} 1px, transparent 1px),
-        linear-gradient(to bottom, ${map.grid.color} 1px, transparent 1px)
-      `,
-      backgroundSize: `${cell}px ${cell}px`,
-      backgroundPosition: `${viewportSize.width / 2 + viewPan.x + map.grid.offsetX * renderScale}px ${viewportSize.height / 2 + viewPan.y + map.grid.offsetY * renderScale}px`
-    };
+    return createGridStyle({
+      cellSize: map.grid.cellSize,
+      scale: renderScale,
+      offsetX: viewportSize.width / 2 + viewPan.x + map.grid.offsetX * renderScale,
+      offsetY: viewportSize.height / 2 + viewPan.y + map.grid.offsetY * renderScale,
+      color: map.grid.color,
+      alphaMultiplier: 1.55,
+      blendWeight: 0.5,
+      minAlpha: 0.18,
+      maxAlpha: 0.38
+    });
   }, [
     map.grid.cellSize,
     map.grid.color,

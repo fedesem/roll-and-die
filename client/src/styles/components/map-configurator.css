@@ -79,7 +79,11 @@
   overflow: hidden;
   border-radius: 0;
   border: 1px solid rgba(211, 162, 50, 0.22);
-  background: radial-gradient(circle at center, rgba(211, 162, 50, 0.08), transparent 42%), linear-gradient(180deg, #17181a, #0f0f12);
+  background:
+    radial-gradient(circle at 18% 14%, rgba(96, 140, 176, 0.11), transparent 18%),
+    radial-gradient(circle at 78% 72%, rgba(57, 83, 107, 0.12), transparent 20%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.008)),
+    linear-gradient(180deg, #242b34 0%, #171d25 38%, #0f1318 100%);
   cursor: grab;
   touch-action: none;
   overscroll-behavior: contain;
@@ -121,6 +125,7 @@
 .map-preview-grid {
   inset: 0;
   pointer-events: none;
+  opacity: 0.98;
 }
 
 .map-preview-overlay,

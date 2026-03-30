@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 
 import type { CampaignMap, MapViewportRecall, MemberRole, Point } from "@shared/types";
 
+import { createGridStyle } from "../../lib/gridStyle";
 import { clamp, readBoardView, writeBoardView } from "./boardUtils";
 import { maxViewZoom, minViewZoom } from "./constants";
 
@@ -156,18 +157,13 @@ export function useBoardViewport({ map, currentUserId, gridVisible, role, viewRe
       return undefined;
     }
 
-    const cell = map.grid.cellSize * worldScale;
-    const offsetX = viewPan.x + map.grid.offsetX * worldScale;
-    const offsetY = viewPan.y + map.grid.offsetY * worldScale;
-
-    return {
-      backgroundImage: `
-        linear-gradient(to right, ${map.grid.color} 1px, transparent 1px),
-        linear-gradient(to bottom, ${map.grid.color} 1px, transparent 1px)
-      `,
-      backgroundSize: `${cell}px ${cell}px`,
-      backgroundPosition: `${offsetX}px ${offsetY}px`
-    };
+    return createGridStyle({
+      cellSize: map.grid.cellSize,
+      scale: worldScale,
+      offsetX: viewPan.x + map.grid.offsetX * worldScale,
+      offsetY: viewPan.y + map.grid.offsetY * worldScale,
+      color: map.grid.color
+    });
   }, [gridVisible, map, viewPan.x, viewPan.y, worldScale]);
 
   const backgroundRect = useMemo(() => {
