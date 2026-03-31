@@ -2,6 +2,7 @@ import { Heart, Minus, Plus, X } from "lucide-react";
 
 import type { ActorClassEntry } from "@shared/types";
 
+import { ModalFrame } from "../../components/ModalFrame";
 import { hitDiceAvailable } from "./sheetUtils";
 
 interface RestDialogProps {
@@ -15,8 +16,8 @@ interface RestDialogProps {
 
 export function RestDialog({ classes, constitutionModifier, selections, onChange, onCancel, onConfirm }: RestDialogProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-2xl border border-amber-700/60 bg-zinc-950 shadow-[0_0_50px_rgba(0,0,0,0.55)]">
+    <ModalFrame onClose={onCancel} backdropClassName="bg-black/70" panelClassName="max-w-2xl border-amber-700/60 bg-zinc-950 shadow-[0_0_50px_rgba(0,0,0,0.55)]">
+      <>
         <div className="flex items-start justify-between border-b border-amber-800/40 px-6 py-5">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-amber-400/80">Short Rest</p>
@@ -35,7 +36,8 @@ export function RestDialog({ classes, constitutionModifier, selections, onChange
           </button>
         </div>
 
-        <div className="space-y-3 px-6 py-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-6">
+          <div className="space-y-3">
           {classes.map((entry) => {
             const available = hitDiceAvailable(entry);
             const currentValue = selections[entry.id] ?? 0;
@@ -76,6 +78,7 @@ export function RestDialog({ classes, constitutionModifier, selections, onChange
               No class hit dice are available for this actor.
             </div>
           )}
+          </div>
         </div>
 
         <div className="flex items-center justify-between border-t border-amber-800/40 px-6 py-5">
@@ -100,7 +103,7 @@ export function RestDialog({ classes, constitutionModifier, selections, onChange
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </>
+    </ModalFrame>
   );
 }

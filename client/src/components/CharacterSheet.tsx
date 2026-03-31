@@ -1,10 +1,10 @@
 import { ImagePlus, ScrollText, Shield } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 
-import type { ActorCreatureSize, ActorSheet, CompendiumData, MemberRole } from "@shared/types";
+import type { ActorCreatureSize, ActorSheet, CampaignSnapshot, MemberRole } from "@shared/types";
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 
-import { PlayerNpcSheet } from "../features/sheet/PlayerNpcSheet";
+import { PlayerNpcSheet2024 } from "../features/sheet/PlayerNpcSheet2024";
 import { cloneActor } from "../features/sheet/sheetUtils";
 import { resolveAssetUrl } from "../lib/assets";
 import { uploadImageAsset } from "../services/assetService";
@@ -12,14 +12,15 @@ import { uploadImageAsset } from "../services/assetService";
 interface CharacterSheetProps {
   token: string;
   actor?: ActorSheet | null;
-  compendium: Pick<CompendiumData, "spells" | "feats" | "classes">;
+  compendium: CampaignSnapshot["compendium"];
+  allowedSourceBooks: string[];
   role: MemberRole;
   currentUserId: string;
   onSave: (actor: ActorSheet) => Promise<void>;
   onRoll: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
 }
 
-export function CharacterSheet({ token, actor, compendium, role, currentUserId, onSave, onRoll }: CharacterSheetProps) {
+export function CharacterSheet({ token, actor, compendium, allowedSourceBooks, role, currentUserId, onSave, onRoll }: CharacterSheetProps) {
   const [draft, setDraft] = useState<ActorSheet | null>(actor ? cloneActor(actor) : null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -68,10 +69,11 @@ export function CharacterSheet({ token, actor, compendium, role, currentUserId, 
 
   if (draft.kind === "character" || draft.kind === "npc") {
     return (
-      <PlayerNpcSheet
+      <PlayerNpcSheet2024
         token={token}
         actor={draft}
         compendium={compendium}
+        allowedSourceBooks={allowedSourceBooks}
         role={role}
         currentUserId={currentUserId}
         onSave={onSave}

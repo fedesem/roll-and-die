@@ -7,17 +7,21 @@ import { resolveAssetUrl } from "../lib/assets";
 
 interface ChatPanelProps {
   messages: ChatMessage[];
+  currentUserId: string;
   onSend: (text: string) => Promise<void>;
 }
 
 const pageSize = 50;
 
-export function ChatPanel({ messages, onSend }: ChatPanelProps) {
+export function ChatPanel({ messages, currentUserId, onSend }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [localHelp, setLocalHelp] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(() => Math.min(messages.length, pageSize));
   const [showLoadingHint, setShowLoadingHint] = useState(false);
   const draftHistoryRef = useRef<string[]>([]);
+  const seenHistoryMessageIdsRef = useRef<Set<string>>(new Set());
+  const historyCampaignIdRef = useRef<string | null>(messages[0]?.campaignId ?? null);
   const historyIndexRef = useRef<number>(-1);
   const historyDraftRef = useRef("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -58,6 +62,36 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
       stickToBottomRef.current = true;
     }
   }, [messages]);
+
+  useEffect(() => {
+    const nextCampaignId = messages[0]?.campaignId ?? null;
+
+    if (nextCampaignId !== historyCampaignIdRef.current) {
+      draftHistoryRef.current = [];
+      seenHistoryMessageIdsRef.current = new Set();
+      historyIndexRef.current = -1;
+      historyDraftRef.current = "";
+      historyCampaignIdRef.current = nextCampaignId;
+    }
+
+    for (const message of messages) {
+      if (message.userId !== currentUserId || seenHistoryMessageIdsRef.current.has(message.id)) {
+        continue;
+      }
+
+      const historyEntry = message.roll ? `/r ${message.roll.notation}` : message.kind === "message" ? message.text : null;
+
+      seenHistoryMessageIdsRef.current.add(message.id);
+
+      if (!historyEntry) {
+        continue;
+      }
+
+      if (draftHistoryRef.current[draftHistoryRef.current.length - 1] !== historyEntry) {
+        draftHistoryRef.current.push(historyEntry);
+      }
+    }
+  }, [currentUserId, messages]);
 
   const visibleMessages = useMemo(() => messages.slice(Math.max(0, messages.length - visibleCount)), [messages, visibleCount]);
 
@@ -129,19 +163,26 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
       return;
     }
 
+    if (normalizeSlashCommand(nextDraft) === "/help") {
+      setError(null);
+      setLocalHelp(buildLocalHelpText());
+      setDraft("");
+      historyIndexRef.current = -1;
+      historyDraftRef.current = "";
+      return;
+    }
+
     const rollCommand = parseRollCommand(nextDraft);
 
     if (nextDraft.startsWith("/")) {
       if (!rollCommand || !validateRollNotation(rollCommand.expression)) {
-        setError("Invalid roll. Use /r 1d20+2, /roll 2d8*2, or /r 3d6+2d4.");
+        setError("Invalid roll. Use /r 1d20+2, /r 2d20kh1+4, /r 2d20kl1+4, or /roll 3d6+2d4.");
         return;
       }
     }
 
     setError(null);
-    if (draftHistoryRef.current[draftHistoryRef.current.length - 1] !== nextDraft) {
-      draftHistoryRef.current.push(nextDraft);
-    }
+    setLocalHelp(null);
     historyIndexRef.current = -1;
     historyDraftRef.current = "";
     setDraft("");
@@ -235,6 +276,9 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
               if (error) {
                 setError(null);
               }
+              if (localHelp) {
+                setLocalHelp(null);
+              }
             }}
             onKeyDown={handleDraftKeyDown}
           />
@@ -246,10 +290,38 @@ export function ChatPanel({ messages, onSend }: ChatPanelProps) {
             <SendHorizontal size={15} />
           </button>
         </div>
+        {localHelp ? (
+          <div className="mt-2 border border-sky-200/12 bg-sky-300/8 px-3 py-2 text-xs leading-5 text-sky-100">
+            <p className="font-medium uppercase tracking-[0.14em] text-sky-200/80">Local Help</p>
+            <p className="mt-1 whitespace-pre-wrap">{localHelp}</p>
+          </div>
+        ) : null}
         {error && <p className="mt-2 text-xs text-rose-300">{error}</p>}
       </form>
     </section>
   );
+}
+
+function normalizeSlashCommand(input: string) {
+  return input.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function buildLocalHelpText() {
+  return [
+    "Available chat rolls:",
+    "/r 1d20+5",
+    "/roll 2d6+3",
+    "/r 2d20kh1+4  advantage",
+    "/r 2d20kl1+4  disadvantage",
+    "/r 3d6+2d4",
+    "/r 2d8*2",
+    "/r 1d8/2",
+    "",
+    "Notes:",
+    "Use +, -, *, and / operators.",
+    "kh1 keeps the highest die. kl1 keeps the lowest die.",
+    "/help is local only and is not sent to the room."
+  ].join("\n");
 }
 
 function ChatActorBadge({ actor }: { actor: ChatActorContext }) {
@@ -338,7 +410,7 @@ type RollPart =
     }
   | {
       type: "operator";
-      value: "+" | "-" | "*";
+      value: "+" | "-" | "*" | "/";
     }
   | {
       type: "number";
@@ -346,17 +418,17 @@ type RollPart =
     };
 
 function buildRollParts(notation: string, rolls: number[]): RollPart[] {
-  const tokens = notation.match(/\d*d\d+|\d+|[+\-*]/gi) ?? [];
+  const tokens = notation.match(/\d*d\d+(?:k[hl]\d+)?|\d+|[+\-*/]/gi) ?? [];
   const parts: RollPart[] = [];
   let rollOffset = 0;
 
   for (const token of tokens) {
-    if (token === "+" || token === "-" || token === "*") {
+    if (token === "+" || token === "-" || token === "*" || token === "/") {
       parts.push({ type: "operator", value: token });
       continue;
     }
 
-    const diceMatch = token.match(/^(\d*)d(\d+)$/i);
+    const diceMatch = token.match(/^(\d*)d(\d+)(?:k[hl]\d+)?$/i);
 
     if (!diceMatch) {
       parts.push({ type: "number", value: token });
@@ -369,7 +441,7 @@ function buildRollParts(notation: string, rolls: number[]): RollPart[] {
     rollOffset += count;
     parts.push({
       type: "dice",
-      label: `${count}d${sides}`,
+      label: token,
       sides,
       values
     });

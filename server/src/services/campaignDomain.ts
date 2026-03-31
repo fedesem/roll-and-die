@@ -1,39 +1,41 @@
 import { randomBytes } from "node:crypto";
 
-import type {
-  AbilityKey,
-  AbilityScores,
-  ActorBonusEntry,
-  ActorClassEntry,
-  ActorKind,
-  ActorLayoutEntry,
-  ActorSheet,
-  ArmorEntry,
-  AttackEntry,
-  Campaign,
-  CampaignMap,
-  CampaignSnapshot,
-  CampaignSourceBook,
-  CampaignSummary,
-  CellKey,
-  ChatActorContext,
-  ChatMessage,
-  CompendiumData,
-  CurrencyPouch,
-  DrawingStroke,
-  HitPoints,
-  InventoryEntry,
-  MapTeleporter,
-  MapWall,
-  MeasurePreview,
-  MeasureSnapMode,
-  MemberRole,
-  MonsterTemplate,
-  Point,
-  ResourceEntry,
-  SkillEntry,
-  SpellSlotTrack,
-  UserProfile
+import {
+  TOKEN_STATUS_MARKERS,
+  type AbilityKey,
+  type AbilityScores,
+  type ActorBonusEntry,
+  type ActorClassEntry,
+  type ActorKind,
+  type ActorLayoutEntry,
+  type ActorSheet,
+  type ArmorEntry,
+  type AttackEntry,
+  type Campaign,
+  type CampaignMap,
+  type CampaignSnapshot,
+  type CampaignSourceBook,
+  type CampaignSummary,
+  type CellKey,
+  type ChatActorContext,
+  type ChatMessage,
+  type CompendiumData,
+  type CurrencyPouch,
+  type DrawingStroke,
+  type HitPoints,
+  type InventoryEntry,
+  type MapTeleporter,
+  type MapWall,
+  type MeasurePreview,
+  type MeasureSnapMode,
+  type MemberRole,
+  type MonsterTemplate,
+  type Point,
+  type PlayerNpcBuild,
+  type ResourceEntry,
+  type SkillEntry,
+  type SpellSlotTrack,
+  type UserProfile
 } from "../../../shared/types.js";
 import {
   clampStaticTokenDimension,
@@ -76,7 +78,10 @@ const skillTemplates: Array<{ name: string; ability: AbilityKey }> = [
 export function buildCampaignSnapshot(
   campaign: Campaign,
   user: UserProfile,
-  compendium: Pick<CompendiumData, "spells" | "feats" | "classes" | "variantRules" | "conditions" | "monsters">
+  compendium: Pick<
+    CompendiumData,
+    "spells" | "feats" | "classes" | "variantRules" | "conditions" | "optionalFeatures" | "backgrounds" | "items" | "languages" | "races" | "skills" | "monsters"
+  >
 ): CampaignSnapshot {
   const member = campaign.members.find((entry) => entry.userId === user.id);
 
@@ -101,7 +106,13 @@ export function buildCampaignSnapshot(
       feats: filteredCompendium.feats,
       classes: filteredCompendium.classes,
       variantRules: filteredCompendium.variantRules,
-      conditions: filteredCompendium.conditions
+      conditions: filteredCompendium.conditions,
+      optionalFeatures: filteredCompendium.optionalFeatures,
+      backgrounds: filteredCompendium.backgrounds,
+      items: filteredCompendium.items,
+      languages: filteredCompendium.languages,
+      races: filteredCompendium.races,
+      skills: filteredCompendium.skills
     },
     playerVision: member.role === "dm" ? {} : normalizeExplorationMemory(campaign, user.id)
   };
@@ -274,7 +285,10 @@ export function toCampaignSummary(campaign: Campaign, userId: string): CampaignS
 
 function filterCampaignCompendium(
   campaign: Campaign,
-  compendium: Pick<CompendiumData, "spells" | "feats" | "classes" | "variantRules" | "conditions" | "monsters">
+  compendium: Pick<
+    CompendiumData,
+    "spells" | "feats" | "classes" | "variantRules" | "conditions" | "optionalFeatures" | "backgrounds" | "items" | "languages" | "races" | "skills" | "monsters"
+  >
 ) {
   const allowedBooks = new Set(campaign.allowedSourceBooks.map((entry) => entry.trim()).filter(Boolean));
 
@@ -288,6 +302,12 @@ function filterCampaignCompendium(
     classes: compendium.classes.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
     variantRules: compendium.variantRules.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
     conditions: compendium.conditions.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
+    optionalFeatures: compendium.optionalFeatures.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
+    backgrounds: compendium.backgrounds.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
+    items: compendium.items.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
+    languages: compendium.languages.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
+    races: compendium.races.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
+    skills: compendium.skills.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source))),
     monsters: compendium.monsters.filter((entry) => allowedBooks.has(getCompendiumBookSource(entry.source)))
   };
 }
@@ -325,8 +345,6 @@ export function createDefaultMap(name: string): CampaignMap {
 
 export function createDefaultActor(campaignId: string, userId: string, name: string, kind: ActorKind, role: MemberRole): ActorSheet {
   const abilities = defaultAbilities();
-  const defaultClass =
-    kind === "character" || kind === "npc" ? [createActorClassEntry(kind === "npc" ? "Supporting Role" : "Adventurer", 1, 8, null)] : [];
 
   const actor: ActorSheet = {
     id: createId("act"),
@@ -336,75 +354,62 @@ export function createDefaultActor(campaignId: string, userId: string, name: str
     kind,
     creatureSize: "medium",
     imageUrl: "",
-    className: kind === "npc" ? "Supporting Role" : kind === "monster" ? "Monster" : kind === "static" ? "2 x 4" : "Adventurer",
-    species: kind === "monster" ? "Bestiary" : kind === "static" ? "Vehicle" : "Human",
-    background: kind === "monster" ? "" : kind === "static" ? "500 kg" : "Wayfarer",
-    alignment: "Neutral",
+    className: kind === "monster" ? "Monster" : kind === "static" ? "2 x 4" : "",
+    species: kind === "monster" ? "Bestiary" : kind === "static" ? "Vehicle" : "",
+    background: kind === "static" ? "500 kg" : "",
+    alignment: "",
     level: 1,
     challengeRating: kind === "monster" ? "1" : "",
     experience: 0,
-    spellcastingAbility: "wis",
-    armorClass: 14,
-    initiative: 2,
+    spellcastingAbility: "int",
+    armorClass: 10,
+    initiative: 0,
+    initiativeRoll: null,
     speed: 30,
     proficiencyBonus: 2,
     inspiration: false,
     visionRange: 6,
     tokenWidthSquares: kind === "static" ? 2 : 1,
     tokenLengthSquares: kind === "static" ? 4 : 1,
-    hitPoints: { current: 12, max: 12, temp: 0 },
-    hitDice: "1d8",
+    hitPoints: { current: 0, max: 0, temp: 0 },
+    hitDice: "",
     abilities,
     skills: defaultSkills(),
-    classes: defaultClass,
+    classes: [],
+    savingThrowProficiencies: [],
+    toolProficiencies: [],
+    languageProficiencies: [],
     spellSlots: defaultSpellSlots(),
-    features: ["Second Wind"],
-    spells: ["Guidance"],
-    preparedSpells: ["Guidance"],
-    talents: ["Perception"],
-    feats: ["Lucky"],
+    features: [],
+    spells: [],
+    preparedSpells: [],
+    spellState: {
+      spellbook: [],
+      alwaysPrepared: [],
+      atWill: [],
+      perShortRest: [],
+      perLongRest: []
+    },
+    talents: [],
+    feats: [],
     bonuses: [],
     layout: defaultActorLayout(),
-    attacks: [
-      {
-        id: createId("atk"),
-        name: "Quarterstaff",
-        attackBonus: 4,
-        damage: "1d6+2",
-        damageType: "Bludgeoning",
-        notes: ""
-      }
-    ],
-    armorItems: [
-      {
-        id: createId("arm"),
-        name: "Leather Armor",
-        kind: "armor",
-        armorClass: 11,
-        maxDexBonus: null,
-        bonus: 0,
-        equipped: true,
-        notes: ""
-      }
-    ],
-    resources: [
-      {
-        id: createId("res"),
-        name: "Second Wind",
-        current: 1,
-        max: 1,
-        resetOn: "Short Rest",
-        restoreAmount: 1
-      }
-    ],
-    inventory: [
-      { id: createId("inv"), name: "Bedroll", type: "gear", quantity: 1, equipped: false, notes: "" },
-      { id: createId("inv"), name: "Torch", type: "consumable", quantity: 5, equipped: false, notes: "" },
-      { id: createId("inv"), name: "Rations", type: "consumable", quantity: 3, equipped: false, notes: "" }
-    ],
-    currency: { pp: 0, gp: 15, ep: 0, sp: 5, cp: 12 },
+    attacks: [],
+    armorItems: [],
+    resources: [],
+    inventory: [],
+    conditions: [],
+    exhaustionLevel: 0,
+    concentration: false,
+    deathSaves: {
+      successes: 0,
+      failures: 0,
+      history: []
+    },
+    currency: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
     notes: "",
-    color: kind === "npc" ? "#d98f46" : kind === "monster" ? "#ae4a39" : kind === "static" ? "#6e8897" : "#8cae75"
+    color: kind === "npc" ? "#d98f46" : kind === "monster" ? "#ae4a39" : kind === "static" ? "#6e8897" : "#8cae75",
+    build: kind === "character" || kind === "npc" ? createDefaultPlayerNpcBuild() : undefined
   };
 
   finalizeDerivedActor(actor);
@@ -445,10 +450,20 @@ export function createMonsterActor(campaignId: string, userId: string, template:
     abilities: template.abilities,
     skills: defaultSkills(),
     classes: [],
+    savingThrowProficiencies: [],
+    toolProficiencies: [],
+    languageProficiencies: template.languages,
     spellSlots: defaultSpellSlots(),
     features: template.traits,
     spells: template.spells.length > 0 ? template.spells : template.spellcasting.flatMap((entry) => entry.spells.map(stripTaggedSpellName)),
     preparedSpells: [],
+    spellState: {
+      spellbook: [],
+      alwaysPrepared: [],
+      atWill: [],
+      perShortRest: [],
+      perLongRest: []
+    },
     talents: [],
     feats: [],
     bonuses: [],
@@ -475,6 +490,14 @@ export function createMonsterActor(campaignId: string, userId: string, template:
     ],
     resources: [],
     inventory: [],
+    conditions: [],
+    exhaustionLevel: 0,
+    concentration: false,
+    deathSaves: {
+      successes: 0,
+      failures: 0,
+      history: []
+    },
     currency: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
     notes: [
       template.traits.length > 0 ? `Traits:\n${template.traits.join("\n")}` : "",
@@ -706,11 +729,11 @@ function buildActorSnapshot(actor: ActorSheet, role: MemberRole, userId: string)
 function defaultAbilities(): AbilityScores {
   return {
     str: 10,
-    dex: 14,
-    con: 14,
-    int: 12,
-    wis: 16,
-    cha: 9
+    dex: 10,
+    con: 10,
+    int: 10,
+    wis: 10,
+    cha: 10
   };
 }
 
@@ -719,22 +742,9 @@ function defaultSkills(): SkillEntry[] {
     id: createId("skl"),
     name: entry.name,
     ability: entry.ability,
-    proficient: entry.name === "Perception" || entry.name === "Insight",
+    proficient: false,
     expertise: false
   }));
-}
-
-function createActorClassEntry(name: string, level: number, hitDieFaces: number, spellcastingAbility: AbilityKey | null): ActorClassEntry {
-  return {
-    id: createId("cls"),
-    compendiumId: "",
-    name,
-    source: "",
-    level,
-    hitDieFaces,
-    usedHitDice: 0,
-    spellcastingAbility
-  };
 }
 
 function defaultActorLayout(): ActorLayoutEntry[] {
@@ -764,9 +774,18 @@ function defaultActorLayout(): ActorLayoutEntry[] {
 function defaultSpellSlots(): SpellSlotTrack[] {
   return Array.from({ length: 9 }, (_, index) => ({
     level: index + 1,
-    total: index === 0 ? 2 : 0,
+    total: 0,
     used: 0
   }));
+}
+
+function createDefaultPlayerNpcBuild(): PlayerNpcBuild {
+  return {
+    ruleset: "dnd-2024",
+    mode: "guided",
+    classes: [],
+    selections: []
+  };
 }
 
 function snapMeasurePreviewPoint(map: CampaignMap, point: Point, snapMode: MeasureSnapMode) {
@@ -827,6 +846,65 @@ function normalizeStringArray(value: unknown, fallback: string[]) {
     .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
     .filter(Boolean)
     .slice(0, 80);
+}
+
+function normalizeAbilityKeyArray(value: unknown, fallback: AbilityKey[]) {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .map((entry) => parseAbilityKey(entry, null))
+        .filter((entry): entry is AbilityKey => entry !== null)
+    )
+  ).slice(0, 6);
+}
+
+function sanitizeActorSpellState(value: unknown, fallback: ActorSheet["spellState"]): ActorSheet["spellState"] {
+  if (!value || typeof value !== "object") {
+    return fallback;
+  }
+
+  const input = value as Partial<ActorSheet["spellState"]>;
+  return {
+    spellbook: normalizeStringArray(input.spellbook, fallback.spellbook),
+    alwaysPrepared: normalizeStringArray(input.alwaysPrepared, fallback.alwaysPrepared),
+    atWill: normalizeStringArray(input.atWill, fallback.atWill),
+    perShortRest: normalizeStringArray(input.perShortRest, fallback.perShortRest),
+    perLongRest: normalizeStringArray(input.perLongRest, fallback.perLongRest)
+  };
+}
+
+function sanitizeConditionMarkers(value: unknown, fallback: ActorSheet["conditions"]) {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  const allowed = new Set<string>(TOKEN_STATUS_MARKERS);
+  return Array.from(
+    new Set(
+      value
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter((entry): entry is (typeof TOKEN_STATUS_MARKERS)[number] => Boolean(entry) && allowed.has(entry))
+    )
+  );
+}
+
+function sanitizeDeathSaves(value: unknown, fallback: ActorSheet["deathSaves"]): ActorSheet["deathSaves"] {
+  if (!value || typeof value !== "object") {
+    return fallback;
+  }
+
+  const input = value as Partial<ActorSheet["deathSaves"]>;
+  return {
+    successes: getOptionalNumber(input.successes, fallback.successes, 0, 3),
+    failures: getOptionalNumber(input.failures, fallback.failures, 0, 3),
+    history: Array.isArray(input.history)
+      ? input.history.filter((entry): entry is "success" | "failure" => entry === "success" || entry === "failure").slice(-3)
+      : fallback.history ?? []
+  };
 }
 
 function parseAbilityKey(value: unknown, fallback: AbilityKey): AbilityKey;
@@ -1358,10 +1436,14 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   actor.abilities = sanitizeAbilities(patch.abilities, actor.abilities);
   actor.skills = sanitizeSkills(patch.skills, actor.skills);
   actor.classes = sanitizeActorClasses(patch.classes, actor.classes);
+  actor.savingThrowProficiencies = normalizeAbilityKeyArray(patch.savingThrowProficiencies, actor.savingThrowProficiencies);
+  actor.toolProficiencies = normalizeStringArray(patch.toolProficiencies, actor.toolProficiencies);
+  actor.languageProficiencies = normalizeStringArray(patch.languageProficiencies, actor.languageProficiencies);
   actor.spellSlots = sanitizeSpellSlots(patch.spellSlots, actor.spellSlots);
   actor.features = normalizeStringArray(patch.features, actor.features);
   actor.spells = normalizeStringArray(patch.spells, actor.spells);
   actor.preparedSpells = normalizeStringArray(patch.preparedSpells, actor.preparedSpells);
+  actor.spellState = sanitizeActorSpellState(patch.spellState, actor.spellState);
   actor.talents = normalizeStringArray(patch.talents, actor.talents);
   actor.feats = normalizeStringArray(patch.feats, actor.feats);
   actor.bonuses = sanitizeActorBonuses(patch.bonuses, actor.bonuses);
@@ -1370,6 +1452,10 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   actor.armorItems = sanitizeArmorItems(patch.armorItems, actor.armorItems);
   actor.resources = sanitizeResources(patch.resources, actor.resources);
   actor.inventory = sanitizeInventory(patch.inventory, actor.inventory);
+  actor.conditions = sanitizeConditionMarkers(patch.conditions, actor.conditions);
+  actor.exhaustionLevel = getOptionalNumber(patch.exhaustionLevel, actor.exhaustionLevel, 0, 6);
+  actor.concentration = typeof patch.concentration === "boolean" ? patch.concentration : actor.concentration;
+  actor.deathSaves = sanitizeDeathSaves(patch.deathSaves, actor.deathSaves);
   actor.currency = sanitizeCurrency(patch.currency, actor.currency);
   actor.notes = getOptionalString(patch.notes, actor.notes);
   actor.color = getOptionalString(patch.color, actor.color);
@@ -1382,6 +1468,13 @@ function stripTaggedSpellName(value: string) {
 }
 
 export function syncActorTokens(campaign: Campaign, actor: ActorSheet) {
+  const syncedStatusMarkers = Array.from(
+    new Set([
+      ...actor.conditions,
+      ...(actor.exhaustionLevel > 0 ? (["exhaustion"] as const) : [])
+    ])
+  );
+
   for (const token of campaign.tokens) {
     if (token.actorId !== actor.id) {
       continue;
@@ -1398,5 +1491,6 @@ export function syncActorTokens(campaign: Campaign, actor: ActorSheet) {
     token.color = actor.color;
     token.label = actor.name;
     token.imageUrl = actor.imageUrl;
+    token.statusMarkers = syncedStatusMarkers;
   }
 }

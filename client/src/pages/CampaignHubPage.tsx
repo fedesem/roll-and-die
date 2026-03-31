@@ -11,6 +11,7 @@ import { CampaignMapManager } from "../components/CampaignMapManager";
 import { CampaignMapRoster } from "../components/CampaignMapRoster";
 import { CampaignRoomManager } from "../components/CampaignRoomManager";
 import { CharacterSheet } from "../components/CharacterSheet";
+import { PlayerActorCreatorModal } from "../components/PlayerActorCreatorModal";
 import { WorkspaceModal, type WorkspaceModalView } from "../components/WorkspaceModal";
 import type { ActorTypeFilter, AvailableActorEntry, CurrentMapRosterEntry } from "../features/campaign/types";
 
@@ -306,35 +307,22 @@ export function CampaignHubPage({
 
             {section === "actors" && (
               <CampaignActorManager
-                token={token}
                 role={role}
                 currentUserId={currentUserId}
                 campaignMaps={campaign.maps}
                 campaignMembers={campaign.members}
-                compendium={compendium}
                 selectedActor={selectedActor}
                 availableActors={availableActors}
                 actorSearch={actorSearch}
                 actorTypeFilter={actorTypeFilter}
-                actorCreatorKind={actorCreatorKind}
                 actorCreatorOpen={actorCreatorOpen}
-                actorDraft={actorDraft}
-                monsterQuery={monsterQuery}
-                filteredCatalog={filteredCatalog}
-                selectedMonsterTemplate={selectedMonsterTemplate}
                 onOpenSheet={(actorId) => {
                   onSelectActor(actorId);
                   onSetActivePopup("sheet");
                 }}
-                onRoll={onRoll}
                 onActorSearchChange={onActorSearchChange}
                 onActorTypeFilterChange={onActorTypeFilterChange}
                 onActorCreatorOpenChange={onActorCreatorOpenChange}
-                onActorCreatorKindChange={onActorCreatorKindChange}
-                onCreateActor={onCreateActor}
-                onMonsterQueryChange={onMonsterQueryChange}
-                onSelectMonster={onSelectMonster}
-                onCreateMonsterActor={onCreateMonsterActor}
                 onDeleteActor={onDeleteActor}
               />
             )}
@@ -429,6 +417,29 @@ export function CampaignHubPage({
         </WorkspaceModal>
       ) : null}
 
+      {role !== "dm" && actorCreatorOpen ? (
+        <WorkspaceModal title="Create Actor" size="wide" onClose={() => onActorCreatorOpenChange(false)}>
+          <PlayerActorCreatorModal
+            token={token}
+            role={role}
+            currentUserId={currentUserId}
+            compendium={compendium}
+            allowedSourceBooks={campaign.allowedSourceBooks}
+            actorCreatorKind={actorCreatorKind}
+            actorDraft={actorDraft}
+            monsterQuery={monsterQuery}
+            filteredCatalog={filteredCatalog}
+            selectedMonsterTemplate={selectedMonsterTemplate}
+            onRoll={onRoll}
+            onActorCreatorKindChange={onActorCreatorKindChange}
+            onCreateActor={onCreateActor}
+            onMonsterQueryChange={onMonsterQueryChange}
+            onSelectMonster={onSelectMonster}
+            onCreateMonsterActor={onCreateMonsterActor}
+          />
+        </WorkspaceModal>
+      ) : null}
+
       {activePopup === "sheet" && (
         <WorkspaceModal
           title={selectedActor ? `${selectedActor.name} Sheet` : "Interactive Sheet"}
@@ -439,6 +450,7 @@ export function CampaignHubPage({
             token={token}
             actor={selectedActor ?? undefined}
             compendium={compendium}
+            allowedSourceBooks={campaign.allowedSourceBooks}
             role={role}
             currentUserId={currentUserId}
             onSave={onSaveActor}

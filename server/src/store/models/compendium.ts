@@ -5,8 +5,12 @@ import type {
   ClassEntry,
   ClassFeatureEntry,
   ClassSubclassEntry,
+  CompendiumBackgroundEntry,
   CompendiumData,
+  CompendiumItemEntry,
+  CompendiumOptionalFeatureEntry,
   CompendiumReferenceEntry,
+  CompendiumSpeciesEntry,
   FeatEntry,
   MonsterActionEntry,
   MonsterSense,
@@ -25,14 +29,25 @@ type ReferenceCompendiumKind = Extract<
 >;
 export async function readCampaignCompendium(
   database: DatabaseSync
-): Promise<Pick<CompendiumData, "spells" | "monsters" | "feats" | "classes" | "variantRules" | "conditions">> {
+): Promise<
+  Pick<
+    CompendiumData,
+    "spells" | "monsters" | "feats" | "classes" | "variantRules" | "conditions" | "optionalFeatures" | "backgrounds" | "items" | "languages" | "races" | "skills"
+  >
+> {
   return {
     spells: await readSpellEntries(database),
     monsters: await readMonsterEntries(database),
     feats: await readFeatEntries(database),
     classes: await readClassEntries(database),
     variantRules: await readReferenceEntries(database, "variantRules"),
-    conditions: await readReferenceEntries(database, "conditions")
+    conditions: await readReferenceEntries(database, "conditions"),
+    optionalFeatures: await readReferenceEntries(database, "optionalFeatures"),
+    backgrounds: await readReferenceEntries(database, "backgrounds"),
+    items: await readReferenceEntries(database, "items"),
+    languages: await readReferenceEntries(database, "languages"),
+    races: await readReferenceEntries(database, "races"),
+    skills: await readReferenceEntries(database, "skills")
   };
 }
 export async function readCompendiumCollection<K extends CompendiumCollectionKind>(
@@ -531,6 +546,9 @@ async function readClassEntries(database: DatabaseSync): Promise<ClassEntry[]> {
       startingArmorJson: string;
       startingWeaponsJson: string;
       startingToolsJson: string;
+      spellcastingAbility: AbilityKey | null;
+      spellPreparation: ClassEntry["spellPreparation"];
+      subclassLevel: number | null;
       featuresJson: string;
       subclassesJson: string;
       tablesJson: string;
@@ -548,6 +566,9 @@ async function readClassEntries(database: DatabaseSync): Promise<ClassEntry[]> {
         starting_armor_json as startingArmorJson,
         starting_weapons_json as startingWeaponsJson,
         starting_tools_json as startingToolsJson,
+        spellcasting_ability as spellcastingAbility,
+        spell_preparation as spellPreparation,
+        subclass_level as subclassLevel,
         features_json as featuresJson,
         subclasses_json as subclassesJson,
         tables_json as tablesJson
@@ -568,12 +589,15 @@ async function readClassEntries(database: DatabaseSync): Promise<ClassEntry[]> {
       weapons: parseJsonArray<string>(row.startingWeaponsJson),
       tools: parseJsonArray<string>(row.startingToolsJson)
     },
+    spellcastingAbility: row.spellcastingAbility,
+    spellPreparation: row.spellPreparation ?? "none",
+    subclassLevel: row.subclassLevel,
     features: classFeaturesByClassId.get(row.id) ?? parseJsonArray<ClassFeatureEntry>(row.featuresJson),
     subclasses: parseJsonArray<ClassSubclassEntry>(row.subclassesJson),
     tables: classTablesByClassId.get(row.id) ?? parseJsonArray<ClassEntry["tables"][number]>(row.tablesJson)
   }));
 }
-async function readReferenceEntries(database: DatabaseSync, kind: ReferenceCompendiumKind): Promise<CompendiumReferenceEntry[]> {
+async function readReferenceEntries<K extends ReferenceCompendiumKind>(database: DatabaseSync, kind: K): Promise<CompendiumData[K]> {
   return (
     await readAll<{
       id: string;
@@ -583,6 +607,7 @@ async function readReferenceEntries(database: DatabaseSync, kind: ReferenceCompe
       description: string;
       entriesText: string;
       tagsJson: string;
+      detailsJson: string;
     }>(
       database,
       `
@@ -593,14 +618,31 @@ async function readReferenceEntries(database: DatabaseSync, kind: ReferenceCompe
         category,
         description,
         entries_text as entriesText,
-        tags_json as tagsJson
+        tags_json as tagsJson,
+        details_json as detailsJson
       FROM compendium_references
       WHERE kind = ?
       ORDER BY sort_order, name, id
     `,
       kind
     )
-  ).map((row) => ({
+  ).map((row) => buildReferenceEntry(kind, row)) as CompendiumData[K];
+}
+
+function buildReferenceEntry(
+  kind: ReferenceCompendiumKind,
+  row: {
+    id: string;
+    name: string;
+    source: string;
+    category: string;
+    description: string;
+    entriesText: string;
+    tagsJson: string;
+    detailsJson: string;
+  }
+) {
+  const base: CompendiumReferenceEntry = {
     id: row.id,
     name: row.name,
     source: row.source,
@@ -608,7 +650,55 @@ async function readReferenceEntries(database: DatabaseSync, kind: ReferenceCompe
     description: row.description,
     entries: row.entriesText,
     tags: parseJsonArray<string>(row.tagsJson)
-  }));
+  };
+  const details = parseJsonObject(row.detailsJson);
+
+  switch (kind) {
+    case "backgrounds":
+      return {
+        ...base,
+        abilityChoices: readJsonArray(details.abilityChoices),
+        skillProficiencies: readJsonArray<string>(details.skillProficiencies),
+        toolProficiencies: readJsonArray<string>(details.toolProficiencies),
+        languageProficiencies: readJsonArray<string>(details.languageProficiencies),
+        featIds: readJsonArray<string>(details.featIds),
+        startingEquipment: readJsonArray(details.startingEquipment)
+      } satisfies CompendiumBackgroundEntry;
+    case "items":
+      return {
+        ...base,
+        itemType: readJsonString(details.itemType),
+        rarity: readJsonString(details.rarity),
+        armorType: readJsonString(details.armorType),
+        armorClass: readJsonNumber(details.armorClass),
+        maxDexBonus: readJsonNullableNumber(details.maxDexBonus),
+        damage: readJsonString(details.damage),
+        damageType: readJsonString(details.damageType),
+        range: readJsonString(details.range),
+        properties: readJsonArray<string>(details.properties),
+        weight: readJsonNumber(details.weight),
+        valueCp: readJsonNumber(details.valueCp),
+        attunement: readJsonString(details.attunement)
+      } satisfies CompendiumItemEntry;
+    case "optionalFeatures":
+      return {
+        ...base,
+        featureTypes: readJsonArray<string>(details.featureTypes),
+        prerequisites: readJsonString(details.prerequisites)
+      } satisfies CompendiumOptionalFeatureEntry;
+    case "races":
+      return {
+        ...base,
+        creatureTypes: readJsonArray<string>(details.creatureTypes),
+        sizes: readJsonArray<string>(details.sizes),
+        speed: readJsonNumber(details.speed),
+        darkvision: readJsonNumber(details.darkvision),
+        languages: readJsonArray<string>(details.languages),
+        traitTags: readJsonArray<string>(details.traitTags)
+      } satisfies CompendiumSpeciesEntry;
+    default:
+      return base;
+  }
 }
 async function readBookEntries(database: DatabaseSync): Promise<CampaignSourceBook[]> {
   return (
@@ -1122,8 +1212,9 @@ function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: 
           id, sort_order, name, source, description,
           hit_die_faces, primary_abilities_json, saving_throw_proficiencies_json,
           starting_armor_json, starting_weapons_json, starting_tools_json,
+          spellcasting_ability, spell_preparation, subclass_level,
           features_json, subclasses_json, tables_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           sort_order = excluded.sort_order,
           name = excluded.name,
@@ -1135,6 +1226,9 @@ function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: 
           starting_armor_json = excluded.starting_armor_json,
           starting_weapons_json = excluded.starting_weapons_json,
           starting_tools_json = excluded.starting_tools_json,
+          spellcasting_ability = excluded.spellcasting_ability,
+          spell_preparation = excluded.spell_preparation,
+          subclass_level = excluded.subclass_level,
           features_json = excluded.features_json,
           subclasses_json = excluded.subclasses_json,
           tables_json = excluded.tables_json
@@ -1152,6 +1246,9 @@ function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: 
       JSON.stringify(entry.startingProficiencies.armor),
       JSON.stringify(entry.startingProficiencies.weapons),
       JSON.stringify(entry.startingProficiencies.tools),
+      entry.spellcastingAbility,
+      entry.spellPreparation,
+      entry.subclassLevel,
       JSON.stringify(entry.features),
       JSON.stringify(entry.subclasses),
       JSON.stringify(entry.tables)
@@ -1202,13 +1299,72 @@ function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: 
     });
   });
 }
-function upsertReferenceEntry(database: DatabaseSync, kind: ReferenceCompendiumKind, entry: CompendiumReferenceEntry, sortOrder: number) {
+
+function serializeReferenceDetails(kind: ReferenceCompendiumKind, entry: CompendiumData[ReferenceCompendiumKind][number]) {
+  switch (kind) {
+    case "backgrounds": {
+      const background = entry as CompendiumBackgroundEntry;
+      return {
+        abilityChoices: background.abilityChoices,
+        skillProficiencies: background.skillProficiencies,
+        toolProficiencies: background.toolProficiencies,
+        languageProficiencies: background.languageProficiencies,
+        featIds: background.featIds,
+        startingEquipment: background.startingEquipment
+      };
+    }
+    case "items": {
+      const item = entry as CompendiumItemEntry;
+      return {
+        itemType: item.itemType,
+        rarity: item.rarity,
+        armorType: item.armorType,
+        armorClass: item.armorClass,
+        maxDexBonus: item.maxDexBonus,
+        damage: item.damage,
+        damageType: item.damageType,
+        range: item.range,
+        properties: item.properties,
+        weight: item.weight,
+        valueCp: item.valueCp,
+        attunement: item.attunement
+      };
+    }
+    case "optionalFeatures": {
+      const optionalFeature = entry as CompendiumOptionalFeatureEntry;
+      return {
+        featureTypes: optionalFeature.featureTypes,
+        prerequisites: optionalFeature.prerequisites
+      };
+    }
+    case "races": {
+      const species = entry as CompendiumSpeciesEntry;
+      return {
+        creatureTypes: species.creatureTypes,
+        sizes: species.sizes,
+        speed: species.speed,
+        darkvision: species.darkvision,
+        languages: species.languages,
+        traitTags: species.traitTags
+      };
+    }
+    default:
+      return {};
+  }
+}
+
+function upsertReferenceEntry(
+  database: DatabaseSync,
+  kind: ReferenceCompendiumKind,
+  entry: CompendiumData[ReferenceCompendiumKind][number],
+  sortOrder: number
+) {
   database
     .prepare(
       `
         INSERT INTO compendium_references (
-          kind, id, sort_order, name, source, category, description, entries_text, tags_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          kind, id, sort_order, name, source, category, description, entries_text, tags_json, details_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(kind, id) DO UPDATE SET
           sort_order = excluded.sort_order,
           name = excluded.name,
@@ -1216,10 +1372,22 @@ function upsertReferenceEntry(database: DatabaseSync, kind: ReferenceCompendiumK
           category = excluded.category,
           description = excluded.description,
           entries_text = excluded.entries_text,
-          tags_json = excluded.tags_json
+          tags_json = excluded.tags_json,
+          details_json = excluded.details_json
       `
     )
-    .run(kind, entry.id, sortOrder, entry.name, entry.source, entry.category, entry.description, entry.entries, JSON.stringify(entry.tags));
+    .run(
+      kind,
+      entry.id,
+      sortOrder,
+      entry.name,
+      entry.source,
+      entry.category,
+      entry.description,
+      entry.entries,
+      JSON.stringify(entry.tags),
+      JSON.stringify(serializeReferenceDetails(kind, entry))
+    );
 }
 function upsertBookEntry(database: DatabaseSync, entry: CampaignSourceBook, sortOrder: number) {
   database
@@ -1273,4 +1441,29 @@ function parseJsonArray<T>(raw: string) {
   } catch {
     return [];
   }
+}
+
+function parseJsonObject(raw: string) {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function readJsonString(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function readJsonArray<T>(value: unknown) {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function readJsonNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function readJsonNullableNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }

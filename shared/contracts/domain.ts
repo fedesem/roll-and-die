@@ -9,9 +9,11 @@ import type {
   ActorBonusTargetType,
   ActorCreatureSize,
   ActorClassEntry,
+  ActorDeathSaveState,
   ActorKind,
   ActorLayoutEntry,
   ActorSheet,
+  ActorSpellState,
   AdminOverview,
   ArmorEntry,
   AttackEntry,
@@ -32,7 +34,15 @@ import type {
   ClassSubclassEntry,
   ClassStartingProficiencies,
   ClassTableEntry,
+  CompendiumAbilityChoice,
+  CompendiumBackgroundEntry,
+  CompendiumEquipmentGroup,
+  CompendiumEquipmentOption,
+  CompendiumItemEntry,
+  CompendiumItemGrant,
+  CompendiumOptionalFeatureEntry,
   CompendiumReferenceEntry,
+  CompendiumSpeciesEntry,
   CompendiumData,
   CurrencyPouch,
   DiceRoll,
@@ -63,6 +73,10 @@ import type {
   MonsterSpeedModes,
   MonsterTemplate,
   Point,
+  PlayerNpcBuild,
+  PlayerNpcBuildClassEntry,
+  PlayerNpcBuildMode,
+  PlayerNpcBuildSelection,
   ResourceEntry,
   SkillEntry,
   SpellCastingTimeUnit,
@@ -178,6 +192,20 @@ export const actorClassEntrySchema: z.ZodType<ActorClassEntry> = z.object({
   spellcastingAbility: abilityKeySchema.nullable()
 });
 
+export const actorSpellStateSchema: z.ZodType<ActorSpellState> = z.object({
+  spellbook: z.array(trimmedString),
+  alwaysPrepared: z.array(trimmedString),
+  atWill: z.array(trimmedString),
+  perShortRest: z.array(trimmedString),
+  perLongRest: z.array(trimmedString)
+});
+
+export const actorDeathSaveStateSchema: z.ZodType<ActorDeathSaveState> = z.object({
+  successes: finiteNumber,
+  failures: finiteNumber,
+  history: z.array(z.enum(["success", "failure"])).optional()
+});
+
 export const actorBonusSourceTypeSchema: z.ZodType<ActorBonusSourceType> = z.enum(["gear", "buff"]);
 export const actorBonusTargetTypeSchema: z.ZodType<ActorBonusTargetType> = z.enum([
   "armorClass",
@@ -203,6 +231,42 @@ export const actorLayoutEntrySchema: z.ZodType<ActorLayoutEntry> = z.object({
   order: finiteNumber
 });
 
+export const playerNpcBuildModeSchema: z.ZodType<PlayerNpcBuildMode> = z.enum(["guided", "manual"]);
+
+export const playerNpcBuildClassEntrySchema: z.ZodType<PlayerNpcBuildClassEntry> = z.object({
+  id: trimmedString,
+  classId: trimmedString,
+  className: trimmedString,
+  classSource: trimmedString,
+  subclassId: trimmedString.optional(),
+  subclassName: trimmedString.optional(),
+  subclassSource: trimmedString.optional(),
+  level: finiteNumber
+});
+
+export const playerNpcBuildSelectionSchema: z.ZodType<PlayerNpcBuildSelection> = z.object({
+  id: trimmedString,
+  kind: z.enum(["feat", "optionalFeature", "spell", "itemPackage", "backgroundFeature", "custom"]),
+  level: finiteNumber,
+  compendiumId: trimmedString.optional(),
+  name: trimmedString,
+  source: trimmedString,
+  notes: trimmedString
+});
+
+export const playerNpcBuildSchema: z.ZodType<PlayerNpcBuild> = z.object({
+  ruleset: z.literal("dnd-2024"),
+  mode: playerNpcBuildModeSchema,
+  speciesId: trimmedString.optional(),
+  speciesName: trimmedString.optional(),
+  speciesSource: trimmedString.optional(),
+  backgroundId: trimmedString.optional(),
+  backgroundName: trimmedString.optional(),
+  backgroundSource: trimmedString.optional(),
+  classes: z.array(playerNpcBuildClassEntrySchema),
+  selections: z.array(playerNpcBuildSelectionSchema)
+});
+
 export const actorSheetSchema: z.ZodType<ActorSheet> = z.object({
   id: trimmedString,
   campaignId: trimmedString,
@@ -223,6 +287,7 @@ export const actorSheetSchema: z.ZodType<ActorSheet> = z.object({
   spellcastingAbility: abilityKeySchema,
   armorClass: finiteNumber,
   initiative: finiteNumber,
+  initiativeRoll: finiteNumber.nullable().optional(),
   speed: finiteNumber,
   proficiencyBonus: finiteNumber,
   inspiration: z.boolean(),
@@ -234,10 +299,14 @@ export const actorSheetSchema: z.ZodType<ActorSheet> = z.object({
   abilities: abilityScoresSchema,
   skills: z.array(skillEntrySchema),
   classes: z.array(actorClassEntrySchema),
+  savingThrowProficiencies: z.array(abilityKeySchema),
+  toolProficiencies: z.array(trimmedString),
+  languageProficiencies: z.array(trimmedString),
   spellSlots: z.array(spellSlotTrackSchema),
   features: z.array(trimmedString),
   spells: z.array(trimmedString),
   preparedSpells: z.array(trimmedString),
+  spellState: actorSpellStateSchema,
   talents: z.array(trimmedString),
   feats: z.array(trimmedString),
   bonuses: z.array(actorBonusEntrySchema),
@@ -246,9 +315,14 @@ export const actorSheetSchema: z.ZodType<ActorSheet> = z.object({
   armorItems: z.array(armorEntrySchema),
   resources: z.array(resourceEntrySchema),
   inventory: z.array(inventoryEntrySchema),
+  conditions: z.array(z.enum(TOKEN_STATUS_MARKERS)),
+  exhaustionLevel: finiteNumber,
+  concentration: z.boolean(),
+  deathSaves: actorDeathSaveStateSchema,
   currency: currencyPouchSchema,
   notes: trimmedString,
-  color: trimmedString
+  color: trimmedString,
+  build: playerNpcBuildSchema.optional()
 });
 
 export const monsterSpeedModesSchema: z.ZodType<MonsterSpeedModes> = z.object({
@@ -461,12 +535,15 @@ export const classEntrySchema: z.ZodType<ClassEntry> = z.object({
   primaryAbilities: z.array(trimmedString),
   savingThrowProficiencies: z.array(trimmedString),
   startingProficiencies: classStartingProficienciesSchema,
+  spellcastingAbility: abilityKeySchema.nullable(),
+  spellPreparation: z.enum(["none", "prepared", "known", "spellbook"]),
+  subclassLevel: finiteNumber.nullable(),
   features: z.array(classFeatureEntrySchema),
   subclasses: z.array(classSubclassEntrySchema),
   tables: z.array(classTableEntrySchema)
 });
 
-export const compendiumReferenceEntrySchema: z.ZodType<CompendiumReferenceEntry> = z.object({
+const compendiumReferenceEntryObject = z.object({
   id: trimmedString,
   name: trimmedString,
   source: trimmedString,
@@ -474,6 +551,75 @@ export const compendiumReferenceEntrySchema: z.ZodType<CompendiumReferenceEntry>
   description: trimmedString,
   entries: trimmedString,
   tags: z.array(trimmedString)
+});
+
+export const compendiumReferenceEntrySchema: z.ZodType<CompendiumReferenceEntry> = compendiumReferenceEntryObject;
+
+export const compendiumItemGrantSchema: z.ZodType<CompendiumItemGrant> = z.object({
+  itemId: trimmedString.optional(),
+  name: trimmedString,
+  quantity: finiteNumber,
+  notes: trimmedString,
+  equipped: z.boolean(),
+  type: z.enum(["gear", "reagent", "loot", "consumable"]).optional(),
+  containsValueCp: finiteNumber.optional()
+});
+
+export const compendiumEquipmentOptionSchema: z.ZodType<CompendiumEquipmentOption> = z.object({
+  id: trimmedString,
+  label: trimmedString,
+  items: z.array(compendiumItemGrantSchema)
+});
+
+export const compendiumEquipmentGroupSchema: z.ZodType<CompendiumEquipmentGroup> = z.object({
+  id: trimmedString,
+  label: trimmedString,
+  choose: finiteNumber,
+  options: z.array(compendiumEquipmentOptionSchema)
+});
+
+export const compendiumAbilityChoiceSchema: z.ZodType<CompendiumAbilityChoice> = z.object({
+  abilities: z.array(abilityKeySchema),
+  amount: finiteNumber,
+  count: finiteNumber
+});
+
+export const compendiumBackgroundEntrySchema: z.ZodType<CompendiumBackgroundEntry> = compendiumReferenceEntryObject.extend({
+  abilityChoices: z.array(compendiumAbilityChoiceSchema),
+  skillProficiencies: z.array(trimmedString),
+  toolProficiencies: z.array(trimmedString),
+  languageProficiencies: z.array(trimmedString),
+  featIds: z.array(trimmedString),
+  startingEquipment: z.array(compendiumEquipmentGroupSchema)
+});
+
+export const compendiumSpeciesEntrySchema: z.ZodType<CompendiumSpeciesEntry> = compendiumReferenceEntryObject.extend({
+  creatureTypes: z.array(trimmedString),
+  sizes: z.array(trimmedString),
+  speed: finiteNumber,
+  darkvision: finiteNumber,
+  languages: z.array(trimmedString),
+  traitTags: z.array(trimmedString)
+});
+
+export const compendiumItemEntrySchema: z.ZodType<CompendiumItemEntry> = compendiumReferenceEntryObject.extend({
+  itemType: trimmedString,
+  rarity: trimmedString,
+  armorType: trimmedString,
+  armorClass: finiteNumber,
+  maxDexBonus: finiteNumber.nullable(),
+  damage: trimmedString,
+  damageType: trimmedString,
+  range: trimmedString,
+  properties: z.array(trimmedString),
+  weight: finiteNumber,
+  valueCp: finiteNumber,
+  attunement: trimmedString
+});
+
+export const compendiumOptionalFeatureEntrySchema: z.ZodType<CompendiumOptionalFeatureEntry> = compendiumReferenceEntryObject.extend({
+  featureTypes: z.array(trimmedString),
+  prerequisites: trimmedString
 });
 
 export const compendiumDataSchema: z.ZodType<CompendiumData> = z.object({
@@ -492,12 +638,12 @@ export const compendiumDataSchema: z.ZodType<CompendiumData> = z.object({
   ),
   variantRules: z.array(compendiumReferenceEntrySchema),
   conditions: z.array(compendiumReferenceEntrySchema),
-  optionalFeatures: z.array(compendiumReferenceEntrySchema),
+  optionalFeatures: z.array(compendiumOptionalFeatureEntrySchema),
   actions: z.array(compendiumReferenceEntrySchema),
-  backgrounds: z.array(compendiumReferenceEntrySchema),
-  items: z.array(compendiumReferenceEntrySchema),
+  backgrounds: z.array(compendiumBackgroundEntrySchema),
+  items: z.array(compendiumItemEntrySchema),
   languages: z.array(compendiumReferenceEntrySchema),
-  races: z.array(compendiumReferenceEntrySchema),
+  races: z.array(compendiumSpeciesEntrySchema),
   skills: z.array(compendiumReferenceEntrySchema)
 });
 
@@ -710,7 +856,13 @@ export const campaignSnapshotSchema: z.ZodType<CampaignSnapshot> = z.object({
     feats: z.array(featEntrySchema),
     classes: z.array(classEntrySchema),
     variantRules: z.array(compendiumReferenceEntrySchema),
-    conditions: z.array(compendiumReferenceEntrySchema)
+    conditions: z.array(compendiumReferenceEntrySchema),
+    optionalFeatures: z.array(compendiumOptionalFeatureEntrySchema),
+    backgrounds: z.array(compendiumBackgroundEntrySchema),
+    items: z.array(compendiumItemEntrySchema),
+    languages: z.array(compendiumReferenceEntrySchema),
+    races: z.array(compendiumSpeciesEntrySchema),
+    skills: z.array(compendiumReferenceEntrySchema)
   }),
   playerVision: z.record(z.string(), z.array(trimmedString))
 });

@@ -99,6 +99,20 @@ export interface ActorClassEntry {
   spellcastingAbility: AbilityKey | null;
 }
 
+export interface ActorSpellState {
+  spellbook: string[];
+  alwaysPrepared: string[];
+  atWill: string[];
+  perShortRest: string[];
+  perLongRest: string[];
+}
+
+export interface ActorDeathSaveState {
+  successes: number;
+  failures: number;
+  history?: Array<"success" | "failure">;
+}
+
 export type ActorBonusSourceType = "gear" | "buff";
 export type ActorBonusTargetType = "armorClass" | "speed" | "ability" | "skill" | "savingThrow";
 
@@ -116,6 +130,42 @@ export interface ActorLayoutEntry {
   sectionId: string;
   column: number;
   order: number;
+}
+
+export type PlayerNpcBuildMode = "guided" | "manual";
+
+export interface PlayerNpcBuildClassEntry {
+  id: string;
+  classId: string;
+  className: string;
+  classSource: string;
+  subclassId?: string;
+  subclassName?: string;
+  subclassSource?: string;
+  level: number;
+}
+
+export interface PlayerNpcBuildSelection {
+  id: string;
+  kind: "feat" | "optionalFeature" | "spell" | "itemPackage" | "backgroundFeature" | "custom";
+  level: number;
+  compendiumId?: string;
+  name: string;
+  source: string;
+  notes: string;
+}
+
+export interface PlayerNpcBuild {
+  ruleset: "dnd-2024";
+  mode: PlayerNpcBuildMode;
+  speciesId?: string;
+  speciesName?: string;
+  speciesSource?: string;
+  backgroundId?: string;
+  backgroundName?: string;
+  backgroundSource?: string;
+  classes: PlayerNpcBuildClassEntry[];
+  selections: PlayerNpcBuildSelection[];
 }
 
 export interface ActorSheet {
@@ -138,6 +188,7 @@ export interface ActorSheet {
   spellcastingAbility: AbilityKey;
   armorClass: number;
   initiative: number;
+  initiativeRoll?: number | null;
   speed: number;
   proficiencyBonus: number;
   inspiration: boolean;
@@ -149,10 +200,14 @@ export interface ActorSheet {
   abilities: AbilityScores;
   skills: SkillEntry[];
   classes: ActorClassEntry[];
+  savingThrowProficiencies: AbilityKey[];
+  toolProficiencies: string[];
+  languageProficiencies: string[];
   spellSlots: SpellSlotTrack[];
   features: string[];
   spells: string[];
   preparedSpells: string[];
+  spellState: ActorSpellState;
   talents: string[];
   feats: string[];
   bonuses: ActorBonusEntry[];
@@ -161,9 +216,14 @@ export interface ActorSheet {
   armorItems: ArmorEntry[];
   resources: ResourceEntry[];
   inventory: InventoryEntry[];
+  conditions: TokenStatusMarker[];
+  exhaustionLevel: number;
+  concentration: boolean;
+  deathSaves: ActorDeathSaveState;
   currency: CurrencyPouch;
   notes: string;
   color: string;
+  build?: PlayerNpcBuild;
 }
 
 export interface MonsterSpeedModes {
@@ -346,6 +406,9 @@ export interface ClassEntry {
   primaryAbilities: string[];
   savingThrowProficiencies: string[];
   startingProficiencies: ClassStartingProficiencies;
+  spellcastingAbility: AbilityKey | null;
+  spellPreparation: "none" | "prepared" | "known" | "spellbook";
+  subclassLevel: number | null;
   features: ClassFeatureEntry[];
   subclasses: ClassSubclassEntry[];
   tables: ClassTableEntry[];
@@ -361,6 +424,73 @@ export interface CompendiumReferenceEntry {
   tags: string[];
 }
 
+export interface CompendiumItemGrant {
+  itemId?: string;
+  name: string;
+  quantity: number;
+  notes: string;
+  equipped: boolean;
+  type?: InventoryItemType;
+  containsValueCp?: number;
+}
+
+export interface CompendiumEquipmentOption {
+  id: string;
+  label: string;
+  items: CompendiumItemGrant[];
+}
+
+export interface CompendiumEquipmentGroup {
+  id: string;
+  label: string;
+  choose: number;
+  options: CompendiumEquipmentOption[];
+}
+
+export interface CompendiumAbilityChoice {
+  abilities: AbilityKey[];
+  amount: number;
+  count: number;
+}
+
+export interface CompendiumBackgroundEntry extends CompendiumReferenceEntry {
+  abilityChoices: CompendiumAbilityChoice[];
+  skillProficiencies: string[];
+  toolProficiencies: string[];
+  languageProficiencies: string[];
+  featIds: string[];
+  startingEquipment: CompendiumEquipmentGroup[];
+}
+
+export interface CompendiumSpeciesEntry extends CompendiumReferenceEntry {
+  creatureTypes: string[];
+  sizes: string[];
+  speed: number;
+  darkvision: number;
+  languages: string[];
+  traitTags: string[];
+}
+
+export interface CompendiumItemEntry extends CompendiumReferenceEntry {
+  itemType: string;
+  rarity: string;
+  armorType: string;
+  armorClass: number;
+  maxDexBonus: number | null;
+  damage: string;
+  damageType: string;
+  range: string;
+  properties: string[];
+  weight: number;
+  valueCp: number;
+  attunement: string;
+}
+
+export interface CompendiumOptionalFeatureEntry extends CompendiumReferenceEntry {
+  featureTypes: string[];
+  prerequisites: string;
+}
+
 export interface CompendiumData {
   spells: SpellEntry[];
   monsters: MonsterTemplate[];
@@ -369,12 +499,12 @@ export interface CompendiumData {
   books: CampaignSourceBook[];
   variantRules: CompendiumReferenceEntry[];
   conditions: CompendiumReferenceEntry[];
-  optionalFeatures: CompendiumReferenceEntry[];
+  optionalFeatures: CompendiumOptionalFeatureEntry[];
   actions: CompendiumReferenceEntry[];
-  backgrounds: CompendiumReferenceEntry[];
-  items: CompendiumReferenceEntry[];
+  backgrounds: CompendiumBackgroundEntry[];
+  items: CompendiumItemEntry[];
   languages: CompendiumReferenceEntry[];
-  races: CompendiumReferenceEntry[];
+  races: CompendiumSpeciesEntry[];
   skills: CompendiumReferenceEntry[];
 }
 
@@ -603,7 +733,10 @@ export interface CampaignSnapshot {
   currentUser: UserProfile;
   role: MemberRole;
   catalog: MonsterTemplate[];
-  compendium: Pick<CompendiumData, "spells" | "feats" | "classes" | "variantRules" | "conditions">;
+  compendium: Pick<
+    CompendiumData,
+    "spells" | "feats" | "classes" | "variantRules" | "conditions" | "optionalFeatures" | "backgrounds" | "items" | "languages" | "races" | "skills"
+  >;
   playerVision: Record<string, CellKey[]>;
 }
 

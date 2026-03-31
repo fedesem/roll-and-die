@@ -2,6 +2,10 @@ export interface ParsedDiceToken {
   notation: string;
   count: number;
   sides: number;
+  keep?: {
+    mode: "highest" | "lowest";
+    count: number;
+  };
 }
 
 export interface RollCommand {
@@ -28,7 +32,7 @@ type Token =
     }
   | {
       type: "operator";
-      value: "+" | "-" | "*";
+      value: "+" | "-" | "*" | "/";
     };
 
 interface ValueNode {
@@ -39,8 +43,8 @@ interface ValueNode {
 }
 
 const commandPattern = /^(\/roll|\/r)\s+(.+)$/i;
-const tokenPattern = /\d*d\d+|\d+|[+\-*]/gi;
-const dicePattern = /^(\d{0,2})d(\d{1,3})$/i;
+const tokenPattern = /\d*d\d+(?:k[hl]\d+)?|\d+|[+\-*/]/gi;
+const dicePattern = /^(\d{0,2})d(\d{1,3})(?:k([hl])(\d{1,2}))?$/i;
 
 export function parseRollCommand(input: string): RollCommand | null {
   const match = input.trim().match(commandPattern);
@@ -125,7 +129,7 @@ export function evaluateRollNotation(input: string, rollDie: (sides: number) => 
     while (cursor < tokens.length) {
       const operator = tokens[cursor];
 
-      if (operator.type !== "operator" || operator.value !== "*") {
+      if (operator.type !== "operator" || (operator.value !== "*" && operator.value !== "/")) {
         break;
       }
 
@@ -136,10 +140,14 @@ export function evaluateRollNotation(input: string, rollDie: (sides: number) => 
         return null;
       }
 
+      if (operator.value === "/" && right.total === 0) {
+        return null;
+      }
+
       left = {
-        total: left.total * right.total,
+        total: operator.value === "*" ? left.total * right.total : left.total / right.total,
         rolls: [...left.rolls, ...right.rolls],
-        breakdown: `(${left.breakdown} * ${right.breakdown})`,
+        breakdown: `(${left.breakdown} ${operator.value} ${right.breakdown})`,
         hasDice: left.hasDice || right.hasDice
       };
     }
@@ -176,11 +184,20 @@ export function evaluateRollNotation(input: string, rollDie: (sides: number) => 
     }
 
     const rolls = Array.from({ length: parsed.count }, () => rollDie(parsed.sides));
+    const keptRolls =
+      parsed.keep?.mode === "highest"
+        ? [...rolls].sort((left, right) => right - left).slice(0, parsed.keep.count)
+        : parsed.keep?.mode === "lowest"
+          ? [...rolls].sort((left, right) => left - right).slice(0, parsed.keep.count)
+          : rolls;
 
     return {
-      total: rolls.reduce((sum, value) => sum + value, 0),
+      total: keptRolls.reduce((sum, value) => sum + value, 0),
       rolls,
-      breakdown: `${parsed.notation}[${rolls.join(", ")}]`,
+      breakdown:
+        parsed.keep && parsed.keep.count < rolls.length
+          ? `${parsed.notation}[${rolls.join(", ")} -> ${keptRolls.join(", ")}]`
+          : `${parsed.notation}[${rolls.join(", ")}]`,
       hasDice: true
     };
   };
@@ -209,15 +226,28 @@ export function parseDiceToken(input: string): ParsedDiceToken | null {
 
   const count = Number(match[1] || "1");
   const sides = Number(match[2]);
+  const keepMode = match[3]?.toLowerCase();
+  const keepCount = typeof match[4] === "string" ? Number(match[4]) : null;
 
   if (count < 1 || count > 20 || sides < 2 || sides > 100) {
     return null;
   }
 
+  if (keepMode && (keepCount === null || keepCount < 1 || keepCount > count)) {
+    return null;
+  }
+
   return {
-    notation: `${count}d${sides}`,
+    notation: `${count}d${sides}${keepMode && keepCount !== null ? `k${keepMode}${keepCount}` : ""}`,
     count,
-    sides
+    sides,
+    keep:
+      keepMode && keepCount !== null
+        ? {
+            mode: keepMode === "h" ? "highest" : "lowest",
+            count: keepCount
+          }
+        : undefined
   };
 }
 
@@ -233,7 +263,7 @@ function tokenizeRollExpression(input: string): Token[] | null {
   }
 
   const tokens = parts.map<Token | null>((part) => {
-    if (part === "+" || part === "-" || part === "*") {
+    if (part === "+" || part === "-" || part === "*" || part === "/") {
       return {
         type: "operator",
         value: part

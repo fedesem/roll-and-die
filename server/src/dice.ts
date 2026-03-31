@@ -10,7 +10,7 @@ export function rollDice(notation: string, label: string): DiceRoll {
   const roll = evaluateRollNotation(normalized, (sides) => Math.floor(Math.random() * sides) + 1);
 
   if (!roll) {
-    throw new Error("Use roll expressions like 1d20+2, 2d8*2, or 3d6+2d4.");
+    throw new Error("Use roll expressions like 1d20+2, 2d20kh1+4, 2d8*2, 1d8/2, or 3d6+2d4.");
   }
 
   return {

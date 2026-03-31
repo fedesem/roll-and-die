@@ -85,7 +85,8 @@ export function abilityModifierTotal(actor: ActorSheet, ability: AbilityKey) {
 }
 
 export function savingThrowTotal(actor: ActorSheet, ability: AbilityKey) {
-  return abilityModifierTotal(actor, ability) + actor.proficiencyBonus + bonusTotal(actor, "savingThrow", ability);
+  const proficient = actor.savingThrowProficiencies.includes(ability);
+  return abilityModifierTotal(actor, ability) + (proficient ? actor.proficiencyBonus : 0) + bonusTotal(actor, "savingThrow", ability);
 }
 
 export function skillTotal(actor: ActorSheet, skill: SkillEntry) {

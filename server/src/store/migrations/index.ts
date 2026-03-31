@@ -28,6 +28,8 @@ import { mapDoorLockMigration } from "./128_map_door_lock.js";
 import { drawingTextMigration } from "./129_drawing_text.js";
 import { drawingPointsForeignKeyRepairMigration } from "./130_drawing_points_fk_repair.js";
 import { drawingTextStyleMigration } from "./131_drawing_text_style.js";
+import { playerNpcSheetRebuildMigration } from "./132_player_npc_sheet_rebuild.js";
+import { actorSheetStateExpansionMigration } from "./133_actor_sheet_state_expansion.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -59,5 +61,7 @@ export const migrations = [
   mapDoorLockMigration,
   drawingTextMigration,
   drawingPointsForeignKeyRepairMigration,
-  drawingTextStyleMigration
+  drawingTextStyleMigration,
+  playerNpcSheetRebuildMigration,
+  actorSheetStateExpansionMigration
 ];

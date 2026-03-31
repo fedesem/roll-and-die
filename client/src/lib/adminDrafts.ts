@@ -307,6 +307,9 @@ export function classFormToEntry(form: ClassFormState): Omit<ClassEntry, "id"> {
       weapons: [],
       tools: []
     },
+    spellcastingAbility: null,
+    spellPreparation: "none",
+    subclassLevel: null,
     features: parseJsonArray<ClassEntry["features"][number]>(form.featuresJson).map((feature) => ({
       level: feature.level,
       name: feature.name,

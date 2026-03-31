@@ -3,6 +3,8 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import type {
   CampaignSourceBook,
   ClassEntry,
+  CompendiumItemEntry,
+  CompendiumOptionalFeatureEntry,
   CompendiumReferenceEntry,
   FeatEntry,
   MonsterTemplate,
@@ -19,6 +21,10 @@ interface RulesLookupData {
   variantRuleEntries?: Array<CompendiumReferenceEntry | Omit<CompendiumReferenceEntry, "id">>;
   conditionEntries?: Array<CompendiumReferenceEntry | Omit<CompendiumReferenceEntry, "id">>;
   actionEntries?: Array<CompendiumReferenceEntry | Omit<CompendiumReferenceEntry, "id">>;
+  itemEntries?: Array<CompendiumItemEntry | Omit<CompendiumItemEntry, "id">>;
+  optionalFeatureEntries?: Array<CompendiumOptionalFeatureEntry | Omit<CompendiumOptionalFeatureEntry, "id">>;
+  languageEntries?: Array<CompendiumReferenceEntry | Omit<CompendiumReferenceEntry, "id">>;
+  skillEntries?: Array<CompendiumReferenceEntry | Omit<CompendiumReferenceEntry, "id">>;
 }
 
 interface PreviewFrameProps {
@@ -566,7 +572,11 @@ export function RulesText({
   classEntries = [],
   variantRuleEntries = [],
   conditionEntries = [],
-  actionEntries = []
+  actionEntries = [],
+  itemEntries = [],
+  optionalFeatureEntries = [],
+  languageEntries = [],
+  skillEntries = []
 }: { text: string } & RulesLookupData) {
   return (
     <RulesTextInner
@@ -577,6 +587,10 @@ export function RulesText({
       variantRuleEntries={variantRuleEntries}
       conditionEntries={conditionEntries}
       actionEntries={actionEntries}
+      itemEntries={itemEntries}
+      optionalFeatureEntries={optionalFeatureEntries}
+      languageEntries={languageEntries}
+      skillEntries={skillEntries}
       disableHover={false}
     />
   );
@@ -812,6 +826,10 @@ function RulesTextInner({
   variantRuleEntries = [],
   conditionEntries = [],
   actionEntries = [],
+  itemEntries = [],
+  optionalFeatureEntries = [],
+  languageEntries = [],
+  skillEntries = [],
   disableHover
 }: { text: string; disableHover: boolean } & RulesLookupData) {
   const normalized = text.replace(/\n+/g, "\n");
@@ -822,6 +840,26 @@ function RulesTextInner({
   const variantRuleLookup = new Map(variantRuleEntries.map((entry) => [entry.name.toLowerCase(), entry]));
   const conditionLookup = new Map(conditionEntries.map((entry) => [entry.name.toLowerCase(), entry]));
   const actionLookup = new Map(actionEntries.map((entry) => [entry.name.toLowerCase(), entry]));
+  const itemLookup = new Map(itemEntries.map((entry) => [entry.name.toLowerCase(), entry]));
+  const optionalFeatureLookup = new Map(optionalFeatureEntries.map((entry) => [entry.name.toLowerCase(), entry]));
+  const languageLookup = new Map(languageEntries.map((entry) => [entry.name.toLowerCase(), entry]));
+  const skillLookup = new Map(skillEntries.map((entry) => [entry.name.toLowerCase(), entry]));
+  const renderNestedText = (nextText: string) => (
+    <RulesTextInner
+      text={nextText}
+      spellEntries={spellEntries}
+      featEntries={featEntries}
+      classEntries={classEntries}
+      variantRuleEntries={variantRuleEntries}
+      conditionEntries={conditionEntries}
+      actionEntries={actionEntries}
+      itemEntries={itemEntries}
+      optionalFeatureEntries={optionalFeatureEntries}
+      languageEntries={languageEntries}
+      skillEntries={skillEntries}
+      disableHover={disableHover}
+    />
+  );
 
   return (
     <>
@@ -860,18 +898,7 @@ function RulesTextInner({
             label,
             variantRule ? (
               <RulesTooltip title={variantRule.name} subtitle={variantRule.source || referenceSource || "Variant Rule"}>
-                <div className="rules-tooltip-body rules-tooltip-body-full">
-                  <RulesTextInner
-                    text={variantRule.entries || variantRule.description}
-                    spellEntries={spellEntries}
-                    featEntries={featEntries}
-                    classEntries={classEntries}
-                    variantRuleEntries={variantRuleEntries}
-                    conditionEntries={conditionEntries}
-                    actionEntries={actionEntries}
-                    disableHover
-                  />
-                </div>
+                <div className="rules-tooltip-body rules-tooltip-body-full">{renderNestedText(variantRule.entries || variantRule.description)}</div>
               </RulesTooltip>
             ) : (
               <RulesTooltip title={referenceName} subtitle={referenceSource || "Variant Rule"}>
@@ -898,18 +925,7 @@ function RulesTextInner({
             label,
             condition ? (
               <RulesTooltip title={condition.name} subtitle={condition.source || conditionSource || condition.category || "Condition"}>
-                <div className="rules-tooltip-body rules-tooltip-body-full">
-                  <RulesTextInner
-                    text={condition.entries || condition.description}
-                    spellEntries={spellEntries}
-                    featEntries={featEntries}
-                    classEntries={classEntries}
-                    variantRuleEntries={variantRuleEntries}
-                    conditionEntries={conditionEntries}
-                    actionEntries={actionEntries}
-                    disableHover
-                  />
-                </div>
+                <div className="rules-tooltip-body rules-tooltip-body-full">{renderNestedText(condition.entries || condition.description)}</div>
               </RulesTooltip>
             ) : (
               <RulesTooltip title={conditionName} subtitle={conditionSource || "Condition"}>
@@ -940,31 +956,10 @@ function RulesTextInner({
                 ) : null}
                 {feat.abilityScoreIncrease ? (
                   <div className="rules-tooltip-body rules-tooltip-body-secondary">
-                    <strong>Ability Score Increase.</strong>{" "}
-                    <RulesTextInner
-                      text={feat.abilityScoreIncrease}
-                      spellEntries={spellEntries}
-                      featEntries={featEntries}
-                      classEntries={classEntries}
-                      variantRuleEntries={variantRuleEntries}
-                      conditionEntries={conditionEntries}
-                      actionEntries={actionEntries}
-                      disableHover
-                    />
+                    <strong>Ability Score Increase.</strong> {renderNestedText(feat.abilityScoreIncrease)}
                   </div>
                 ) : null}
-                <div className="rules-tooltip-body">
-                  <RulesTextInner
-                    text={feat.description}
-                    spellEntries={spellEntries}
-                    featEntries={featEntries}
-                    classEntries={classEntries}
-                    variantRuleEntries={variantRuleEntries}
-                    conditionEntries={conditionEntries}
-                    actionEntries={actionEntries}
-                    disableHover
-                  />
-                </div>
+                <div className="rules-tooltip-body">{renderNestedText(feat.description)}</div>
               </RulesTooltip>
             ) : null,
             disableHover
@@ -982,18 +977,7 @@ function RulesTextInner({
             className,
             classEntry ? (
               <RulesTooltip title={classEntry.name} subtitle={classEntry.source}>
-                <div className="rules-tooltip-body">
-                  <RulesTextInner
-                    text={classEntry.description}
-                    spellEntries={spellEntries}
-                    featEntries={featEntries}
-                    classEntries={classEntries}
-                    variantRuleEntries={variantRuleEntries}
-                    conditionEntries={conditionEntries}
-                    actionEntries={actionEntries}
-                    disableHover
-                  />
-                </div>
+                <div className="rules-tooltip-body">{renderNestedText(classEntry.description)}</div>
                 {classEntry.features.slice(0, 3).map((feature) => (
                   <div
                     key={`${classEntry.name}-${feature.level}-${feature.name}`}
@@ -1001,17 +985,7 @@ function RulesTextInner({
                   >
                     <strong>
                       Level {feature.level}: {feature.name}.
-                    </strong>{" "}
-                    <RulesTextInner
-                      text={feature.description}
-                      spellEntries={spellEntries}
-                      featEntries={featEntries}
-                      classEntries={classEntries}
-                      variantRuleEntries={variantRuleEntries}
-                      conditionEntries={conditionEntries}
-                      actionEntries={actionEntries}
-                      disableHover
-                    />
+                    </strong> {renderNestedText(feature.description)}
                   </div>
                 ))}
               </RulesTooltip>
@@ -1034,18 +1008,7 @@ function RulesTextInner({
             label,
             action ? (
               <RulesTooltip title={action.name} subtitle={action.source || actionSource || action.category || "Action"}>
-                <div className="rules-tooltip-body rules-tooltip-body-full">
-                  <RulesTextInner
-                    text={action.entries || action.description}
-                    spellEntries={spellEntries}
-                    featEntries={featEntries}
-                    classEntries={classEntries}
-                    variantRuleEntries={variantRuleEntries}
-                    conditionEntries={conditionEntries}
-                    actionEntries={actionEntries}
-                    disableHover
-                  />
-                </div>
+                <div className="rules-tooltip-body rules-tooltip-body-full">{renderNestedText(action.entries || action.description)}</div>
               </RulesTooltip>
             ) : (
               <RulesTooltip title={actionName} subtitle={actionSource || "Action"}>
@@ -1054,6 +1017,102 @@ function RulesTextInner({
                 </div>
               </RulesTooltip>
             ),
+            disableHover
+          );
+        }
+
+        const itemMatch = part.match(/^\{@item ([^}|]+)(?:\|([^}|]+))?(?:\|([^}]+))?}/i);
+
+        if (itemMatch) {
+          const itemName = itemMatch[1].trim();
+          const itemSource = itemMatch[2]?.trim() || "";
+          const label = itemMatch[3]?.trim() || itemName;
+          const item = findReferenceEntryByTag(itemEntries, itemLookup, itemName, itemSource, label);
+
+          return renderLinkedTag(
+            part,
+            index,
+            label,
+            item ? (
+              <RulesTooltip title={item.name} subtitle={item.source || itemSource || item.itemType || "Item"}>
+                <div className="rules-tooltip-meta">
+                  {item.itemType ? <span>{item.itemType}</span> : null}
+                  {item.armorClass > 0 ? <span>AC {item.armorClass}</span> : null}
+                  {item.damage ? <span>{item.damage}{item.damageType ? ` ${item.damageType}` : ""}</span> : null}
+                  {item.range ? <span>{item.range}</span> : null}
+                </div>
+                {item.properties.length > 0 ? <div className="rules-tooltip-body rules-tooltip-body-secondary">{item.properties.join(", ")}</div> : null}
+                <div className="rules-tooltip-body">{renderNestedText(item.entries || item.description)}</div>
+              </RulesTooltip>
+            ) : null,
+            disableHover
+          );
+        }
+
+        const optionalFeatureMatch = part.match(/^\{@optfeature ([^}|]+)(?:\|([^}|]+))?(?:\|([^}]+))?}/i);
+
+        if (optionalFeatureMatch) {
+          const featureName = optionalFeatureMatch[1].trim();
+          const featureSource = optionalFeatureMatch[2]?.trim() || "";
+          const label = optionalFeatureMatch[3]?.trim() || featureName;
+          const feature = findReferenceEntryByTag(optionalFeatureEntries, optionalFeatureLookup, featureName, featureSource, label);
+
+          return renderLinkedTag(
+            part,
+            index,
+            label,
+            feature ? (
+              <RulesTooltip title={feature.name} subtitle={feature.source || featureSource || feature.category || "Optional Feature"}>
+                {feature.prerequisites ? (
+                  <div className="rules-tooltip-meta">
+                    <span>{feature.prerequisites}</span>
+                  </div>
+                ) : null}
+                <div className="rules-tooltip-body">{renderNestedText(feature.entries || feature.description)}</div>
+              </RulesTooltip>
+            ) : null,
+            disableHover
+          );
+        }
+
+        const languageMatch = part.match(/^\{@language ([^}|]+)(?:\|([^}|]+))?(?:\|([^}]+))?}/i);
+
+        if (languageMatch) {
+          const languageName = languageMatch[1].trim();
+          const languageSource = languageMatch[2]?.trim() || "";
+          const label = languageMatch[3]?.trim() || languageName;
+          const language = findReferenceEntryByTag(languageEntries, languageLookup, languageName, languageSource, label);
+
+          return renderLinkedTag(
+            part,
+            index,
+            label,
+            language ? (
+              <RulesTooltip title={language.name} subtitle={language.source || languageSource || language.category || "Language"}>
+                <div className="rules-tooltip-body">{renderNestedText(language.entries || language.description)}</div>
+              </RulesTooltip>
+            ) : null,
+            disableHover
+          );
+        }
+
+        const skillMatch = part.match(/^\{@skill ([^}|]+)(?:\|([^}|]+))?(?:\|([^}]+))?}/i);
+
+        if (skillMatch) {
+          const skillName = skillMatch[1].trim();
+          const skillSource = skillMatch[2]?.trim() || "";
+          const label = skillMatch[3]?.trim() || skillName;
+          const skill = findReferenceEntryByTag(skillEntries, skillLookup, skillName, skillSource, label);
+
+          return renderLinkedTag(
+            part,
+            index,
+            label,
+            skill ? (
+              <RulesTooltip title={skill.name} subtitle={skill.source || skillSource || skill.category || "Skill"}>
+                <div className="rules-tooltip-body">{renderNestedText(skill.entries || skill.description)}</div>
+              </RulesTooltip>
+            ) : null,
             disableHover
           );
         }

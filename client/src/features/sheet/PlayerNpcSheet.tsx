@@ -21,6 +21,7 @@ import type {
 } from "@shared/types";
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 
+import { ModalFrame } from "../../components/ModalFrame";
 import { resolveAssetUrl } from "../../lib/assets";
 import { uploadImageAsset } from "../../services/assetService";
 import { RestDialog } from "./RestDialog";
@@ -1688,8 +1689,8 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
     }
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-        <div className="flex max-h-[80vh] w-full max-w-3xl flex-col border border-amber-700/60 bg-zinc-950">
+      <ModalFrame onClose={() => setPicker(null)} backdropClassName="bg-black/70" panelClassName="max-w-3xl border-amber-700/60 bg-zinc-950">
+        <>
           <div className="flex items-center justify-between border-b border-amber-800/30 px-5 py-4">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-amber-400/80">Compendium</p>
@@ -1708,11 +1709,11 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
               />
             </Field>
           </div>
-          <div className="overflow-y-auto px-5 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
             <div className="space-y-2">{entries}</div>
           </div>
-        </div>
-      </div>
+        </>
+      </ModalFrame>
     );
   }
 

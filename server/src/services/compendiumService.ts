@@ -4,8 +4,15 @@ import type {
   ClassEntry,
   ClassFeatureEntry,
   ClassSubclassEntry,
+  CompendiumAbilityChoice,
+  CompendiumBackgroundEntry,
   CompendiumData,
+  CompendiumEquipmentGroup,
+  CompendiumItemEntry,
+  CompendiumItemGrant,
+  CompendiumOptionalFeatureEntry,
   CompendiumReferenceEntry,
+  CompendiumSpeciesEntry,
   FeatEntry,
   MonsterActionEntry,
   MonsterAttackType,
@@ -40,14 +47,18 @@ export function sanitizeCompendiumEntry(kind: CompendiumKind, input: unknown) {
       return sanitizeBookEntry(input);
     case "variantRules":
     case "conditions":
-    case "optionalFeatures":
     case "actions":
-    case "backgrounds":
-    case "items":
     case "languages":
-    case "races":
     case "skills":
       return sanitizeReferenceEntry(kind, input);
+    case "optionalFeatures":
+      return sanitizeOptionalFeatureEntry(input);
+    case "backgrounds":
+      return sanitizeBackgroundEntry(input);
+    case "items":
+      return sanitizeItemEntry(input);
+    case "races":
+      return sanitizeSpeciesEntry(input);
   }
 }
 
@@ -472,6 +483,9 @@ function sanitizeClassEntry(input: unknown): ClassEntry {
       weapons: readStringArray(startingProficienciesObject?.weapons),
       tools: readStringArray(startingProficienciesObject?.tools)
     },
+    spellcastingAbility: parseAbilityOrNull(object.spellcastingAbility),
+    spellPreparation: parseClassSpellPreparation(object.spellPreparation, readString(object.name)),
+    subclassLevel: clampNullableNumber(object.subclassLevel, 1, 20),
     features: readObjectArray(object.features).map((entry) => ({
       level: clampNumber(entry.level, 1, 20, 1),
       name: requireString(entry.name, "Class feature name"),
@@ -507,6 +521,69 @@ function sanitizeReferenceEntry(
     description: readReferenceDescription(kind, object),
     entries: readReferenceEntriesText(object),
     tags: readReferenceTags(kind, object)
+  };
+}
+
+function sanitizeOptionalFeatureEntry(input: unknown): CompendiumOptionalFeatureEntry {
+  const base = sanitizeReferenceEntry("optionalFeatures", input);
+  const object = asObject(input, "optionalFeatures entry");
+
+  return {
+    ...base,
+    featureTypes: readOptionalFeatureTypeTags(object.featureType),
+    prerequisites: formatExternalFeatPrerequisite(object.prerequisite)
+  };
+}
+
+function sanitizeBackgroundEntry(input: unknown): CompendiumBackgroundEntry {
+  const base = sanitizeReferenceEntry("backgrounds", input);
+  const object = asObject(input, "background entry");
+
+  return {
+    ...base,
+    abilityChoices: readCompendiumAbilityChoices(object.ability),
+    skillProficiencies: readChoiceLabels(object.skillProficiencies),
+    toolProficiencies: readChoiceLabels(object.toolProficiencies),
+    languageProficiencies: readChoiceLabels(object.languageProficiencies),
+    featIds: readExternalFeatIds(object.feats),
+    startingEquipment: readStartingEquipmentGroups(object.startingEquipment)
+  };
+}
+
+function sanitizeItemEntry(input: unknown): CompendiumItemEntry {
+  const base = sanitizeReferenceEntry("items", input);
+  const object = asObject(input, "item entry");
+
+  return {
+    ...base,
+    itemType: readString(object.type),
+    rarity: readString(object.rarity),
+    armorType: readString(object.type) === "LA" ? "light" : readString(object.type) === "MA" ? "medium" : readString(object.type) === "HA" ? "heavy" : readString(object.type) === "S" ? "shield" : "",
+    armorClass: clampNumber(object.ac, 0, 30, 0),
+    maxDexBonus: clampNullableNumber(object.dexterityMax, -5, 20),
+    damage: readString(object.dmg1),
+    damageType: readString(object.dmgType),
+    range: buildItemRange(object),
+    properties: readStringArray(object.property),
+    weight: clampNumber(object.weight, 0, 100000, 0),
+    valueCp: parseItemValueCp(object.value),
+    attunement: readString(object.reqAttune)
+  };
+}
+
+function sanitizeSpeciesEntry(input: unknown): CompendiumSpeciesEntry {
+  const base = sanitizeReferenceEntry("races", input);
+  const object = asObject(input, "species entry");
+  const speed = asOptionalObject(object.speed);
+
+  return {
+    ...base,
+    creatureTypes: readStringArray(object.creatureTypes),
+    sizes: readStringArray(object.size),
+    speed: clampNumber(speed?.walk ?? object.speed, 0, 200, 0),
+    darkvision: clampNumber(object.darkvision, 0, 200, 0),
+    languages: readChoiceLabels(object.languageProficiencies),
+    traitTags: readStringArray(object.traitTags)
   };
 }
 
@@ -608,6 +685,9 @@ function sanitizeExternalClassEntry(object: Record<string, unknown>): ClassEntry
       weapons: readStringArray(starting?.weapons),
       tools: readStringArray(starting?.tools)
     },
+    spellcastingAbility: parseExternalClassSpellcastingAbility(object, requireString(object.name, "Class name")),
+    spellPreparation: parseClassSpellPreparation(object.spellPreparation, requireString(object.name, "Class name")),
+    subclassLevel: readExternalSubclassLevel(subclassEntries),
     features: parseExternalClassFeatures(object.classFeatures, lookup, requireString(object.name, "Class name"), readString(object.source)),
     subclasses: subclassEntries.map((entry) =>
       sanitizeExternalClassSubclassEntry(entry, lookup, requireString(object.name, "Class name"), readString(object.source))
@@ -784,6 +864,240 @@ function readStringArray(value: unknown) {
 
 function readObjectArray(value: unknown) {
   return Array.isArray(value) ? value.filter((entry): entry is Record<string, unknown> => typeof entry === "object" && entry !== null) : [];
+}
+
+function clampNullableNumber(value: unknown, min: number, max: number) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return null;
+  }
+
+  return clampNumber(value, min, max, min);
+}
+
+function parseClassSpellPreparation(value: unknown, className: string): ClassEntry["spellPreparation"] {
+  if (value === "none" || value === "prepared" || value === "known" || value === "spellbook") {
+    return value;
+  }
+
+  switch (className.trim().toLowerCase()) {
+    case "cleric":
+    case "druid":
+    case "paladin":
+    case "artificer":
+      return "prepared";
+    case "wizard":
+      return "spellbook";
+    case "bard":
+    case "ranger":
+    case "sorcerer":
+    case "warlock":
+      return "known";
+    default:
+      return "none";
+  }
+}
+
+function parseExternalClassSpellcastingAbility(object: Record<string, unknown>, className: string) {
+  const explicit = parseAbilityOrNull(object.spellcastingAbility);
+
+  if (explicit) {
+    return explicit;
+  }
+
+  switch (className.trim().toLowerCase()) {
+    case "artificer":
+    case "wizard":
+      return "int";
+    case "cleric":
+    case "druid":
+    case "ranger":
+      return "wis";
+    case "bard":
+    case "paladin":
+    case "sorcerer":
+    case "warlock":
+      return "cha";
+    default:
+      return null;
+  }
+}
+
+function readExternalSubclassLevel(entries: Record<string, unknown>[]) {
+  const levels = entries.flatMap((entry) =>
+    readObjectArray(entry.subclassFeatures)
+      .map((feature) => readExternalClassFeatureLevel(feature.level) ?? readExternalClassFeatureLevel(readString(feature.subclassFeature)))
+      .filter((value): value is number => value !== null)
+  );
+
+  return levels.length > 0 ? Math.min(...levels) : null;
+}
+
+function readCompendiumAbilityChoices(value: unknown): CompendiumAbilityChoice[] {
+  return readObjectArray(value)
+    .flatMap((entry) => {
+      const direct = Object.entries(entry)
+        .filter(([key, amount]) => parseAbilityOrNull(key) && typeof amount === "number")
+        .map(([key, amount]) => ({
+          abilities: [key as AbilityKey],
+          amount: clampNumber(amount, -10, 10, 0),
+          count: 1
+        }));
+
+      if (direct.length > 0) {
+        return direct;
+      }
+
+      const choose = asOptionalObject(entry.choose);
+      if (!choose) {
+        return [];
+      }
+
+      const abilities = readStringArray(choose.from).map(parseAbilityOrNull).filter((entry): entry is AbilityKey => entry !== null);
+
+      if (abilities.length === 0) {
+        return [];
+      }
+
+      return [
+        {
+          abilities,
+          amount: clampNumber(choose.amount, -10, 10, 1),
+          count: clampNumber(choose.count, 1, 6, 1)
+        }
+      ];
+    })
+    .filter((entry) => entry.abilities.length > 0 && entry.amount !== 0);
+}
+
+function readChoiceLabels(value: unknown) {
+  return uniqueStrings(
+    readObjectArray(value).flatMap((entry) => {
+      const direct = Object.entries(entry)
+        .filter(([, enabled]) => enabled === true)
+        .map(([key]) => toTitleCase(extractPipeDisplayName(key)));
+
+      if (direct.length > 0) {
+        return direct;
+      }
+
+      const choose = asOptionalObject(entry.choose);
+      if (choose) {
+        return readStringArray(choose.from).map((option) => toTitleCase(extractPipeDisplayName(option)));
+      }
+
+      return Object.entries(entry)
+        .filter(([, amount]) => typeof amount === "number" && amount > 0)
+        .map(([key, amount]) => `${toTitleCase(key)} (${amount})`);
+    })
+  );
+}
+
+function readExternalFeatIds(value: unknown) {
+  return uniqueStrings(
+    readArray(value).flatMap((entry) => {
+      if (typeof entry === "string") {
+        return [entry.toLowerCase()];
+      }
+
+      if (typeof entry !== "object" || entry === null) {
+        return [];
+      }
+
+      return Object.keys(entry as Record<string, unknown>).map((key) => key.toLowerCase());
+    })
+  );
+}
+
+function readStartingEquipmentGroups(value: unknown): CompendiumEquipmentGroup[] {
+  return readObjectArray(value)
+    .map((entry, groupIndex) => {
+      const optionEntries = Object.entries(entry).filter(([, items]) => Array.isArray(items));
+
+      if (optionEntries.length === 0) {
+        return null;
+      }
+
+      const options = optionEntries.map(([key, items], optionIndex) => ({
+        id: `${groupIndex}:${key}`,
+        label: buildEquipmentLabel(key, optionIndex),
+        items: readEquipmentItemGrants(items)
+      }));
+
+      return {
+        id: `equipment:${groupIndex}`,
+        label: `Equipment ${groupIndex + 1}`,
+        choose: optionEntries.length > 1 ? 1 : 1,
+        options
+      } satisfies CompendiumEquipmentGroup;
+    })
+    .filter((entry): entry is CompendiumEquipmentGroup => entry !== null);
+}
+
+function buildEquipmentLabel(key: string, index: number) {
+  if (key === "_") {
+    return "Default";
+  }
+
+  return `Option ${String.fromCharCode(65 + index)}`;
+}
+
+function readEquipmentItemGrants(value: unknown): CompendiumItemGrant[] {
+  return readArray(value).flatMap((entry) => {
+    if (typeof entry === "string") {
+      return [
+        {
+          itemId: normalizeCompendiumItemId(entry),
+          name: extractPipeDisplayName(entry),
+          quantity: 1,
+          notes: "",
+          equipped: false
+        }
+      ] satisfies CompendiumItemGrant[];
+    }
+
+    if (typeof entry !== "object" || entry === null) {
+      return [] as CompendiumItemGrant[];
+    }
+
+    const object = entry as Record<string, unknown>;
+    const itemRef = readString(object.item);
+    const special = readString(object.special);
+    const name = readString(object.displayName) || (itemRef ? extractPipeDisplayName(itemRef) : special);
+
+    if (!name) {
+      return [];
+    }
+
+    return [
+      {
+        itemId: itemRef ? normalizeCompendiumItemId(itemRef) : undefined,
+        name,
+        quantity: clampNumber(object.quantity, 1, 999, 1),
+        notes: "",
+        equipped: false,
+        containsValueCp: clampNullableNumber(object.containsValue, 0, 1_000_000) ?? undefined
+      }
+    ] satisfies CompendiumItemGrant[];
+  });
+}
+
+function normalizeCompendiumItemId(value: string) {
+  return value.trim().toLowerCase().replace(/\|/g, ":");
+}
+
+function buildItemRange(object: Record<string, unknown>) {
+  const shortRange = readString(object.range);
+  const longRange = readString(object.rangeLong);
+  const parts = [shortRange, longRange].filter(Boolean);
+  return parts.join(" / ");
+}
+
+function parseItemValueCp(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  return 0;
 }
 
 function isImportableRaceReferenceEntry(entry: Record<string, unknown>) {

@@ -179,6 +179,7 @@ export function CampaignPage({
   onUpdateToken
 }: CampaignPageProps) {
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
+  const [rollingInitiative, setRollingInitiative] = useState(false);
 
   function closeBoardMapModal() {
     setIsMapPopupOpen(false);
@@ -200,6 +201,28 @@ export function CampaignPage({
 
   function resolveDialogAvailableActors(mapId?: string) {
     return selectedMap?.id === mapId ? selectedMapAvailableActors : [];
+  }
+
+  async function rollInitiativeForActor(actor: ActorSheet) {
+    await onRoll(buildInitiativeNotation(actor.initiative), `${actor.name} initiative`, actor);
+  }
+
+  async function rollInitiativeForCurrentMap() {
+    const actors = filteredCurrentMapRoster.flatMap((entry) => (entry.actor ? [entry.actor] : []));
+
+    if (actors.length === 0) {
+      return;
+    }
+
+    setRollingInitiative(true);
+
+    try {
+      for (const actor of actors) {
+        await rollInitiativeForActor(actor);
+      }
+    } finally {
+      setRollingInitiative(false);
+    }
   }
 
   function buildCreateActorView(mapId: string): WorkspaceModalView {
@@ -279,7 +302,19 @@ export function CampaignPage({
                   <p className="panel-label">Map</p>
                   <h3>Actors</h3>
                 </div>
-                <span className="badge subtle">{filteredCurrentMapRoster.length}</span>
+                <div className="flex items-center gap-2">
+                  {role === "dm" ? (
+                    <button
+                      type="button"
+                      className="overlay-menu-button"
+                      disabled={rollingInitiative || filteredCurrentMapRoster.length === 0}
+                      onClick={() => void rollInitiativeForCurrentMap()}
+                    >
+                      <span>{rollingInitiative ? "Rolling…" : "Roll Init"}</span>
+                    </button>
+                  ) : null}
+                  <span className="badge subtle">{filteredCurrentMapRoster.length}</span>
+                </div>
               </div>
               <div className="list-stack compact-list">
                 {filteredCurrentMapRoster.map(({ actor, assignment, color, label, imageUrl }) => {
@@ -340,6 +375,11 @@ export function CampaignPage({
                           }}
                         >
                           <span className="overlay-token-name">{label}</span>
+                          {actor ? (
+                            <span className="ml-2 text-[10px] uppercase tracking-[0.2em] text-amber-300/80">
+                              Init {actor.initiativeRoll ?? formatSigned(actor.initiative)}
+                            </span>
+                          ) : null}
                         </button>
                       </div>
                       {actor ? (
@@ -369,7 +409,7 @@ export function CampaignPage({
           </aside>
 
           <aside className="table-overlay table-chat">
-            <ChatPanel messages={campaign.chat} onSend={onSendChat} />
+            <ChatPanel messages={campaign.chat} currentUserId={currentUserId} onSend={onSendChat} />
           </aside>
         </section>
       </main>
@@ -378,12 +418,14 @@ export function CampaignPage({
         <WorkspaceModal
           title={selectedActor ? `${selectedActor.name} Sheet` : "Interactive Sheet"}
           size="wide"
+          backdropClassName="bg-transparent"
           onClose={() => onSetActivePopup(null)}
         >
           <CharacterSheet
             token={token}
             actor={selectedActor ?? undefined}
             compendium={compendium}
+            allowedSourceBooks={campaign.allowedSourceBooks}
             role={role}
             currentUserId={currentUserId}
             onSave={onSaveActor}
@@ -508,4 +550,12 @@ export function CampaignPage({
       ) : null}
     </>
   );
+}
+
+function buildInitiativeNotation(modifier: number) {
+  return modifier >= 0 ? `1d20+${modifier}` : `1d20${modifier}`;
+}
+
+function formatSigned(value: number) {
+  return value >= 0 ? `+${value}` : `${value}`;
 }

@@ -135,11 +135,50 @@ function normalizeCampaign(campaign: Campaign): Campaign {
           ...actor,
           imageUrl: actor.imageUrl ?? "",
           visionRange: actor.visionRange ?? 6,
+          initiativeRoll: typeof (actor as { initiativeRoll?: unknown }).initiativeRoll === "number" ? (actor as { initiativeRoll?: number }).initiativeRoll ?? null : null,
           creatureSize: normalizeCreatureSize(actor.creatureSize),
           tokenWidthSquares: actor.kind === "static" ? clampStaticTokenDimension(actor.tokenWidthSquares ?? 2) : 1,
           tokenLengthSquares: actor.kind === "static" ? clampStaticTokenDimension(actor.tokenLengthSquares ?? 4) : 1,
           classes: Array.isArray(actor.classes) ? actor.classes : [],
+          savingThrowProficiencies: Array.isArray((actor as Partial<typeof actor>).savingThrowProficiencies)
+            ? (actor as Partial<typeof actor>).savingThrowProficiencies!.filter(
+                (entry): entry is "str" | "dex" | "con" | "int" | "wis" | "cha" =>
+                  entry === "str" || entry === "dex" || entry === "con" || entry === "int" || entry === "wis" || entry === "cha"
+              )
+            : [],
+          toolProficiencies: Array.isArray((actor as Partial<typeof actor>).toolProficiencies)
+            ? (actor as Partial<typeof actor>).toolProficiencies!.filter((entry): entry is string => typeof entry === "string")
+            : [],
+          languageProficiencies: Array.isArray((actor as Partial<typeof actor>).languageProficiencies)
+            ? (actor as Partial<typeof actor>).languageProficiencies!.filter((entry): entry is string => typeof entry === "string")
+            : [],
           preparedSpells: Array.isArray(actor.preparedSpells) ? actor.preparedSpells : [],
+          spellState:
+            typeof (actor as Partial<typeof actor>).spellState === "object" && (actor as Partial<typeof actor>).spellState !== null
+              ? {
+                  spellbook: Array.isArray((actor as Partial<typeof actor>).spellState?.spellbook)
+                    ? (actor as Partial<typeof actor>).spellState!.spellbook.filter((entry): entry is string => typeof entry === "string")
+                    : [],
+                  alwaysPrepared: Array.isArray((actor as Partial<typeof actor>).spellState?.alwaysPrepared)
+                    ? (actor as Partial<typeof actor>).spellState!.alwaysPrepared.filter((entry): entry is string => typeof entry === "string")
+                    : [],
+                  atWill: Array.isArray((actor as Partial<typeof actor>).spellState?.atWill)
+                    ? (actor as Partial<typeof actor>).spellState!.atWill.filter((entry): entry is string => typeof entry === "string")
+                    : [],
+                  perShortRest: Array.isArray((actor as Partial<typeof actor>).spellState?.perShortRest)
+                    ? (actor as Partial<typeof actor>).spellState!.perShortRest.filter((entry): entry is string => typeof entry === "string")
+                    : [],
+                  perLongRest: Array.isArray((actor as Partial<typeof actor>).spellState?.perLongRest)
+                    ? (actor as Partial<typeof actor>).spellState!.perLongRest.filter((entry): entry is string => typeof entry === "string")
+                    : []
+                }
+              : {
+                  spellbook: [],
+                  alwaysPrepared: [],
+                  atWill: [],
+                  perShortRest: [],
+                  perLongRest: []
+                },
           bonuses: Array.isArray(actor.bonuses) ? actor.bonuses : [],
           layout: Array.isArray(actor.layout) ? actor.layout : [],
           armorItems: Array.isArray(actor.armorItems)
@@ -164,7 +203,32 @@ function normalizeCampaign(campaign: Campaign): Campaign {
                 equipped: Boolean(item.equipped),
                 notes: item.notes ?? ""
               }))
-            : []
+            : [],
+          conditions: normalizeStatusMarkers((actor as Partial<typeof actor>).conditions),
+          exhaustionLevel:
+            typeof (actor as Partial<typeof actor>).exhaustionLevel === "number"
+              ? Math.max(0, Math.min(6, Math.round((actor as Partial<typeof actor>).exhaustionLevel!)))
+              : 0,
+          concentration: Boolean((actor as Partial<typeof actor>).concentration),
+          deathSaves: (() => {
+            const deathSaves = (actor as Partial<typeof actor>).deathSaves;
+
+            if (typeof deathSaves !== "object" || deathSaves === null) {
+              return { successes: 0, failures: 0, history: [] };
+            }
+
+            return {
+              successes: typeof deathSaves.successes === "number" ? Math.max(0, Math.min(3, Math.round(deathSaves.successes))) : 0,
+              failures: typeof deathSaves.failures === "number" ? Math.max(0, Math.min(3, Math.round(deathSaves.failures))) : 0,
+              history: Array.isArray(deathSaves.history)
+                ? deathSaves.history.filter((entry): entry is "success" | "failure" => entry === "success" || entry === "failure").slice(-3)
+                : []
+            };
+          })(),
+          build:
+            typeof (actor as Partial<typeof actor>).build === "object" && (actor as Partial<typeof actor>).build !== null
+              ? (actor as Partial<typeof actor>).build
+              : undefined
         }))
       : [],
     maps,

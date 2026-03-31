@@ -1,86 +1,49 @@
-import { useEffect, useMemo, useState } from "react";
-import { FilePlus2, Map, MapPinned, ScrollText, Skull, Square, Trash2, User, Users } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Map, MapPinned, ScrollText, Skull, Square, Trash2, User, Users } from "lucide-react";
 
-import type { ActorKind, ActorSheet, CampaignMap, CampaignMember, CampaignSnapshot, MemberRole, MonsterTemplate } from "@shared/types";
+import type { ActorKind, ActorSheet, CampaignMap, CampaignMember, MemberRole } from "@shared/types";
 
-import { CharacterSheet } from "./CharacterSheet";
-import { RulesText } from "./admin/AdminPreview";
 import type { ActorTypeFilter, AvailableActorEntry } from "../features/campaign/types";
 import { CampaignActionButton } from "./CampaignActionButton";
-import { MonsterCatalogOption, MonsterStatBlock } from "./monster/MonsterStatBlock";
 
 interface CampaignActorManagerProps {
-  token: string;
   role: MemberRole;
   currentUserId: string;
   campaignMaps: CampaignMap[];
   campaignMembers: CampaignMember[];
-  compendium: CampaignSnapshot["compendium"];
   selectedActor: ActorSheet | null;
   availableActors: AvailableActorEntry[];
   actorSearch: string;
   actorTypeFilter: ActorTypeFilter;
-  actorCreatorKind: ActorKind;
   actorCreatorOpen: boolean;
-  actorDraft: ActorSheet | null;
-  monsterQuery: string;
-  filteredCatalog: MonsterTemplate[];
-  selectedMonsterTemplate: MonsterTemplate | null;
   onOpenSheet: (actorId: string) => void;
-  onRoll: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
   onActorSearchChange: (value: string) => void;
   onActorTypeFilterChange: (value: ActorTypeFilter) => void;
   onActorCreatorOpenChange: (open: boolean) => void;
-  onActorCreatorKindChange: (kind: ActorKind) => void;
-  onCreateActor: (draft: ActorSheet) => Promise<void>;
-  onMonsterQueryChange: (value: string) => void;
-  onSelectMonster: (monsterId: string) => void;
-  onCreateMonsterActor: (monster: MonsterTemplate) => void;
   onDeleteActor: (actor: ActorSheet) => void;
 }
 
-type MonsterListSort = "name-asc" | "source-asc" | "cr-asc" | "cr-desc";
-
 export function CampaignActorManager({
-  token,
   role,
   currentUserId,
   campaignMaps,
   campaignMembers,
-  compendium,
   selectedActor,
   availableActors,
   actorSearch,
   actorTypeFilter,
-  actorCreatorKind,
   actorCreatorOpen,
-  actorDraft,
-  monsterQuery,
-  filteredCatalog,
-  selectedMonsterTemplate,
   onOpenSheet,
-  onRoll,
   onActorSearchChange,
   onActorTypeFilterChange,
   onActorCreatorOpenChange,
-  onActorCreatorKindChange,
-  onCreateActor,
-  onMonsterQueryChange,
-  onSelectMonster,
-  onCreateMonsterActor,
   onDeleteActor
 }: CampaignActorManagerProps) {
   const [ownerFilter, setOwnerFilter] = useState("__all__");
   const [mapFilter, setMapFilter] = useState("__all__");
-  const [monsterSourceFilter, setMonsterSourceFilter] = useState("");
-  const [monsterCrFilter, setMonsterCrFilter] = useState("");
-  const [monsterTypeFilter, setMonsterTypeFilter] = useState("");
-  const [monsterSort, setMonsterSort] = useState<MonsterListSort>("name-asc");
   const canManageActor = (actor: ActorSheet) => role === "dm" || actor.ownerId === currentUserId;
   const canOpenSheet = (actor: ActorSheet) => role === "dm" || actor.sheetAccess === "full" || actor.ownerId === currentUserId;
   const availableHeading = role === "dm" ? "Available actors" : "Your actors";
-  const monsterLabel = role === "dm" ? "Monster" : "Monster summon / familiar";
-  const monsterActionLabel = role === "dm" ? "Add to roster" : "Create summon / familiar";
   const filteredActors = useMemo(() => {
     if (role !== "dm") {
       return availableActors;
@@ -114,41 +77,6 @@ export function CampaignActorManager({
       return entry.activeMaps.some((map) => map.id === mapFilter);
     });
   }, [availableActors, mapFilter, ownerFilter, role]);
-  const monsterSourceOptions = useMemo(() => uniqueMonsterSourceOptions(filteredCatalog), [filteredCatalog]);
-  const monsterCrOptions = useMemo(() => uniqueMonsterValues(filteredCatalog.map((monster) => monster.challengeRating)), [filteredCatalog]);
-  const monsterTypeOptions = useMemo(() => uniqueMonsterValues(filteredCatalog.map((monster) => monster.creatureType)), [filteredCatalog]);
-  const filteredMonsterCatalog = useMemo(
-    () =>
-      filterAndSortMonsterCatalog(filteredCatalog, {
-        source: monsterSourceFilter,
-        challengeRating: monsterCrFilter,
-        creatureType: monsterTypeFilter,
-        sort: monsterSort
-      }),
-    [filteredCatalog, monsterCrFilter, monsterSort, monsterSourceFilter, monsterTypeFilter]
-  );
-  const shouldCapInitialMonsterList =
-    monsterQuery.trim().length === 0 && monsterSourceFilter.length === 0 && monsterCrFilter.length === 0 && monsterTypeFilter.length === 0;
-  const displayedMonsterCatalog = useMemo(
-    () => (shouldCapInitialMonsterList ? filteredMonsterCatalog.slice(0, 20) : filteredMonsterCatalog),
-    [filteredMonsterCatalog, shouldCapInitialMonsterList]
-  );
-  const visibleSelectedMonsterTemplate = useMemo(
-    () => displayedMonsterCatalog.find((monster) => monster.id === selectedMonsterTemplate?.id) ?? displayedMonsterCatalog[0] ?? null,
-    [displayedMonsterCatalog, selectedMonsterTemplate]
-  );
-
-  useEffect(() => {
-    if (!visibleSelectedMonsterTemplate) {
-      return;
-    }
-
-    if (selectedMonsterTemplate?.id === visibleSelectedMonsterTemplate.id) {
-      return;
-    }
-
-    onSelectMonster(visibleSelectedMonsterTemplate.id);
-  }, [onSelectMonster, selectedMonsterTemplate, visibleSelectedMonsterTemplate]);
 
   return (
     <div className="popup-grid">
@@ -278,201 +206,18 @@ export function CampaignActorManager({
             general roster.
           </p>
         ) : (
-          actorCreatorOpen && (
-            <div className="stack-form">
-              <div className="inline-form compact">
-                <select value={actorCreatorKind} onChange={(event) => onActorCreatorKindChange(event.target.value as ActorKind)}>
-                  <option value="character">Character</option>
-                  <option value="monster">{monsterLabel}</option>
-                </select>
+          <div className="space-y-4">
+            <p className="empty-state">Open the popup to create a new actor. Character and summon creation now use the same modal flow as the board sheet.</p>
+            {!actorCreatorOpen ? null : (
+              <div className="rounded-none border border-amber-200/15 bg-amber-300/8 px-4 py-3 text-sm text-amber-100">
+                The actor creation popup is already open.
               </div>
-
-              {actorCreatorKind === "monster" ? (
-                <div className="popup-grid monster-browser">
-                  <section className="sheet-panel monster-browser-list-panel">
-                    <input
-                      placeholder="Search monsters"
-                      value={monsterQuery}
-                      onChange={(event) => onMonsterQueryChange(event.target.value)}
-                    />
-                    <div className="grid gap-3 md:grid-cols-4">
-                      <label className="grid gap-2 text-sm text-slate-300">
-                        <span>Source</span>
-                        <select value={monsterSourceFilter} onChange={(event) => setMonsterSourceFilter(event.target.value)}>
-                          <option value="">All sources</option>
-                          {monsterSourceOptions.map((option) => (
-                            <option key={option.value} value={option.value} title={option.label}>
-                              {option.value}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="grid gap-2 text-sm text-slate-300">
-                        <span>CR</span>
-                        <select value={monsterCrFilter} onChange={(event) => setMonsterCrFilter(event.target.value)}>
-                          <option value="">All CR</option>
-                          {monsterCrOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="grid gap-2 text-sm text-slate-300">
-                        <span>Type</span>
-                        <select value={monsterTypeFilter} onChange={(event) => setMonsterTypeFilter(event.target.value)}>
-                          <option value="">All monster types</option>
-                          {monsterTypeOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="grid gap-2 text-sm text-slate-300">
-                        <span>Sort</span>
-                        <select value={monsterSort} onChange={(event) => setMonsterSort(event.target.value as MonsterListSort)}>
-                          <option value="name-asc">Name A-Z</option>
-                          <option value="source-asc">Source A-Z</option>
-                          <option value="cr-asc">CR Low-High</option>
-                          <option value="cr-desc">CR High-Low</option>
-                        </select>
-                      </label>
-                    </div>
-                    <div className="actor-list-scroll actor-creation-results">
-                      <div className="monster-list">
-                        {displayedMonsterCatalog.map((monster) => (
-                          <MonsterCatalogOption
-                            key={monster.id}
-                            monster={monster}
-                            selected={visibleSelectedMonsterTemplate?.id === monster.id}
-                            onSelect={() => onSelectMonster(monster.id)}
-                          />
-                        ))}
-                        {displayedMonsterCatalog.length === 0 ? <p className="empty-state">No monsters match those filters.</p> : null}
-                        {shouldCapInitialMonsterList && filteredMonsterCatalog.length > displayedMonsterCatalog.length ? (
-                          <p className="empty-state">Showing the first 20 monsters. Search for it to find more.</p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </section>
-                  <section className="sheet-panel monster-preview-card monster-browser-preview-panel">
-                    {visibleSelectedMonsterTemplate ? (
-                      <MonsterStatBlock
-                        monster={visibleSelectedMonsterTemplate}
-                        eyebrow="Preview"
-                        renderText={(text) => (
-                          <RulesText
-                            text={text}
-                            spellEntries={compendium.spells}
-                            featEntries={compendium.feats}
-                            classEntries={compendium.classes}
-                            variantRuleEntries={compendium.variantRules}
-                            conditionEntries={compendium.conditions}
-                          />
-                        )}
-                        action={
-                          <CampaignActionButton
-                            onClick={() => onCreateMonsterActor(visibleSelectedMonsterTemplate)}
-                            icon={FilePlus2}
-                            tone="accent"
-                          >
-                            {monsterActionLabel}
-                          </CampaignActionButton>
-                        }
-                      />
-                    ) : (
-                      <p className="empty-state">Select a monster to preview its stat block.</p>
-                    )}
-                  </section>
-                </div>
-              ) : (
-                actorDraft && (
-                  <CharacterSheet
-                    token={token}
-                    actor={actorDraft}
-                    compendium={compendium}
-                    role={role}
-                    currentUserId={currentUserId}
-                    onSave={onCreateActor}
-                    onRoll={onRoll}
-                  />
-                )
-              )}
-            </div>
-          )
+            )}
+          </div>
         )}
       </section>
     </div>
   );
-}
-
-function filterAndSortMonsterCatalog(
-  entries: MonsterTemplate[],
-  controls: {
-    source: string;
-    challengeRating: string;
-    creatureType: string;
-    sort: MonsterListSort;
-  }
-) {
-  return [...entries]
-    .filter((entry) => !controls.source || normalizeMonsterSourceId(entry.source) === controls.source)
-    .filter((entry) => !controls.challengeRating || entry.challengeRating === controls.challengeRating)
-    .filter((entry) => !controls.creatureType || entry.creatureType === controls.creatureType)
-    .sort((left, right) => compareMonsterEntries(left, right, controls.sort));
-}
-
-function compareMonsterEntries(left: MonsterTemplate, right: MonsterTemplate, sort: MonsterListSort) {
-  switch (sort) {
-    case "source-asc":
-      return left.source.localeCompare(right.source) || left.name.localeCompare(right.name);
-    case "cr-asc":
-      return (
-        parseChallengeRating(left.challengeRating) - parseChallengeRating(right.challengeRating) || left.name.localeCompare(right.name)
-      );
-    case "cr-desc":
-      return (
-        parseChallengeRating(right.challengeRating) - parseChallengeRating(left.challengeRating) || left.name.localeCompare(right.name)
-      );
-    case "name-asc":
-    default:
-      return left.name.localeCompare(right.name);
-  }
-}
-
-function parseChallengeRating(value: string) {
-  if (value.includes("/")) {
-    const [numerator, denominator] = value.split("/").map((entry) => Number(entry));
-    return denominator ? numerator / denominator : 0;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function normalizeMonsterSourceId(source: string) {
-  return source.split(/\s+p\.\d+/i)[0]?.trim() ?? source.trim();
-}
-
-function uniqueMonsterSourceOptions(entries: MonsterTemplate[]) {
-  const seen = new Set<string>();
-
-  return entries
-    .map((entry) => ({ value: normalizeMonsterSourceId(entry.source), label: entry.source }))
-    .filter((entry) => {
-      if (!entry.value || seen.has(entry.value)) {
-        return false;
-      }
-
-      seen.add(entry.value);
-      return true;
-    })
-    .sort((left, right) => left.label.localeCompare(right.label));
-}
-
-function uniqueMonsterValues(values: string[]) {
-  return [...new Set(values.filter(Boolean))].sort((left, right) => left.localeCompare(right));
 }
 
 function iconForActorKind(kind: ActorKind): typeof User {

@@ -26,6 +26,7 @@ import type {
   MapTeleporter,
   MapWall,
   Point,
+  PlayerNpcBuild,
   ResourceEntry,
   SkillEntry,
   SpellSlotTrack,
@@ -1119,6 +1120,7 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
           spellcasting_ability as spellcastingAbility,
           armor_class as armorClass,
           initiative,
+          initiative_roll as initiativeRoll,
           speed,
           proficiency_bonus as proficiencyBonus,
           inspiration,
@@ -1140,11 +1142,15 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
           currency_ep as currencyEp,
           currency_sp as currencySp,
           currency_cp as currencyCp,
-          notes,
-          color,
-          prepared_spells_json as preparedSpellsJson,
-          layout_json as layoutJson
-        FROM actors
+        notes,
+        color,
+        prepared_spells_json as preparedSpellsJson,
+        layout_json as layoutJson,
+        build_json as buildJson,
+        proficiencies_json as proficienciesJson,
+        spell_state_json as spellStateJson,
+        status_json as statusJson
+      FROM actors
         WHERE campaign_id = ? AND id = ?
         LIMIT 1
       `
@@ -1168,6 +1174,7 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
         spellcastingAbility: AbilityKey;
         armorClass: number;
         initiative: number;
+        initiativeRoll: number | null;
         speed: number;
         proficiencyBonus: number;
         inspiration: number;
@@ -1193,6 +1200,10 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
         color: string;
         preparedSpellsJson: string;
         layoutJson: string;
+        buildJson: string;
+        proficienciesJson: string;
+        spellStateJson: string;
+        statusJson: string;
       }
     | undefined;
   if (!row) {
@@ -1217,6 +1228,7 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
     spellcastingAbility: row.spellcastingAbility,
     armorClass: row.armorClass,
     initiative: row.initiative,
+    initiativeRoll: row.initiativeRoll,
     speed: row.speed,
     proficiencyBonus: row.proficiencyBonus,
     inspiration: toBoolean(row.inspiration),
@@ -1239,10 +1251,12 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
     },
     skills: [],
     classes: [],
+    ...parseStoredActorProficiencies(row.proficienciesJson),
     spellSlots: [],
     features: [],
     spells: [],
     preparedSpells: parseJsonArray<string>(row.preparedSpellsJson),
+    spellState: parseStoredActorSpellState(row.spellStateJson),
     talents: [],
     feats: [],
     bonuses: [],
@@ -1251,6 +1265,7 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
     armorItems: [],
     resources: [],
     inventory: [],
+    ...parseStoredActorStatus(row.statusJson),
     currency: {
       pp: row.currencyPp,
       gp: row.currencyGp,
@@ -1259,7 +1274,8 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
       cp: row.currencyCp
     },
     notes: row.notes,
-    color: row.color
+    color: row.color,
+    build: parseJsonObject<PlayerNpcBuild>(row.buildJson)
   };
   actor.classes = (
     await readAll<{
@@ -1921,11 +1937,11 @@ function prepareCampaignWriteStatements(database: DatabaseSync): CampaignWriteSt
     insertActor: database.prepare(`
       INSERT INTO actors (
         id, campaign_id, sort_order, owner_id, template_id, name, kind, image_url, class_name, species, background, alignment, level,
-        challenge_rating, experience, spellcasting_ability, armor_class, initiative, speed, creature_size, proficiency_bonus, inspiration,
+        challenge_rating, experience, spellcasting_ability, armor_class, initiative, initiative_roll, speed, creature_size, proficiency_bonus, inspiration,
         vision_range, token_width_squares, token_length_squares, hit_points_current, hit_points_max, hit_points_temp, hit_dice, ability_str, ability_dex, ability_con,
         ability_int, ability_wis, ability_cha, currency_pp, currency_gp, currency_ep, currency_sp, currency_cp, notes, color,
-        prepared_spells_json, layout_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        prepared_spells_json, layout_json, build_json, proficiencies_json, spell_state_json, status_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     insertActorClass: database.prepare(`
       INSERT INTO actor_classes (actor_id, id, sort_order, compendium_id, name, source, level, hit_die_faces, used_hit_dice, spellcasting_ability)
@@ -2061,6 +2077,7 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
       actor.spellcastingAbility,
       actor.armorClass,
       actor.initiative,
+      actor.initiativeRoll ?? null,
       actor.speed,
       actor.creatureSize,
       actor.proficiencyBonus,
@@ -2086,7 +2103,20 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
       actor.notes,
       actor.color,
       JSON.stringify(actor.preparedSpells),
-      JSON.stringify(actor.layout)
+      JSON.stringify(actor.layout),
+      JSON.stringify(actor.build ?? null),
+      JSON.stringify({
+        savingThrowProficiencies: actor.savingThrowProficiencies,
+        toolProficiencies: actor.toolProficiencies,
+        languageProficiencies: actor.languageProficiencies
+      }),
+      JSON.stringify(actor.spellState),
+      JSON.stringify({
+        conditions: actor.conditions,
+        exhaustionLevel: actor.exhaustionLevel,
+        concentration: actor.concentration,
+        deathSaves: actor.deathSaves
+      })
     );
     actor.classes.forEach((actorClass, classOrder) => {
       statements.insertActorClass.run(
@@ -2502,6 +2532,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
     spellcastingAbility: AbilityKey;
     armorClass: number;
     initiative: number;
+    initiativeRoll: number | null;
     speed: number;
     proficiencyBonus: number;
     inspiration: number;
@@ -2523,10 +2554,14 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
     currencyEp: number;
     currencySp: number;
     currencyCp: number;
-    notes: string;
-    color: string;
-    preparedSpellsJson: string;
-    layoutJson: string;
+        notes: string;
+        color: string;
+        preparedSpellsJson: string;
+        layoutJson: string;
+        buildJson: string;
+        proficienciesJson: string;
+        spellStateJson: string;
+        statusJson: string;
   }>(
     database,
     `
@@ -2548,6 +2583,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         spellcasting_ability as spellcastingAbility,
         armor_class as armorClass,
         initiative,
+        initiative_roll as initiativeRoll,
         speed,
         proficiency_bonus as proficiencyBonus,
         inspiration,
@@ -2572,7 +2608,11 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         notes,
         color,
         prepared_spells_json as preparedSpellsJson,
-        layout_json as layoutJson
+        layout_json as layoutJson,
+        build_json as buildJson,
+        proficiencies_json as proficienciesJson,
+        spell_state_json as spellStateJson,
+        status_json as statusJson
       FROM actors
       WHERE campaign_id = ?
       ORDER BY sort_order, id
@@ -2598,6 +2638,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
       spellcastingAbility: row.spellcastingAbility,
       armorClass: row.armorClass,
       initiative: row.initiative,
+      initiativeRoll: row.initiativeRoll,
       speed: row.speed,
       proficiencyBonus: row.proficiencyBonus,
       inspiration: toBoolean(row.inspiration),
@@ -2620,10 +2661,12 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
       },
       skills: [],
       classes: [],
+      ...parseStoredActorProficiencies(row.proficienciesJson),
       spellSlots: [],
       features: [],
       spells: [],
       preparedSpells: parseJsonArray<string>(row.preparedSpellsJson),
+      spellState: parseStoredActorSpellState(row.spellStateJson),
       talents: [],
       feats: [],
       bonuses: [],
@@ -2632,6 +2675,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
       armorItems: [],
       resources: [],
       inventory: [],
+      ...parseStoredActorStatus(row.statusJson),
       currency: {
         pp: row.currencyPp,
         gp: row.currencyGp,
@@ -2640,7 +2684,8 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         cp: row.currencyCp
       },
       notes: row.notes,
-      color: row.color
+      color: row.color,
+      build: parseJsonObject<PlayerNpcBuild>(row.buildJson)
     };
     campaign.actors.push(actor);
     actorsById.set(actor.id, actor);
@@ -3483,12 +3528,12 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
       `
         INSERT INTO actors (
           id, campaign_id, sort_order, owner_id, template_id, name, kind, image_url, class_name, species, background, alignment, level,
-          challenge_rating, experience, spellcasting_ability, armor_class, initiative, speed, creature_size, proficiency_bonus, inspiration,
+          challenge_rating, experience, spellcasting_ability, armor_class, initiative, initiative_roll, speed, creature_size, proficiency_bonus, inspiration,
           vision_range, token_width_squares, token_length_squares, hit_points_current, hit_points_max, hit_points_temp, hit_dice, ability_str, ability_dex, ability_con,
           ability_int, ability_wis, ability_cha, currency_pp, currency_gp, currency_ep, currency_sp, currency_cp, notes, color,
-          prepared_spells_json, layout_json
+          prepared_spells_json, layout_json, build_json, proficiencies_json, spell_state_json, status_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           campaign_id = excluded.campaign_id,
           sort_order = excluded.sort_order,
@@ -3507,6 +3552,7 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
           spellcasting_ability = excluded.spellcasting_ability,
           armor_class = excluded.armor_class,
           initiative = excluded.initiative,
+          initiative_roll = excluded.initiative_roll,
           speed = excluded.speed,
           creature_size = excluded.creature_size,
           proficiency_bonus = excluded.proficiency_bonus,
@@ -3532,7 +3578,11 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
           notes = excluded.notes,
           color = excluded.color,
           prepared_spells_json = excluded.prepared_spells_json,
-          layout_json = excluded.layout_json
+          layout_json = excluded.layout_json,
+          build_json = excluded.build_json,
+          proficiencies_json = excluded.proficiencies_json,
+          spell_state_json = excluded.spell_state_json,
+          status_json = excluded.status_json
       `
     )
     .run(
@@ -3554,6 +3604,7 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
       actor.spellcastingAbility,
       actor.armorClass,
       actor.initiative,
+      actor.initiativeRoll ?? null,
       actor.speed,
       actor.creatureSize,
       actor.proficiencyBonus,
@@ -3579,7 +3630,20 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
       actor.notes,
       actor.color,
       JSON.stringify(actor.preparedSpells),
-      JSON.stringify(actor.layout)
+      JSON.stringify(actor.layout),
+      JSON.stringify(actor.build ?? null),
+      JSON.stringify({
+        savingThrowProficiencies: actor.savingThrowProficiencies,
+        toolProficiencies: actor.toolProficiencies,
+        languageProficiencies: actor.languageProficiencies
+      }),
+      JSON.stringify(actor.spellState),
+      JSON.stringify({
+        conditions: actor.conditions,
+        exhaustionLevel: actor.exhaustionLevel,
+        concentration: actor.concentration,
+        deathSaves: actor.deathSaves
+      })
     );
   database.prepare("DELETE FROM actor_classes WHERE actor_id = ?").run(actor.id);
   database.prepare("DELETE FROM actor_skills WHERE actor_id = ?").run(actor.id);
@@ -4182,10 +4246,20 @@ function createRealtimeActorShell(
     },
     skills: [],
     classes: [],
+    savingThrowProficiencies: [],
+    toolProficiencies: [],
+    languageProficiencies: [],
     spellSlots: [],
     features: [],
     spells: [],
     preparedSpells: [],
+    spellState: {
+      spellbook: [],
+      alwaysPrepared: [],
+      atWill: [],
+      perShortRest: [],
+      perLongRest: []
+    },
     talents: [],
     feats: [],
     bonuses: [],
@@ -4194,6 +4268,14 @@ function createRealtimeActorShell(
     armorItems: [],
     resources: [],
     inventory: [],
+    conditions: [],
+    exhaustionLevel: 0,
+    concentration: false,
+    deathSaves: {
+      successes: 0,
+      failures: 0,
+      history: []
+    },
     currency: {
       pp: 0,
       gp: 0,
@@ -4212,4 +4294,119 @@ function parseJsonArray<T>(raw: string) {
   } catch {
     return [];
   }
+}
+
+function parseJsonObject<T>(raw: string): T | undefined {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as T) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseStoredActorProficiencies(raw: string) {
+  const parsed =
+    parseJsonObject<{
+      savingThrowProficiencies?: unknown;
+      toolProficiencies?: unknown;
+      languageProficiencies?: unknown;
+    }>(raw) ?? {};
+
+  return {
+    savingThrowProficiencies: normalizeStoredAbilityKeys(parsed.savingThrowProficiencies),
+    toolProficiencies: normalizeStoredStringArray(parsed.toolProficiencies),
+    languageProficiencies: normalizeStoredStringArray(parsed.languageProficiencies)
+  };
+}
+
+function parseStoredActorSpellState(raw: string): ActorSheet["spellState"] {
+  const parsed =
+    parseJsonObject<{
+      spellbook?: unknown;
+      alwaysPrepared?: unknown;
+      atWill?: unknown;
+      perShortRest?: unknown;
+      perLongRest?: unknown;
+    }>(raw) ?? {};
+
+  return {
+    spellbook: normalizeStoredStringArray(parsed.spellbook),
+    alwaysPrepared: normalizeStoredStringArray(parsed.alwaysPrepared),
+    atWill: normalizeStoredStringArray(parsed.atWill),
+    perShortRest: normalizeStoredStringArray(parsed.perShortRest),
+    perLongRest: normalizeStoredStringArray(parsed.perLongRest)
+  };
+}
+
+function parseStoredActorStatus(raw: string) {
+  const parsed =
+    parseJsonObject<{
+      conditions?: unknown;
+      exhaustionLevel?: unknown;
+      concentration?: unknown;
+      deathSaves?: unknown;
+    }>(raw) ?? {};
+  const deathSaves =
+    parsed.deathSaves && typeof parsed.deathSaves === "object"
+      ? (parsed.deathSaves as Partial<ActorSheet["deathSaves"]>)
+      : {};
+
+  return {
+    conditions: normalizeStoredTokenStatusArray(parsed.conditions),
+    exhaustionLevel:
+      typeof parsed.exhaustionLevel === "number" && Number.isFinite(parsed.exhaustionLevel)
+        ? Math.max(0, Math.min(6, Math.round(parsed.exhaustionLevel)))
+        : 0,
+    concentration: Boolean(parsed.concentration),
+    deathSaves: {
+      successes:
+        typeof deathSaves.successes === "number" && Number.isFinite(deathSaves.successes)
+          ? Math.max(0, Math.min(3, Math.round(deathSaves.successes)))
+          : 0,
+      failures:
+        typeof deathSaves.failures === "number" && Number.isFinite(deathSaves.failures)
+          ? Math.max(0, Math.min(3, Math.round(deathSaves.failures)))
+          : 0,
+      history: Array.isArray(deathSaves.history)
+        ? deathSaves.history.filter((entry): entry is "success" | "failure" => entry === "success" || entry === "failure").slice(-3)
+        : []
+    }
+  };
+}
+
+function normalizeStoredStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map((entry) => (typeof entry === "string" ? entry.trim() : "")).filter(Boolean);
+}
+
+function normalizeStoredAbilityKeys(value: unknown): AbilityKey[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value.filter(
+        (entry): entry is AbilityKey =>
+          entry === "str" || entry === "dex" || entry === "con" || entry === "int" || entry === "wis" || entry === "cha"
+      )
+    )
+  );
+}
+
+function normalizeStoredTokenStatusArray(value: unknown): ActorSheet["conditions"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const allowed = new Set<string>(TOKEN_STATUS_MARKERS);
+  return Array.from(
+    new Set(
+      value.filter((entry): entry is ActorSheet["conditions"][number] => typeof entry === "string" && allowed.has(entry))
+    )
+  );
 }

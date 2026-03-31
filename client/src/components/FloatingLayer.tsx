@@ -1,4 +1,4 @@
-import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 export interface FloatingAnchor {
@@ -8,7 +8,7 @@ export interface FloatingAnchor {
   height: number;
 }
 
-type FloatingPlacement = "top-start" | "bottom-start";
+type FloatingPlacement = "top-start" | "bottom-start" | "left-start" | "right-start";
 
 interface FloatingLayerProps {
   anchor: FloatingAnchor | null;
@@ -51,14 +51,43 @@ export function FloatingLayer({
     zIndex
   });
 
-  useLayoutEffect(() => {
+  const buildStyle = useCallback(() => {
     if (!anchor || !panelRef.current || typeof window === "undefined") {
-      return;
+      return {
+        position: "fixed",
+        left: margin,
+        top: margin,
+        visibility: "hidden",
+        zIndex
+      } satisfies CSSProperties;
     }
 
     const panelRect = panelRef.current.getBoundingClientRect();
     const maxLeft = Math.max(margin, window.innerWidth - panelRect.width - margin);
     const maxTop = Math.max(margin, window.innerHeight - panelRect.height - margin);
+    const horizontalTop = Math.min(Math.max(margin, anchor.top), maxTop);
+    const leftStart = anchor.left - panelRect.width - offset;
+    const rightStart = anchor.left + anchor.width + offset;
+
+    if (placement === "left-start" || placement === "right-start") {
+      const preferredLeft =
+        placement === "left-start"
+          ? leftStart >= margin || window.innerWidth - rightStart < leftStart - margin
+            ? leftStart
+            : rightStart
+          : rightStart <= maxLeft || anchor.left - offset - panelRect.width < margin
+            ? rightStart
+            : leftStart;
+
+      return {
+        position: "fixed",
+        left: Math.min(Math.max(margin, preferredLeft), maxLeft),
+        top: horizontalTop,
+        visibility: "visible",
+        zIndex
+      } satisfies CSSProperties;
+    }
+
     const preferredLeft = anchor.left;
     const topStart = anchor.top - panelRect.height - offset;
     const bottomStart = anchor.top + anchor.height + offset;
@@ -67,14 +96,22 @@ export function FloatingLayer({
         ? topStart >= margin || window.innerHeight - bottomStart < topStart - margin
         : !(bottomStart <= maxTop || anchor.top - offset - panelRect.height < margin);
 
-    setStyle({
+    return {
       position: "fixed",
       left: Math.min(Math.max(margin, preferredLeft), maxLeft),
       top: shouldUseTop ? Math.min(Math.max(margin, topStart), maxTop) : Math.min(Math.max(margin, bottomStart), maxTop),
       visibility: "visible",
       zIndex
-    });
-  }, [anchor, margin, offset, placement, zIndex, children]);
+    } satisfies CSSProperties;
+  }, [anchor, margin, offset, placement, zIndex]);
+
+  useLayoutEffect(() => {
+    if (!anchor || !panelRef.current || typeof window === "undefined") {
+      return;
+    }
+
+    setStyle(buildStyle());
+  }, [anchor, buildStyle, children]);
 
   useEffect(() => {
     if (!anchor || typeof window === "undefined") {
@@ -86,24 +123,7 @@ export function FloatingLayer({
         return;
       }
 
-      const panelRect = panelRef.current.getBoundingClientRect();
-      const maxLeft = Math.max(margin, window.innerWidth - panelRect.width - margin);
-      const maxTop = Math.max(margin, window.innerHeight - panelRect.height - margin);
-      const preferredLeft = anchor.left;
-      const topStart = anchor.top - panelRect.height - offset;
-      const bottomStart = anchor.top + anchor.height + offset;
-      const shouldUseTop =
-        placement === "top-start"
-          ? topStart >= margin || window.innerHeight - bottomStart < topStart - margin
-          : !(bottomStart <= maxTop || anchor.top - offset - panelRect.height < margin);
-
-      setStyle({
-        position: "fixed",
-        left: Math.min(Math.max(margin, preferredLeft), maxLeft),
-        top: shouldUseTop ? Math.min(Math.max(margin, topStart), maxTop) : Math.min(Math.max(margin, bottomStart), maxTop),
-        visibility: "visible",
-        zIndex
-      });
+      setStyle(buildStyle());
     };
 
     window.addEventListener("resize", syncPosition);
@@ -112,7 +132,7 @@ export function FloatingLayer({
       window.removeEventListener("resize", syncPosition);
       window.removeEventListener("scroll", syncPosition, true);
     };
-  }, [anchor, margin, offset, placement, zIndex]);
+  }, [anchor, buildStyle]);
 
   if (!anchor || typeof document === "undefined") {
     return null;

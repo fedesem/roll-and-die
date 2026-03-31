@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { ModalFrame } from "./ModalFrame";
+
 export type WorkspaceModalSize = "default" | "compact" | "wide" | "full";
 
 export interface WorkspaceModalControls {
@@ -23,12 +25,14 @@ type WorkspaceModalProps =
       title: string;
       onClose: () => void;
       size?: WorkspaceModalSize;
+      backdropClassName?: string;
       children: ReactNode;
       initialView?: never;
     }
   | {
       onClose: () => void;
       initialView: WorkspaceModalView;
+      backdropClassName?: string;
       children: (controls: WorkspaceModalControls) => ReactNode;
       title?: never;
       size?: never;
@@ -103,6 +107,7 @@ export function WorkspaceModal(props: WorkspaceModalProps) {
     closeModal: onClose
   };
   const sizeClass = getSizeClass(currentView.size ?? "default");
+  const backdropClassName = props.backdropClassName ?? "bg-slate-950/70 backdrop-blur-md";
   let content: ReactNode;
 
   if (stackMode) {
@@ -113,13 +118,8 @@ export function WorkspaceModal(props: WorkspaceModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-md" onClick={closeCurrentView}>
-      <section
-        className={`flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-none border border-amber-200/12 bg-[linear-gradient(180deg,rgba(18,20,28,0.98),rgba(10,12,16,0.98))] shadow-[0_28px_90px_rgba(0,0,0,0.4)] ${sizeClass}`}
-        onClick={(event) => {
-          event.stopPropagation();
-        }}
-      >
+    <ModalFrame onClose={closeCurrentView} backdropClassName={backdropClassName} panelClassName={sizeClass}>
+      <>
         <div className="flex items-center justify-between gap-4 border-b border-white/8 px-6 py-4">
           <h2 className="font-serif text-2xl tracking-wide text-amber-50">{currentView.title}</h2>
           <button
@@ -131,8 +131,8 @@ export function WorkspaceModal(props: WorkspaceModalProps) {
             <span aria-hidden="true">X</span>
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto px-6 py-5">{content}</div>
-      </section>
-    </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">{content}</div>
+      </>
+    </ModalFrame>
   );
 }
