@@ -236,46 +236,80 @@ export function PlayerNpcSheet2024({
   });
   const [featToAdd, setFeatToAdd] = useState("");
   const [longRestPreparedSpells, setLongRestPreparedSpells] = useState<string[]>([]);
-  const lastMainAutosaveRef = useRef<string>("");
+  const draftRef = useRef<ActorSheet>(draft);
+  const actorSyncSignature = useMemo(() => JSON.stringify(actor), [actor]);
+  const actorSnapshot = useMemo(() => cloneActor(actor), [actor]);
+  const actorIdRef = useRef(actor.id);
+  const lastActorSyncSignatureRef = useRef(actorSyncSignature);
+  const lastMainAutosaveRef = useRef<string>(JSON.stringify(buildMainAutosaveState(actor)));
 
   useEffect(() => {
-    setDraft(cloneActor(actor));
-    setActiveTab(defaultTabForActor(actor));
-    setSaving(false);
-    setImageError(null);
-    setRollMode("normal");
-    setShortRestOpen(false);
-    setLongRestOpen(false);
-    setHitDiceSelections({});
-    setGuidedFlowOpen(false);
-    setGuidedFlowMode("setup");
-    setGuidedClassId("");
-    setGuideError(null);
-    setSpellSelectionTarget(null);
-    setGuidedSetup({
-      speciesId: "",
-      backgroundId: "",
-      classId: "",
-      subclassId: "",
-      classFeatIds: [],
-      optionalFeatureIds: [],
-      cantripIds: [],
-      knownSpellIds: [],
-      spellbookSpellIds: [],
-      expertiseSkillChoices: [],
-      asiMode: "feat",
-      asiFeatId: "",
-      asiAbilityChoices: [],
-      speciesSkillChoice: "",
-      speciesOriginFeatId: "",
-      originFeatId: "",
-      equipmentChoiceIds: {},
-      abilityChoices: []
-    });
-    setFeatToAdd("");
-    setLongRestPreparedSpells([]);
-    lastMainAutosaveRef.current = JSON.stringify(buildMainAutosaveState(actor));
-  }, [actor]);
+    draftRef.current = draft;
+  }, [draft]);
+
+  useEffect(() => {
+    const actorChanged = actorIdRef.current !== actorSnapshot.id;
+    const actorContentChanged = lastActorSyncSignatureRef.current !== actorSyncSignature;
+    actorIdRef.current = actorSnapshot.id;
+    lastActorSyncSignatureRef.current = actorSyncSignature;
+
+    if (!actorChanged && !actorContentChanged) {
+      return;
+    }
+
+    if (actorChanged) {
+      setDraft(actorSnapshot);
+      draftRef.current = actorSnapshot;
+      setActiveTab(defaultTabForActor(actorSnapshot));
+      setSaving(false);
+      setImageError(null);
+      setRollMode("normal");
+      setShortRestOpen(false);
+      setLongRestOpen(false);
+      setHitDiceSelections({});
+      setGuidedFlowOpen(false);
+      setGuidedFlowMode("setup");
+      setGuidedClassId("");
+      setGuideError(null);
+      setSpellSelectionTarget(null);
+      setGuidedSetup({
+        speciesId: "",
+        backgroundId: "",
+        classId: "",
+        subclassId: "",
+        classFeatIds: [],
+        optionalFeatureIds: [],
+        cantripIds: [],
+        knownSpellIds: [],
+        spellbookSpellIds: [],
+        expertiseSkillChoices: [],
+        asiMode: "feat",
+        asiFeatId: "",
+        asiAbilityChoices: [],
+        speciesSkillChoice: "",
+        speciesOriginFeatId: "",
+        originFeatId: "",
+        equipmentChoiceIds: {},
+        abilityChoices: []
+      });
+      setFeatToAdd("");
+      setLongRestPreparedSpells([]);
+      lastMainAutosaveRef.current = JSON.stringify(buildMainAutosaveState(actorSnapshot));
+      return;
+    }
+
+    const incomingMainSignature = JSON.stringify(buildMainAutosaveState(actorSnapshot));
+    const localMainSignature = JSON.stringify(buildMainAutosaveState(draftRef.current));
+
+    if (sheetContext === "board" && activeTab === "main" && (incomingMainSignature === lastMainAutosaveRef.current || incomingMainSignature === localMainSignature)) {
+      lastMainAutosaveRef.current = incomingMainSignature;
+      return;
+    }
+
+    setDraft(actorSnapshot);
+    draftRef.current = actorSnapshot;
+    lastMainAutosaveRef.current = incomingMainSignature;
+  }, [actorSnapshot, actorSyncSignature, activeTab, sheetContext]);
 
   const canEdit = role === "dm" || actor.ownerId === currentUserId;
   const canRoll = role === "dm" || actor.ownerId === currentUserId;
@@ -749,12 +783,15 @@ export function PlayerNpcSheet2024({
           preparableSpellNames: nextSpellCollections.preparable
         });
 
+        lastMainAutosaveRef.current = JSON.stringify(buildMainAutosaveState(finalizedActor));
+        setDraft(finalizedActor);
+        draftRef.current = finalizedActor;
+
         if (sheetContext === "board" && activeTab === "main" && onRealtimeSave) {
           await onRealtimeSave(finalizedActor);
         } else {
           await onSave(finalizedActor);
         }
-        lastMainAutosaveRef.current = JSON.stringify(buildMainAutosaveState(nextDraft));
       } finally {
         setSaving(false);
       }
@@ -763,7 +800,7 @@ export function PlayerNpcSheet2024({
   );
 
   useEffect(() => {
-    if (!canEdit || !mainTabInteractive || activeTab !== "main" || guidedFlowOpen || shortRestOpen || longRestOpen) {
+    if (!canEdit || !mainTabInteractive || activeTab !== "main" || guidedFlowOpen || shortRestOpen || longRestOpen || saving) {
       return;
     }
 
@@ -787,6 +824,7 @@ export function PlayerNpcSheet2024({
     longRestOpen,
     mainTabInteractive,
     mainAutosaveSignature,
+    saving,
     saveCurrent,
     shortRestOpen
   ]);
