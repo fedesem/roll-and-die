@@ -1,0 +1,53 @@
+.root {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 9999px;
+  background: transparent;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+
+.root:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgb(255 255 255 / 0.2);
+  background: transparent;
+}
+
+.root:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.sm {
+  width: 18px;
+  height: 18px;
+}
+
+.xs {
+  width: 16px;
+  height: 16px;
+}
+
+.md {
+  width: 22px;
+  height: 22px;
+}
+
+.checked {
+  border-color: rgb(245 158 11);
+  background: rgb(245 158 11);
+}
+
+.checked:hover {
+  border-color: rgb(245 158 11);
+  background: rgb(245 158 11);
+}

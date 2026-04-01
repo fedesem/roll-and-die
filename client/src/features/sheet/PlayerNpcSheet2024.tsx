@@ -1,7 +1,9 @@
 import {
   Backpack,
+  Clock3,
   BookOpen,
   Brain,
+  Moon,
   Coins,
   Dice6,
   Edit3,
@@ -47,6 +49,7 @@ import type {
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 
 import { RulesText } from "../../components/admin/AdminPreview";
+import { CircleToggle } from "../../components/CircleToggle";
 import { FloatingLayer, anchorFromRect, type FloatingAnchor } from "../../components/FloatingLayer";
 import { IconButton } from "../../components/IconButton";
 import { ModalFrame } from "../../components/ModalFrame";
@@ -868,12 +871,45 @@ export function PlayerNpcSheet2024({
 
   useWorkspaceModalHeader(
     hasMainTab ? (
-      <div className="flex items-center gap-3">
-        <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-slate-900/90 p-1">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <IconButton
+          icon={<Edit3 size={12} />}
+          label="Toggle edit mode"
+          active={activeTab === "edit"}
+          onClick={() => setActiveTab(activeTab === "edit" ? "main" : "edit")}
+          size="sm"
+        />
+        <button
+          type="button"
+          className={headerRestButtonClass}
+          onClick={() => void startShortRest()}
+          disabled={!mainTabInteractive}
+          title="Short Rest"
+          aria-label="Short Rest"
+        >
+          <span className={headerRestButtonInnerClass}>
+            <Clock3 size={10} />
+            <span>SR</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          className={headerRestButtonClass}
+          onClick={() => startLongRest()}
+          disabled={!mainTabInteractive}
+          title="Long Rest"
+          aria-label="Long Rest"
+        >
+          <span className={headerRestButtonInnerClass}>
+            <Moon size={10} />
+            <span>LR</span>
+          </span>
+        </button>
+        <div className="inline-flex items-center gap-0.5 rounded-full border border-white/10 bg-slate-900/90 p-0.5">
           {(["normal", "advantage", "disadvantage"] as const).map((mode) => (
             <label
               key={mode}
-              className={`rounded-full px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.16em] transition ${
+              className={`rounded-full px-2 py-[3px] text-[9px] font-medium uppercase tracking-[0.14em] transition ${
                 mainTabInteractive ? "cursor-pointer" : "cursor-default opacity-50"
               } ${
                 rollMode === mode ? "bg-slate-100 text-slate-950" : "text-slate-200 hover:bg-slate-800 hover:text-white"
@@ -884,7 +920,6 @@ export function PlayerNpcSheet2024({
             </label>
           ))}
         </div>
-        <IconButton icon={<Edit3 size={14} />} label="Toggle edit mode" active={activeTab === "edit"} onClick={() => setActiveTab(activeTab === "edit" ? "main" : "edit")} />
       </div>
     ) : null
   );
@@ -1257,7 +1292,17 @@ export function PlayerNpcSheet2024({
                 <div className="flex min-w-0 items-center gap-3">
                   <PortraitCard actor={draft} compact />
                   <div className="min-w-0">
-                    <h3 className="truncate font-serif text-xl text-amber-50">{draft.name || "Unnamed Actor"}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="truncate font-serif text-xl text-amber-50">{draft.name || "Unnamed Actor"}</h3>
+                      <div className="flex items-center gap-1">
+                        <CircleToggle
+                          checked={draft.inspiration}
+                          label={draft.inspiration ? "Inspiration active" : "Inspiration inactive"}
+                          onClick={() => updateField("inspiration", !draft.inspiration)}
+                        />
+                        <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-zinc-400">INS</span>
+                      </div>
+                    </div>
                     <p className="truncate text-xs text-zinc-400">{[draft.species || "No species", draft.className || "No class", draft.background || "No background"].join(" • ")}</p>
                   </div>
                 </div>
@@ -1275,26 +1320,13 @@ export function PlayerNpcSheet2024({
                 <CompactStatChip label="Spell DC" value={String(spellSave)} />
                 <CompactStatChip label="Spell Attack" value={formatModifier(spellAttack)} onClick={() => void handleRoll(spellAttack, "spell attack")} />
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                <button type="button" className={miniButtonClass} onClick={() => void startShortRest()}>
-                  Short Rest
-                </button>
-                <button type="button" className={miniButtonClass} onClick={() => startLongRest()}>
-                  Long Rest
-                </button>
-              </div>
-              <div className="grid gap-1.5 sm:grid-cols-[auto,minmax(0,1fr)] sm:items-end">
-                <button type="button" className={miniButtonClass} onClick={() => updateField("inspiration", !draft.inspiration)}>
-                  Inspiration {draft.inspiration ? "On" : "Off"}
-                </button>
-                <div className="min-w-0 sm:min-w-[200px]">
-                  <ExhaustionTrack
-                    level={draft.exhaustionLevel}
-                    onChange={(level) => updateField("exhaustionLevel", level)}
-                    condition={exhaustionCondition}
-                    renderText={renderRulesText}
-                  />
-                </div>
+              <div className="min-w-0">
+                <ExhaustionTrack
+                  level={draft.exhaustionLevel}
+                  onChange={(level) => updateField("exhaustionLevel", level)}
+                  condition={exhaustionCondition}
+                  renderText={renderRulesText}
+                />
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 <Field label="XP" hint="Experience points earned by this actor.">
@@ -1419,7 +1451,12 @@ export function PlayerNpcSheet2024({
                 <label className="border border-white/8 bg-black/20 px-2 py-2 text-zinc-100">
                   <p className="text-[9px] uppercase tracking-[0.18em] text-amber-400/80">Concentration</p>
                   <div className="mt-1 flex items-center gap-2">
-                    <input type="checkbox" checked={draft.concentration} onChange={(event) => updateField("concentration", event.target.checked)} />
+                    <CircleToggle
+                      checked={draft.concentration}
+                      label={draft.concentration ? "Concentration active" : "Concentration inactive"}
+                      onClick={() => updateField("concentration", !draft.concentration)}
+                      size="xs"
+                    />
                     <span className="text-sm font-medium text-amber-50">{draft.concentration ? "Active" : "Off"}</span>
                   </div>
                 </label>
@@ -5043,11 +5080,12 @@ function UsableTrack({
         const isAvailable = index < available;
 
         return (
-          <button
+          <CircleToggle
             key={index}
-            type="button"
-            className={`h-5 w-5 rounded-full border transition ${isAvailable ? "border-amber-500 bg-amber-500" : "border-white/15 bg-transparent"}`}
+            checked={isAvailable}
+            label={isAvailable ? `Use charge ${index + 1}` : `Restore charge ${index + 1}`}
             onClick={() => onChange(isAvailable ? index : index + 1)}
+            className="h-5 w-5"
           />
         );
       })}
@@ -5162,5 +5200,9 @@ const textareaClassCompact =
   "w-full border border-white/10 bg-black/20 px-2 py-1.5 text-xs text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-amber-500/70";
 const actionButtonClass = "border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-zinc-200 transition hover:border-amber-500/70 hover:text-amber-50";
 const secondaryButtonClass = "inline-flex items-center gap-2 border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-zinc-200 transition hover:border-amber-500/70 hover:text-amber-50";
+const headerRestButtonClass =
+  "inline-flex h-7 w-[36px] shrink-0 appearance-none items-center justify-center border border-white/10 bg-transparent p-0 text-zinc-300 transition hover:border-amber-500/70 hover:text-amber-50 disabled:cursor-not-allowed disabled:opacity-40";
+const headerRestButtonInnerClass =
+  "inline-flex items-center justify-center gap-[2px] px-[1px] text-[10px] font-medium uppercase leading-none tracking-normal";
 const miniButtonClass =
   "inline-flex items-center justify-center gap-1 border border-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.14em] text-zinc-300 transition hover:border-amber-500/70 hover:text-amber-50 disabled:cursor-not-allowed disabled:opacity-40";
