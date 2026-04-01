@@ -302,8 +302,8 @@ describe("CampaignBoardRouteContent chat integration", () => {
     const initialMessages = createMessages();
     const { rerender } = renderBoardRoute(initialMessages);
 
-    expect(await screen.findByText("hello room")).not.toBeNull();
     expect(await screen.findByText("Character Sheet Stub")).not.toBeNull();
+    expect(await screen.findByText("hello room")).not.toBeNull();
 
     const nextMessages: ChatMessage[] = [
       ...initialMessages,

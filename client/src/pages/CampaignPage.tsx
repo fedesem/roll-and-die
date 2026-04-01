@@ -24,8 +24,8 @@ import { CampaignMapEditor } from "../components/CampaignMapEditor";
 import { CampaignMapManager } from "../components/CampaignMapManager";
 import { CampaignMapRoster } from "../components/CampaignMapRoster";
 import { CharacterSheet } from "../components/CharacterSheet";
-import { ChatPanel } from "../components/ChatPanel";
 import { WorkspaceModal, type WorkspaceModalView } from "../components/WorkspaceModal";
+import { BoardChatLayer } from "../features/campaign/BoardChatLayer";
 import type { AvailableActorEntry, CurrentMapRosterEntry, TokenUpdatePatch } from "../features/campaign/types";
 import { resolveAssetUrl } from "../lib/assets";
 
@@ -410,11 +410,7 @@ export function CampaignPage({
             </section>
           </aside>
 
-          {activePopup !== "sheet" ? (
-            <aside className="table-overlay table-chat">
-              <ChatPanel key="docked-chat" messages={campaign.chat} currentUserId={currentUserId} onSend={onSendChat} />
-            </aside>
-          ) : null}
+          <BoardChatLayer messages={campaign.chat} currentUserId={currentUserId} onSend={onSendChat} sheetOpen={activePopup === "sheet"} />
         </section>
       </main>
 

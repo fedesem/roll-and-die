@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { clientRoomMessageSchema, serverRoomMessageSchema } from "@shared/contracts/realtime";
 import type {
@@ -87,30 +87,22 @@ export function useRoomConnection({
 
         if (message.type === "room:snapshot") {
           onStatusChange("online");
-          startTransition(() => {
-            onSnapshot(message.snapshot);
-          });
+          onSnapshot(message.snapshot);
           return;
         }
 
         if (message.type === "room:campaign-patch") {
-          startTransition(() => {
-            onCampaignPatch(message.patch);
-          });
+          onCampaignPatch(message.patch);
           return;
         }
 
         if (message.type === "room:token-moved") {
-          startTransition(() => {
-            onTokenMoved(message.update);
-          });
+          onTokenMoved(message.update);
           return;
         }
 
         if (message.type === "room:door-toggled") {
-          startTransition(() => {
-            onDoorToggled(message.update);
-          });
+          onDoorToggled(message.update);
           return;
         }
 
