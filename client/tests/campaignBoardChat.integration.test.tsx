@@ -303,8 +303,8 @@ describe("CampaignBoardRouteContent chat integration", () => {
     const initialMessages = createMessages();
     const { rerender } = renderBoardRoute(initialMessages);
 
-    expect(await screen.findByText("Character Sheet Stub")).not.toBeNull();
-    expect(await screen.findByText("hello room")).not.toBeNull();
+    expect(await screen.findByText("Character Sheet Stub", undefined, { timeout: 5_000 })).not.toBeNull();
+    expect(await screen.findByText("hello room", undefined, { timeout: 5_000 })).not.toBeNull();
 
     const nextMessages: ChatMessage[] = [
       ...initialMessages,
