@@ -47,13 +47,16 @@ import type {
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 
 import { RulesText } from "../../components/admin/AdminPreview";
+import { FloatingLayer, anchorFromRect, type FloatingAnchor } from "../../components/FloatingLayer";
 import { IconButton } from "../../components/IconButton";
 import { ModalFrame } from "../../components/ModalFrame";
+import { NumericInput } from "../../components/NumericInput";
 import { useWorkspaceModalHeader } from "../../components/WorkspaceModal";
 import { resolveAssetUrl } from "../../lib/assets";
 import { uploadImageAsset } from "../../services/assetService";
 import { RestDialog } from "./RestDialog";
 import { SpellSelectionModal } from "./SpellSelectionModal";
+import styles from "./PlayerNpcSheet2024.module.css";
 import {
   abilityModifier,
   abilityModifierTotal,
@@ -288,6 +291,7 @@ export function PlayerNpcSheet2024({
   );
   const preparedSpellLimit = useMemo(() => derivePreparedSpellLimit(draft, compendium.classes), [compendium.classes, draft]);
   const derivedHitPointMax = useMemo(() => deriveGuidedHitPointMax(draft), [draft]);
+  const hitPointDisplay = useMemo(() => deriveHitPointDisplayState(draft.hitPoints, derivedHitPointMax), [derivedHitPointMax, draft.hitPoints]);
   const selectedSpecies = useMemo(
     () => compendium.races.find((entry) => entry.id === draft.build?.speciesId) ?? null,
     [compendium.races, draft.build?.speciesId]
@@ -295,6 +299,10 @@ export function PlayerNpcSheet2024({
   const selectedBackground = useMemo(
     () => compendium.backgrounds.find((entry) => entry.id === draft.build?.backgroundId) ?? null,
     [compendium.backgrounds, draft.build?.backgroundId]
+  );
+  const exhaustionCondition = useMemo(
+    () => findByName(compendium.conditions, "Exhaustion") ?? null,
+    [compendium.conditions]
   );
   const guidedSelectedSpecies = useMemo(
     () => compendium.races.find((entry) => entry.id === guidedSetup.speciesId) ?? null,
@@ -385,7 +393,6 @@ export function PlayerNpcSheet2024({
       }),
     [compendium.classes, draft.classes]
   );
-  const displayedPreparedCount = draft.preparedSpells.length + spellCollections.alwaysPrepared.length;
   const preparableSpellEntries = useMemo(
     () => findSpellEntriesByNames(spellCollections.preparable, compendium.spells),
     [compendium.spells, spellCollections.preparable]
@@ -813,23 +820,30 @@ export function PlayerNpcSheet2024({
     await onRoll(notation, `${draft.name} initiative`);
   }
 
-  function updateDeathSaves(next: ActorSheet["deathSaves"]) {
-    updateField("deathSaves", {
-      successes: Math.max(0, Math.min(3, next.successes)),
-      failures: Math.max(0, Math.min(3, next.failures)),
-      history: (next.history ?? []).slice(-3)
+  function updateDeathSaves(next: ActorSheet["deathSaves"] | ((current: ActorSheet["deathSaves"]) => ActorSheet["deathSaves"])) {
+    updateDraft((current) => {
+      const resolved = typeof next === "function" ? next(current.deathSaves) : next;
+
+      return {
+        ...current,
+        deathSaves: {
+          successes: Math.max(0, Math.min(3, resolved.successes)),
+          failures: Math.max(0, Math.min(3, resolved.failures)),
+          history: (resolved.history ?? []).slice(-3)
+        }
+      };
     });
   }
 
   function recordDeathSave(result: "success" | "failure") {
-    const history = [...(draft.deathSaves.history ?? []), result].slice(-3);
-    const successes = history.filter((entry) => entry === "success").length;
-    const failures = history.filter((entry) => entry === "failure").length;
+    updateDeathSaves((current) => {
+      const history = [...(current.history ?? []), result].slice(-3);
 
-    updateDeathSaves({
-      successes,
-      failures,
-      history
+      return {
+        successes: history.filter((entry) => entry === "success").length,
+        failures: history.filter((entry) => entry === "failure").length,
+        history
+      };
     });
   }
 
@@ -1022,6 +1036,8 @@ export function PlayerNpcSheet2024({
       next.resources = [];
       next.hitPoints.max = 0;
       next.hitPoints.current = 0;
+      next.hitPoints.temp = 0;
+      next.hitPoints.reducedMax = 0;
 
       next = applySpeciesToActor(next, compendium.races.find((entry) => entry.id === guidedSetup.speciesId) ?? null);
       next = applySpeciesChoiceSelections(next, guidedSelectedSpecies, compendium.feats, guidedSetup.speciesSkillChoice, guidedSetup.speciesOriginFeatId);
@@ -1105,7 +1121,10 @@ export function PlayerNpcSheet2024({
       }
       next.level = totalLevel(next);
       next.hitPoints.max += hpGain;
-      next.hitPoints.current += hpGain;
+      next.hitPoints.current = Math.min(
+        effectiveHitPointMax(next.hitPoints.max, next.hitPoints.reducedMax),
+        next.hitPoints.current + hpGain
+      );
       next.className = next.classes.map((entry) => entry.name).join(" / ");
       next.features = mergeTextValues(next.features, collectGuidedFeatures(next, compendium.classes));
       next.spellSlots = deriveSpellSlots(next, compendium.classes);
@@ -1191,7 +1210,7 @@ export function PlayerNpcSheet2024({
       };
     });
 
-    nextDraft.hitPoints.current = Math.min(nextDraft.hitPoints.max, nextDraft.hitPoints.current + healing);
+    nextDraft.hitPoints = healHitPoints(nextDraft.hitPoints, healing, deriveGuidedHitPointMax(nextDraft));
     nextDraft.resources = mergeDerivedResources(nextDraft.resources, deriveClassResources(nextDraft, compendium.classes)).map((resource) =>
       /short rest/i.test(resource.resetOn)
         ? {
@@ -1210,8 +1229,9 @@ export function PlayerNpcSheet2024({
   async function confirmLongRest() {
     const nextDraft = cloneActor(draft);
     nextDraft.hitPoints.max = derivedHitPointMax || nextDraft.hitPoints.max;
-    nextDraft.hitPoints.current = nextDraft.hitPoints.max;
     nextDraft.hitPoints.temp = 0;
+    nextDraft.hitPoints = normalizeHitPoints(nextDraft.hitPoints, nextDraft.hitPoints.max);
+    nextDraft.hitPoints.current = effectiveHitPointMax(nextDraft.hitPoints.max, nextDraft.hitPoints.reducedMax);
     nextDraft.spellSlots = deriveSpellSlots(nextDraft, compendium.classes).map((entry) => ({ ...entry, used: 0 }));
     nextDraft.resources = mergeDerivedResources(nextDraft.resources, deriveClassResources(nextDraft, compendium.classes)).map((entry) => ({
       ...entry,
@@ -1232,7 +1252,7 @@ export function PlayerNpcSheet2024({
           {activeTab === "main" ? (
         <div className={`grid gap-3 xl:grid-cols-3 ${mainTabInteractive ? "" : "pointer-events-none opacity-75 select-none"}`}>
           <div className="space-y-3">
-            <SectionCard title="Identity" icon={<Shield size={14} />}>
+            <SectionCard title="Main" icon={<Shield size={14} />}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
                   <PortraitCard actor={draft} compact />
@@ -1255,30 +1275,31 @@ export function PlayerNpcSheet2024({
                 <CompactStatChip label="Spell DC" value={String(spellSave)} />
                 <CompactStatChip label="Spell Attack" value={formatModifier(spellAttack)} onClick={() => void handleRoll(spellAttack, "spell attack")} />
               </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Field label="Current HP">
-                  <input className={inputClassCompact} type="number" max={derivedHitPointMax} value={draft.hitPoints.current} onChange={(event) => updateHitPoints("current", event.target.value, updateDraft)} />
-                </Field>
-                <Field label="Temp HP">
-                  <input className={inputClassCompact} type="number" value={draft.hitPoints.temp} onChange={(event) => updateHitPoints("temp", event.target.value, updateDraft)} />
-                </Field>
-                <Field label="Max HP">
-                  <input className={inputClassCompact} type="number" value={derivedHitPointMax} disabled />
-                </Field>
-                <Field label="Experience">
-                  <input className={inputClassCompact} type="number" value={draft.experience} onChange={(event) => updateField("experience", Number(event.target.value || 0))} />
-                </Field>
-              </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 <button type="button" className={miniButtonClass} onClick={() => void startShortRest()}>
                   Short Rest
                 </button>
                 <button type="button" className={miniButtonClass} onClick={() => startLongRest()}>
                   Long Rest
                 </button>
+              </div>
+              <div className="grid gap-1.5 sm:grid-cols-[auto,minmax(0,1fr)] sm:items-end">
                 <button type="button" className={miniButtonClass} onClick={() => updateField("inspiration", !draft.inspiration)}>
                   Inspiration {draft.inspiration ? "On" : "Off"}
                 </button>
+                <div className="min-w-0 sm:min-w-[200px]">
+                  <ExhaustionTrack
+                    level={draft.exhaustionLevel}
+                    onChange={(level) => updateField("exhaustionLevel", level)}
+                    condition={exhaustionCondition}
+                    renderText={renderRulesText}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Field label="XP" hint="Experience points earned by this actor.">
+                  <NumericInput className={inputClassCompact} min={0} value={draft.experience} title="Experience points earned by this actor." onValueChange={(value) => updateField("experience", value ?? 0)} />
+                </Field>
               </div>
             </SectionCard>
 
@@ -1332,14 +1353,24 @@ export function PlayerNpcSheet2024({
 
           <div className="space-y-3">
             <SectionCard title="Vitals" icon={<Heart size={14} />}>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Field label="Exhaustion">
-                  <input className={inputClassCompact} type="number" min={0} max={6} value={draft.exhaustionLevel} onChange={(event) => updateField("exhaustionLevel", Math.max(0, Math.min(6, Number(event.target.value || 0))))} />
+              <HitPointBar
+                current={hitPointDisplay.current}
+                damage={hitPointDisplay.damage}
+                temp={hitPointDisplay.temp}
+                effectiveMax={hitPointDisplay.effectiveMax}
+                baseMax={hitPointDisplay.baseMax}
+                reducedMax={hitPointDisplay.reducedMax}
+              />
+              <div className="grid gap-1.5 sm:grid-cols-3">
+                <Field label="HP" hint="Current hit points after damage is applied.">
+                  <NumericInput className={inputClassCompact} min={0} max={hitPointDisplay.effectiveMax} value={draft.hitPoints.current} title="Current hit points after damage is applied." onValueChange={(value) => updateHitPoints("current", String(value ?? 0), updateDraft, derivedHitPointMax)} />
                 </Field>
-                <label className="flex items-center gap-2 pt-5 text-xs text-zinc-300">
-                  <input type="checkbox" checked={draft.concentration} onChange={(event) => updateField("concentration", event.target.checked)} />
-                  Concentration
-                </label>
+                <Field label="THP" hint="Temporary hit points are lost before normal hit points.">
+                  <NumericInput className={inputClassCompact} min={0} value={draft.hitPoints.temp} title="Temporary hit points are lost before normal hit points." onValueChange={(value) => updateHitPoints("temp", String(value ?? 0), updateDraft, derivedHitPointMax)} />
+                </Field>
+                <Field label="Red Max" hint="This reduces the actor's maximum hit points.">
+                  <NumericInput className={inputClassCompact} min={0} value={draft.hitPoints.reducedMax} title="This reduces the actor's maximum hit points." onValueChange={(value) => updateHitPoints("reducedMax", String(value ?? 0), updateDraft, derivedHitPointMax)} />
+                </Field>
               </div>
               <DeathSaveTracker
                 deathSaves={draft.deathSaves}
@@ -1385,7 +1416,13 @@ export function PlayerNpcSheet2024({
 
             <SectionCard title="Spellcasting" icon={<WandSparkles size={14} />}>
               <div className="grid gap-2 sm:grid-cols-3">
-                <CompactStatChip label="Prepared" value={preparedSpellLimit > 0 ? `${displayedPreparedCount}/${preparedSpellLimit}` : "N/A"} />
+                <label className="border border-white/8 bg-black/20 px-2 py-2 text-zinc-100">
+                  <p className="text-[9px] uppercase tracking-[0.18em] text-amber-400/80">Concentration</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <input type="checkbox" checked={draft.concentration} onChange={(event) => updateField("concentration", event.target.checked)} />
+                    <span className="text-sm font-medium text-amber-50">{draft.concentration ? "Active" : "Off"}</span>
+                  </div>
+                </label>
                 <CompactStatChip label="Spell DC" value={String(spellSave)} />
                 <CompactStatChip label="Spell Attack" value={formatModifier(spellAttack)} onClick={() => void handleRoll(spellAttack, "spell attack")} />
               </div>
@@ -1470,14 +1507,13 @@ export function PlayerNpcSheet2024({
               <div className="grid gap-2 md:grid-cols-5">
                 {currencyOrder.map((currencyKey) => (
                   <Field key={currencyKey} label={currencyKey.toUpperCase()}>
-                    <input
+                    <NumericInput
                       className={inputClassCompact}
-                      type="number"
                       value={draft.currency[currencyKey]}
-                      onChange={(event) =>
+                      onValueChange={(value) =>
                         updateField("currency", {
                           ...draft.currency,
-                          [currencyKey]: Number(event.target.value || 0)
+                          [currencyKey]: value ?? 0
                         })
                       }
                     />
@@ -1491,7 +1527,7 @@ export function PlayerNpcSheet2024({
                       <input className={inputClassCompact} value={item.name} onChange={(event) => updateInventory(index, { name: event.target.value })} />
                     </Field>
                     <Field label="Qty">
-                      <input className={inputClassCompact} type="number" value={item.quantity} onChange={(event) => updateInventory(index, { quantity: Number(event.target.value || 0) })} />
+                      <NumericInput className={inputClassCompact} value={item.quantity} onValueChange={(value) => updateInventory(index, { quantity: value ?? 0 })} />
                     </Field>
                     <Field label="Type">
                       <select className={inputClassCompact} value={item.type} onChange={(event) => updateInventory(index, { type: event.target.value as InventoryEntry["type"] })}>
@@ -1626,7 +1662,7 @@ export function PlayerNpcSheet2024({
                           </select>
                         </Field>
                         <Field label="Level">
-                          <input className={inputClass} type="number" min={1} value={actorClass.level} disabled={editReadOnly} onChange={(event) => updateClass(index, { level: Number(event.target.value || 1) })} />
+                          <NumericInput className={inputClass} min={1} value={actorClass.level} disabled={editReadOnly} onValueChange={(value) => updateClass(index, { level: value ?? 1 })} />
                         </Field>
                       </div>
                       {classEntry && classEntry.subclasses.length > 0 && actorClass.level >= (classEntry.subclassLevel ?? 99) ? (
@@ -1704,7 +1740,7 @@ export function PlayerNpcSheet2024({
                   <input className={inputClass} disabled={editReadOnly} value={draft.alignment} onChange={(event) => updateField("alignment", event.target.value)} />
                 </Field>
                 <Field label="Vision Range (Squares)">
-                  <input className={inputClass} disabled={editReadOnly} type="number" value={draft.visionRange} onChange={(event) => updateField("visionRange", Number(event.target.value || 0))} />
+                  <NumericInput className={inputClass} disabled={editReadOnly} value={draft.visionRange} onValueChange={(value) => updateField("visionRange", value ?? 0)} />
                 </Field>
                 <Field label="Creature Size">
                   <select className={inputClass} disabled={editReadOnly} value={draft.creatureSize} onChange={(event) => updateField("creatureSize", event.target.value as ActorSheet["creatureSize"])}>
@@ -1727,27 +1763,50 @@ export function PlayerNpcSheet2024({
                 </Field>
               </div>
               {imageError ? <p className="text-sm text-red-300">{imageError}</p> : null}
-              <div className="grid gap-3 md:grid-cols-3">
-                <Field label="Max HP">
-                  <input
+              <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+                <Field label="Current HP">
+                  <NumericInput
                     className={inputClass}
-                    type="number"
+                    value={draft.hitPoints.current}
+                    disabled={editReadOnly}
+                    onValueChange={(value) => updateHitPoints("current", String(value ?? 0), updateDraft, draft.hitPoints.max)}
+                  />
+                </Field>
+                <Field label="Temp HP">
+                  <NumericInput
+                    className={inputClass}
+                    value={draft.hitPoints.temp}
+                    disabled={editReadOnly}
+                    onValueChange={(value) => updateHitPoints("temp", String(value ?? 0), updateDraft, draft.hitPoints.max)}
+                  />
+                </Field>
+                <Field label="Max HP">
+                  <NumericInput
+                    className={inputClass}
                     value={draft.hitPoints.max}
                     disabled={editReadOnly}
-                    onChange={(event) => updateHitPoints("max", event.target.value, updateDraft)}
+                    onValueChange={(value) => updateHitPoints("max", String(value ?? 0), updateDraft, value ?? 0)}
+                  />
+                </Field>
+                <Field label="Reduced Max HP">
+                  <NumericInput
+                    className={inputClass}
+                    value={draft.hitPoints.reducedMax}
+                    disabled={editReadOnly}
+                    onValueChange={(value) => updateHitPoints("reducedMax", String(value ?? 0), updateDraft, draft.hitPoints.max)}
                   />
                 </Field>
                 <Field label="Speed">
-                  <input className={inputClass} type="number" value={draft.speed} disabled={editReadOnly} onChange={(event) => updateField("speed", Number(event.target.value || 0))} />
+                  <NumericInput className={inputClass} value={draft.speed} disabled={editReadOnly} onValueChange={(value) => updateField("speed", value ?? 0)} />
                 </Field>
                 <Field label="Initiative Bonus">
-                  <input className={inputClass} disabled={editReadOnly} type="number" value={draft.initiative} onChange={(event) => updateField("initiative", Number(event.target.value || 0))} />
+                  <NumericInput className={inputClass} disabled={editReadOnly} value={draft.initiative} onValueChange={(value) => updateField("initiative", value ?? 0)} />
                 </Field>
               </div>
               <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
                 {abilityOrder.map((ability) => (
                   <Field key={ability.key} label={ability.label}>
-                    <input className={inputClass} disabled={editReadOnly} type="number" value={draft.abilities[ability.key]} onChange={(event) => updateAbility(ability.key, Number(event.target.value || 0))} />
+                    <NumericInput className={inputClass} disabled={editReadOnly} value={draft.abilities[ability.key]} onValueChange={(value) => updateAbility(ability.key, value ?? 0)} />
                   </Field>
                 ))}
               </div>
@@ -2014,7 +2073,7 @@ export function PlayerNpcSheet2024({
                       <input className={inputClass} disabled={editReadOnly} value={attack.name} onChange={(event) => updateAttack(index, { name: event.target.value })} />
                     </Field>
                     <Field label="Bonus">
-                      <input className={inputClass} disabled={editReadOnly} type="number" value={attack.attackBonus} onChange={(event) => updateAttack(index, { attackBonus: Number(event.target.value || 0) })} />
+                      <NumericInput className={inputClass} disabled={editReadOnly} value={attack.attackBonus} onValueChange={(value) => updateAttack(index, { attackBonus: value ?? 0 })} />
                     </Field>
                     <Field label="Damage">
                       <input className={inputClass} disabled={editReadOnly} value={attack.damage} onChange={(event) => updateAttack(index, { damage: event.target.value })} />
@@ -2050,7 +2109,7 @@ export function PlayerNpcSheet2024({
                       <input className={inputClass} disabled={editReadOnly} value={item.name} onChange={(event) => updateArmor(index, { name: event.target.value })} />
                     </Field>
                     <Field label="Base AC">
-                      <input className={inputClass} disabled={editReadOnly} type="number" value={item.armorClass} onChange={(event) => updateArmor(index, { armorClass: Number(event.target.value || 0) })} />
+                      <NumericInput className={inputClass} disabled={editReadOnly} value={item.armorClass} onValueChange={(value) => updateArmor(index, { armorClass: value ?? 0 })} />
                     </Field>
                     <Field label="Kind">
                       <select className={inputClass} disabled={editReadOnly} value={item.kind} onChange={(event) => updateArmor(index, { kind: event.target.value as ArmorEntry["kind"] })}>
@@ -2099,10 +2158,10 @@ export function PlayerNpcSheet2024({
                           <input className={inputClass} disabled={editReadOnly} value={resource.resetOn} onChange={(event) => updateResourceById(resource.id, { resetOn: event.target.value })} />
                         </Field>
                         <Field label="Current">
-                          <input className={inputClass} disabled={editReadOnly} type="number" value={resource.current} onChange={(event) => updateResourceById(resource.id, { current: Number(event.target.value || 0) })} />
+                          <NumericInput className={inputClass} disabled={editReadOnly} value={resource.current} onValueChange={(value) => updateResourceById(resource.id, { current: value ?? 0 })} />
                         </Field>
                         <Field label="Max">
-                          <input className={inputClass} disabled={editReadOnly} type="number" value={resource.max} onChange={(event) => updateResourceById(resource.id, { max: Number(event.target.value || 0) })} />
+                          <NumericInput className={inputClass} disabled={editReadOnly} value={resource.max} onValueChange={(value) => updateResourceById(resource.id, { max: value ?? 0 })} />
                         </Field>
                         <button
                           type="button"
@@ -2176,7 +2235,7 @@ export function PlayerNpcSheet2024({
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
               <div className="grid gap-4 md:grid-cols-3">
-                <StatChip label="HP" value={`${draft.hitPoints.current}/${draft.hitPoints.max || derivedHitPointMax}`} />
+                <StatChip label="HP" value={`${hitPointDisplay.current}/${hitPointDisplay.effectiveMax}`} />
                 <StatChip label="Spell Slots" value="Reset" />
                 <StatChip label="Hit Dice" value="Recover Half" />
               </div>
@@ -2834,7 +2893,13 @@ function finalizeDraftForSave(
   next.proficiencyBonus = derived.proficiencyBonus;
   next.armorClass = derived.armorClass;
   next.speed = derived.speed;
-  next.hitPoints.current = Math.min(next.hitPoints.current, next.hitPoints.max);
+  next.hitPoints = normalizeHitPoints(
+    {
+      ...next.hitPoints,
+      max: derived.hitPointMax || next.hitPoints.max
+    },
+    derived.hitPointMax || next.hitPoints.max
+  );
   next.hitDice = next.classes.map((entry) => `${entry.level}d${entry.hitDieFaces}`).join(" + ");
   next.spellSlots = derived.spellSlots;
   next.resources = derived.resources;
@@ -3030,8 +3095,14 @@ function applyClassToActor(actor: ActorSheet, classEntry: ClassEntry, classes: C
   next.resources = mergeDerivedResources(next.resources, deriveClassResources(next, classes));
   if (totalLevel(next) === 1) {
     const startingHp = Math.max(1, classEntry.hitDieFaces + abilityModifierTotal(next, "con"));
-    next.hitPoints.max = startingHp;
-    next.hitPoints.current = Math.min(Math.max(next.hitPoints.current, startingHp), startingHp);
+    next.hitPoints = normalizeHitPoints(
+      {
+        ...next.hitPoints,
+        max: startingHp,
+        current: Math.min(Math.max(next.hitPoints.current, startingHp), startingHp)
+      },
+      startingHp
+    );
   }
   next.build = {
     ruleset: "dnd-2024",
@@ -4143,6 +4214,51 @@ function deriveGuidedHitPointMax(actor: ActorSheet) {
   return baseHp;
 }
 
+function effectiveHitPointMax(baseMax: number, reducedMax: number) {
+  return Math.max(0, Math.max(0, baseMax) - Math.max(0, reducedMax));
+}
+
+function normalizeHitPoints(hitPoints: ActorSheet["hitPoints"], baseMax: number): ActorSheet["hitPoints"] {
+  const max = Math.max(0, Number.isFinite(baseMax) ? baseMax : hitPoints.max);
+  const reducedMax = Math.max(0, hitPoints.reducedMax || 0);
+  const temp = Math.max(0, hitPoints.temp || 0);
+  const current = Math.max(0, Math.min(hitPoints.current || 0, effectiveHitPointMax(max, reducedMax)));
+
+  return {
+    current,
+    max,
+    temp,
+    reducedMax
+  };
+}
+
+function healHitPoints(hitPoints: ActorSheet["hitPoints"], healing: number, baseMax: number) {
+  const normalized = normalizeHitPoints(hitPoints, baseMax);
+
+  if (healing <= 0) {
+    return normalized;
+  }
+
+  return {
+    ...normalized,
+    current: Math.min(effectiveHitPointMax(normalized.max, normalized.reducedMax), normalized.current + healing)
+  };
+}
+
+function deriveHitPointDisplayState(hitPoints: ActorSheet["hitPoints"], baseMax: number) {
+  const normalized = normalizeHitPoints(hitPoints, baseMax);
+  const effectiveMax = effectiveHitPointMax(normalized.max, normalized.reducedMax);
+
+  return {
+    current: normalized.current,
+    damage: Math.max(0, effectiveMax - normalized.current),
+    temp: normalized.temp,
+    effectiveMax,
+    baseMax: normalized.max,
+    reducedMax: normalized.reducedMax
+  };
+}
+
 function extractLevelUpHpGain(notes: string) {
   const match = notes.match(/([+-]?\d+)\s*hp/i);
   return match ? Number(match[1]) : 0;
@@ -4590,14 +4706,26 @@ function buildStaticRollNotation(total: number) {
   return `1d20*0+${Math.max(0, Math.round(total))}`;
 }
 
-function updateHitPoints(key: keyof ActorSheet["hitPoints"], value: string, updateDraft: (recipe: (current: ActorSheet) => ActorSheet) => void) {
-  updateDraft((current) => ({
-    ...current,
-    hitPoints: {
-      ...current.hitPoints,
-      [key]: Number(value || 0)
-    }
-  }));
+function updateHitPoints(
+  key: keyof ActorSheet["hitPoints"],
+  value: string,
+  updateDraft: (recipe: (current: ActorSheet) => ActorSheet) => void,
+  baseMaxOverride?: number
+) {
+  updateDraft((current) => {
+    const nextHitPoints = normalizeHitPoints(
+      {
+        ...current.hitPoints,
+        [key]: Number(value || 0)
+      },
+      baseMaxOverride ?? (key === "max" ? Number(value || 0) : current.hitPoints.max)
+    );
+
+    return {
+      ...current,
+      hitPoints: nextHitPoints
+    };
+  });
 }
 
 function createAttackEntry(): AttackEntry {
@@ -4766,10 +4894,12 @@ function SectionCard({ title, icon, children }: { title: string; icon: ReactNode
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="space-y-1 text-xs text-zinc-300">
-      <span className="block text-[10px] uppercase tracking-[0.18em] text-amber-400/80">{label}</span>
+      <span className="block text-[9px] uppercase tracking-[0.16em] text-amber-400/80" title={hint}>
+        {label}
+      </span>
       {children}
     </label>
   );
@@ -4783,6 +4913,117 @@ function CompactStatChip({ label, value, onClick }: { label: string; value: stri
     >
       <p className="text-[9px] uppercase tracking-[0.18em] text-amber-400/80">{label}</p>
       <p className="mt-1 text-lg font-semibold text-amber-50">{value}</p>
+    </div>
+  );
+}
+
+function HitPointBar({
+  current,
+  damage,
+  temp,
+  effectiveMax,
+  baseMax,
+  reducedMax
+}: {
+  current: number;
+  damage: number;
+  temp: number;
+  effectiveMax: number;
+  baseMax: number;
+  reducedMax: number;
+}) {
+  const total = current + damage + temp;
+  const currentWidth = total > 0 ? (current / total) * 100 : 0;
+  const damageWidth = total > 0 ? (damage / total) * 100 : 0;
+  const tempWidth = total > 0 ? (temp / total) * 100 : 0;
+
+  return (
+    <div className="space-y-2 border border-white/8 bg-black/20 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[9px] uppercase tracking-[0.16em] text-amber-400/80" title="Current and effective maximum hit points.">
+            Hit Points
+          </p>
+          <p className="mt-1 text-base font-semibold text-amber-50">
+            {current}
+            <span className="ml-1 text-sm text-zinc-400">/ {effectiveMax}</span>
+          </p>
+        </div>
+        <div className="text-right text-[10px] uppercase tracking-[0.14em] text-zinc-400">
+          <p className="text-emerald-300" title="Current hit points.">HP {current}</p>
+          <p className="text-sky-300" title="Temporary hit points that are lost first.">THP {temp}</p>
+          <p className="text-rose-300" title="Damage taken against effective maximum hit points.">DMG {damage}</p>
+          {reducedMax > 0 ? <p className="text-amber-300" title="Maximum hit points reduced by an effect.">RED {-reducedMax}</p> : <p title="Base maximum hit points before reductions.">BASE {baseMax}</p>}
+        </div>
+      </div>
+      <div className="h-3 overflow-hidden rounded-full border border-white/8 bg-black/40">
+        <div className="flex h-full w-full">
+          <div className="bg-emerald-500" style={{ width: `${currentWidth}%` }} />
+          <div className="bg-sky-500" style={{ width: `${tempWidth}%` }} />
+          <div className="bg-rose-500" style={{ width: `${damageWidth}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExhaustionTrack({
+  level,
+  onChange,
+  condition,
+  renderText
+}: {
+  level: number;
+  onChange: (level: number) => void;
+  condition: CompendiumReferenceEntry | null;
+  renderText: (text: string) => ReactNode;
+}) {
+  const [anchor, setAnchor] = useState<FloatingAnchor | null>(null);
+
+  return (
+    <div
+      className="space-y-1"
+      onMouseEnter={(event) => setAnchor(anchorFromRect(event.currentTarget.getBoundingClientRect()))}
+      onMouseLeave={() => setAnchor(null)}
+    >
+      <div className="flex items-center justify-between text-[9px] uppercase tracking-[0.16em] text-zinc-300">
+        <span>Exhaustion</span>
+        <span>{level}/6</span>
+      </div>
+      <input
+        className={styles.rangeInput}
+        type="range"
+        min={0}
+        max={6}
+        step={1}
+        value={level}
+        onChange={(event) => onChange(Number(event.target.value || 0))}
+        style={{ ["--range-progress" as string]: `${(level / 6) * 100}%` }}
+        title="Set exhaustion level from 0 to 6."
+      />
+      <div className="flex items-center justify-between text-[9px] text-zinc-500">
+        {Array.from({ length: 7 }, (_, index) => (
+          <span key={`exhaustion-label:${index}`} className="w-3 text-center">
+            {index}
+          </span>
+        ))}
+      </div>
+      {condition ? (
+        <FloatingLayer
+          anchor={anchor}
+          placement="right-start"
+          className="max-w-sm border border-white/10 bg-slate-950/98 p-3 text-zinc-100 shadow-[0_18px_70px_rgba(0,0,0,0.45)]"
+        >
+          <div className="space-y-2">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-amber-400/80">Condition</p>
+            <div>
+              <p className="text-sm font-medium text-amber-50">{condition.name}</p>
+              <p className="text-[11px] text-zinc-500">{[condition.category, condition.source].filter(Boolean).join(" • ")}</p>
+            </div>
+            <div className="text-sm leading-6 text-zinc-300">{renderText(condition.entries || condition.description)}</div>
+          </div>
+        </FloatingLayer>
+      ) : null}
     </div>
   );
 }
@@ -4916,10 +5157,10 @@ const inputClass =
 const textareaClass =
   "w-full border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-amber-500/70";
 const inputClassCompact =
-  "w-full border border-white/10 bg-black/20 px-2 py-1.5 text-xs text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-amber-500/70";
+  "w-full border border-white/10 bg-black/20 px-1.5 py-1 text-[11px] text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-amber-500/70";
 const textareaClassCompact =
   "w-full border border-white/10 bg-black/20 px-2 py-1.5 text-xs text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-amber-500/70";
 const actionButtonClass = "border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-zinc-200 transition hover:border-amber-500/70 hover:text-amber-50";
 const secondaryButtonClass = "inline-flex items-center gap-2 border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-zinc-200 transition hover:border-amber-500/70 hover:text-amber-50";
 const miniButtonClass =
-  "inline-flex items-center justify-center gap-1 border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-zinc-300 transition hover:border-amber-500/70 hover:text-amber-50 disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex items-center justify-center gap-1 border border-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.14em] text-zinc-300 transition hover:border-amber-500/70 hover:text-amber-50 disabled:cursor-not-allowed disabled:opacity-40";

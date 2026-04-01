@@ -1,0 +1,57 @@
+.rangeInput {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 1rem;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.rangeInput:focus {
+  outline: none;
+}
+
+.rangeInput::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    rgb(245 158 11) 0%,
+    rgb(245 158 11) var(--range-progress, 0%),
+    rgb(255 255 255 / 0.15) var(--range-progress, 0%),
+    rgb(255 255 255 / 0.15) 100%
+  );
+}
+
+.rangeInput::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-top: calc((3px - 0.875rem) / 2);
+  border: 1px solid rgb(251 191 36);
+  border-radius: 9999px;
+  background: rgb(245 158 11);
+}
+
+.rangeInput::-moz-range-track {
+  height: 3px;
+  border-radius: 9999px;
+  background: rgb(255 255 255 / 0.15);
+}
+
+.rangeInput::-moz-range-progress {
+  height: 3px;
+  border-radius: 9999px;
+  background: rgb(245 158 11);
+}
+
+.rangeInput::-moz-range-thumb {
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 1px solid rgb(251 191 36);
+  border-radius: 9999px;
+  background: rgb(245 158 11);
+}

@@ -62,7 +62,7 @@ export function createClientActorDraft(kind: ActorKind, currentUserId?: string):
     visionRange: 6,
     tokenWidthSquares: kind === "static" ? 2 : 1,
     tokenLengthSquares: kind === "static" ? 4 : 1,
-    hitPoints: { current: 0, max: 0, temp: 0 },
+    hitPoints: { current: 0, max: 0, temp: 0, reducedMax: 0 },
     hitDice: "",
     abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
     skills: [

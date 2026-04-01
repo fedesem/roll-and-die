@@ -1130,6 +1130,7 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
           hit_points_current as hitPointsCurrent,
           hit_points_max as hitPointsMax,
           hit_points_temp as hitPointsTemp,
+          hit_points_reduced_max as hitPointsReducedMax,
           hit_dice as hitDice,
           ability_str as abilityStr,
           ability_dex as abilityDex,
@@ -1184,6 +1185,7 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
         hitPointsCurrent: number;
         hitPointsMax: number;
         hitPointsTemp: number;
+        hitPointsReducedMax: number;
         hitDice: string;
         abilityStr: number;
         abilityDex: number;
@@ -1238,7 +1240,8 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
     hitPoints: {
       current: row.hitPointsCurrent,
       max: row.hitPointsMax,
-      temp: row.hitPointsTemp
+      temp: row.hitPointsTemp,
+      reducedMax: row.hitPointsReducedMax
     },
     hitDice: row.hitDice,
     abilities: {
@@ -1938,10 +1941,10 @@ function prepareCampaignWriteStatements(database: DatabaseSync): CampaignWriteSt
       INSERT INTO actors (
         id, campaign_id, sort_order, owner_id, template_id, name, kind, image_url, class_name, species, background, alignment, level,
         challenge_rating, experience, spellcasting_ability, armor_class, initiative, initiative_roll, speed, creature_size, proficiency_bonus, inspiration,
-        vision_range, token_width_squares, token_length_squares, hit_points_current, hit_points_max, hit_points_temp, hit_dice, ability_str, ability_dex, ability_con,
+        vision_range, token_width_squares, token_length_squares, hit_points_current, hit_points_max, hit_points_temp, hit_points_reduced_max, hit_dice, ability_str, ability_dex, ability_con,
         ability_int, ability_wis, ability_cha, currency_pp, currency_gp, currency_ep, currency_sp, currency_cp, notes, color,
         prepared_spells_json, layout_json, build_json, proficiencies_json, spell_state_json, status_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     insertActorClass: database.prepare(`
       INSERT INTO actor_classes (actor_id, id, sort_order, compendium_id, name, source, level, hit_die_faces, used_hit_dice, spellcasting_ability)
@@ -2088,6 +2091,7 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
       actor.hitPoints.current,
       actor.hitPoints.max,
       actor.hitPoints.temp,
+      actor.hitPoints.reducedMax,
       actor.hitDice,
       actor.abilities.str,
       actor.abilities.dex,
@@ -2542,6 +2546,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
     hitPointsCurrent: number;
     hitPointsMax: number;
     hitPointsTemp: number;
+    hitPointsReducedMax: number;
     hitDice: string;
     abilityStr: number;
     abilityDex: number;
@@ -2593,6 +2598,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         hit_points_current as hitPointsCurrent,
         hit_points_max as hitPointsMax,
         hit_points_temp as hitPointsTemp,
+        hit_points_reduced_max as hitPointsReducedMax,
         hit_dice as hitDice,
         ability_str as abilityStr,
         ability_dex as abilityDex,
@@ -2648,7 +2654,8 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
       hitPoints: {
         current: row.hitPointsCurrent,
         max: row.hitPointsMax,
-        temp: row.hitPointsTemp
+        temp: row.hitPointsTemp,
+        reducedMax: row.hitPointsReducedMax
       },
       hitDice: row.hitDice,
       abilities: {
@@ -3529,11 +3536,11 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
         INSERT INTO actors (
           id, campaign_id, sort_order, owner_id, template_id, name, kind, image_url, class_name, species, background, alignment, level,
           challenge_rating, experience, spellcasting_ability, armor_class, initiative, initiative_roll, speed, creature_size, proficiency_bonus, inspiration,
-          vision_range, token_width_squares, token_length_squares, hit_points_current, hit_points_max, hit_points_temp, hit_dice, ability_str, ability_dex, ability_con,
+          vision_range, token_width_squares, token_length_squares, hit_points_current, hit_points_max, hit_points_temp, hit_points_reduced_max, hit_dice, ability_str, ability_dex, ability_con,
           ability_int, ability_wis, ability_cha, currency_pp, currency_gp, currency_ep, currency_sp, currency_cp, notes, color,
           prepared_spells_json, layout_json, build_json, proficiencies_json, spell_state_json, status_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           campaign_id = excluded.campaign_id,
           sort_order = excluded.sort_order,
@@ -3563,6 +3570,7 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
           hit_points_current = excluded.hit_points_current,
           hit_points_max = excluded.hit_points_max,
           hit_points_temp = excluded.hit_points_temp,
+          hit_points_reduced_max = excluded.hit_points_reduced_max,
           hit_dice = excluded.hit_dice,
           ability_str = excluded.ability_str,
           ability_dex = excluded.ability_dex,
@@ -3615,6 +3623,7 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
       actor.hitPoints.current,
       actor.hitPoints.max,
       actor.hitPoints.temp,
+      actor.hitPoints.reducedMax,
       actor.hitDice,
       actor.abilities.str,
       actor.abilities.dex,
@@ -4233,7 +4242,8 @@ function createRealtimeActorShell(
     hitPoints: {
       current: 1,
       max: 1,
-      temp: 0
+      temp: 0,
+      reducedMax: 0
     },
     hitDice: "",
     abilities: {

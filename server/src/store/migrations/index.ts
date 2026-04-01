@@ -30,6 +30,7 @@ import { drawingPointsForeignKeyRepairMigration } from "./130_drawing_points_fk_
 import { drawingTextStyleMigration } from "./131_drawing_text_style.js";
 import { playerNpcSheetRebuildMigration } from "./132_player_npc_sheet_rebuild.js";
 import { actorSheetStateExpansionMigration } from "./133_actor_sheet_state_expansion.js";
+import { actorHitPointReductionMigration } from "./134_actor_hit_point_reduction.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -63,5 +64,6 @@ export const migrations = [
   drawingPointsForeignKeyRepairMigration,
   drawingTextStyleMigration,
   playerNpcSheetRebuildMigration,
-  actorSheetStateExpansionMigration
+  actorSheetStateExpansionMigration,
+  actorHitPointReductionMigration
 ];

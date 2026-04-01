@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import type { ActorCreatureSize, ActorSheet, CampaignSnapshot, MemberRole } from "@shared/types";
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 
+import { NumericInput } from "./NumericInput";
 import { PlayerNpcSheet2024 } from "../features/sheet/PlayerNpcSheet2024";
 import { cloneActor } from "../features/sheet/sheetUtils";
 import { resolveAssetUrl } from "../lib/assets";
@@ -228,27 +229,25 @@ function SimpleActorSheet({ token, actor, canEdit, saving, imageError, onDraftCh
             </Field>
             {isStaticActor && (
               <Field label="Width (sq)">
-                <input
+                <NumericInput
                   className={inputClass}
-                  type="number"
                   min={1}
                   max={12}
                   value={actor.tokenWidthSquares}
                   disabled={!canEdit}
-                  onChange={(event) => updateStaticDimension("tokenWidthSquares", event.target.value)}
+                  onValueChange={(value) => updateStaticDimension("tokenWidthSquares", String(value ?? 0))}
                 />
               </Field>
             )}
             {isStaticActor && (
               <Field label="Length (sq)">
-                <input
+                <NumericInput
                   className={inputClass}
-                  type="number"
                   min={1}
                   max={12}
                   value={actor.tokenLengthSquares}
                   disabled={!canEdit}
-                  onChange={(event) => updateStaticDimension("tokenLengthSquares", event.target.value)}
+                  onValueChange={(value) => updateStaticDimension("tokenLengthSquares", String(value ?? 0))}
                 />
               </Field>
             )}
@@ -261,21 +260,19 @@ function SimpleActorSheet({ token, actor, canEdit, saving, imageError, onDraftCh
               />
             </Field>
             <Field label="Armor Class">
-              <input
+              <NumericInput
                 className={inputClass}
-                type="number"
                 value={actor.armorClass}
                 disabled={!canEdit}
-                onChange={(event) => updateField("armorClass", Number(event.target.value || 0))}
+                onValueChange={(value) => updateField("armorClass", value ?? 0)}
               />
             </Field>
             <Field label="Speed">
-              <input
+              <NumericInput
                 className={inputClass}
-                type="number"
                 value={actor.speed}
                 disabled={!canEdit}
-                onChange={(event) => updateField("speed", Number(event.target.value || 0))}
+                onValueChange={(value) => updateField("speed", value ?? 0)}
               />
             </Field>
           </div>

@@ -371,7 +371,7 @@ export function createDefaultActor(campaignId: string, userId: string, name: str
     visionRange: 6,
     tokenWidthSquares: kind === "static" ? 2 : 1,
     tokenLengthSquares: kind === "static" ? 4 : 1,
-    hitPoints: { current: 0, max: 0, temp: 0 },
+    hitPoints: { current: 0, max: 0, temp: 0, reducedMax: 0 },
     hitDice: "",
     abilities,
     skills: defaultSkills(),
@@ -445,7 +445,7 @@ export function createMonsterActor(campaignId: string, userId: string, template:
     visionRange: 8,
     tokenWidthSquares: 1,
     tokenLengthSquares: 1,
-    hitPoints: { current: template.hitPoints, max: template.hitPoints, temp: 0 },
+    hitPoints: { current: template.hitPoints, max: template.hitPoints, temp: 0, reducedMax: 0 },
     hitDice: "Monster HD",
     abilities: template.abilities,
     skills: defaultSkills(),
@@ -938,7 +938,8 @@ function sanitizeHitPoints(value: unknown, fallback: HitPoints): HitPoints {
   return {
     current: getOptionalNumber(input.current, fallback.current, 0, 999),
     max: getOptionalNumber(input.max, fallback.max, 1, 999),
-    temp: getOptionalNumber(input.temp, fallback.temp, 0, 999)
+    temp: getOptionalNumber(input.temp, fallback.temp, 0, 999),
+    reducedMax: getOptionalNumber(input.reducedMax, fallback.reducedMax, 0, 999)
   };
 }
 
@@ -1258,7 +1259,8 @@ function finalizeDerivedActor(actor: ActorSheet) {
 
   actor.hitDice = formatHitDice(actor);
   actor.armorClass = deriveArmorClass(actor);
-  actor.hitPoints.current = Math.min(actor.hitPoints.current, actor.hitPoints.max);
+  actor.hitPoints.reducedMax = Math.max(0, actor.hitPoints.reducedMax);
+  actor.hitPoints.current = Math.min(actor.hitPoints.current, Math.max(0, actor.hitPoints.max - actor.hitPoints.reducedMax));
   actor.hitPoints.temp = Math.max(0, actor.hitPoints.temp);
 }
 

@@ -50,7 +50,8 @@ function createStaticActor(): ActorSheet {
     hitPoints: {
       current: 1,
       max: 1,
-      temp: 0
+      temp: 0,
+      reducedMax: 0
     },
     hitDice: "",
     abilities: {

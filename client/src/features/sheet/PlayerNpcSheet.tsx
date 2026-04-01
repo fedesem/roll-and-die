@@ -22,6 +22,7 @@ import type {
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 
 import { ModalFrame } from "../../components/ModalFrame";
+import { NumericInput } from "../../components/NumericInput";
 import { resolveAssetUrl } from "../../lib/assets";
 import { uploadImageAsset } from "../../services/assetService";
 import { RestDialog } from "./RestDialog";
@@ -501,12 +502,11 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
             />
           </Field>
           <Field label="Experience">
-            <input
+            <NumericInput
               className={inputClass}
-              type="number"
               value={draft.experience}
               disabled={!canEdit}
-              onChange={(event) => updateField("experience", Number(event.target.value || 0))}
+              onValueChange={(value) => updateField("experience", value ?? 0)}
             />
           </Field>
           <Field label="Spellcasting Ability">
@@ -617,31 +617,29 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
                     </p>
                   </div>
                   <Field label="Level">
-                    <input
+                    <NumericInput
                       className={inputClass}
-                      type="number"
                       min="1"
                       max="20"
                       value={entry.level}
                       disabled={!canEdit}
-                      onChange={(event) =>
+                      onValueChange={(value) =>
                         updateClass(index, {
-                          level: Math.max(1, Math.min(20, Number(event.target.value || 1)))
+                          level: Math.max(1, Math.min(20, value ?? 1))
                         })
                       }
                     />
                   </Field>
                   <Field label="Used HD">
-                    <input
+                    <NumericInput
                       className={inputClass}
-                      type="number"
                       min="0"
                       max={entry.level}
                       value={entry.usedHitDice}
                       disabled={!canEdit}
-                      onChange={(event) =>
+                      onValueChange={(value) =>
                         updateClass(index, {
-                          usedHitDice: Math.max(0, Math.min(entry.level, Number(event.target.value || 0)))
+                          usedHitDice: Math.max(0, Math.min(entry.level, value ?? 0))
                         })
                       }
                     />
@@ -691,12 +689,11 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
           <StatBox label="Armor Class" value={String(armorClass)} detail="Automatic" />
           <Field label="Initiative">
             <div className="flex items-center gap-2">
-              <input
+              <NumericInput
                 className={inputClass}
-                type="number"
                 value={draft.initiative}
                 disabled={!canEdit}
-                onChange={(event) => updateField("initiative", Number(event.target.value || 0))}
+                onValueChange={(value) => updateField("initiative", value ?? 0)}
               />
               {canRoll && (
                 <button
@@ -714,43 +711,40 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
 
         <div className="grid gap-3 md:grid-cols-3">
           <Field label="Max HP">
-            <input
+            <NumericInput
               className={inputClass}
-              type="number"
               value={draft.hitPoints.max}
               disabled={!canEdit}
-              onChange={(event) =>
+              onValueChange={(value) =>
                 updateField("hitPoints", {
                   ...draft.hitPoints,
-                  max: Number(event.target.value || 0)
+                  max: value ?? 0
                 })
               }
             />
           </Field>
           <Field label="Current HP">
-            <input
+            <NumericInput
               className={inputClass}
-              type="number"
               value={draft.hitPoints.current}
               disabled={!canEdit}
-              onChange={(event) =>
+              onValueChange={(value) =>
                 updateField("hitPoints", {
                   ...draft.hitPoints,
-                  current: Number(event.target.value || 0)
+                  current: value ?? 0
                 })
               }
             />
           </Field>
           <Field label="Temporary HP">
-            <input
+            <NumericInput
               className={inputClass}
-              type="number"
               value={draft.hitPoints.temp}
               disabled={!canEdit}
-              onChange={(event) =>
+              onValueChange={(value) =>
                 updateField("hitPoints", {
                   ...draft.hitPoints,
-                  temp: Number(event.target.value || 0)
+                  temp: value ?? 0
                 })
               }
             />
@@ -791,12 +785,11 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
                 </button>
               </div>
               <Field label="Score">
-                <input
+                <NumericInput
                   className={inputClass}
-                  type="number"
                   value={draft.abilities[entry.key]}
                   disabled={!canEdit}
-                  onChange={(event) => updateAbility(entry.key, Number(event.target.value || 0))}
+                  onValueChange={(value) => updateAbility(entry.key, value ?? 0)}
                 />
               </Field>
               <div className="flex items-center justify-between text-xs text-zinc-400">
@@ -891,12 +884,11 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
                 />
               </Field>
               <Field label="Attack">
-                <input
+                <NumericInput
                   className={inputClass}
-                  type="number"
                   value={entry.attackBonus}
                   disabled={!canEdit}
-                  onChange={(event) => updateAttack(index, { attackBonus: Number(event.target.value || 0) })}
+                  onValueChange={(value) => updateAttack(index, { attackBonus: value ?? 0 })}
                 />
               </Field>
               <Field label="Damage">
@@ -1008,21 +1000,19 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
                 </select>
               </Field>
               <Field label="Base AC">
-                <input
+                <NumericInput
                   className={inputClass}
-                  type="number"
                   value={entry.armorClass}
                   disabled={!canEdit}
-                  onChange={(event) => updateArmor(index, { armorClass: Number(event.target.value || 0) })}
+                  onValueChange={(value) => updateArmor(index, { armorClass: value ?? 0 })}
                 />
               </Field>
               <Field label="Bonus">
-                <input
+                <NumericInput
                   className={inputClass}
-                  type="number"
                   value={entry.bonus}
                   disabled={!canEdit}
-                  onChange={(event) => updateArmor(index, { bonus: Number(event.target.value || 0) })}
+                  onValueChange={(value) => updateArmor(index, { bonus: value ?? 0 })}
                 />
               </Field>
               <div className="flex items-end gap-2">
@@ -1041,15 +1031,15 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <Field label="Max Dex Bonus">
-                <input
+                <NumericInput
                   className={inputClass}
-                  type="number"
-                  value={entry.maxDexBonus ?? ""}
+                  value={typeof entry.maxDexBonus === "number" ? entry.maxDexBonus : null}
                   disabled={!canEdit}
                   placeholder="No cap"
-                  onChange={(event) =>
+                  emptyValue={null}
+                  onValueChange={(value) =>
                     updateArmor(index, {
-                      maxDexBonus: event.target.value === "" ? null : Number(event.target.value || 0)
+                      maxDexBonus: value
                     })
                   }
                 />
@@ -1128,14 +1118,13 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
                 </select>
               </Field>
               <Field label="Restore Amount">
-                <input
+                <NumericInput
                   className={inputClass}
-                  type="number"
                   value={entry.restoreAmount}
                   disabled={!canEdit}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     updateResource(index, {
-                      restoreAmount: Number(event.target.value || 0)
+                      restoreAmount: value ?? 0
                     })
                   }
                 />
@@ -1151,19 +1140,17 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
             <div className="grid gap-3 md:grid-cols-[140px,1fr]">
               <Field label="Current / Max">
                 <div className="grid grid-cols-2 gap-2">
-                  <input
+                  <NumericInput
                     className={inputClass}
-                    type="number"
                     value={entry.current}
                     disabled={!canEdit}
-                    onChange={(event) => updateResource(index, { current: Number(event.target.value || 0) })}
+                    onValueChange={(value) => updateResource(index, { current: value ?? 0 })}
                   />
-                  <input
+                  <NumericInput
                     className={inputClass}
-                    type="number"
                     value={entry.max}
                     disabled={!canEdit}
-                    onChange={(event) => updateResource(index, { max: Number(event.target.value || 0) })}
+                    onValueChange={(value) => updateResource(index, { max: value ?? 0 })}
                   />
                 </div>
               </Field>
@@ -1216,12 +1203,11 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
         <div className="grid gap-3 md:grid-cols-5">
           {currencyOrder.map((entry) => (
             <Field key={entry} label={entry.toUpperCase()}>
-              <input
+              <NumericInput
                 className={inputClass}
-                type="number"
                 value={draft.currency[entry]}
                 disabled={!canEdit}
-                onChange={(event) => updateCurrency(entry, Number(event.target.value || 0))}
+                onValueChange={(value) => updateCurrency(entry, value ?? 0)}
               />
             </Field>
           ))}
@@ -1257,12 +1243,11 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
                   </select>
                 </Field>
                 <Field label="Qty">
-                  <input
+                  <NumericInput
                     className={inputClass}
-                    type="number"
                     value={entry.quantity}
                     disabled={!canEdit}
-                    onChange={(event) => updateInventory(index, { quantity: Number(event.target.value || 0) })}
+                    onValueChange={(value) => updateInventory(index, { quantity: value ?? 0 })}
                   />
                 </Field>
                 <div className="flex items-end gap-2">
@@ -1376,12 +1361,11 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
                 </select>
               </Field>
               <Field label="Value">
-                <input
+                <NumericInput
                   className={inputClass}
-                  type="number"
                   value={entry.value}
                   disabled={!canEdit}
-                  onChange={(event) => updateBonus(index, { value: Number(event.target.value || 0) })}
+                  onValueChange={(value) => updateBonus(index, { value: value ?? 0 })}
                 />
               </Field>
               <div className="flex items-end gap-2">
@@ -1471,27 +1455,25 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
             />
             <div className="grid grid-cols-2 gap-2">
               <Field label="Total">
-                <input
+                <NumericInput
                   className={inputClass}
-                  type="number"
                   value={entry.total}
                   disabled={!canEdit}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     updateSpellSlot(index, {
-                      total: Math.max(0, Number(event.target.value || 0))
+                      total: Math.max(0, value ?? 0)
                     })
                   }
                 />
               </Field>
               <Field label="Used">
-                <input
+                <NumericInput
                   className={inputClass}
-                  type="number"
                   value={entry.used}
                   disabled={!canEdit}
-                  onChange={(event) =>
+                  onValueChange={(value) =>
                     updateSpellSlot(index, {
-                      used: Math.max(0, Number(event.target.value || 0))
+                      used: Math.max(0, value ?? 0)
                     })
                   }
                 />
@@ -1892,16 +1874,8 @@ function DotTrack({
   }
 
   if (total > 12) {
-    return (
-      <input
-        className={inputClass}
-        type="number"
-        min="0"
-        max={total}
-        value={active}
-        disabled={disabled}
-        onChange={(event) => onChange(Number(event.target.value || 0))}
-      />
+      return (
+      <NumericInput className={inputClass} min="0" max={total} value={active} disabled={disabled} onValueChange={(value) => onChange(value ?? 0)} />
     );
   }
 

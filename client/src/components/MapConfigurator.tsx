@@ -12,6 +12,7 @@ import { DoorOpen, EyeOff, MousePointer2, Move, Radio, RotateCcw, Square, Trash2
 
 import type { CampaignMap, MapTeleporter, MapWall, MapWallKind, Point } from "@shared/types";
 import { snapPointToGrid, snapPointToGridIntersection } from "@shared/vision";
+import { NumericInput } from "./NumericInput";
 import { resolveAssetUrl } from "../lib/assets";
 import { createGridStyle } from "../lib/gridStyle";
 import { readImageDimensionsFromFile } from "../lib/media";
@@ -742,13 +743,12 @@ export function MapConfigurator({
               </button>
               <label className="map-inline-setting">
                 Align Step %
-                <input
-                  type="number"
+                <NumericInput
                   min={minAlignScaleStep}
                   max={maxAlignScaleStep}
                   step="0.1"
                   value={alignScaleStep}
-                  onChange={(event) => setAlignScaleStep(clamp(Number(event.target.value || 0), minAlignScaleStep, maxAlignScaleStep))}
+                  onValueChange={(value) => setAlignScaleStep(clamp(value ?? 0, minAlignScaleStep, maxAlignScaleStep))}
                 />
               </label>
             </div>
@@ -1121,85 +1121,76 @@ export function MapConfigurator({
               </label>
               <label>
                 Image Width
-                <input
-                  type="number"
+                <NumericInput
                   value={map.width}
                   disabled={disabled}
-                  onChange={(event) => onChange({ ...map, width: Number(event.target.value || 0) })}
+                  onValueChange={(value) => onChange({ ...map, width: value ?? 0 })}
                 />
               </label>
               <label>
                 Image Height
-                <input
-                  type="number"
+                <NumericInput
                   value={map.height}
                   disabled={disabled}
-                  onChange={(event) => onChange({ ...map, height: Number(event.target.value || 0) })}
+                  onValueChange={(value) => onChange({ ...map, height: value ?? 0 })}
                 />
               </label>
               <label>
                 Image Offset X
-                <input
-                  type="number"
+                <NumericInput
                   value={map.backgroundOffsetX}
                   disabled={disabled}
-                  onChange={(event) => onChange({ ...map, backgroundOffsetX: Number(event.target.value || 0) })}
+                  onValueChange={(value) => onChange({ ...map, backgroundOffsetX: value ?? 0 })}
                 />
               </label>
               <label>
                 Image Offset Y
-                <input
-                  type="number"
+                <NumericInput
                   value={map.backgroundOffsetY}
                   disabled={disabled}
-                  onChange={(event) => onChange({ ...map, backgroundOffsetY: Number(event.target.value || 0) })}
+                  onValueChange={(value) => onChange({ ...map, backgroundOffsetY: value ?? 0 })}
                 />
               </label>
               <label>
                 Image Scale
-                <input
-                  type="number"
+                <NumericInput
                   step="0.01"
                   value={map.backgroundScale}
                   disabled={disabled}
-                  onChange={(event) => onChange({ ...map, backgroundScale: Number(event.target.value || 0) })}
+                  onValueChange={(value) => onChange({ ...map, backgroundScale: value ?? 0 })}
                 />
               </label>
               <label>
                 Grid Cell
-                <input
-                  type="number"
+                <NumericInput
                   value={map.grid.cellSize}
                   disabled={disabled}
-                  onChange={(event) => updateGrid("cellSize", Number(event.target.value || 0))}
+                  onValueChange={(value) => updateGrid("cellSize", value ?? 0)}
                 />
               </label>
               <label>
                 Board Scale
-                <input
-                  type="number"
+                <NumericInput
                   step="0.1"
                   value={map.grid.scale}
                   disabled={disabled}
-                  onChange={(event) => updateGrid("scale", Number(event.target.value || 0))}
+                  onValueChange={(value) => updateGrid("scale", value ?? 0)}
                 />
               </label>
               <label>
                 Grid Offset X
-                <input
-                  type="number"
+                <NumericInput
                   value={map.grid.offsetX}
                   disabled={disabled}
-                  onChange={(event) => updateGrid("offsetX", Number(event.target.value || 0))}
+                  onValueChange={(value) => updateGrid("offsetX", value ?? 0)}
                 />
               </label>
               <label>
                 Grid Offset Y
-                <input
-                  type="number"
+                <NumericInput
                   value={map.grid.offsetY}
                   disabled={disabled}
-                  onChange={(event) => updateGrid("offsetY", Number(event.target.value || 0))}
+                  onValueChange={(value) => updateGrid("offsetY", value ?? 0)}
                 />
               </label>
               <label>

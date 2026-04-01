@@ -116,7 +116,8 @@ export const abilityScoresSchema: z.ZodType<AbilityScores> = z.object({
 export const hitPointsSchema: z.ZodType<HitPoints> = z.object({
   current: finiteNumber,
   max: finiteNumber,
-  temp: finiteNumber
+  temp: finiteNumber,
+  reducedMax: finiteNumber
 });
 
 export const skillEntrySchema: z.ZodType<SkillEntry> = z.object({

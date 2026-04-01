@@ -24,6 +24,7 @@ export interface HitPoints {
   current: number;
   max: number;
   temp: number;
+  reducedMax: number;
 }
 
 export interface SkillEntry {
