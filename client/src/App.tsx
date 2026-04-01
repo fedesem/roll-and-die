@@ -323,6 +323,7 @@ export default function App() {
   const {
     sendChat,
     rollFromSheet,
+    saveActorRealtime,
     moveActor,
     broadcastMovePreview,
     broadcastMeasurePreview,
@@ -490,6 +491,7 @@ export default function App() {
       pingAndRecallMap,
       sendChat,
       rollFromSheet,
+      saveActorRealtime,
       updateToken
     }
   });

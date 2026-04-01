@@ -101,6 +101,7 @@ export interface CampaignPageProps {
   onPingAndRecall: (point: Point, center: Point, zoom: number) => Promise<void>;
   onSendChat: (text: string) => Promise<void>;
   onSaveActor: (actor: ActorSheet) => Promise<void>;
+  onRealtimeSaveActor: (actor: ActorSheet) => Promise<void>;
   onRoll: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
   onUpdateToken: (tokenId: string, patch: TokenUpdatePatch) => Promise<void>;
 }
@@ -175,6 +176,7 @@ export function CampaignPage({
   onPingAndRecall,
   onSendChat,
   onSaveActor,
+  onRealtimeSaveActor,
   onRoll,
   onUpdateToken
 }: CampaignPageProps) {
@@ -408,9 +410,11 @@ export function CampaignPage({
             </section>
           </aside>
 
-          <aside className="table-overlay table-chat">
-            <ChatPanel messages={campaign.chat} currentUserId={currentUserId} onSend={onSendChat} />
-          </aside>
+          {activePopup !== "sheet" ? (
+            <aside className="table-overlay table-chat">
+              <ChatPanel key="docked-chat" messages={campaign.chat} currentUserId={currentUserId} onSend={onSendChat} />
+            </aside>
+          ) : null}
         </section>
       </main>
 
@@ -428,7 +432,9 @@ export function CampaignPage({
             allowedSourceBooks={campaign.allowedSourceBooks}
             role={role}
             currentUserId={currentUserId}
+            sheetContext="board"
             onSave={onSaveActor}
+            onRealtimeSave={onRealtimeSaveActor}
             onRoll={onRoll}
           />
         </WorkspaceModal>

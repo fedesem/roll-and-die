@@ -102,6 +102,7 @@ interface UseCampaignRouteModelOptions {
     pingAndRecallMap: (point: Point, center: Point, zoom: number) => Promise<void>;
     sendChat: (text: string) => Promise<void>;
     rollFromSheet: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
+    saveActorRealtime: (actor: ActorSheet) => Promise<void>;
     updateToken: (tokenId: string, patch: TokenUpdatePatch) => Promise<void>;
   };
 }
@@ -302,6 +303,7 @@ export function useCampaignRouteModel({
     onPingAndRecall: actions.pingAndRecallMap,
     onSendChat: actions.sendChat,
     onSaveActor: actions.saveActor,
+    onRealtimeSaveActor: actions.saveActorRealtime,
     onRoll: actions.rollFromSheet,
     onUpdateToken: actions.updateToken
   };

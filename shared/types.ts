@@ -833,6 +833,10 @@ export type ClientRoomMessage =
       actorId?: string;
     }
   | {
+      type: "actor:update";
+      actor: ActorSheet;
+    }
+  | {
       type: "token:move";
       actorId: string;
       x: number;

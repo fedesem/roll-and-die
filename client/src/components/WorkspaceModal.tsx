@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+import { IconButton } from "./IconButton";
 import { ModalFrame } from "./ModalFrame";
 
 export type WorkspaceModalSize = "default" | "compact" | "wide" | "full";
@@ -20,12 +21,19 @@ export interface WorkspaceModalView {
   data?: unknown;
 }
 
+interface WorkspaceModalHeaderContextValue {
+  setHeaderActions: (actions: ReactNode | null) => void;
+}
+
+const WorkspaceModalHeaderContext = createContext<WorkspaceModalHeaderContextValue | null>(null);
+
 type WorkspaceModalProps =
   | {
       title: string;
       onClose: () => void;
       size?: WorkspaceModalSize;
       backdropClassName?: string;
+      allowBackgroundInteraction?: boolean;
       children: ReactNode;
       initialView?: never;
     }
@@ -33,6 +41,7 @@ type WorkspaceModalProps =
       onClose: () => void;
       initialView: WorkspaceModalView;
       backdropClassName?: string;
+      allowBackgroundInteraction?: boolean;
       children: (controls: WorkspaceModalControls) => ReactNode;
       title?: never;
       size?: never;
@@ -85,6 +94,7 @@ export function WorkspaceModal(props: WorkspaceModalProps) {
   }, [initialViewKey]);
 
   const currentView = history[history.length - 1] ?? stableInitialView;
+  const [headerActions, setHeaderActions] = useState<ReactNode | null>(null);
   const { onClose } = props;
   const closeCurrentView = useCallback(() => {
     if (history.length <= 1) {
@@ -108,6 +118,7 @@ export function WorkspaceModal(props: WorkspaceModalProps) {
   };
   const sizeClass = getSizeClass(currentView.size ?? "default");
   const backdropClassName = props.backdropClassName ?? "bg-slate-950/70 backdrop-blur-md";
+  const allowBackgroundInteraction = props.allowBackgroundInteraction ?? false;
   let content: ReactNode;
 
   if (stackMode) {
@@ -118,21 +129,36 @@ export function WorkspaceModal(props: WorkspaceModalProps) {
   }
 
   return (
-    <ModalFrame onClose={closeCurrentView} backdropClassName={backdropClassName} panelClassName={sizeClass}>
-      <>
-        <div className="flex items-center justify-between gap-4 border-b border-white/8 px-6 py-4">
-          <h2 className="font-serif text-2xl tracking-wide text-amber-50">{currentView.title}</h2>
-          <button
-            type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-none border border-white/10 bg-white/[0.04] p-0 text-lg font-semibold leading-none text-slate-200 transition hover:border-amber-200/18 hover:text-amber-50"
-            onClick={closeCurrentView}
-            aria-label="Close popup"
-          >
-            <span aria-hidden="true">X</span>
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">{content}</div>
-      </>
+    <ModalFrame
+      onClose={closeCurrentView}
+      backdropClassName={backdropClassName}
+      panelClassName={sizeClass}
+      allowBackgroundInteraction={allowBackgroundInteraction}
+    >
+      <WorkspaceModalHeaderContext.Provider value={{ setHeaderActions }}>
+        <>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-white/8 px-6 py-4">
+            <h2 className="min-w-0 truncate font-serif text-2xl tracking-wide text-amber-50">{currentView.title}</h2>
+            <div className="flex items-center justify-center">{headerActions}</div>
+            <div className="flex justify-end">
+              <IconButton icon={<span aria-hidden="true">X</span>} label="Close popup" onClick={closeCurrentView} className="text-lg font-semibold leading-none" />
+            </div>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">{content}</div>
+        </>
+      </WorkspaceModalHeaderContext.Provider>
     </ModalFrame>
   );
+}
+
+export function useWorkspaceModalHeader(actions: ReactNode | null) {
+  const context = useContext(WorkspaceModalHeaderContext);
+
+  useEffect(() => {
+    context?.setHeaderActions(actions);
+
+    return () => {
+      context?.setHeaderActions(null);
+    };
+  }, [actions, context]);
 }

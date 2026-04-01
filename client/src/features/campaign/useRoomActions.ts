@@ -64,6 +64,24 @@ export function useRoomActions({
     [onStatus, selectedCampaignId, sendRoomMessage]
   );
 
+  const saveActorRealtime = useCallback(
+    async (actor: ActorSheet) => {
+      if (!selectedCampaignId) {
+        return;
+      }
+
+      try {
+        await sendRoomMessage({
+          type: "actor:update",
+          actor
+        });
+      } catch (error) {
+        onStatus("error", toErrorMessage(error));
+      }
+    },
+    [onStatus, selectedCampaignId, sendRoomMessage]
+  );
+
   const moveActor = useCallback(
     async (actorId: string, x: number, y: number) => {
       if (!selectedCampaignId) {
@@ -360,6 +378,7 @@ export function useRoomActions({
   return {
     sendChat,
     rollFromSheet,
+    saveActorRealtime,
     moveActor,
     broadcastMovePreview,
     broadcastMeasurePreview,

@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 
+import { BoardFloatingChatPortal } from "../../features/campaign/BoardFloatingChatPortal";
 import { useCampaignRouteContext } from "../CampaignRouteContext";
 import { RouteChunkFallback } from "../RouteChunkFallback";
 
@@ -12,8 +13,17 @@ export function CampaignBoardRouteContent() {
   const { boardPageProps } = useCampaignRouteContext();
 
   return (
-    <Suspense fallback={<RouteChunkFallback />}>
-      <CampaignPage {...boardPageProps} />
-    </Suspense>
+    <>
+      <Suspense fallback={<RouteChunkFallback />}>
+        <CampaignPage {...boardPageProps} />
+      </Suspense>
+      {boardPageProps.activePopup === "sheet" ? (
+        <BoardFloatingChatPortal
+          messages={boardPageProps.campaign.chat}
+          currentUserId={boardPageProps.currentUserId}
+          onSend={boardPageProps.onSendChat}
+        />
+      ) : null}
+    </>
   );
 }

@@ -46,6 +46,7 @@ import {
   deleteDrawingsCommand,
   resetFogCommand,
   setActiveMapCommand,
+  updateActorCommand,
   updateDrawingsCommand
 } from "../services/campaignCommandService.js";
 import {
@@ -413,6 +414,16 @@ async function handleSocketMessage(connection: RoomConnection, raw: string) {
         actorId: payload.actorId ?? undefined
       });
       broadcastChatAppendedToRoom(campaignId, message);
+      return;
+    }
+    if (payload.type === "actor:update") {
+      const { actor, tokens } = await updateActorCommand({
+        campaignId,
+        actorId: payload.actor.id,
+        userId: user.id,
+        patch: payload.actor
+      });
+      broadcastActorUpdatedToRoom(campaignId, actor, tokens);
       return;
     }
     if (payload.type === "token:move") {

@@ -453,6 +453,7 @@ export function CampaignHubPage({
             allowedSourceBooks={campaign.allowedSourceBooks}
             role={role}
             currentUserId={currentUserId}
+            sheetContext="campaign"
             onSave={onSaveActor}
             onRoll={onRoll}
           />

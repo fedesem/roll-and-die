@@ -3,11 +3,14 @@ import {
   BookOpen,
   Brain,
   Coins,
+  Dice6,
+  Edit3,
   Heart,
   ImagePlus,
   Plus,
   RotateCcw,
   Shield,
+  Skull,
   Sparkles,
   Swords,
   ThumbsDown,
@@ -44,7 +47,9 @@ import type {
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 
 import { RulesText } from "../../components/admin/AdminPreview";
+import { IconButton } from "../../components/IconButton";
 import { ModalFrame } from "../../components/ModalFrame";
+import { useWorkspaceModalHeader } from "../../components/WorkspaceModal";
 import { resolveAssetUrl } from "../../lib/assets";
 import { uploadImageAsset } from "../../services/assetService";
 import { RestDialog } from "./RestDialog";
@@ -79,7 +84,9 @@ interface PlayerNpcSheet2024Props {
   allowedSourceBooks: string[];
   role: MemberRole;
   currentUserId: string;
+  sheetContext: "board" | "campaign";
   onSave: (actor: ActorSheet) => Promise<void>;
+  onRealtimeSave?: (actor: ActorSheet) => Promise<void>;
   onRoll: (notation: string, label: string) => Promise<void>;
 }
 
@@ -183,7 +190,9 @@ export function PlayerNpcSheet2024({
   allowedSourceBooks,
   role,
   currentUserId,
+  sheetContext,
   onSave,
+  onRealtimeSave,
   onRoll
 }: PlayerNpcSheet2024Props) {
   const [draft, setDraft] = useState<ActorSheet>(() => cloneActor(actor));
@@ -387,7 +396,8 @@ export function PlayerNpcSheet2024({
   );
   const editReadOnly = !canEdit;
   const needsInitialGuidedSetup = draft.classes.length === 0;
-  const availableTabs = needsInitialGuidedSetup ? (["edit"] as const) : (["main", "edit"] as const);
+  const hasMainTab = !needsInitialGuidedSetup;
+  const mainTabInteractive = sheetContext === "board" && hasMainTab;
   const showSetupGuideOnly = needsInitialGuidedSetup && guidedFlowOpen && guidedFlowMode === "setup";
   const mainAutosaveSignature = useMemo(() => JSON.stringify(buildMainAutosaveState(draft)), [draft]);
   const actorMainAutosaveSignature = useMemo(() => JSON.stringify(buildMainAutosaveState(actor)), [actor]);
@@ -717,29 +727,33 @@ export function PlayerNpcSheet2024({
           compendium.backgrounds.find((entry) => entry.id === nextDraft.build?.backgroundId) ?? null
         ).map((entry) => entry.title);
 
-        await onSave(
-          finalizeDraftForSave(nextDraft, {
-            armorClass: derivedArmorClass(nextActorWithDerivedNumbers),
-            proficiencyBonus: nextProficiencyBonus,
-            speed: derivedSpeed(nextActorWithDerivedNumbers),
-            hitPointMax: deriveGuidedHitPointMax(nextDraft),
-            spellSlots: nextSpellSlots,
-            resources: nextResources,
-            featureNames: nextFeatures,
-            preparedSpellLimit: nextPreparedSpellLimit,
-            preparableSpellNames: nextSpellCollections.preparable
-          })
-        );
+        const finalizedActor = finalizeDraftForSave(nextDraft, {
+          armorClass: derivedArmorClass(nextActorWithDerivedNumbers),
+          proficiencyBonus: nextProficiencyBonus,
+          speed: derivedSpeed(nextActorWithDerivedNumbers),
+          hitPointMax: deriveGuidedHitPointMax(nextDraft),
+          spellSlots: nextSpellSlots,
+          resources: nextResources,
+          featureNames: nextFeatures,
+          preparedSpellLimit: nextPreparedSpellLimit,
+          preparableSpellNames: nextSpellCollections.preparable
+        });
+
+        if (sheetContext === "board" && activeTab === "main" && onRealtimeSave) {
+          await onRealtimeSave(finalizedActor);
+        } else {
+          await onSave(finalizedActor);
+        }
         lastMainAutosaveRef.current = JSON.stringify(buildMainAutosaveState(nextDraft));
       } finally {
         setSaving(false);
       }
     },
-    [compendium, draft, onSave]
+    [activeTab, compendium, draft, onRealtimeSave, onSave, sheetContext]
   );
 
   useEffect(() => {
-    if (!canEdit || activeTab !== "main" || guidedFlowOpen || shortRestOpen || longRestOpen) {
+    if (!canEdit || !mainTabInteractive || activeTab !== "main" || guidedFlowOpen || shortRestOpen || longRestOpen) {
       return;
     }
 
@@ -761,13 +775,14 @@ export function PlayerNpcSheet2024({
     draft,
     guidedFlowOpen,
     longRestOpen,
+    mainTabInteractive,
     mainAutosaveSignature,
     saveCurrent,
     shortRestOpen
   ]);
 
   async function handleRoll(modifier: number, label: string) {
-    if (!canRoll) {
+    if (!canRoll || sheetContext !== "board") {
       return;
     }
 
@@ -777,7 +792,7 @@ export function PlayerNpcSheet2024({
   }
 
   async function handleNotationRoll(notation: string, label: string, resetsRollMode = false) {
-    if (!canRoll) {
+    if (!canRoll || sheetContext !== "board") {
       return;
     }
 
@@ -789,7 +804,7 @@ export function PlayerNpcSheet2024({
   }
 
   async function handleInitiativeRoll() {
-    if (!canRoll) {
+    if (!canRoll || sheetContext !== "board") {
       return;
     }
 
@@ -825,6 +840,40 @@ export function PlayerNpcSheet2024({
       history: []
     });
   }
+
+  async function handleAutomaticDeathSave() {
+    if (!canRoll || sheetContext !== "board") {
+      return;
+    }
+
+    const roll = rollDie(20);
+    const result = roll >= 10 ? "success" : "failure";
+    recordDeathSave(result);
+    await onRoll(buildStaticRollNotation(roll), `${draft.name} death save (${roll})`);
+  }
+
+  useWorkspaceModalHeader(
+    hasMainTab ? (
+      <div className="flex items-center gap-3">
+        <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-slate-900/90 p-1">
+          {(["normal", "advantage", "disadvantage"] as const).map((mode) => (
+            <label
+              key={mode}
+              className={`rounded-full px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.16em] transition ${
+                mainTabInteractive ? "cursor-pointer" : "cursor-default opacity-50"
+              } ${
+                rollMode === mode ? "bg-slate-100 text-slate-950" : "text-slate-200 hover:bg-slate-800 hover:text-white"
+              }`}
+            >
+              <input className="sr-only" type="radio" checked={rollMode === mode} disabled={!mainTabInteractive} onChange={() => setRollMode(mode)} />
+              {mode === "normal" ? "Normal" : mode === "advantage" ? "Adv" : "Dis"}
+            </label>
+          ))}
+        </div>
+        <IconButton icon={<Edit3 size={14} />} label="Toggle edit mode" active={activeTab === "edit"} onClick={() => setActiveTab(activeTab === "edit" ? "main" : "edit")} />
+      </div>
+    ) : null
+  );
 
   async function handleImageUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -1180,30 +1229,8 @@ export function PlayerNpcSheet2024({
     <section className="space-y-4 text-zinc-100">
       {!showSetupGuideOnly ? (
         <>
-          <header className="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
-            <div className="flex min-w-0 items-center gap-4">
-              <h2 className="truncate font-serif text-2xl text-amber-50">{draft.name || "Unnamed Actor"} Sheet</h2>
-              <div role="tablist" aria-label="Actor sheet tabs" className="inline-flex border border-white/10 bg-slate-950/60">
-                {availableTabs.map((tab) => (
-                  <button
-                    key={tab}
-                    role="tab"
-                    aria-selected={activeTab === tab}
-                    type="button"
-                    className={`px-4 py-2 text-xs uppercase tracking-[0.22em] transition ${
-                      activeTab === tab ? "bg-amber-500 text-zinc-950" : "text-zinc-400 hover:text-amber-50"
-                    }`}
-                    onClick={() => setActiveTab(tab)}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </header>
-
           {activeTab === "main" ? (
-        <div className="grid gap-3 xl:grid-cols-3">
+        <div className={`grid gap-3 xl:grid-cols-3 ${mainTabInteractive ? "" : "pointer-events-none opacity-75 select-none"}`}>
           <div className="space-y-3">
             <SectionCard title="Identity" icon={<Shield size={14} />}>
               <div className="flex items-center justify-between gap-3">
@@ -1213,14 +1240,6 @@ export function PlayerNpcSheet2024({
                     <h3 className="truncate font-serif text-xl text-amber-50">{draft.name || "Unnamed Actor"}</h3>
                     <p className="truncate text-xs text-zinc-400">{[draft.species || "No species", draft.className || "No class", draft.background || "No background"].join(" • ")}</p>
                   </div>
-                </div>
-                <div className="inline-flex items-center gap-1 border border-white/10 bg-white/[0.03] p-1">
-                  {(["normal", "advantage", "disadvantage"] as const).map((mode) => (
-                    <label key={mode} className={`cursor-pointer px-2 py-1 text-[10px] uppercase tracking-[0.18em] ${rollMode === mode ? "bg-amber-500 text-zinc-950" : "text-zinc-400"}`}>
-                      <input className="sr-only" type="radio" checked={rollMode === mode} onChange={() => setRollMode(mode)} />
-                      {mode === "normal" ? "Normal" : mode === "advantage" ? "Adv" : "Dis"}
-                    </label>
-                  ))}
                 </div>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -1327,6 +1346,7 @@ export function PlayerNpcSheet2024({
                 onSuccess={() => recordDeathSave("success")}
                 onFailure={() => recordDeathSave("failure")}
                 onReset={resetDeathSaves}
+                onRoll={() => void handleAutomaticDeathSave()}
               />
             </SectionCard>
 
@@ -1379,21 +1399,11 @@ export function PlayerNpcSheet2024({
                         <span className="text-zinc-200">Level {slot.level}</span>
                         <span className="text-zinc-500">{slot.total - slot.used}/{slot.total}</span>
                       </div>
-                      <div className="flex flex-wrap gap-1">
-                        {Array.from({ length: slot.total }, (_, markerIndex) => markerIndex).map((marker) => {
-                          const isUsed = marker < slot.used;
-                          return (
-                            <button
-                              key={marker}
-                              type="button"
-                              className={`h-6 w-6 border text-[10px] transition ${isUsed ? "border-amber-500 bg-amber-500 text-zinc-950" : "border-white/10 bg-white/[0.03] text-zinc-300"}`}
-                              onClick={() => updateSpellSlotLevel(slot.level, { used: marker + 1 === slot.used ? marker : marker + 1 })}
-                            >
-                              {marker + 1}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      <UsableTrack
+                        total={slot.total}
+                        available={slot.total - slot.used}
+                        onChange={(available) => updateSpellSlotLevel(slot.level, { used: Math.max(0, slot.total - available) })}
+                      />
                     </div>
                   ))
                 )}
@@ -1408,21 +1418,7 @@ export function PlayerNpcSheet2024({
                       <p className="text-xs text-zinc-100">{resource.name}</p>
                       <p className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">{resource.current}/{resource.max}</p>
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {Array.from({ length: Math.max(resource.max, 0) }, (_, markerIndex) => markerIndex).map((marker) => {
-                        const spent = marker >= resource.current;
-                        return (
-                          <button
-                            key={`${resource.id}:${marker}`}
-                            type="button"
-                            className={`h-6 w-6 border text-[10px] transition ${spent ? "border-white/10 bg-white/[0.03] text-zinc-500" : "border-amber-500 bg-amber-500 text-zinc-950"}`}
-                            onClick={() => updateResourceById(resource.id, { current: marker + 1 === resource.current ? marker : marker + 1 })}
-                          >
-                            {marker + 1}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <UsableTrack total={Math.max(resource.max, 0)} available={resource.current} onChange={(available) => updateResourceById(resource.id, { current: available })} />
                   </div>
                 ))}
                 {displayedResources.length === 0 ? <p className="text-xs text-zinc-500">No resources tracked yet.</p> : null}
@@ -4590,6 +4586,10 @@ function buildD20Notation(modifier: number, mode: RollMode) {
   return modifier >= 0 ? `${base}+${modifier}` : `${base}${modifier}`;
 }
 
+function buildStaticRollNotation(total: number) {
+  return `1d20*0+${Math.max(0, Math.round(total))}`;
+}
+
 function updateHitPoints(key: keyof ActorSheet["hitPoints"], value: string, updateDraft: (recipe: (current: ActorSheet) => ActorSheet) => void) {
   updateDraft((current) => ({
     ...current,
@@ -4651,16 +4651,25 @@ function rollDie(faces: number) {
 }
 
 function PortraitCard({ actor, compact = false }: { actor: ActorSheet; compact?: boolean }) {
+  const initials =
+    actor.name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((entry) => entry[0]?.toUpperCase() ?? "")
+      .join("") || "?";
+
   return (
     <div className={`flex items-start justify-center ${compact ? "" : "pt-1"}`}>
       <div
-        className={`${compact ? "h-12 w-12" : "h-24 w-24"} overflow-hidden rounded-full border border-amber-400/40 bg-black/30 shadow-[0_0_0_4px_rgba(15,23,42,0.9)]`}
+        className={`${compact ? "h-12 w-12 text-sm" : "h-24 w-24 text-xl"} overflow-hidden rounded-full border border-amber-400/40 shadow-[0_0_0_4px_rgba(15,23,42,0.9)]`}
+        style={{ backgroundColor: actor.imageUrl ? undefined : actor.color || "#334155" }}
       >
         {actor.imageUrl ? (
           <img className="h-full w-full object-cover" src={resolveAssetUrl(actor.imageUrl)} alt={actor.name || "Actor token"} />
         ) : (
-          <div className={`${compact ? "text-[8px] tracking-[0.2em]" : "text-[10px] tracking-[0.28em]"} flex h-full w-full items-center justify-center uppercase text-zinc-500`}>
-            No Token
+          <div className="flex h-full w-full items-center justify-center font-semibold uppercase text-slate-950">
+            {initials}
           </div>
         )}
       </div>
@@ -4778,6 +4787,33 @@ function CompactStatChip({ label, value, onClick }: { label: string; value: stri
   );
 }
 
+function UsableTrack({
+  total,
+  available,
+  onChange
+}: {
+  total: number;
+  available: number;
+  onChange: (available: number) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {Array.from({ length: Math.max(total, 0) }, (_, index) => {
+        const isAvailable = index < available;
+
+        return (
+          <button
+            key={index}
+            type="button"
+            className={`h-5 w-5 rounded-full border transition ${isAvailable ? "border-amber-500 bg-amber-500" : "border-white/15 bg-transparent"}`}
+            onClick={() => onChange(isAvailable ? index : index + 1)}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function AbilityMiniCard({
   label,
   score,
@@ -4817,69 +4853,50 @@ function DeathSaveTracker({
   deathSaves,
   onSuccess,
   onFailure,
-  onReset
+  onReset,
+  onRoll
 }: {
   deathSaves: ActorSheet["deathSaves"];
   onSuccess: () => void;
   onFailure: () => void;
   onReset: () => void;
+  onRoll: () => void;
 }) {
   const history = deathSaves.history ?? [];
-  const successLocked = deathSaves.successes >= 3;
-  const failureLocked = deathSaves.failures >= 3;
+  const allFilled = history.length === 3;
+  const allSuccess = allFilled && history.every((entry) => entry === "success");
+  const allFailure = allFilled && history.every((entry) => entry === "failure");
 
   return (
     <div className="space-y-2 border border-white/8 bg-black/20 p-2">
-      <div className="grid gap-2 sm:grid-cols-2">
-        <div className="space-y-1">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-zinc-500">Successes</p>
-          <div className="flex gap-1">
-            {Array.from({ length: 3 }, (_, index) => (
-              <span
-                key={`success:${index}`}
-                className={`h-3.5 w-3.5 rounded-full border ${index < deathSaves.successes ? "border-emerald-400 bg-emerald-400" : "border-white/15 bg-transparent"}`}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="space-y-1">
-          <p className="text-[10px] uppercase tracking-[0.16em] text-zinc-500">Failures</p>
-          <div className="flex gap-1">
-            {Array.from({ length: 3 }, (_, index) => (
-              <span
-                key={`failure:${index}`}
-                className={`h-3.5 w-3.5 rounded-full border ${index < deathSaves.failures ? "border-rose-500 bg-rose-500" : "border-white/15 bg-transparent"}`}
-              />
-            ))}
-          </div>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] uppercase tracking-[0.16em] text-zinc-500">Death Saving Throws</p>
+        {allSuccess ? <span className="text-[10px] uppercase tracking-[0.16em] text-emerald-300">Stable</span> : null}
+        {allFailure ? <span className="text-[10px] uppercase tracking-[0.16em] text-rose-300">Dead</span> : null}
       </div>
       <div className="flex items-center gap-2">
-        <button type="button" className={miniButtonClass} disabled={successLocked || failureLocked} onClick={onSuccess}>
-          <ThumbsUp size={12} />
-        </button>
-        <button type="button" className={miniButtonClass} disabled={successLocked || failureLocked} onClick={onFailure}>
-          <ThumbsDown size={12} />
-        </button>
-        <button type="button" className={miniButtonClass} onClick={onReset}>
-          <RotateCcw size={12} />
-        </button>
-        <div className="ml-auto flex items-center gap-1">
-          {history.length > 0 ? (
-            history.map((entry, index) => (
-              <span
-                key={`${entry}:${index}`}
-                className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10px] ${
-                  entry === "success" ? "border-emerald-400/60 text-emerald-300" : "border-rose-500/60 text-rose-300"
-                }`}
-              >
-                {entry === "success" ? "↑" : "↓"}
-              </span>
-            ))
-          ) : (
-            <span className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">No rolls</span>
-          )}
-        </div>
+        {Array.from({ length: 3 }, (_, index) => {
+          const entry = history[index];
+          const success = entry === "success";
+          const failure = entry === "failure";
+
+          return (
+            <span
+              key={`death:${index}`}
+              className={`flex h-7 w-7 items-center justify-center rounded-full border ${
+                success ? "border-emerald-400 bg-emerald-400 text-zinc-950" : failure ? "border-rose-500 bg-rose-500 text-zinc-950" : "border-white/15 bg-transparent text-transparent"
+              }`}
+            >
+              {success ? <Plus size={12} /> : failure ? <Skull size={12} /> : <span className="h-3 w-3" />}
+            </span>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-2">
+        <IconButton icon={<ThumbsUp size={12} />} label="Mark death save success" onClick={onSuccess} className="h-8 w-8" />
+        <IconButton icon={<ThumbsDown size={12} />} label="Mark death save failure" onClick={onFailure} className="h-8 w-8" />
+        <IconButton icon={<Dice6 size={12} />} label="Roll death save" onClick={onRoll} className="h-8 w-8" />
+        <IconButton icon={<RotateCcw size={12} />} label="Reset death saves" onClick={onReset} className="h-8 w-8" />
       </div>
     </div>
   );

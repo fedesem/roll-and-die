@@ -16,11 +16,13 @@ interface CharacterSheetProps {
   allowedSourceBooks: string[];
   role: MemberRole;
   currentUserId: string;
+  sheetContext: "board" | "campaign";
   onSave: (actor: ActorSheet) => Promise<void>;
+  onRealtimeSave?: (actor: ActorSheet) => Promise<void>;
   onRoll: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
 }
 
-export function CharacterSheet({ token, actor, compendium, allowedSourceBooks, role, currentUserId, onSave, onRoll }: CharacterSheetProps) {
+export function CharacterSheet({ token, actor, compendium, allowedSourceBooks, role, currentUserId, sheetContext, onSave, onRealtimeSave, onRoll }: CharacterSheetProps) {
   const [draft, setDraft] = useState<ActorSheet | null>(actor ? cloneActor(actor) : null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -76,7 +78,9 @@ export function CharacterSheet({ token, actor, compendium, allowedSourceBooks, r
         allowedSourceBooks={allowedSourceBooks}
         role={role}
         currentUserId={currentUserId}
+        sheetContext={sheetContext}
         onSave={onSave}
+        onRealtimeSave={onRealtimeSave}
         onRoll={(notation, label) => onRoll(notation, label, actor)}
       />
     );

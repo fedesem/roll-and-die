@@ -187,6 +187,7 @@ export function PlayerActorCreatorModal({
           allowedSourceBooks={allowedSourceBooks}
           role={role}
           currentUserId={currentUserId}
+          sheetContext="campaign"
           onSave={onCreateActor}
           onRoll={onRoll}
         />

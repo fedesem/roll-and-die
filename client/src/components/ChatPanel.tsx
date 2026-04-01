@@ -9,11 +9,12 @@ interface ChatPanelProps {
   messages: ChatMessage[];
   currentUserId: string;
   onSend: (text: string) => Promise<void>;
+  alwaysFollowLatest?: boolean;
 }
 
 const pageSize = 50;
 
-export function ChatPanel({ messages, currentUserId, onSend }: ChatPanelProps) {
+export function ChatPanel({ messages, currentUserId, onSend, alwaysFollowLatest = false }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [localHelp, setLocalHelp] = useState<string | null>(null);
@@ -41,6 +42,10 @@ export function ChatPanel({ messages, currentUserId, onSend }: ChatPanelProps) {
         return 0;
       }
 
+      if (alwaysFollowLatest) {
+        return Math.min(messages.length, Math.max(pageSize, messages.length));
+      }
+
       if (campaignChanged) {
         return Math.min(messages.length, pageSize);
       }
@@ -57,11 +62,11 @@ export function ChatPanel({ messages, currentUserId, onSend }: ChatPanelProps) {
 
     previousLastMessageIdRef.current = nextLastMessageId;
     previousCampaignIdRef.current = nextCampaignId;
-    if (campaignChanged) {
+    if (campaignChanged || alwaysFollowLatest) {
       pendingScrollOffsetRef.current = null;
       stickToBottomRef.current = true;
     }
-  }, [messages]);
+  }, [alwaysFollowLatest, messages]);
 
   useEffect(() => {
     const nextCampaignId = messages[0]?.campaignId ?? null;

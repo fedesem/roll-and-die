@@ -35,6 +35,10 @@ export const clientRoomMessageSchema = z.discriminatedUnion("type", [
     actorId: z.string().trim().min(1).optional()
   }),
   z.object({
+    type: z.literal("actor:update"),
+    actor: actorSheetSchema
+  }),
+  z.object({
     type: z.literal("token:move"),
     actorId: z.string().trim().min(1),
     x: z.number().finite(),
