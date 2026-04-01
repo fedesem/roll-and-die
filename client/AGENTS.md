@@ -80,7 +80,7 @@ After any client edit:
 After client structural changes:
 
 - run `tsc --noEmit -p client/tsconfig.json`
-- run `npm run lint --workspace client`
+- run lint only on the staged or otherwise touched client files by default; only run workspace-wide lint when the change genuinely requires it
 - run `npm run build --workspace client`
 
 ## Styling Rules

@@ -210,7 +210,7 @@ After any file edit:
 
 After structural changes:
 
-- run `npm run lint` after client/server code changes
+- run lint only on the staged or otherwise touched files by default after client/server code changes; only run repo-wide lint when the change genuinely requires it
 - run `tsc --noEmit -p client/tsconfig.json` for client refactors
 - use `npm run format:check` before wide formatting or style-only changes
 - prefer `npm run check` for a full repo validation pass
