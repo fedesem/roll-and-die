@@ -1,5 +1,6 @@
 import {
   type CSSProperties,
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -73,6 +74,7 @@ interface BoardCanvasProps {
   role: BoardRole;
   currentUserId: string;
   playerSeenCells: string[];
+  visibleCells: Set<string>;
   fogPreviewUserId?: string;
   fogPlayers: BoardFogPlayer[];
   dmFogEnabled: boolean;
@@ -147,7 +149,7 @@ const localMeasurePalette = {
   fill: "rgba(242, 187, 63, 0.16)",
   endFill: "rgba(18, 21, 26, 0.92)"
 };
-export function BoardCanvas({
+function BoardCanvasComponent({
   map,
   tokens,
   actors,
@@ -155,6 +157,7 @@ export function BoardCanvas({
   role,
   currentUserId,
   playerSeenCells,
+  visibleCells,
   fogPreviewUserId,
   fogPlayers,
   dmFogEnabled,
@@ -221,6 +224,7 @@ export function BoardCanvas({
   const backgroundImageUrl = map ? resolveAssetUrl(map.backgroundUrl) : "";
   const isDungeonMaster = role === "dm";
   const mapFogEnabled = map?.fogEnabled ?? true;
+  const hasOptimisticVisibility = Object.keys(optimisticTokenPositions).length > 0;
   const playerUserIdSet = useMemo(() => new Set(fogPlayers.map((member) => member.userId)), [fogPlayers]);
   const fogPreviewActive = isDungeonMaster && mapFogEnabled && typeof fogPreviewUserId === "string" && fogPreviewUserId.length > 0;
   const usesRestrictedVision = mapFogEnabled && (role !== "dm" || fogPreviewActive);
@@ -284,6 +288,10 @@ export function BoardCanvas({
       return new Set(allMapCells(map));
     }
 
+    if (!hasOptimisticVisibility) {
+      return visibleCells;
+    }
+
     return computeVisibleCellsForUser({
       map,
       actors,
@@ -291,7 +299,7 @@ export function BoardCanvas({
       userId: visionUserId,
       role: usesRestrictedVision ? "player" : "dm"
     });
-  }, [actors, map, mapFogEnabled, usesRestrictedVision, visionUserId, visibleTokens]);
+  }, [actors, hasOptimisticVisibility, map, mapFogEnabled, usesRestrictedVision, visionUserId, visibleCells, visibleTokens]);
 
   const seenCells = useMemo(() => {
     if (!map) {
@@ -2072,6 +2080,8 @@ export function BoardCanvas({
     </section>
   );
 }
+
+export const BoardCanvas = memo(BoardCanvasComponent);
 
 function concealTeleporterTraceForPlayers(
   preview: TokenMovementPreview | MovementTrace | null,

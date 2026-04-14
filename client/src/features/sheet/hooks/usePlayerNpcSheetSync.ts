@@ -41,8 +41,8 @@ export function usePlayerNpcSheetSync({
   const actorIdRef = useRef(actor.id);
   const lastActorSyncSignatureRef = useRef(actorSyncSignature);
   const lastMainAutosaveRef = useRef<string>(JSON.stringify(buildMainAutosaveState(actor)));
-  const mainAutosaveSignature = useMemo(() => JSON.stringify(buildMainAutosaveState(draft)), [draft]);
-  const actorMainAutosaveSignature = useMemo(() => JSON.stringify(buildMainAutosaveState(actor)), [actor]);
+  const mainAutosaveSignature = useMemo(() => (activeTab === "main" ? JSON.stringify(buildMainAutosaveState(draft)) : ""), [activeTab, draft]);
+  const actorMainAutosaveSignature = useMemo(() => (activeTab === "main" ? JSON.stringify(buildMainAutosaveState(actor)) : ""), [activeTab, actor]);
 
   useEffect(() => {
     draftRef.current = draft;

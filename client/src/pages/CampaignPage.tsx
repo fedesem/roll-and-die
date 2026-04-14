@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Home, Map as MapIcon, ScrollText } from "lucide-react";
 
@@ -42,6 +42,7 @@ export interface CampaignPageProps {
   selectedActor: ActorSheet | null;
   activePopup: ActivePopup;
   boardSeenCells: string[];
+  boardVisibleCells: Set<string>;
   fogPreviewUserId?: string;
   playerMembers: CampaignMember[];
   dmFogEnabled: boolean;
@@ -117,6 +118,7 @@ export function CampaignPage({
   selectedActor,
   activePopup,
   boardSeenCells,
+  boardVisibleCells,
   fogPreviewUserId,
   playerMembers,
   dmFogEnabled,
@@ -182,6 +184,7 @@ export function CampaignPage({
 }: CampaignPageProps) {
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
   const [rollingInitiative, setRollingInitiative] = useState(false);
+  const fogPlayers = useMemo(() => playerMembers.map((member) => ({ userId: member.userId, name: member.name })), [playerMembers]);
 
   function closeBoardMapModal() {
     setIsMapPopupOpen(false);
@@ -256,8 +259,9 @@ export function CampaignPage({
             role={role}
             currentUserId={currentUserId}
             playerSeenCells={boardSeenCells}
+            visibleCells={boardVisibleCells}
             fogPreviewUserId={fogPreviewUserId}
-            fogPlayers={playerMembers.map((member) => ({ userId: member.userId, name: member.name }))}
+            fogPlayers={fogPlayers}
             dmFogEnabled={dmFogEnabled}
             dmFogUserId={dmFogUserId}
             onSetDmFogEnabled={onSetDmFogEnabled}

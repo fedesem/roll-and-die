@@ -1,5 +1,5 @@
 import { ImagePlus, ScrollText, Shield } from "lucide-react";
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
 
 import type { ActorCreatureSize, ActorSheet, CampaignSnapshot, MemberRole } from "@shared/types";
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
@@ -23,7 +23,7 @@ interface CharacterSheetProps {
   onRoll: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
 }
 
-export function CharacterSheet({ token, actor, compendium, allowedSourceBooks, role, currentUserId, sheetContext, onSave, onRealtimeSave, onRoll }: CharacterSheetProps) {
+function CharacterSheetComponent({ token, actor, compendium, allowedSourceBooks, role, currentUserId, sheetContext, onSave, onRealtimeSave, onRoll }: CharacterSheetProps) {
   const [draft, setDraft] = useState<ActorSheet | null>(actor ? cloneActor(actor) : null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -49,6 +49,11 @@ export function CharacterSheet({ token, actor, compendium, allowedSourceBooks, r
 
     return role === "dm" || actor.ownerId === currentUserId;
   }, [actor, currentUserId, role]);
+
+  const handlePlayerNpcRoll = useCallback(
+    (notation: string, label: string) => onRoll(notation, label, actor),
+    [actor, onRoll]
+  );
 
   if (!actor || !draft) {
     return (
@@ -82,7 +87,7 @@ export function CharacterSheet({ token, actor, compendium, allowedSourceBooks, r
         sheetContext={sheetContext}
         onSave={onSave}
         onRealtimeSave={onRealtimeSave}
-        onRoll={(notation, label) => onRoll(notation, label, actor)}
+        onRoll={handlePlayerNpcRoll}
       />
     );
   }
@@ -108,6 +113,8 @@ export function CharacterSheet({ token, actor, compendium, allowedSourceBooks, r
     />
   );
 }
+
+export const CharacterSheet = memo(CharacterSheetComponent);
 
 interface SimpleActorSheetProps {
   token: string;

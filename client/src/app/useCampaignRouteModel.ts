@@ -25,6 +25,7 @@ interface UseCampaignRouteModelOptions {
     selectedActor: ActorSheet | null;
     activePopup: "sheet" | null;
     boardSeenCells: string[];
+    boardVisibleCells: Set<string>;
     fogPreviewUserId?: string;
     playerMembers: CampaignSnapshot["campaign"]["members"];
     dmFogEnabled: boolean;
@@ -244,6 +245,7 @@ export function useCampaignRouteModel({
     selectedActor: routeState.selectedActor,
     activePopup: routeState.activePopup,
     boardSeenCells: routeState.boardSeenCells,
+    boardVisibleCells: routeState.boardVisibleCells,
     fogPreviewUserId: routeState.fogPreviewUserId,
     playerMembers: routeState.playerMembers,
     dmFogEnabled: routeState.dmFogEnabled,

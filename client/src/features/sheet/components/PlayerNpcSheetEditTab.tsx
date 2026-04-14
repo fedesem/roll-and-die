@@ -1,5 +1,5 @@
 import { BookOpen, Brain, Heart, ImagePlus, Plus, Sparkles, Swords } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import type { ActorSheet, ArmorEntry } from "@shared/types";
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
@@ -16,6 +16,7 @@ import {
   actionButtonClass,
   Field,
   inputClass,
+  LazyDetails,
   secondaryButtonClass,
   SectionCard,
   TagRow,
@@ -45,6 +46,95 @@ export function PlayerNpcSheetEditTab({
   renderRulesText
 }: PlayerNpcSheetEditTabProps) {
   const [featToAdd, setFeatToAdd] = useState("");
+  const spellDetailEntries = useMemo(
+    () => ({
+      known: collectSpellRows(draft.spells, draft.preparedSpells, compendium.spells, derived.preparedSpellLimit).map((entry) => ({
+        ...entry,
+        onRemove: permissions.editReadOnly ? undefined : () => mutators.updateField("spells", draft.spells.filter((value) => value !== entry.title))
+      })),
+      prepared: derived.spellRows
+        .filter((entry) => draft.preparedSpells.includes(entry.title) || derived.spellCollections.alwaysPrepared.includes(entry.title))
+        .map((entry) => ({
+          ...entry,
+          onRemove:
+            permissions.editReadOnly || derived.spellCollections.alwaysPrepared.includes(entry.title)
+              ? undefined
+              : () => mutators.updateField("preparedSpells", draft.preparedSpells.filter((value) => value !== entry.title))
+        })),
+      spellbook: collectSpellRows(draft.spellState.spellbook, draft.preparedSpells, compendium.spells, derived.preparedSpellLimit).map((entry) => ({
+        ...entry,
+        onRemove:
+          permissions.editReadOnly
+            ? undefined
+            : () =>
+                mutators.updateField("spellState", {
+                  ...draft.spellState,
+                  spellbook: draft.spellState.spellbook.filter((value) => value !== entry.title)
+                })
+      })),
+      alwaysPrepared: collectSpellRows(draft.spellState.alwaysPrepared, draft.preparedSpells, compendium.spells, derived.preparedSpellLimit).map((entry) => ({
+        ...entry,
+        onRemove:
+          permissions.editReadOnly
+            ? undefined
+            : () =>
+                mutators.updateField("spellState", {
+                  ...draft.spellState,
+                  alwaysPrepared: draft.spellState.alwaysPrepared.filter((value) => value !== entry.title)
+                })
+      })),
+      atWill: collectSpellRows(draft.spellState.atWill, draft.preparedSpells, compendium.spells, derived.preparedSpellLimit).map((entry) => ({
+        ...entry,
+        onRemove:
+          permissions.editReadOnly
+            ? undefined
+            : () =>
+                mutators.updateField("spellState", {
+                  ...draft.spellState,
+                  atWill: draft.spellState.atWill.filter((value) => value !== entry.title)
+                })
+      })),
+      perShortRest: collectSpellRows(draft.spellState.perShortRest, draft.preparedSpells, compendium.spells, derived.preparedSpellLimit).map((entry) => ({
+        ...entry,
+        onRemove:
+          permissions.editReadOnly
+            ? undefined
+            : () =>
+                mutators.updateField("spellState", {
+                  ...draft.spellState,
+                  perShortRest: draft.spellState.perShortRest.filter((value) => value !== entry.title)
+                })
+      })),
+      perLongRest: collectSpellRows(draft.spellState.perLongRest, draft.preparedSpells, compendium.spells, derived.preparedSpellLimit).map((entry) => ({
+        ...entry,
+        onRemove:
+          permissions.editReadOnly
+            ? undefined
+            : () =>
+                mutators.updateField("spellState", {
+                  ...draft.spellState,
+                  perLongRest: draft.spellState.perLongRest.filter((value) => value !== entry.title)
+                })
+      })),
+      feats: derived.featRows.map((entry) => ({
+        ...entry,
+        onRemove: permissions.editReadOnly ? undefined : () => mutators.updateField("feats", draft.feats.filter((value) => value !== entry.title))
+      }))
+    }),
+    [
+      compendium.spells,
+      derived.featRows,
+      derived.preparedSpellLimit,
+      derived.spellCollections.alwaysPrepared,
+      derived.spellRows,
+      draft.feats,
+      draft.preparedSpells,
+      draft.spellState,
+      draft.spells,
+      mutators,
+      permissions.editReadOnly
+    ]
+  );
 
   function addFeatById(featId: string) {
     const feat = compendium.feats.find((entry) => entry.id === featId);
@@ -323,35 +413,43 @@ export function PlayerNpcSheetEditTab({
 
         <SectionCard title="Skills" icon={<Sparkles size={16} />}>
           <div className="grid gap-2 md:grid-cols-2">
-            {draft.skills.map((skill, index) => (
-              <details key={skill.id} className="group border border-white/8 bg-black/20">
-                <summary className="list-none cursor-pointer px-3 py-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm text-zinc-100">{skill.name}</p>
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">{skill.ability.toUpperCase()}</p>
+            {draft.skills.map((skill, index) => {
+              const skillReference = derived.skillLookup.get(normalizeKey(skill.name));
+
+              return (
+                <LazyDetails
+                  key={skill.id}
+                  className="group border border-white/8 bg-black/20"
+                  summaryClassName="list-none cursor-pointer px-3 py-2"
+                  summary={
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-zinc-100">{skill.name}</p>
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">{skill.ability.toUpperCase()}</p>
+                      </div>
+                      <span className="text-sm font-semibold text-amber-50">{formatModifier(skillTotal(derived.actorWithDerivedNumbers, skill))}</span>
                     </div>
-                    <span className="text-sm font-semibold text-amber-50">{formatModifier(skillTotal(derived.actorWithDerivedNumbers, skill))}</span>
+                  }
+                >
+                  <div className="space-y-3 border-t border-white/8 px-3 py-3">
+                    <div className="text-sm leading-6 text-zinc-400">
+                      {skillReference?.description ? renderRulesText(skillReference.description) : "No imported compendium description for this skill yet."}
+                    </div>
+                    {skillReference?.tags.length ? <TagRow tags={skillReference.tags} /> : null}
+                    <div className="flex items-center gap-3">
+                      <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                        <input className="mr-2" disabled={permissions.editReadOnly} type="checkbox" checked={skill.proficient} onChange={(event) => mutators.updateSkill(index, { proficient: event.target.checked })} />
+                        Prof
+                      </label>
+                      <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
+                        <input className="mr-2" disabled={permissions.editReadOnly} type="checkbox" checked={skill.expertise} onChange={(event) => mutators.updateSkill(index, { expertise: event.target.checked })} />
+                        Exp
+                      </label>
+                    </div>
                   </div>
-                </summary>
-                <div className="space-y-3 border-t border-white/8 px-3 py-3">
-                  <div className="text-sm leading-6 text-zinc-400">
-                    {derived.skillLookup.get(normalizeKey(skill.name))?.description ? renderRulesText(derived.skillLookup.get(normalizeKey(skill.name))?.description ?? "") : "No imported compendium description for this skill yet."}
-                  </div>
-                  {derived.skillLookup.get(normalizeKey(skill.name))?.tags.length ? <TagRow tags={derived.skillLookup.get(normalizeKey(skill.name))?.tags ?? []} /> : null}
-                  <div className="flex items-center gap-3">
-                    <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                      <input className="mr-2" disabled={permissions.editReadOnly} type="checkbox" checked={skill.proficient} onChange={(event) => mutators.updateSkill(index, { proficient: event.target.checked })} />
-                      Prof
-                    </label>
-                    <label className="text-xs uppercase tracking-[0.18em] text-zinc-400">
-                      <input className="mr-2" disabled={permissions.editReadOnly} type="checkbox" checked={skill.expertise} onChange={(event) => mutators.updateSkill(index, { expertise: event.target.checked })} />
-                      Exp
-                    </label>
-                  </div>
-                </div>
-              </details>
-            ))}
+                </LazyDetails>
+              );
+            })}
           </div>
         </SectionCard>
       </div>
@@ -381,10 +479,7 @@ export function PlayerNpcSheetEditTab({
                 Add Spells
               </button>
             }
-            entries={collectSpellRows(draft.spells, draft.preparedSpells, compendium.spells, derived.preparedSpellLimit).map((entry) => ({
-              ...entry,
-              onRemove: permissions.editReadOnly ? undefined : () => mutators.updateField("spells", draft.spells.filter((value) => value !== entry.title))
-            }))}
+            entries={spellDetailEntries.known}
             emptyMessage="No spells added."
             renderText={renderRulesText}
           />
@@ -396,15 +491,7 @@ export function PlayerNpcSheetEditTab({
                 Manage
               </button>
             }
-            entries={derived.spellRows
-              .filter((entry) => draft.preparedSpells.includes(entry.title) || derived.spellCollections.alwaysPrepared.includes(entry.title))
-              .map((entry) => ({
-                ...entry,
-                onRemove:
-                  permissions.editReadOnly || derived.spellCollections.alwaysPrepared.includes(entry.title)
-                    ? undefined
-                    : () => mutators.updateField("preparedSpells", draft.preparedSpells.filter((value) => value !== entry.title))
-              }))}
+            entries={spellDetailEntries.prepared}
             emptyMessage="No prepared spells selected."
             renderText={renderRulesText}
           />
@@ -416,10 +503,7 @@ export function PlayerNpcSheetEditTab({
                 Add Spells
               </button>
             }
-            entries={collectSpellRows(draft.spellState.spellbook, draft.preparedSpells, compendium.spells, derived.preparedSpellLimit).map((entry) => ({
-              ...entry,
-              onRemove: permissions.editReadOnly ? undefined : () => mutators.updateField("spellState", { ...draft.spellState, spellbook: draft.spellState.spellbook.filter((value) => value !== entry.title) })
-            }))}
+            entries={spellDetailEntries.spellbook}
             emptyMessage="No spellbook spells."
             renderText={renderRulesText}
           />
@@ -431,10 +515,7 @@ export function PlayerNpcSheetEditTab({
                 Add Spells
               </button>
             }
-            entries={collectSpellRows(draft.spellState.alwaysPrepared, draft.preparedSpells, compendium.spells, derived.preparedSpellLimit).map((entry) => ({
-              ...entry,
-              onRemove: permissions.editReadOnly ? undefined : () => mutators.updateField("spellState", { ...draft.spellState, alwaysPrepared: draft.spellState.alwaysPrepared.filter((value) => value !== entry.title) })
-            }))}
+            entries={spellDetailEntries.alwaysPrepared}
             emptyMessage="No always-prepared spells."
             renderText={renderRulesText}
           />
@@ -446,10 +527,7 @@ export function PlayerNpcSheetEditTab({
                 Add Spells
               </button>
             }
-            entries={collectSpellRows(draft.spellState.atWill, draft.preparedSpells, compendium.spells, derived.preparedSpellLimit).map((entry) => ({
-              ...entry,
-              onRemove: permissions.editReadOnly ? undefined : () => mutators.updateField("spellState", { ...draft.spellState, atWill: draft.spellState.atWill.filter((value) => value !== entry.title) })
-            }))}
+            entries={spellDetailEntries.atWill}
             emptyMessage="No at-will spells."
             renderText={renderRulesText}
           />
@@ -461,10 +539,7 @@ export function PlayerNpcSheetEditTab({
                 Add Spells
               </button>
             }
-            entries={collectSpellRows(draft.spellState.perShortRest, draft.preparedSpells, compendium.spells, derived.preparedSpellLimit).map((entry) => ({
-              ...entry,
-              onRemove: permissions.editReadOnly ? undefined : () => mutators.updateField("spellState", { ...draft.spellState, perShortRest: draft.spellState.perShortRest.filter((value) => value !== entry.title) })
-            }))}
+            entries={spellDetailEntries.perShortRest}
             emptyMessage="No short-rest spells."
             renderText={renderRulesText}
           />
@@ -476,19 +551,13 @@ export function PlayerNpcSheetEditTab({
                 Add Spells
               </button>
             }
-            entries={collectSpellRows(draft.spellState.perLongRest, draft.preparedSpells, compendium.spells, derived.preparedSpellLimit).map((entry) => ({
-              ...entry,
-              onRemove: permissions.editReadOnly ? undefined : () => mutators.updateField("spellState", { ...draft.spellState, perLongRest: draft.spellState.perLongRest.filter((value) => value !== entry.title) })
-            }))}
+            entries={spellDetailEntries.perLongRest}
             emptyMessage="No long-rest spells."
             renderText={renderRulesText}
           />
           <DetailCollection
             title="Feats"
-            entries={derived.featRows.map((entry) => ({
-              ...entry,
-              onRemove: permissions.editReadOnly ? undefined : () => mutators.updateField("feats", draft.feats.filter((value) => value !== entry.title))
-            }))}
+            entries={spellDetailEntries.feats}
             emptyMessage="No feats selected."
             renderText={renderRulesText}
           />

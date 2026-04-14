@@ -1,5 +1,5 @@
 import { Dice6, Plus, RotateCcw, Skull, ThumbsDown, ThumbsUp } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 
 import type { ActorSheet, CompendiumReferenceEntry } from "@shared/types";
 
@@ -80,45 +80,83 @@ export function DetailCollection({
       ) : null}
       {entries.length === 0 ? <p className="text-sm text-zinc-500">{emptyMessage}</p> : null}
       {entries.map((entry) => (
-        <details key={entry.id} className="group border border-white/8 bg-black/20">
-          <summary className="list-none cursor-pointer px-3 py-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-[0.24em] text-amber-400/80">{entry.eyebrow}</p>
-                <p className="mt-1 truncate text-sm text-zinc-100">{entry.title}</p>
-                <p className="text-xs text-zinc-500">{[entry.subtitle, entry.source].filter(Boolean).join(" • ")}</p>
-              </div>
-              {actions ? <div className="shrink-0">{actions(entry)}</div> : null}
-            </div>
-          </summary>
-          <div className="space-y-3 border-t border-white/8 px-3 py-3">
-            {entry.meta?.length ? (
-              <div className="grid gap-2 md:grid-cols-2">
-                {entry.meta.map((item) => (
-                  <div key={`${entry.id}:${item.label}`} className="border border-white/8 bg-black/20 px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">{item.label}</p>
-                    <p className="mt-1 text-sm text-zinc-200">{item.value}</p>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            {entry.description ? (
-              <div className="text-sm leading-6 text-zinc-300">{renderText ? renderText(entry.description) : <p className="whitespace-pre-wrap">{entry.description}</p>}</div>
-            ) : null}
-            {entry.tags?.length ? <TagRow tags={entry.tags} /> : null}
-            {entry.onRemove ? (
-              <div className="flex justify-end">
-                <button type="button" className={secondaryButtonClass} onClick={entry.onRemove}>
-                  Remove
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </details>
+        <DetailCollectionItem key={entry.id} entry={entry} actions={actions} renderText={renderText} />
       ))}
     </div>
   );
 }
+
+export function LazyDetails({
+  className,
+  summaryClassName,
+  summary,
+  children
+}: {
+  className: string;
+  summaryClassName: string;
+  summary: ReactNode;
+  children: ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <details className={className} open={isOpen} onToggle={(event) => setIsOpen(event.currentTarget.open)}>
+      <summary className={summaryClassName}>{summary}</summary>
+      {isOpen ? children : null}
+    </details>
+  );
+}
+
+const DetailCollectionItem = memo(function DetailCollectionItem({
+  entry,
+  actions,
+  renderText
+}: {
+  entry: DetailRowEntry;
+  actions?: (entry: DetailRowEntry) => ReactNode;
+  renderText?: (text: string) => ReactNode;
+}) {
+  return (
+    <LazyDetails
+      className="group border border-white/8 bg-black/20"
+      summaryClassName="list-none cursor-pointer px-3 py-3"
+      summary={
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.24em] text-amber-400/80">{entry.eyebrow}</p>
+            <p className="mt-1 truncate text-sm text-zinc-100">{entry.title}</p>
+            <p className="text-xs text-zinc-500">{[entry.subtitle, entry.source].filter(Boolean).join(" • ")}</p>
+          </div>
+          {actions ? <div className="shrink-0">{actions(entry)}</div> : null}
+        </div>
+      }
+    >
+      <div className="space-y-3 border-t border-white/8 px-3 py-3">
+        {entry.meta?.length ? (
+          <div className="grid gap-2 md:grid-cols-2">
+            {entry.meta.map((item) => (
+              <div key={`${entry.id}:${item.label}`} className="border border-white/8 bg-black/20 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">{item.label}</p>
+                <p className="mt-1 text-sm text-zinc-200">{item.value}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {entry.description ? (
+          <div className="text-sm leading-6 text-zinc-300">{renderText ? renderText(entry.description) : <p className="whitespace-pre-wrap">{entry.description}</p>}</div>
+        ) : null}
+        {entry.tags?.length ? <TagRow tags={entry.tags} /> : null}
+        {entry.onRemove ? (
+          <div className="flex justify-end">
+            <button type="button" className={secondaryButtonClass} onClick={entry.onRemove}>
+              Remove
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </LazyDetails>
+  );
+});
 
 export function TagRow({ tags }: { tags: string[] }) {
   return (

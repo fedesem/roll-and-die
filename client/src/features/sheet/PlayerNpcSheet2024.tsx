@@ -1,5 +1,5 @@
 import { Clock3, Edit3, Moon } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { memo, useDeferredValue, useEffect, useMemo } from "react";
 
 import { RulesText } from "../../components/admin/AdminPreview";
 import { IconButton } from "../../components/IconButton";
@@ -21,17 +21,19 @@ import { RestDialog } from "./RestDialog";
 import { SpellSelectionModal } from "./SpellSelectionModal";
 import { abilityModifierTotal } from "./sheetUtils";
 
-export function PlayerNpcSheet2024(props: PlayerNpcSheet2024Props) {
+function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
   const { actor, compendium, allowedSourceBooks } = props;
   const controller = usePlayerNpcSheetController(props);
   const { state, mutators, actions } = controller;
+  const deferredDraft = useDeferredValue(state.draft);
+  const deferredLongRestPreparedSpells = useDeferredValue(state.longRestPreparedSpells);
   const { permissions, derived } = usePlayerNpcSheetDerived({
-    draft: state.draft,
+    draft: deferredDraft,
     compendium,
     role: props.role,
     currentUserId: props.currentUserId,
     sheetContext: props.sheetContext,
-    longRestPreparedSpells: state.longRestPreparedSpells
+    longRestPreparedSpells: deferredLongRestPreparedSpells
   });
   const guided = useGuidedSheetFlow({
     actor,
@@ -328,3 +330,5 @@ export function PlayerNpcSheet2024(props: PlayerNpcSheet2024Props) {
     </section>
   );
 }
+
+export const PlayerNpcSheet2024 = memo(PlayerNpcSheet2024Component);
