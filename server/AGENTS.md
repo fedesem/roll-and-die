@@ -60,6 +60,7 @@ Refactor before adding more code when:
 After any server edit:
 
 - always run the relevant automated tests or validation commands before responding
+- use `./app.sh test` when running the repo test suite for server validation
 - if there is no dedicated test for the touched server area, run the closest meaningful server verification and state what you ran
 
 After server structural changes:

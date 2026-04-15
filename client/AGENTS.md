@@ -75,6 +75,7 @@ Refactor before adding more code when:
 After any client edit:
 
 - always run the relevant automated tests or validation commands before responding
+- use `./app.sh test` when running the repo test suite for client validation
 - if there is no dedicated test for the touched client area, run the closest meaningful client verification and state what you ran
 
 After client structural changes:

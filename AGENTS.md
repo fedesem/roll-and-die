@@ -205,6 +205,7 @@ Refactor before adding more code when any of these are true:
 After any file edit:
 
 - always run the relevant automated tests or validation commands before responding
+- use `./app.sh test` as the default entry point when running the repo test suite for validation
 - if no dedicated test exists for the touched area, run the closest meaningful verification for that workspace and state what you ran
 - do not skip verification just because the change looks small
 
@@ -213,7 +214,7 @@ After structural changes:
 - run lint only on the staged or otherwise touched files by default after client/server code changes; only run repo-wide lint when the change genuinely requires it
 - run `tsc --noEmit -p client/tsconfig.json` for client refactors
 - use `npm run format:check` before wide formatting or style-only changes
-- prefer `npm run check` for a full repo validation pass
+- prefer `./app.sh test` for the repo test suite; use `npm run check` when you need the broader full-repo validation pass
 - run the relevant workspace build
 - do not treat `vite build` as a substitute for TypeScript checking
 - update imports so the boundary is obvious
