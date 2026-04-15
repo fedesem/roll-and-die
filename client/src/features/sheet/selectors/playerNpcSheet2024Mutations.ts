@@ -29,12 +29,15 @@ import {
   deriveBackgroundEquipmentGroups,
   deriveBackgroundSkillProficiencies,
   deriveClassResources,
+  deriveGuidedAbilityChoiceSlots,
   deriveOriginFeatOptions,
+  deriveSpeciesSkillProficiencies,
   deriveSpellSlots,
   mergeAbilityKeys,
   mergeDerivedResources,
   mergeTextValues,
   normalizeHitPoints,
+  selectGuidedAbilityChoiceMode,
   syncBuildClasses,
   toAbilityKey
 } from "./playerNpcSheet2024Selectors";
@@ -102,11 +105,24 @@ export function applySpeciesToActor(actor: ActorSheet, species: CompendiumSpecie
   return next;
 }
 
+export function applyGuideBaseAbilities(actor: ActorSheet, abilities: ActorSheet["abilities"]) {
+  const next = cloneActor(actor);
+  next.abilities = {
+    str: normalizeGuideAbilityScore(abilities.str),
+    dex: normalizeGuideAbilityScore(abilities.dex),
+    con: normalizeGuideAbilityScore(abilities.con),
+    int: normalizeGuideAbilityScore(abilities.int),
+    wis: normalizeGuideAbilityScore(abilities.wis),
+    cha: normalizeGuideAbilityScore(abilities.cha)
+  };
+  return next;
+}
+
 export function applySpeciesChoiceSelections(
   actor: ActorSheet,
   species: CompendiumSpeciesEntry | null,
   feats: FeatEntry[],
-  skillName: string,
+  skillNames: string[],
   featId: string
 ) {
   if (!species) {
@@ -114,17 +130,7 @@ export function applySpeciesChoiceSelections(
   }
 
   const next = cloneActor(actor);
-
-  if (skillName.trim()) {
-    const skillIndex = next.skills.findIndex((entry) => normalizeKey(entry.name) === normalizeKey(skillName));
-
-    if (skillIndex >= 0) {
-      next.skills[skillIndex] = {
-        ...next.skills[skillIndex],
-        proficient: true
-      };
-    }
-  }
+  applySkillChoiceSelections(next, [...deriveSpeciesSkillProficiencies(species), ...skillNames]);
 
   if (featId.trim()) {
     const featEntry = feats.find((entry) => entry.id === featId) ?? feats.find((entry) => normalizeKey(entry.name) === normalizeKey(featId));
@@ -144,7 +150,9 @@ export function applyBackgroundToActor(
   options?: {
     featId?: string;
     abilityChoices?: AbilityKey[];
+    abilityChoiceModeId?: string;
     equipmentChoiceIds?: Record<string, string>;
+    skillChoices?: string[];
   }
 ) {
   if (!background) {
@@ -176,16 +184,16 @@ export function applyBackgroundToActor(
       };
     }
   });
+  applySkillChoiceSelections(next, options?.skillChoices ?? []);
   next.toolProficiencies = mergeTextValues(next.toolProficiencies, background.toolProficiencies);
   next.languageProficiencies = mergeTextValues(next.languageProficiencies, background.languageProficiencies);
 
   const abilityConfig = deriveBackgroundAbilityConfig(background);
-  const selectedAbilities =
-    options?.abilityChoices && options.abilityChoices.length === abilityConfig.count
-      ? options.abilityChoices
-      : abilityConfig.abilities.slice(0, abilityConfig.count);
-  selectedAbilities.forEach((abilityKey) => {
-    next.abilities[abilityKey] += abilityConfig.amount;
+  const abilityMode = selectGuidedAbilityChoiceMode(abilityConfig, options?.abilityChoiceModeId ?? "");
+  const abilitySlots = deriveGuidedAbilityChoiceSlots(abilityMode);
+  const selectedAbilities = normalizeBackgroundAbilityChoices(options?.abilityChoices ?? [], abilitySlots);
+  selectedAbilities.forEach((abilityKey, index) => {
+    next.abilities[abilityKey] += abilitySlots[index]?.amount ?? 0;
   });
 
   const featIds =
@@ -222,16 +230,27 @@ export function applyBackgroundToActor(
   return next;
 }
 
+export function applyClassSkillChoicesToActor(actor: ActorSheet, skillNames: string[]) {
+  const next = cloneActor(actor);
+  applySkillChoiceSelections(next, skillNames);
+  return next;
+}
+
 export function applyClassToActor(actor: ActorSheet, classEntry: ClassEntry, classes: ClassEntry[], existingActorClassId?: string) {
   const next = cloneActor(actor);
+  const existingActorClass = existingActorClassId ? next.classes.find((entry) => entry.id === existingActorClassId) ?? null : null;
+  const preserveSubclass = existingActorClass?.compendiumId === classEntry.id ? existingActorClass : null;
   const nextActorClass: ActorClassEntry = {
     id: existingActorClassId ?? crypto.randomUUID(),
     compendiumId: classEntry.id,
     name: classEntry.name,
     source: classEntry.source,
-    level: existingActorClassId ? next.classes.find((entry) => entry.id === existingActorClassId)?.level ?? 1 : 1,
+    subclassId: preserveSubclass?.subclassId ?? "",
+    subclassName: preserveSubclass?.subclassName ?? "",
+    subclassSource: preserveSubclass?.subclassSource ?? "",
+    level: existingActorClass?.level ?? 1,
     hitDieFaces: classEntry.hitDieFaces,
-    usedHitDice: existingActorClassId ? next.classes.find((entry) => entry.id === existingActorClassId)?.usedHitDice ?? 0 : 0,
+    usedHitDice: existingActorClass?.usedHitDice ?? 0,
     spellcastingAbility: classEntry.spellcastingAbility
   };
   const existingIndex = existingActorClassId ? next.classes.findIndex((entry) => entry.id === existingActorClassId) : -1;
@@ -293,6 +312,16 @@ export function assignSubclassToActor(actor: ActorSheet, classes: ClassEntry[], 
   }
 
   const next = cloneActor(actor);
+  next.classes = next.classes.map((entry) =>
+    entry.id === actorClassId
+      ? {
+          ...entry,
+          subclassId: subclass.id,
+          subclassName: subclass.name,
+          subclassSource: subclass.source
+        }
+      : entry
+  );
   next.features = mergeTextValues(next.features, collectGuidedFeatures(next, classes, { [actorClassId]: subclassId }));
   next.build = {
     ruleset: "dnd-2024",
@@ -448,6 +477,48 @@ export function applyGuideSelectionsToActor(
     classes: syncBuildClasses(next.classes, next.build?.classes ?? []),
     selections: [...(next.build?.selections ?? []), ...selections]
   };
+
+  return next;
+}
+
+function applySkillChoiceSelections(actor: ActorSheet, skillNames: string[]) {
+  mergeTextValues([], skillNames).forEach((skillName) => {
+    const skillIndex = actor.skills.findIndex((entry) => normalizeKey(entry.name) === normalizeKey(skillName));
+
+    if (skillIndex >= 0) {
+      actor.skills[skillIndex] = {
+        ...actor.skills[skillIndex],
+        proficient: true
+      };
+    }
+  });
+}
+
+function normalizeGuideAbilityScore(value: number) {
+  if (!Number.isFinite(value)) {
+    return 10;
+  }
+
+  return Math.max(1, Math.min(20, Math.round(value)));
+}
+
+function normalizeBackgroundAbilityChoices(current: AbilityKey[], slots: Array<{ abilities: AbilityKey[] }>) {
+  const next: AbilityKey[] = [];
+
+  slots.forEach((slot, index) => {
+    const currentChoice = current[index];
+
+    if (currentChoice && slot.abilities.includes(currentChoice) && !next.includes(currentChoice)) {
+      next.push(currentChoice);
+      return;
+    }
+
+    const fallbackChoice = slot.abilities.find((ability) => !next.includes(ability)) ?? slot.abilities[0];
+
+    if (fallbackChoice) {
+      next.push(fallbackChoice);
+    }
+  });
 
   return next;
 }

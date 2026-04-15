@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from "react";
-import { ArrowDownToLine, FilePlus2, List, RefreshCw } from "lucide-react";
+import { ArrowDownToLine, FilePlus2, List, RefreshCw, X } from "lucide-react";
 
 import type { CampaignSourceBook, CompendiumReferenceEntry, SpellEntry } from "@shared/types";
 import {
@@ -12,6 +12,7 @@ import {
   SpellPreviewCard,
   UserPreviewCard
 } from "./admin/AdminPreview";
+import { AdminScrollRegion } from "./admin/AdminScrollRegion";
 import styles from "./AdminPanel.module.css";
 import { useAdminOverviewQuery } from "../features/admin/useAdminOverviewQuery";
 import { useAdminPanelActions } from "../features/admin/useAdminPanelActions";
@@ -66,8 +67,12 @@ interface ListControlsState {
   sort: ListSort;
 }
 
-const cx = (...values: Array<string | false | null | undefined>) => values.filter(Boolean).join(" ");
+interface ImportedJsonFile {
+  name: string;
+  content: string;
+}
 
+const cx = (...values: Array<string | false | null | undefined>) => values.filter(Boolean).join(" ");
 interface AdminPanelProps {
   token: string;
   currentUserId: string;
@@ -129,21 +134,21 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
     races: { source: "", type: "", secondaryType: "", sort: "name-asc" },
     skills: { source: "", type: "", secondaryType: "", sort: "name-asc" }
   });
-  const [importFiles, setImportFiles] = useState<Record<CompendiumTab, { name: string; content: string } | null>>({
-    spells: null,
-    monsters: null,
-    feats: null,
-    classes: null,
-    books: null,
-    variantRules: null,
-    conditions: null,
-    optionalFeatures: null,
-    actions: null,
-    backgrounds: null,
-    items: null,
-    languages: null,
-    races: null,
-    skills: null
+  const [importFiles, setImportFiles] = useState<Record<CompendiumTab, ImportedJsonFile[]>>({
+    spells: [],
+    monsters: [],
+    feats: [],
+    classes: [],
+    books: [],
+    variantRules: [],
+    conditions: [],
+    optionalFeatures: [],
+    actions: [],
+    backgrounds: [],
+    items: [],
+    languages: [],
+    races: [],
+    skills: []
   });
   const [spellForm, setSpellForm] = useState<SpellFormState>(createSpellForm());
   const [monsterForm, setMonsterForm] = useState<MonsterFormState>(createMonsterForm());
@@ -222,7 +227,13 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
     [overview?.compendium.feats, search.feats]
   );
   const classes = useMemo(
-    () => filterEntries(overview?.compendium.classes ?? [], search.classes, (entry) => [entry.name, entry.source]),
+    () =>
+      filterEntries(overview?.compendium.classes ?? [], search.classes, (entry) => [
+        entry.name,
+        entry.source,
+        ...entry.features.map((feature) => feature.name),
+        ...entry.subclasses.flatMap((subclass) => [subclass.name, subclass.shortName, subclass.source, ...subclass.features.map((feature) => feature.name)])
+      ]),
     [overview?.compendium.classes, search.classes]
   );
   const books = useMemo(
@@ -368,25 +379,38 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
       return null;
     }
 
-    const file = importFiles[activeCompendiumTab];
-    const value = file?.content ?? "";
+    const files = importFiles[activeCompendiumTab];
 
-    if (!value.trim()) {
-      return { valid: false, message: "Upload one JSON file containing one object or an array." };
+    if (files.length === 0) {
+      return { valid: false, message: "Upload one or more JSON files containing one object or an array." };
     }
 
     try {
-      const parsed = JSON.parse(value) as unknown;
-      const count = resolveImportEntryCount(activeCompendiumTab, parsed);
-      const isSpellLookup = activeCompendiumTab === "spells" && isGeneratedSpellLookupPayload(parsed);
-      const isSubclassLookup = activeCompendiumTab === "classes" && isGeneratedSubclassLookupPayload(parsed);
+      let totalCount = 0;
+      let spellLookupCount = 0;
+      let subclassLookupCount = 0;
+
+      files.forEach((file) => {
+        const parsed = JSON.parse(file.content) as unknown;
+        const count = resolveImportEntryCount(activeCompendiumTab, parsed);
+
+        totalCount += count;
+        if (activeCompendiumTab === "spells" && isGeneratedSpellLookupPayload(parsed)) {
+          spellLookupCount += count;
+        }
+        if (activeCompendiumTab === "classes" && isGeneratedSubclassLookupPayload(parsed)) {
+          subclassLookupCount += count;
+        }
+      });
+
       return {
         valid: true,
-        message: isSpellLookup
-          ? `${count} spell class lookups ready to apply to imported spells.`
-          : isSubclassLookup
-            ? `${count} subclasses ready to apply to imported classes.`
-            : `${count} ${count === 1 ? singularLabel(activeCompendiumTab) : labelForTab(activeCompendiumTab)} ready to import.`
+        message:
+          spellLookupCount > 0 && spellLookupCount === totalCount
+            ? `${spellLookupCount} spell class lookups ready to apply from ${files.length} ${files.length === 1 ? "file" : "files"}.`
+            : subclassLookupCount > 0 && subclassLookupCount === totalCount
+              ? `${subclassLookupCount} subclasses ready to apply from ${files.length} ${files.length === 1 ? "file" : "files"}.`
+              : `${totalCount} ${totalCount === 1 ? singularLabel(activeCompendiumTab) : labelForTab(activeCompendiumTab)} ready to import from ${files.length} ${files.length === 1 ? "file" : "files"}.`
       };
     } catch (error) {
       return { valid: false, message: toErrorMessage(error) };
@@ -526,16 +550,18 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
 
   async function importEntries(kind: CompendiumTab) {
     try {
-      const file = importFiles[kind];
+      const files = importFiles[kind];
 
-      if (!file?.content.trim()) {
-        throw new Error("Upload a JSON file first.");
+      if (files.length === 0) {
+        throw new Error("Upload at least one JSON file first.");
       }
 
-      const payload = JSON.parse(file.content) as unknown;
-      await importItems(kind, payload);
+      for (const file of files) {
+        const payload = JSON.parse(file.content) as unknown;
+        await importItems(kind, payload);
+      }
 
-      setImportFiles((current) => ({ ...current, [kind]: null }));
+      setImportFiles((current) => ({ ...current, [kind]: [] }));
       setMode("list");
       onStatus("info", `${labelForTab(kind)} import completed.`);
       if (kind === "books") {
@@ -606,21 +632,24 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
   }
 
   async function handleImportFileChange(kind: CompendiumTab, event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const files = Array.from(event.target.files ?? []);
     event.target.value = "";
 
-    if (!file) {
+    if (files.length === 0) {
       return;
     }
 
     try {
-      const content = await file.text();
+      const nextFiles = await Promise.all(
+        files.map(async (file) => ({
+          name: file.name,
+          content: await file.text()
+        }))
+      );
+
       setImportFiles((current) => ({
         ...current,
-        [kind]: {
-          name: file.name,
-          content
-        }
+        [kind]: mergeImportedFiles(current[kind], nextFiles)
       }));
     } catch (error) {
       onStatus("error", toErrorMessage(error));
@@ -835,7 +864,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     </label>
                   </div>
                 ) : null}
-                <div className="admin-list-scroll">
+                <AdminScrollRegion variant="list">
                   {tab === "users" &&
                     users.map((user) => (
                       <button
@@ -927,7 +956,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                       >
                         <div className="admin-list-main">
                           <strong>{entry.name}</strong>
-                          <small>{entry.features.length} features</small>
+                          <small>{formatClassListSummary(entry)}</small>
                         </div>
                         <div className="admin-list-badges">
                           <span className="badge subtle" title={sourceBookNameById.get(entry.source) ?? entry.source}>
@@ -977,7 +1006,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     races: races.length,
                     skills: skills.length
                   }) === 0 && <p className="empty-state">No entries found.</p>}
-                </div>
+                </AdminScrollRegion>
               </section>
             ) : (
               <section className="admin-pane admin-form-pane">
@@ -986,20 +1015,6 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     <p className="panel-label">{mode === "add" ? "Create" : "Import"}</p>
                     <h3>{mode === "add" ? `Add ${singularLabel(tab)}` : `Import ${labelForTab(tab)}`}</h3>
                   </div>
-                  {mode === "import" ? (
-                    <button
-                      type="button"
-                      className="accent-button"
-                      onClick={() => {
-                        if (activeCompendiumTab) {
-                          void importEntries(activeCompendiumTab);
-                        }
-                      }}
-                      disabled={!activeCompendiumTab || !importFiles[activeCompendiumTab]?.content.trim()}
-                    >
-                      Import
-                    </button>
-                  ) : null}
                 </div>
 
                 {mode === "add" ? (
@@ -1560,27 +1575,60 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                 ) : (
                   <>
                     <label className="admin-search-field">
-                      <span>JSON file</span>
+                      <span>JSON files</span>
                       <div className="admin-import-upload">
-                        <input
-                          type="file"
-                          accept="application/json,.json"
-                          onChange={(event) => {
-                            if (!activeCompendiumTab) {
-                              return;
-                            }
+                        <div className="admin-import-upload-row">
+                          <input
+                            type="file"
+                            accept="application/json,.json"
+                            multiple
+                            onChange={(event) => {
+                              if (!activeCompendiumTab) {
+                                return;
+                              }
 
-                            void handleImportFileChange(activeCompendiumTab, event);
-                          }}
-                        />
+                              void handleImportFileChange(activeCompendiumTab, event);
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="icon-action-button danger-button"
+                            onClick={() => {
+                              if (!activeCompendiumTab) {
+                                return;
+                              }
+
+                              setImportFiles((current) => ({ ...current, [activeCompendiumTab]: [] }));
+                            }}
+                            disabled={!activeCompendiumTab || importFiles[activeCompendiumTab].length === 0}
+                            aria-label="Clear selected files"
+                            title="Clear selected files"
+                          >
+                            <X size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="accent-button"
+                            onClick={() => {
+                              if (activeCompendiumTab) {
+                                void importEntries(activeCompendiumTab);
+                              }
+                            }}
+                            disabled={!activeCompendiumTab || importFiles[activeCompendiumTab].length === 0}
+                          >
+                            Import
+                          </button>
+                        </div>
                         <div className="admin-import-file-meta">
                           <strong>
-                            {activeCompendiumTab ? (importFiles[activeCompendiumTab]?.name ?? "No file selected") : "No file selected"}
+                            {activeCompendiumTab
+                              ? formatImportedFileNames(importFiles[activeCompendiumTab])
+                              : "No files selected"}
                           </strong>
                           <small>
-                            {activeCompendiumTab && importFiles[activeCompendiumTab]?.content
-                              ? `${importFiles[activeCompendiumTab]?.content.length.toLocaleString()} characters loaded`
-                              : `Upload one ${singularLabel(tab).toLowerCase()} object or an array of ${labelForTab(tab).toLowerCase()}.`}
+                            {activeCompendiumTab && importFiles[activeCompendiumTab].length > 0
+                              ? formatImportedFileSummary(importFiles[activeCompendiumTab])
+                              : `Upload one or more ${singularLabel(tab).toLowerCase()} JSON objects or arrays of ${labelForTab(tab).toLowerCase()}.`}
                           </small>
                           {tab === "spells" ? (
                             <small>
@@ -1607,19 +1655,6 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                             <small>Accepted item files: 5etools `items.json` and `items-base.json`.</small>
                           ) : null}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!activeCompendiumTab) {
-                              return;
-                            }
-
-                            setImportFiles((current) => ({ ...current, [activeCompendiumTab]: null }));
-                          }}
-                          disabled={!activeCompendiumTab || !importFiles[activeCompendiumTab]}
-                        >
-                          Clear file
-                        </button>
                       </div>
                     </label>
                     {tab === "monsters" && (
@@ -1792,228 +1827,230 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                 ) : null}
               </div>
 
-              {tab === "users" &&
-                (selectedUser ? (
-                  <UserPreviewCard user={selectedUser} />
-                ) : (
-                  <PreviewPlaceholder title="Users" message="Select a user to inspect details and manage access." />
-                ))}
-              {tab === "spells" &&
-                (selectedSpell ? (
-                  <SpellPreviewCard
-                    spell={selectedSpell}
-                    featEntries={overview?.compendium.feats ?? []}
-                    classEntries={overview?.compendium.classes ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedSpell.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Spells" message="Select a spell to preview it here." />
-                ))}
-              {tab === "monsters" &&
-                (selectedMonster ? (
-                  <MonsterPreviewCard
-                    monster={selectedMonster}
-                    spellEntries={overview?.compendium.spells ?? []}
-                    featEntries={overview?.compendium.feats ?? []}
-                    classEntries={overview?.compendium.classes ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedMonster.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Monsters" message="Select a monster to preview it here." />
-                ))}
-              {tab === "feats" &&
-                (selectedFeat ? (
-                  <FeatPreviewCard
-                    feat={selectedFeat}
-                    spellEntries={overview?.compendium.spells ?? []}
-                    classEntries={overview?.compendium.classes ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedFeat.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Feats" message="Select a feat to preview it here." />
-                ))}
-              {tab === "classes" &&
-                (selectedClass ? (
-                  <ClassPreviewCard
-                    entry={selectedClass}
-                    spellEntries={overview?.compendium.spells ?? []}
-                    featEntries={overview?.compendium.feats ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedClass.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Classes" message="Select a class to preview it here." />
-                ))}
-              {tab === "books" &&
-                (selectedBook ? (
-                  <BookPreviewCard entry={selectedBook} />
-                ) : (
-                  <PreviewPlaceholder title="Books" message="Select a book to preview it here." />
-                ))}
-              {tab === "variantRules" &&
-                (selectedVariantRule ? (
-                  <ReferencePreviewCard
-                    title="Variant Rule"
-                    eyebrow="Variant Rule"
-                    entry={selectedVariantRule}
-                    spellEntries={overview?.compendium.spells ?? []}
-                    featEntries={overview?.compendium.feats ?? []}
-                    classEntries={overview?.compendium.classes ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedVariantRule.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Variant Rules" message="Select a variant rule to preview it here." />
-                ))}
-              {tab === "conditions" &&
-                (selectedCondition ? (
-                  <ReferencePreviewCard
-                    title="Condition"
-                    eyebrow="Condition"
-                    entry={selectedCondition}
-                    spellEntries={overview?.compendium.spells ?? []}
-                    featEntries={overview?.compendium.feats ?? []}
-                    classEntries={overview?.compendium.classes ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedCondition.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Conditions" message="Select a condition to preview it here." />
-                ))}
-              {tab === "optionalFeatures" &&
-                (selectedOptionalFeature ? (
-                  <ReferencePreviewCard
-                    title="Optional Feature"
-                    eyebrow="Optional Feature"
-                    entry={selectedOptionalFeature}
-                    spellEntries={overview?.compendium.spells ?? []}
-                    featEntries={overview?.compendium.feats ?? []}
-                    classEntries={overview?.compendium.classes ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedOptionalFeature.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Optional Features" message="Select an optional feature to preview it here." />
-                ))}
-              {tab === "actions" &&
-                (selectedAction ? (
-                  <ReferencePreviewCard
-                    title="Action"
-                    eyebrow="Action"
-                    entry={selectedAction}
-                    spellEntries={overview?.compendium.spells ?? []}
-                    featEntries={overview?.compendium.feats ?? []}
-                    classEntries={overview?.compendium.classes ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedAction.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Actions" message="Select an action to preview it here." />
-                ))}
-              {tab === "backgrounds" &&
-                (selectedBackground ? (
-                  <ReferencePreviewCard
-                    title="Background"
-                    eyebrow="Background"
-                    entry={selectedBackground}
-                    spellEntries={overview?.compendium.spells ?? []}
-                    featEntries={overview?.compendium.feats ?? []}
-                    classEntries={overview?.compendium.classes ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedBackground.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Backgrounds" message="Select a background to preview it here." />
-                ))}
-              {tab === "items" &&
-                (selectedItem ? (
-                  <ReferencePreviewCard
-                    title="Item"
-                    eyebrow="Item"
-                    entry={selectedItem}
-                    spellEntries={overview?.compendium.spells ?? []}
-                    featEntries={overview?.compendium.feats ?? []}
-                    classEntries={overview?.compendium.classes ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedItem.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Items" message="Select an item to preview it here." />
-                ))}
-              {tab === "languages" &&
-                (selectedLanguage ? (
-                  <ReferencePreviewCard
-                    title="Language"
-                    eyebrow="Language"
-                    entry={selectedLanguage}
-                    spellEntries={overview?.compendium.spells ?? []}
-                    featEntries={overview?.compendium.feats ?? []}
-                    classEntries={overview?.compendium.classes ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedLanguage.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Languages" message="Select a language to preview it here." />
-                ))}
-              {tab === "races" &&
-                (selectedRace ? (
-                  <ReferencePreviewCard
-                    title="Race"
-                    eyebrow="Race"
-                    entry={selectedRace}
-                    spellEntries={overview?.compendium.spells ?? []}
-                    featEntries={overview?.compendium.feats ?? []}
-                    classEntries={overview?.compendium.classes ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedRace.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Races" message="Select a race to preview it here." />
-                ))}
-              {tab === "skills" &&
-                (selectedSkill ? (
-                  <ReferencePreviewCard
-                    title="Skill"
-                    eyebrow="Skill"
-                    entry={selectedSkill}
-                    spellEntries={overview?.compendium.spells ?? []}
-                    featEntries={overview?.compendium.feats ?? []}
-                    classEntries={overview?.compendium.classes ?? []}
-                    variantRuleEntries={overview?.compendium.variantRules ?? []}
-                    conditionEntries={overview?.compendium.conditions ?? []}
-                    actionEntries={overview?.compendium.actions ?? []}
-                    sourceTitle={sourceBookNameById.get(selectedSkill.source)}
-                  />
-                ) : (
-                  <PreviewPlaceholder title="Skills" message="Select a skill to preview it here." />
-                ))}
+              <AdminScrollRegion variant="preview">
+                {tab === "users" &&
+                  (selectedUser ? (
+                    <UserPreviewCard user={selectedUser} />
+                  ) : (
+                    <PreviewPlaceholder title="Users" message="Select a user to inspect details and manage access." />
+                  ))}
+                {tab === "spells" &&
+                  (selectedSpell ? (
+                    <SpellPreviewCard
+                      spell={selectedSpell}
+                      featEntries={overview?.compendium.feats ?? []}
+                      classEntries={overview?.compendium.classes ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedSpell.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Spells" message="Select a spell to preview it here." />
+                  ))}
+                {tab === "monsters" &&
+                  (selectedMonster ? (
+                    <MonsterPreviewCard
+                      monster={selectedMonster}
+                      spellEntries={overview?.compendium.spells ?? []}
+                      featEntries={overview?.compendium.feats ?? []}
+                      classEntries={overview?.compendium.classes ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedMonster.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Monsters" message="Select a monster to preview it here." />
+                  ))}
+                {tab === "feats" &&
+                  (selectedFeat ? (
+                    <FeatPreviewCard
+                      feat={selectedFeat}
+                      spellEntries={overview?.compendium.spells ?? []}
+                      classEntries={overview?.compendium.classes ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedFeat.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Feats" message="Select a feat to preview it here." />
+                  ))}
+                {tab === "classes" &&
+                  (selectedClass ? (
+                    <ClassPreviewCard
+                      entry={selectedClass}
+                      spellEntries={overview?.compendium.spells ?? []}
+                      featEntries={overview?.compendium.feats ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedClass.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Classes" message="Select a class to preview it here." />
+                  ))}
+                {tab === "books" &&
+                  (selectedBook ? (
+                    <BookPreviewCard entry={selectedBook} />
+                  ) : (
+                    <PreviewPlaceholder title="Books" message="Select a book to preview it here." />
+                  ))}
+                {tab === "variantRules" &&
+                  (selectedVariantRule ? (
+                    <ReferencePreviewCard
+                      title="Variant Rule"
+                      eyebrow="Variant Rule"
+                      entry={selectedVariantRule}
+                      spellEntries={overview?.compendium.spells ?? []}
+                      featEntries={overview?.compendium.feats ?? []}
+                      classEntries={overview?.compendium.classes ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedVariantRule.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Variant Rules" message="Select a variant rule to preview it here." />
+                  ))}
+                {tab === "conditions" &&
+                  (selectedCondition ? (
+                    <ReferencePreviewCard
+                      title="Condition"
+                      eyebrow="Condition"
+                      entry={selectedCondition}
+                      spellEntries={overview?.compendium.spells ?? []}
+                      featEntries={overview?.compendium.feats ?? []}
+                      classEntries={overview?.compendium.classes ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedCondition.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Conditions" message="Select a condition to preview it here." />
+                  ))}
+                {tab === "optionalFeatures" &&
+                  (selectedOptionalFeature ? (
+                    <ReferencePreviewCard
+                      title="Optional Feature"
+                      eyebrow="Optional Feature"
+                      entry={selectedOptionalFeature}
+                      spellEntries={overview?.compendium.spells ?? []}
+                      featEntries={overview?.compendium.feats ?? []}
+                      classEntries={overview?.compendium.classes ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedOptionalFeature.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Optional Features" message="Select an optional feature to preview it here." />
+                  ))}
+                {tab === "actions" &&
+                  (selectedAction ? (
+                    <ReferencePreviewCard
+                      title="Action"
+                      eyebrow="Action"
+                      entry={selectedAction}
+                      spellEntries={overview?.compendium.spells ?? []}
+                      featEntries={overview?.compendium.feats ?? []}
+                      classEntries={overview?.compendium.classes ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedAction.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Actions" message="Select an action to preview it here." />
+                  ))}
+                {tab === "backgrounds" &&
+                  (selectedBackground ? (
+                    <ReferencePreviewCard
+                      title="Background"
+                      eyebrow="Background"
+                      entry={selectedBackground}
+                      spellEntries={overview?.compendium.spells ?? []}
+                      featEntries={overview?.compendium.feats ?? []}
+                      classEntries={overview?.compendium.classes ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedBackground.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Backgrounds" message="Select a background to preview it here." />
+                  ))}
+                {tab === "items" &&
+                  (selectedItem ? (
+                    <ReferencePreviewCard
+                      title="Item"
+                      eyebrow="Item"
+                      entry={selectedItem}
+                      spellEntries={overview?.compendium.spells ?? []}
+                      featEntries={overview?.compendium.feats ?? []}
+                      classEntries={overview?.compendium.classes ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedItem.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Items" message="Select an item to preview it here." />
+                  ))}
+                {tab === "languages" &&
+                  (selectedLanguage ? (
+                    <ReferencePreviewCard
+                      title="Language"
+                      eyebrow="Language"
+                      entry={selectedLanguage}
+                      spellEntries={overview?.compendium.spells ?? []}
+                      featEntries={overview?.compendium.feats ?? []}
+                      classEntries={overview?.compendium.classes ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedLanguage.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Languages" message="Select a language to preview it here." />
+                  ))}
+                {tab === "races" &&
+                  (selectedRace ? (
+                    <ReferencePreviewCard
+                      title="Race"
+                      eyebrow="Race"
+                      entry={selectedRace}
+                      spellEntries={overview?.compendium.spells ?? []}
+                      featEntries={overview?.compendium.feats ?? []}
+                      classEntries={overview?.compendium.classes ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedRace.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Races" message="Select a race to preview it here." />
+                  ))}
+                {tab === "skills" &&
+                  (selectedSkill ? (
+                    <ReferencePreviewCard
+                      title="Skill"
+                      eyebrow="Skill"
+                      entry={selectedSkill}
+                      spellEntries={overview?.compendium.spells ?? []}
+                      featEntries={overview?.compendium.feats ?? []}
+                      classEntries={overview?.compendium.classes ?? []}
+                      variantRuleEntries={overview?.compendium.variantRules ?? []}
+                      conditionEntries={overview?.compendium.conditions ?? []}
+                      actionEntries={overview?.compendium.actions ?? []}
+                      sourceTitle={sourceBookNameById.get(selectedSkill.source)}
+                    />
+                  ) : (
+                    <PreviewPlaceholder title="Skills" message="Select a skill to preview it here." />
+                  ))}
+              </AdminScrollRegion>
             </section>
           </div>
         </div>
@@ -2432,6 +2469,19 @@ function filterAndSortClasses<T extends { name: string; source: string }>(entrie
     .sort((left, right) => compareValues(left, right, controls.sort));
 }
 
+function formatClassListSummary(entry: { features: unknown[]; subclasses: unknown[]; subclassLevel: number | null }) {
+  const parts = [
+    `${entry.features.length} class ${entry.features.length === 1 ? "feature" : "features"}`,
+    `${entry.subclasses.length} ${entry.subclasses.length === 1 ? "subclass" : "subclasses"}`
+  ];
+
+  if (entry.subclassLevel !== null) {
+    parts.push(`subclass at level ${entry.subclassLevel}`);
+  }
+
+  return parts.join(" • ");
+}
+
 function filterAndSortReferences<T extends { name: string; source: string; category: string }>(entries: T[], controls: ListControlsState) {
   return [...entries]
     .filter((entry) => !controls.source || normalizeSourceId(entry.source) === controls.source)
@@ -2580,6 +2630,38 @@ function uniqueOptionObjects(values: Array<{ value: string; label: string }>) {
 
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.filter(Boolean))).sort((left, right) => left.localeCompare(right));
+}
+
+function mergeImportedFiles(currentFiles: ImportedJsonFile[], nextFiles: ImportedJsonFile[]) {
+  const merged = new Map<string, ImportedJsonFile>();
+
+  [...currentFiles, ...nextFiles].forEach((file) => {
+    merged.set(file.name, file);
+  });
+
+  return Array.from(merged.values()).sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function formatImportedFileNames(files: ImportedJsonFile[]) {
+  if (files.length === 0) {
+    return "No files selected";
+  }
+
+  if (files.length === 1) {
+    return files[0]?.name ?? "No files selected";
+  }
+
+  const preview = files
+    .slice(0, 3)
+    .map((file) => file.name)
+    .join(", ");
+
+  return files.length > 3 ? `${preview}, +${files.length - 3} more` : preview;
+}
+
+function formatImportedFileSummary(files: ImportedJsonFile[]) {
+  const totalCharacters = files.reduce((sum, file) => sum + file.content.length, 0);
+  return `${files.length} ${files.length === 1 ? "file" : "files"} loaded • ${totalCharacters.toLocaleString()} characters total`;
 }
 
 function formatMonsterTokenArchiveSummary(

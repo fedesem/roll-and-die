@@ -3,14 +3,20 @@ import { useEffect, useMemo, useState } from "react";
 import type { AbilityKey, ActorSheet } from "@shared/types";
 
 import type {
+  GuidedAbilityChoiceConfig,
+  GuidedAbilityChoiceMode,
+  GuidedAbilityChoiceSlot,
   GuidedChoiceSpec,
   GuidedFlowMode,
+  GuidedSkillChoiceConfig,
   GuidedSetupState,
   PlayerNpcSheet2024Props
 } from "../playerNpcSheet2024Types";
 import { NEW_GUIDED_CLASS_ID } from "../playerNpcSheet2024Types";
 import {
+  applyGuideBaseAbilities,
   applyBackgroundToActor,
+  applyClassSkillChoicesToActor,
   applyClassToActor,
   applyGuideSelectionsToActor,
   applySpeciesChoiceSelections,
@@ -21,18 +27,22 @@ import {
 import {
   backgroundForId,
   collectGuidedFeatures,
+  deriveBackgroundSkillChoiceConfig,
   deriveClassResources,
+  deriveClassSkillChoiceConfig,
   deriveBackgroundAbilityConfig,
   deriveBackgroundEquipmentGroups,
   deriveGuidedChoiceSpec,
+  deriveGuidedAbilityChoiceSlots,
   deriveOriginFeatOptions,
   deriveSpellSlots,
   deriveSpeciesOriginFeatOptions,
-  deriveSpeciesSkillOptions,
+  deriveSpeciesSkillChoiceConfig,
   effectiveHitPointMax,
   mergeDerivedResources,
   mergeTextValues,
   padGuideSelections,
+  selectGuidedAbilityChoiceMode,
   syncBuildClasses,
   validateGuideSelections
 } from "../selectors/playerNpcSheet2024Selectors";
@@ -43,6 +53,15 @@ const emptyGuidedSetup: GuidedSetupState = {
   backgroundId: "",
   classId: "",
   subclassId: "",
+  baseAbilities: {
+    str: 10,
+    dex: 10,
+    con: 10,
+    int: 10,
+    wis: 10,
+    cha: 10
+  },
+  backgroundAbilityModeId: "",
   classFeatIds: [],
   optionalFeatureIds: [],
   cantripIds: [],
@@ -52,12 +71,90 @@ const emptyGuidedSetup: GuidedSetupState = {
   asiMode: "feat",
   asiFeatId: "",
   asiAbilityChoices: [],
-  speciesSkillChoice: "",
+  speciesSkillChoices: [],
+  backgroundSkillChoices: [],
+  classSkillChoices: [],
   speciesOriginFeatId: "",
   originFeatId: "",
   equipmentChoiceIds: {},
   abilityChoices: []
 };
+
+const defaultGuideAbilityCycle: AbilityKey[] = ["str", "dex", "con", "int", "wis", "cha"];
+
+function normalizeGuideBaseAbilities(current: ActorSheet["abilities"]) {
+  const normalizeScore = (value: number) => (Number.isFinite(value) ? Math.max(1, Math.min(20, Math.round(value))) : 10);
+
+  return {
+    str: normalizeScore(current.str),
+    dex: normalizeScore(current.dex),
+    con: normalizeScore(current.con),
+    int: normalizeScore(current.int),
+    wis: normalizeScore(current.wis),
+    cha: normalizeScore(current.cha)
+  };
+}
+
+function normalizeGuideSelections(current: string[], count: number, options: string[]) {
+  const filtered = current.filter((entry, index) => options.includes(entry) && current.indexOf(entry) === index);
+  return padGuideSelections(filtered, count, options);
+}
+
+function normalizeGuideAbilityChoices(current: AbilityKey[], slots: GuidedAbilityChoiceSlot[]) {
+  const next: AbilityKey[] = [];
+
+  slots.forEach((slot, index) => {
+    const currentChoice = current[index];
+
+    if (currentChoice && slot.abilities.includes(currentChoice) && !next.includes(currentChoice)) {
+      next.push(currentChoice);
+      return;
+    }
+
+    const fallbackChoice = slot.abilities.find((ability) => !next.includes(ability)) ?? slot.abilities[0];
+
+    if (fallbackChoice) {
+      next.push(fallbackChoice);
+    }
+  });
+
+  return next;
+}
+
+function normalizeGuideEquipmentChoiceIds(
+  current: Record<string, string>,
+  groups: ReturnType<typeof deriveBackgroundEquipmentGroups>
+) {
+  return Object.fromEntries(
+    groups.map((group) => {
+      const currentChoice = current[group.id];
+      const selectedChoice = group.options.some((option) => option.id === currentChoice) ? currentChoice : group.options[0]?.id ?? "";
+      return [group.id, selectedChoice];
+    })
+  );
+}
+
+function shallowEqualArray<T>(left: T[], right: T[]) {
+  return left.length === right.length && left.every((entry, index) => entry === right[index]);
+}
+
+function shallowEqualRecord(left: Record<string, string>, right: Record<string, string>) {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+
+  return leftKeys.length === rightKeys.length && leftKeys.every((key) => left[key] === right[key]);
+}
+
+function shallowEqualAbilities(left: ActorSheet["abilities"], right: ActorSheet["abilities"]) {
+  return (
+    left.str === right.str &&
+    left.dex === right.dex &&
+    left.con === right.con &&
+    left.int === right.int &&
+    left.wis === right.wis &&
+    left.cha === right.cha
+  );
+}
 
 export interface GuidedSheetFlowState {
   guidedFlowOpen: boolean;
@@ -69,9 +166,13 @@ export interface GuidedSheetFlowState {
   guidedSelectedBackground: PlayerNpcSheet2024Props["compendium"]["backgrounds"][number] | null;
   guidedSelectedClass: PlayerNpcSheet2024Props["compendium"]["classes"][number] | null;
   guidedChoiceSpec: GuidedChoiceSpec;
-  guidedSpeciesSkillChoices: PlayerNpcSheet2024Props["compendium"]["skills"];
+  guidedSpeciesSkillChoiceConfig: GuidedSkillChoiceConfig;
+  guidedBackgroundSkillChoiceConfig: GuidedSkillChoiceConfig;
+  guidedClassSkillChoiceConfig: GuidedSkillChoiceConfig;
   guidedSpeciesOriginFeatOptions: PlayerNpcSheet2024Props["compendium"]["feats"];
-  guidedAbilityChoiceConfig: ReturnType<typeof deriveBackgroundAbilityConfig>;
+  guidedAbilityChoiceConfig: GuidedAbilityChoiceConfig;
+  guidedAbilityChoiceMode: GuidedAbilityChoiceMode | null;
+  guidedAbilityChoiceSlots: GuidedAbilityChoiceSlot[];
   guidedOriginFeatOptions: PlayerNpcSheet2024Props["compendium"]["feats"];
   guidedEquipmentGroups: ReturnType<typeof deriveBackgroundEquipmentGroups>;
   selectedGuideFeats: PlayerNpcSheet2024Props["compendium"]["feats"];
@@ -87,6 +188,7 @@ export interface GuidedSheetFlowState {
     options?: {
       featId?: string;
       abilityChoices?: AbilityKey[];
+      abilityChoiceModeId?: string;
       equipmentChoiceIds?: Record<string, string>;
     }
   ) => void;
@@ -139,23 +241,8 @@ export function useGuidedSheetFlow({
     () => compendium.classes.find((entry) => entry.id === guidedSetup.classId) ?? null,
     [compendium.classes, guidedSetup.classId]
   );
-  const guidedChoiceSpec = useMemo(
-    () =>
-      deriveGuidedChoiceSpec({
-        actor: draft,
-        classes: compendium.classes,
-        spells: compendium.spells,
-        feats: compendium.feats,
-        optionalFeatures: compendium.optionalFeatures,
-        targetClassId: guidedSetup.classId,
-        targetActorClassId: guidedClassId,
-        targetSubclassId: guidedSetup.subclassId,
-        mode: guidedFlowMode
-      }),
-    [compendium.classes, compendium.feats, compendium.optionalFeatures, compendium.spells, draft, guidedClassId, guidedFlowMode, guidedSetup.classId, guidedSetup.subclassId]
-  );
-  const guidedSpeciesSkillChoices = useMemo(
-    () => deriveSpeciesSkillOptions(guidedSelectedSpecies, compendium.skills),
+  const guidedSpeciesSkillChoiceConfig = useMemo(
+    () => deriveSpeciesSkillChoiceConfig(guidedSelectedSpecies, compendium.skills),
     [compendium.skills, guidedSelectedSpecies]
   );
   const guidedSpeciesOriginFeatOptions = useMemo(
@@ -166,6 +253,14 @@ export function useGuidedSheetFlow({
     () => deriveBackgroundAbilityConfig(guidedSelectedBackground),
     [guidedSelectedBackground]
   );
+  const guidedAbilityChoiceMode = useMemo(
+    () => selectGuidedAbilityChoiceMode(guidedAbilityChoiceConfig, guidedSetup.backgroundAbilityModeId),
+    [guidedAbilityChoiceConfig, guidedSetup.backgroundAbilityModeId]
+  );
+  const guidedAbilityChoiceSlots = useMemo(
+    () => deriveGuidedAbilityChoiceSlots(guidedAbilityChoiceMode),
+    [guidedAbilityChoiceMode]
+  );
   const guidedOriginFeatOptions = useMemo(
     () => deriveOriginFeatOptions(guidedSelectedBackground, compendium.feats),
     [compendium.feats, guidedSelectedBackground]
@@ -174,41 +269,227 @@ export function useGuidedSheetFlow({
     () => deriveBackgroundEquipmentGroups(guidedSelectedBackground),
     [guidedSelectedBackground]
   );
+  const guidedSpeciesPreviewActor = useMemo(() => {
+    if (guidedFlowMode !== "setup") {
+      return draft;
+    }
+
+    let next = applyGuideBaseAbilities(draft, guidedSetup.baseAbilities);
+
+    if (guidedSelectedSpecies) {
+      next = applySpeciesToActor(next, guidedSelectedSpecies);
+      next = applySpeciesChoiceSelections(next, guidedSelectedSpecies, compendium.feats, guidedSetup.speciesSkillChoices, guidedSetup.speciesOriginFeatId);
+    }
+
+    return next;
+  }, [
+    compendium.feats,
+    draft,
+    guidedFlowMode,
+    guidedSelectedSpecies,
+    guidedSetup.baseAbilities,
+    guidedSetup.speciesOriginFeatId,
+    guidedSetup.speciesSkillChoices
+  ]);
+  const guidedBackgroundSkillChoiceConfig = useMemo(
+    () => deriveBackgroundSkillChoiceConfig(guidedSelectedBackground, compendium.skills, guidedSpeciesPreviewActor),
+    [compendium.skills, guidedSelectedBackground, guidedSpeciesPreviewActor]
+  );
+  const guidedBackgroundPreviewActor = useMemo(() => {
+    if (guidedFlowMode !== "setup") {
+      return draft;
+    }
+
+    if (!guidedSelectedBackground) {
+      return guidedSpeciesPreviewActor;
+    }
+
+    return applyBackgroundToActor(guidedSpeciesPreviewActor, guidedSelectedBackground, compendium.feats, {
+      featId: guidedSetup.originFeatId,
+      abilityChoices: guidedSetup.abilityChoices,
+      abilityChoiceModeId: guidedSetup.backgroundAbilityModeId,
+      equipmentChoiceIds: guidedSetup.equipmentChoiceIds,
+      skillChoices: guidedSetup.backgroundSkillChoices
+    });
+  }, [
+    compendium.feats,
+    draft,
+    guidedFlowMode,
+    guidedSetup.backgroundAbilityModeId,
+    guidedSelectedBackground,
+    guidedSetup.abilityChoices,
+    guidedSetup.backgroundSkillChoices,
+    guidedSetup.equipmentChoiceIds,
+    guidedSetup.originFeatId,
+    guidedSpeciesPreviewActor
+  ]);
+  const guidedClassPreviewActor = useMemo(() => {
+    if (guidedFlowMode !== "setup" || !guidedSelectedClass) {
+      return guidedBackgroundPreviewActor;
+    }
+
+    return applyClassToActor(guidedBackgroundPreviewActor, guidedSelectedClass, compendium.classes);
+  }, [compendium.classes, guidedBackgroundPreviewActor, guidedFlowMode, guidedSelectedClass]);
+  const guidedClassSkillChoiceConfig = useMemo(
+    () => (guidedFlowMode === "setup" ? deriveClassSkillChoiceConfig(guidedSelectedClass, compendium.skills, guidedClassPreviewActor) : { count: 0, options: [] }),
+    [compendium.skills, guidedClassPreviewActor, guidedFlowMode, guidedSelectedClass]
+  );
+  const guidedSetupActorForGuideChoices = useMemo(() => {
+    if (guidedFlowMode !== "setup") {
+      return draft;
+    }
+
+    return applyClassSkillChoicesToActor(guidedClassPreviewActor, guidedSetup.classSkillChoices);
+  }, [draft, guidedClassPreviewActor, guidedFlowMode, guidedSetup.classSkillChoices]);
+  const guidedChoiceSpec = useMemo(
+    () =>
+      deriveGuidedChoiceSpec({
+        actor: guidedFlowMode === "setup" ? guidedSetupActorForGuideChoices : draft,
+        classes: compendium.classes,
+        spells: compendium.spells,
+        feats: compendium.feats,
+        optionalFeatures: compendium.optionalFeatures,
+        targetClassId: guidedSetup.classId,
+        targetActorClassId: guidedClassId,
+        targetSubclassId: guidedSetup.subclassId,
+        mode: guidedFlowMode
+      }),
+    [
+      compendium.classes,
+      compendium.feats,
+      compendium.optionalFeatures,
+      compendium.spells,
+      draft,
+      guidedClassId,
+      guidedFlowMode,
+      guidedSetup.classId,
+      guidedSetup.subclassId,
+      guidedSetupActorForGuideChoices
+    ]
+  );
 
   useEffect(() => {
     if (!guidedFlowOpen) {
       return;
     }
 
-    setGuidedSetup((current) => ({
-      ...current,
-      classFeatIds: padGuideSelections(current.classFeatIds, guidedChoiceSpec.classFeatCount, guidedChoiceSpec.classFeatOptions.map((entry) => entry.id)),
-      optionalFeatureIds: padGuideSelections(
+    setGuidedSetup((current) => {
+      const nextBaseAbilities = normalizeGuideBaseAbilities(current.baseAbilities);
+      const nextBackgroundAbilityModeId = guidedAbilityChoiceConfig.modes.some((entry) => entry.id === current.backgroundAbilityModeId)
+        ? current.backgroundAbilityModeId
+        : guidedAbilityChoiceConfig.defaultModeId;
+      const nextAbilityChoiceSlots = deriveGuidedAbilityChoiceSlots(
+        selectGuidedAbilityChoiceMode(guidedAbilityChoiceConfig, nextBackgroundAbilityModeId)
+      );
+      const nextSpeciesSkillChoices = normalizeGuideSelections(
+        current.speciesSkillChoices,
+        guidedSpeciesSkillChoiceConfig.count,
+        guidedSpeciesSkillChoiceConfig.options.map((entry) => entry.name)
+      );
+      const nextBackgroundSkillChoices = normalizeGuideSelections(
+        current.backgroundSkillChoices,
+        guidedBackgroundSkillChoiceConfig.count,
+        guidedBackgroundSkillChoiceConfig.options.map((entry) => entry.name)
+      );
+      const nextClassSkillChoices = normalizeGuideSelections(
+        current.classSkillChoices,
+        guidedClassSkillChoiceConfig.count,
+        guidedClassSkillChoiceConfig.options.map((entry) => entry.name)
+      );
+      const nextAbilityChoices = normalizeGuideAbilityChoices(current.abilityChoices, nextAbilityChoiceSlots);
+      const nextEquipmentChoiceIds = normalizeGuideEquipmentChoiceIds(current.equipmentChoiceIds, guidedEquipmentGroups);
+      const nextClassFeatIds = padGuideSelections(
+        current.classFeatIds,
+        guidedChoiceSpec.classFeatCount,
+        guidedChoiceSpec.classFeatOptions.map((entry) => entry.id)
+      );
+      const nextOptionalFeatureIds = padGuideSelections(
         current.optionalFeatureIds,
         guidedChoiceSpec.optionalFeatureCount,
         guidedChoiceSpec.optionalFeatureOptions.map((entry) => entry.id)
-      ),
-      cantripIds: current.cantripIds
+      );
+      const nextCantripIds = current.cantripIds
         .filter((entry) => guidedChoiceSpec.cantripOptions.some((spell) => spell.id === entry))
-        .slice(0, guidedChoiceSpec.cantripCount),
-      knownSpellIds: current.knownSpellIds
+        .slice(0, guidedChoiceSpec.cantripCount);
+      const nextKnownSpellIds = current.knownSpellIds
         .filter((entry) => guidedChoiceSpec.knownSpellOptions.some((spell) => spell.id === entry))
-        .slice(0, guidedChoiceSpec.knownSpellCount),
-      spellbookSpellIds: current.spellbookSpellIds
+        .slice(0, guidedChoiceSpec.knownSpellCount);
+      const nextSpellbookSpellIds = current.spellbookSpellIds
         .filter((entry) => guidedChoiceSpec.spellbookOptions.some((spell) => spell.id === entry))
-        .slice(0, guidedChoiceSpec.spellbookCount),
-      expertiseSkillChoices: padGuideSelections(
+        .slice(0, guidedChoiceSpec.spellbookCount);
+      const nextExpertiseSkillChoices = normalizeGuideSelections(
         current.expertiseSkillChoices,
         guidedChoiceSpec.expertiseCount,
         guidedChoiceSpec.expertiseSkillOptions.map((entry) => entry.name)
-      ),
-      asiFeatId: current.asiFeatId || filteredFeats[0]?.id || "",
-      asiAbilityChoices:
-        current.asiAbilityChoices.length === guidedChoiceSpec.abilityImprovementCount * 2
-          ? current.asiAbilityChoices
-          : Array.from({ length: guidedChoiceSpec.abilityImprovementCount * 2 }, (_, index) => (["str", "dex", "con", "int", "wis", "cha"][index % 6] as AbilityKey))
-    }));
-  }, [filteredFeats, guidedChoiceSpec, guidedFlowOpen]);
+      );
+      const nextAsiFeatId = filteredFeats.some((entry) => entry.id === current.asiFeatId) ? current.asiFeatId : filteredFeats[0]?.id ?? "";
+      const nextAsiAbilityChoices = padGuideSelections(
+        current.asiAbilityChoices.filter((entry) => defaultGuideAbilityCycle.includes(entry)),
+        guidedChoiceSpec.abilityImprovementCount * 2,
+        defaultGuideAbilityCycle
+      );
+      const nextSpeciesOriginFeatId = guidedSpeciesOriginFeatOptions.some((entry) => entry.id === current.speciesOriginFeatId)
+        ? current.speciesOriginFeatId
+        : guidedSpeciesOriginFeatOptions[0]?.id ?? "";
+      const nextOriginFeatId = guidedOriginFeatOptions.some((entry) => entry.id === current.originFeatId)
+        ? current.originFeatId
+        : guidedOriginFeatOptions[0]?.id ?? "";
+
+      if (
+        shallowEqualAbilities(current.baseAbilities, nextBaseAbilities) &&
+        current.backgroundAbilityModeId === nextBackgroundAbilityModeId &&
+        shallowEqualArray(current.speciesSkillChoices, nextSpeciesSkillChoices) &&
+        shallowEqualArray(current.backgroundSkillChoices, nextBackgroundSkillChoices) &&
+        shallowEqualArray(current.classSkillChoices, nextClassSkillChoices) &&
+        shallowEqualArray(current.abilityChoices, nextAbilityChoices) &&
+        shallowEqualRecord(current.equipmentChoiceIds, nextEquipmentChoiceIds) &&
+        shallowEqualArray(current.classFeatIds, nextClassFeatIds) &&
+        shallowEqualArray(current.optionalFeatureIds, nextOptionalFeatureIds) &&
+        shallowEqualArray(current.cantripIds, nextCantripIds) &&
+        shallowEqualArray(current.knownSpellIds, nextKnownSpellIds) &&
+        shallowEqualArray(current.spellbookSpellIds, nextSpellbookSpellIds) &&
+        shallowEqualArray(current.expertiseSkillChoices, nextExpertiseSkillChoices) &&
+        current.asiFeatId === nextAsiFeatId &&
+        shallowEqualArray(current.asiAbilityChoices, nextAsiAbilityChoices) &&
+        current.speciesOriginFeatId === nextSpeciesOriginFeatId &&
+        current.originFeatId === nextOriginFeatId
+      ) {
+        return current;
+      }
+
+      return {
+        ...current,
+        baseAbilities: nextBaseAbilities,
+        backgroundAbilityModeId: nextBackgroundAbilityModeId,
+        speciesSkillChoices: nextSpeciesSkillChoices,
+        backgroundSkillChoices: nextBackgroundSkillChoices,
+        classSkillChoices: nextClassSkillChoices,
+        speciesOriginFeatId: nextSpeciesOriginFeatId,
+        originFeatId: nextOriginFeatId,
+        equipmentChoiceIds: nextEquipmentChoiceIds,
+        abilityChoices: nextAbilityChoices,
+        classFeatIds: nextClassFeatIds,
+        optionalFeatureIds: nextOptionalFeatureIds,
+        cantripIds: nextCantripIds,
+        knownSpellIds: nextKnownSpellIds,
+        spellbookSpellIds: nextSpellbookSpellIds,
+        expertiseSkillChoices: nextExpertiseSkillChoices,
+        asiFeatId: nextAsiFeatId,
+        asiAbilityChoices: nextAsiAbilityChoices
+      };
+    });
+  }, [
+    filteredFeats,
+    guidedAbilityChoiceConfig,
+    guidedBackgroundSkillChoiceConfig,
+    guidedChoiceSpec,
+    guidedClassSkillChoiceConfig,
+    guidedEquipmentGroups,
+    guidedFlowOpen,
+    guidedOriginFeatOptions,
+    guidedSpeciesOriginFeatOptions,
+    guidedSpeciesSkillChoiceConfig
+  ]);
 
   const selectedGuideFeats = useMemo(
     () =>
@@ -245,7 +526,7 @@ export function useGuidedSheetFlow({
     }
 
     setGuidedFlowMode(mode);
-    setGuidedClassId(draft.classes[0]?.id ?? "");
+    setGuidedClassId(mode === "levelup" ? draft.classes[0]?.id ?? NEW_GUIDED_CLASS_ID : "");
     setGuideError(null);
 
     const nextSpeciesId = draft.build?.speciesId ?? compendium.races[0]?.id ?? "";
@@ -254,8 +535,8 @@ export function useGuidedSheetFlow({
     const equipmentGroups = deriveBackgroundEquipmentGroups(backgroundEntry);
     const originFeatOptions = deriveOriginFeatOptions(backgroundEntry, compendium.feats);
     const abilityConfig = deriveBackgroundAbilityConfig(backgroundEntry);
+    const abilitySlots = deriveGuidedAbilityChoiceSlots(selectGuidedAbilityChoiceMode(abilityConfig, abilityConfig.defaultModeId));
     const speciesEntry = compendium.races.find((entry) => entry.id === nextSpeciesId) ?? null;
-    const speciesSkillOptions = deriveSpeciesSkillOptions(speciesEntry, compendium.skills);
     const speciesFeatOptions = deriveSpeciesOriginFeatOptions(speciesEntry, compendium.feats);
 
     setGuidedSetup({
@@ -263,6 +544,8 @@ export function useGuidedSheetFlow({
       backgroundId: nextBackgroundId,
       classId: draft.classes[0]?.compendiumId ?? compendium.classes[0]?.id ?? "",
       subclassId: "",
+      baseAbilities: normalizeGuideBaseAbilities(draft.abilities),
+      backgroundAbilityModeId: abilityConfig.defaultModeId,
       classFeatIds: [],
       optionalFeatureIds: [],
       cantripIds: [],
@@ -272,11 +555,13 @@ export function useGuidedSheetFlow({
       asiMode: "feat",
       asiFeatId: "",
       asiAbilityChoices: [],
-      speciesSkillChoice: speciesSkillOptions[0]?.name ?? "",
+      speciesSkillChoices: [],
+      backgroundSkillChoices: [],
+      classSkillChoices: [],
       speciesOriginFeatId: speciesFeatOptions[0]?.id ?? "",
       originFeatId: originFeatOptions[0]?.id ?? "",
       equipmentChoiceIds: Object.fromEntries(equipmentGroups.map((group) => [group.id, group.options[0]?.id ?? ""])),
-      abilityChoices: abilityConfig.abilities.slice(0, abilityConfig.count)
+      abilityChoices: normalizeGuideAbilityChoices([], abilitySlots)
     });
     setGuidedFlowOpen(true);
   }
@@ -296,6 +581,7 @@ export function useGuidedSheetFlow({
     options?: {
       featId?: string;
       abilityChoices?: AbilityKey[];
+      abilityChoiceModeId?: string;
       equipmentChoiceIds?: Record<string, string>;
     }
   ) {
@@ -341,7 +627,11 @@ export function useGuidedSheetFlow({
       setup: guidedSetup,
       mode: "setup",
       targetClass: classEntry,
-      currentSubclassId: ""
+      currentSubclassId: "",
+      speciesSkillChoiceCount: guidedSpeciesSkillChoiceConfig.count,
+      backgroundSkillChoiceCount: guidedBackgroundSkillChoiceConfig.count,
+      backgroundAbilityChoiceCount: guidedAbilityChoiceSlots.length,
+      classSkillChoiceCount: guidedClassSkillChoiceConfig.count
     });
 
     if (guideValidation) {
@@ -370,14 +660,18 @@ export function useGuidedSheetFlow({
       next.hitPoints.temp = 0;
       next.hitPoints.reducedMax = 0;
 
+      next = applyGuideBaseAbilities(next, guidedSetup.baseAbilities);
       next = applySpeciesToActor(next, compendium.races.find((entry) => entry.id === guidedSetup.speciesId) ?? null);
-      next = applySpeciesChoiceSelections(next, guidedSelectedSpecies, compendium.feats, guidedSetup.speciesSkillChoice, guidedSetup.speciesOriginFeatId);
+      next = applySpeciesChoiceSelections(next, guidedSelectedSpecies, compendium.feats, guidedSetup.speciesSkillChoices, guidedSetup.speciesOriginFeatId);
       next = applyBackgroundToActor(next, backgroundForId(compendium.backgrounds, guidedSetup.backgroundId), compendium.feats, {
         featId: guidedSetup.originFeatId,
         abilityChoices: guidedSetup.abilityChoices,
-        equipmentChoiceIds: guidedSetup.equipmentChoiceIds
+        abilityChoiceModeId: guidedSetup.backgroundAbilityModeId,
+        equipmentChoiceIds: guidedSetup.equipmentChoiceIds,
+        skillChoices: guidedSetup.backgroundSkillChoices
       });
       next = applyClassToActor(next, classEntry, compendium.classes);
+      next = applyClassSkillChoicesToActor(next, guidedSetup.classSkillChoices);
       if (guidedSetup.subclassId) {
         const actorClassId = next.classes.find((entry) => entry.compendiumId === classEntry.id)?.id ?? "";
         next = assignSubclassToActor(next, compendium.classes, actorClassId, guidedSetup.subclassId);
@@ -413,7 +707,7 @@ export function useGuidedSheetFlow({
       return;
     }
 
-    const currentSubclassId = targetActorClass ? draft.build?.classes.find((entry) => entry.id === targetActorClass.id)?.subclassId ?? "" : "";
+    const currentSubclassId = targetActorClass ? targetActorClass.subclassId ?? draft.build?.classes.find((entry) => entry.id === targetActorClass.id)?.subclassId ?? "" : "";
     const guideValidation = validateGuideSelections({
       actor: draft,
       spec: guidedChoiceSpec,
@@ -508,9 +802,13 @@ export function useGuidedSheetFlow({
     guidedSelectedBackground,
     guidedSelectedClass,
     guidedChoiceSpec,
-    guidedSpeciesSkillChoices,
+    guidedSpeciesSkillChoiceConfig,
+    guidedBackgroundSkillChoiceConfig,
+    guidedClassSkillChoiceConfig,
     guidedSpeciesOriginFeatOptions,
     guidedAbilityChoiceConfig,
+    guidedAbilityChoiceMode,
+    guidedAbilityChoiceSlots,
     guidedOriginFeatOptions,
     guidedEquipmentGroups,
     selectedGuideFeats,

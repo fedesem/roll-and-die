@@ -451,6 +451,84 @@ async function readClassEntries(database: DatabaseSync): Promise<ClassEntry[]> {
     });
     classFeaturesByClassId.set(row.classId, current);
   });
+  const subclassFeaturesByKey = new Map<string, ClassFeatureEntry[]>();
+  (
+    await readAll<{
+      classId: string;
+      subclassId: string;
+      level: number;
+      name: string;
+      description: string;
+      source: string;
+      reference: string;
+    }>(
+      database,
+      `
+      SELECT
+        class_id as classId,
+        subclass_id as subclassId,
+        level,
+        name,
+        description,
+        source,
+        reference
+      FROM compendium_class_subclass_features
+      ORDER BY class_id, subclass_id, sort_order
+    `
+    )
+  ).forEach((row) => {
+    const key = createClassSubclassKey(row.classId, row.subclassId);
+    const current = subclassFeaturesByKey.get(key) ?? [];
+    current.push({
+      level: row.level,
+      name: row.name,
+      description: row.description,
+      source: row.source,
+      reference: row.reference
+    });
+    subclassFeaturesByKey.set(key, current);
+  });
+  const classSubclassesByClassId = new Map<string, ClassSubclassEntry[]>();
+  (
+    await readAll<{
+      classId: string;
+      id: string;
+      name: string;
+      shortName: string;
+      source: string;
+      className: string;
+      classSource: string;
+      description: string;
+    }>(
+      database,
+      `
+      SELECT
+        class_id as classId,
+        id,
+        name,
+        short_name as shortName,
+        source,
+        class_name as className,
+        class_source as classSource,
+        description
+      FROM compendium_class_subclasses
+      ORDER BY class_id, sort_order, id
+    `
+    )
+  ).forEach((row) => {
+    const current = classSubclassesByClassId.get(row.classId) ?? [];
+    current.push({
+      id: row.id,
+      name: row.name,
+      shortName: row.shortName,
+      source: row.source,
+      className: row.className,
+      classSource: row.classSource,
+      description: row.description,
+      features: subclassFeaturesByKey.get(createClassSubclassKey(row.classId, row.id)) ?? []
+    });
+    classSubclassesByClassId.set(row.classId, current);
+  });
   const classTableColumnsByKey = new Map<string, string[]>();
   (
     await readAll<{
@@ -593,7 +671,7 @@ async function readClassEntries(database: DatabaseSync): Promise<ClassEntry[]> {
     spellPreparation: row.spellPreparation ?? "none",
     subclassLevel: row.subclassLevel,
     features: classFeaturesByClassId.get(row.id) ?? parseJsonArray<ClassFeatureEntry>(row.featuresJson),
-    subclasses: parseJsonArray<ClassSubclassEntry>(row.subclassesJson),
+    subclasses: classSubclassesByClassId.get(row.id) ?? parseJsonArray<ClassSubclassEntry>(row.subclassesJson),
     tables: classTablesByClassId.get(row.id) ?? parseJsonArray<ClassEntry["tables"][number]>(row.tablesJson)
   }));
 }
@@ -739,9 +817,9 @@ export async function insertCompendiumEntriesAtStart<K extends CompendiumCollect
     return;
   }
   await shiftCompendiumSortOrders(database, kind, nextEntries.length);
-  nextEntries.forEach((entry, index) => {
-    writeCompendiumEntry(database, kind, entry, index);
-  });
+  for (const [index, entry] of nextEntries.entries()) {
+    await writeCompendiumEntry(database, kind, entry, index);
+  }
 }
 export async function insertCompendiumEntryAtStart(
   database: DatabaseSync,
@@ -759,7 +837,7 @@ export async function upsertCompendiumEntry<K extends CompendiumCollectionKind>(
     (await readExistingCompendiumSortOrder(database, kind, getCompendiumEntryKey(entry))) ??
     (await readNextCompendiumSortOrder(database, kind)) ??
     0;
-  writeCompendiumEntry(database, kind, entry, sortOrder);
+  await writeCompendiumEntry(database, kind, entry, sortOrder);
 }
 export function deleteCompendiumEntryRecord(database: DatabaseSync, kind: CompendiumCollectionKind, entryId: string) {
   switch (kind) {
@@ -954,7 +1032,7 @@ async function readNextCompendiumSortOrder(database: DatabaseSync, kind: Compend
     }
   }
 }
-function writeCompendiumEntry<K extends CompendiumCollectionKind>(
+async function writeCompendiumEntry<K extends CompendiumCollectionKind>(
   database: DatabaseSync,
   kind: K,
   entry: CompendiumData[K][number],
@@ -971,7 +1049,7 @@ function writeCompendiumEntry<K extends CompendiumCollectionKind>(
       upsertFeatEntry(database, entry as FeatEntry, sortOrder);
       return;
     case "classes":
-      upsertClassEntry(database, entry as ClassEntry, sortOrder);
+      await upsertClassEntry(database, entry as ClassEntry, sortOrder);
       return;
     case "books":
       upsertBookEntry(database, entry as CampaignSourceBook, sortOrder);
@@ -1204,7 +1282,38 @@ function upsertFeatEntry(database: DatabaseSync, feat: FeatEntry, sortOrder: num
     )
     .run(feat.id, sortOrder, feat.name, feat.source, feat.category, feat.abilityScoreIncrease, feat.prerequisites, feat.description);
 }
-function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: number) {
+async function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: number) {
+  const existingClassRow = await database.prepare(
+    "SELECT id FROM compendium_classes WHERE lower(name) = lower(?) AND lower(source) = lower(?) LIMIT 1"
+  ).get<{
+    id: string;
+  }>(entry.name, entry.source);
+  const classId = existingClassRow?.id ?? entry.id;
+  const existingSubclassRows = await readAll<{
+    id: string;
+    name: string;
+    source: string;
+    shortName: string;
+  }>(
+    database,
+    `
+      SELECT
+        id,
+        name,
+        source,
+        short_name as shortName
+      FROM compendium_class_subclasses
+      WHERE class_id = ?
+    `,
+    classId
+  );
+  const existingSubclassIdsByKey = new Map(
+    existingSubclassRows.map((row) => [createClassSubclassNaturalKey(row.name, row.source, row.shortName), row.id] as const)
+  );
+  const normalizedSubclasses = entry.subclasses.map((subclass) => ({
+    ...subclass,
+    id: existingSubclassIdsByKey.get(createClassSubclassNaturalKey(subclass.name, subclass.source, subclass.shortName)) ?? subclass.id
+  }));
   database
     .prepare(
       `
@@ -1235,7 +1344,7 @@ function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: 
       `
     )
     .run(
-      entry.id,
+      classId,
       sortOrder,
       entry.name,
       entry.source,
@@ -1250,11 +1359,12 @@ function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: 
       entry.spellPreparation,
       entry.subclassLevel,
       JSON.stringify(entry.features),
-      JSON.stringify(entry.subclasses),
+      JSON.stringify(normalizedSubclasses),
       JSON.stringify(entry.tables)
     );
-  database.prepare("DELETE FROM compendium_class_features WHERE class_id = ?").run(entry.id);
-  database.prepare("DELETE FROM compendium_class_tables WHERE class_id = ?").run(entry.id);
+  database.prepare("DELETE FROM compendium_class_features WHERE class_id = ?").run(classId);
+  database.prepare("DELETE FROM compendium_class_tables WHERE class_id = ?").run(classId);
+  database.prepare("DELETE FROM compendium_class_subclasses WHERE class_id = ?").run(classId);
   entry.features.forEach((feature, featureIndex) => {
     database
       .prepare(
@@ -1264,7 +1374,50 @@ function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: 
           ) VALUES (?, ?, ?, ?, ?, ?, ?)
         `
       )
-      .run(entry.id, featureIndex, feature.level, feature.name, feature.description, feature.source, feature.reference);
+      .run(classId, featureIndex, feature.level, feature.name, feature.description, feature.source, feature.reference);
+  });
+  normalizedSubclasses.forEach((subclass, subclassIndex) => {
+    database
+      .prepare(
+        `
+          INSERT INTO compendium_class_subclasses (
+            class_id, id, sort_order, name, short_name, source, class_name, class_source, description
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `
+      )
+      .run(
+        classId,
+        subclass.id,
+        subclassIndex,
+        subclass.name,
+        subclass.shortName,
+        subclass.source,
+        subclass.className,
+        subclass.classSource,
+        subclass.description
+      );
+    subclass.features.forEach((feature, featureIndex) => {
+      database
+        .prepare(
+          `
+            INSERT INTO compendium_class_subclass_features (
+              class_id, subclass_id, sort_order, level, name, description, source, reference
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `
+        )
+        .run(
+          classId,
+          subclass.id,
+          featureIndex,
+          feature.level,
+          feature.name,
+          feature.description,
+          feature.source,
+          feature.reference
+        );
+    });
   });
   entry.tables.forEach((table, tableIndex) => {
     database
@@ -1274,7 +1427,7 @@ function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: 
           VALUES (?, ?, ?)
         `
       )
-      .run(entry.id, tableIndex, table.name);
+      .run(classId, tableIndex, table.name);
     table.columns.forEach((column, columnIndex) => {
       database
         .prepare(
@@ -1283,7 +1436,7 @@ function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: 
             VALUES (?, ?, ?, ?)
           `
         )
-        .run(entry.id, tableIndex, columnIndex, column);
+        .run(classId, tableIndex, columnIndex, column);
     });
     table.rows.forEach((row, rowIndex) => {
       row.forEach((cell, cellIndex) => {
@@ -1294,7 +1447,7 @@ function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: 
               VALUES (?, ?, ?, ?, ?)
             `
           )
-          .run(entry.id, tableIndex, rowIndex, cellIndex, cell);
+          .run(classId, tableIndex, rowIndex, cellIndex, cell);
       });
     });
   });
@@ -1430,6 +1583,14 @@ function formatSpellClassReferenceDisplay(reference: SpellClassReference) {
 }
 function createClassTableKey(classId: string, tableIndex: number) {
   return `${classId}:${tableIndex}`;
+}
+function createClassSubclassKey(classId: string, subclassId: string) {
+  return `${classId}:${subclassId}`;
+}
+function createClassSubclassNaturalKey(name: string, source: string, shortName: string) {
+  return [name, source, shortName]
+    .map((value) => value.trim().toLowerCase())
+    .join(":");
 }
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));

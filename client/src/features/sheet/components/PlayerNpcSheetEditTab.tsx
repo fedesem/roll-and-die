@@ -232,7 +232,6 @@ export function PlayerNpcSheetEditTab({
           <div className="space-y-3">
             {draft.classes.map((actorClass, index) => {
               const classEntry = findCompendiumClass(actorClass, compendium.classes);
-              const buildClass = draft.build?.classes.find((entry) => entry.id === actorClass.id);
 
               return (
                 <div key={actorClass.id} className="space-y-3 border border-white/8 bg-black/20 p-3">
@@ -253,7 +252,7 @@ export function PlayerNpcSheetEditTab({
                   </div>
                   {classEntry && classEntry.subclasses.length > 0 && actorClass.level >= (classEntry.subclassLevel ?? 99) ? (
                     <Field label="Subclass">
-                      <select className={inputClass} disabled={permissions.editReadOnly} value={buildClass?.subclassId ?? ""} onChange={(event) => guided.applySubclass(actorClass.id, event.target.value)}>
+                      <select className={inputClass} disabled={permissions.editReadOnly} value={actorClass.subclassId ?? ""} onChange={(event) => guided.applySubclass(actorClass.id, event.target.value)}>
                         <option value="">Select a subclass</option>
                         {classEntry.subclasses.map((entry) => (
                           <option key={entry.id} value={entry.id}>
@@ -676,26 +675,42 @@ export function PlayerNpcSheetEditTab({
           <div className="space-y-3">
             {derived.displayedResources.map((resource) => {
               const resourceDefinition = derived.resourceDefinitionLookup.get(normalizeKey(resource.name));
+              const resourceManagedByClassTable = resource.id.startsWith("derived:") && Boolean(resourceDefinition);
 
               return (
                 <div key={resource.id} className="space-y-3 border border-white/8 bg-black/20 p-3">
                   <div className="grid gap-3 md:grid-cols-2">
                     <Field label="Name">
-                      <input className={inputClass} disabled={permissions.editReadOnly} value={resource.name} onChange={(event) => mutators.updateResourceById(resource.id, { name: event.target.value })} />
+                      <input
+                        className={inputClass}
+                        disabled={permissions.editReadOnly || resourceManagedByClassTable}
+                        value={resource.name}
+                        onChange={(event) => mutators.updateResourceById(resource.id, { name: event.target.value })}
+                      />
                     </Field>
                     <Field label="Restore On">
-                      <input className={inputClass} disabled={permissions.editReadOnly} value={resource.resetOn} onChange={(event) => mutators.updateResourceById(resource.id, { resetOn: event.target.value })} />
+                      <input
+                        className={inputClass}
+                        disabled={permissions.editReadOnly || resourceManagedByClassTable}
+                        value={resource.resetOn}
+                        onChange={(event) => mutators.updateResourceById(resource.id, { resetOn: event.target.value })}
+                      />
                     </Field>
                     <Field label="Current">
                       <NumericInput className={inputClass} disabled={permissions.editReadOnly} value={resource.current} onValueChange={(value) => mutators.updateResourceById(resource.id, { current: value ?? 0 })} />
                     </Field>
                     <Field label="Max">
-                      <NumericInput className={inputClass} disabled={permissions.editReadOnly} value={resource.max} onValueChange={(value) => mutators.updateResourceById(resource.id, { max: value ?? 0 })} />
+                      <NumericInput
+                        className={inputClass}
+                        disabled={permissions.editReadOnly || resourceManagedByClassTable}
+                        value={resource.max}
+                        onValueChange={(value) => mutators.updateResourceById(resource.id, { max: value ?? 0 })}
+                      />
                     </Field>
                     <button
                       type="button"
                       className={secondaryButtonClass}
-                      disabled={permissions.editReadOnly}
+                      disabled={permissions.editReadOnly || resourceManagedByClassTable}
                       onClick={() =>
                         mutators.updateDraft((current) => ({
                           ...current,

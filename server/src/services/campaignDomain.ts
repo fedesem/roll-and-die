@@ -1113,8 +1113,11 @@ function sanitizeActorClasses(value: unknown, fallback: ActorClassEntry[]): Acto
 
       const actorClass = entry as Partial<ActorClassEntry>;
       const level = getOptionalNumber(actorClass.level, 1, 1, 20);
+      const subclassId = getOptionalString(actorClass.subclassId, "");
+      const subclassName = getOptionalString(actorClass.subclassName, "");
+      const subclassSource = getOptionalString(actorClass.subclassSource, "");
 
-      return {
+      const normalized: ActorClassEntry = {
         id: typeof actorClass.id === "string" ? actorClass.id : createId("cls"),
         compendiumId: getOptionalString(actorClass.compendiumId, ""),
         name: getOptionalString(actorClass.name, "Class"),
@@ -1124,6 +1127,20 @@ function sanitizeActorClasses(value: unknown, fallback: ActorClassEntry[]): Acto
         usedHitDice: getOptionalNumber(actorClass.usedHitDice, 0, 0, level),
         spellcastingAbility: parseAbilityKey(actorClass.spellcastingAbility, null)
       };
+
+      if (subclassId) {
+        normalized.subclassId = subclassId;
+      }
+
+      if (subclassName) {
+        normalized.subclassName = subclassName;
+      }
+
+      if (subclassSource) {
+        normalized.subclassSource = subclassSource;
+      }
+
+      return normalized;
     })
     .filter((entry): entry is ActorClassEntry => Boolean(entry))
     .slice(0, 8);

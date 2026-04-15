@@ -19,11 +19,16 @@ import type {
 } from "@shared/types";
 
 import type {
+  GuidedAbilityChoiceConfig,
+  GuidedAbilityChoiceGrant,
+  GuidedAbilityChoiceMode,
+  GuidedAbilityChoiceSlot,
   DerivedResourceDefinition,
   DetailRowEntry,
   DetailRowMeta,
   GuidedChoiceSpec,
   GuidedFlowMode,
+  GuidedSkillChoiceConfig,
   GuidedSetupState,
   SheetTab
 } from "../playerNpcSheet2024Types";
@@ -36,6 +41,93 @@ import {
   totalLevel
 } from "../sheetUtils";
 
+const guidedClassSkillChoiceRules: Record<string, { count: number; skillNames: string[] }> = {
+  barbarian: {
+    count: 2,
+    skillNames: ["Animal Handling", "Athletics", "Intimidation", "Nature", "Perception", "Survival"]
+  },
+  bard: {
+    count: 3,
+    skillNames: [
+      "Acrobatics",
+      "Animal Handling",
+      "Arcana",
+      "Athletics",
+      "Deception",
+      "History",
+      "Insight",
+      "Intimidation",
+      "Investigation",
+      "Medicine",
+      "Nature",
+      "Perception",
+      "Performance",
+      "Persuasion",
+      "Religion",
+      "Sleight of Hand",
+      "Stealth",
+      "Survival"
+    ]
+  },
+  cleric: {
+    count: 2,
+    skillNames: ["History", "Insight", "Medicine", "Persuasion", "Religion"]
+  },
+  druid: {
+    count: 2,
+    skillNames: ["Arcana", "Animal Handling", "Insight", "Medicine", "Nature", "Perception", "Religion", "Survival"]
+  },
+  fighter: {
+    count: 2,
+    skillNames: ["Acrobatics", "Animal Handling", "Athletics", "History", "Insight", "Intimidation", "Perception", "Survival"]
+  },
+  monk: {
+    count: 2,
+    skillNames: ["Acrobatics", "Athletics", "History", "Insight", "Religion", "Stealth"]
+  },
+  paladin: {
+    count: 2,
+    skillNames: ["Athletics", "Insight", "Intimidation", "Medicine", "Persuasion", "Religion"]
+  },
+  ranger: {
+    count: 3,
+    skillNames: ["Animal Handling", "Athletics", "Insight", "Investigation", "Nature", "Perception", "Stealth", "Survival"]
+  },
+  rogue: {
+    count: 4,
+    skillNames: [
+      "Acrobatics",
+      "Athletics",
+      "Deception",
+      "Insight",
+      "Intimidation",
+      "Investigation",
+      "Perception",
+      "Persuasion",
+      "Sleight of Hand",
+      "Stealth"
+    ]
+  },
+  sorcerer: {
+    count: 2,
+    skillNames: ["Arcana", "Deception", "Insight", "Intimidation", "Persuasion", "Religion"]
+  },
+  warlock: {
+    count: 2,
+    skillNames: ["Arcana", "Deception", "History", "Intimidation", "Investigation", "Nature", "Religion"]
+  },
+  wizard: {
+    count: 2,
+    skillNames: ["Arcana", "History", "Insight", "Investigation", "Medicine", "Nature", "Religion"]
+  }
+};
+
+interface SkillGrantDetails {
+  fixedSkillNames: string[];
+  choiceCount: number;
+  choiceSkillNames: string[];
+}
+
 export function defaultTabForActor(actor: ActorSheet): SheetTab {
   return actor.build?.speciesId || actor.build?.backgroundId || actor.classes.length > 0 ? "main" : "edit";
 }
@@ -45,23 +137,50 @@ export function backgroundForId(backgrounds: CompendiumBackgroundEntry[], backgr
 }
 
 export function deriveBackgroundAbilityConfig(background: CompendiumBackgroundEntry | null) {
-  const structuredChoice = background?.abilityChoices[0];
+  const structuredGrants = normalizeBackgroundAbilityGrants(background?.abilityChoices ?? []);
+  const fallbackAbilities = background ? extractAbilityKeysFromText(background.entries || background.description) : [];
+  const modes: GuidedAbilityChoiceMode[] = [];
 
-  if (structuredChoice && structuredChoice.abilities.length > 0) {
-    return {
-      abilities: structuredChoice.abilities,
-      amount: structuredChoice.amount || 1,
-      count: structuredChoice.count || 1
-    };
+  if (structuredGrants.length > 0) {
+    modes.push({
+      id: "primary",
+      label: formatBackgroundAbilityModeLabel(structuredGrants),
+      grants: structuredGrants
+    });
+  } else if (fallbackAbilities.length > 0) {
+    buildFallbackBackgroundAbilityModes(fallbackAbilities).forEach((mode, index) => {
+      modes.push({
+        id: index === 0 ? "primary" : `fallback-${index}`,
+        label: formatBackgroundAbilityModeLabel(mode),
+        grants: mode
+      });
+    });
   }
 
-  const matches = background ? extractAbilityKeysFromText(background.entries || background.description) : [];
+  appendStandardBackgroundAbilityAlternative(modes);
 
   return {
-    abilities: matches,
-    amount: 1,
-    count: matches.length >= 3 ? 2 : matches.length
-  };
+    modes,
+    defaultModeId: modes[0]?.id ?? ""
+  } satisfies GuidedAbilityChoiceConfig;
+}
+
+export function selectGuidedAbilityChoiceMode(config: GuidedAbilityChoiceConfig, modeId: string) {
+  return config.modes.find((entry) => entry.id === modeId) ?? config.modes[0] ?? null;
+}
+
+export function deriveGuidedAbilityChoiceSlots(mode: GuidedAbilityChoiceMode | null): GuidedAbilityChoiceSlot[] {
+  if (!mode) {
+    return [];
+  }
+
+  return mode.grants.flatMap((grant, grantIndex) =>
+    Array.from({ length: grant.count }, (_, slotIndex) => ({
+      id: `${mode.id}:${grantIndex}:${slotIndex}`,
+      abilities: grant.abilities,
+      amount: grant.amount
+    }))
+  );
 }
 
 export function deriveBackgroundSkillProficiencies(background: CompendiumBackgroundEntry | null) {
@@ -75,7 +194,7 @@ export function deriveBackgroundSkillProficiencies(background: CompendiumBackgro
     return structured;
   }
 
-  return extractTaggedNames(background.entries || background.description, "skill");
+  return deriveSkillGrantDetails(background.entries || background.description, []).fixedSkillNames;
 }
 
 export function deriveOriginFeatOptions(background: CompendiumBackgroundEntry | null, feats: FeatEntry[]) {
@@ -90,16 +209,54 @@ export function deriveOriginFeatOptions(background: CompendiumBackgroundEntry | 
     .filter((entry): entry is FeatEntry => Boolean(entry));
 }
 
-export function deriveSpeciesSkillOptions(species: CompendiumSpeciesEntry | null, skillEntries: CompendiumReferenceEntry[]) {
+export function deriveBackgroundSkillChoiceConfig(
+  background: CompendiumBackgroundEntry | null,
+  skillEntries: CompendiumReferenceEntry[],
+  actor?: ActorSheet | null
+): GuidedSkillChoiceConfig {
+  if (!background) {
+    return {
+      count: 0,
+      options: []
+    };
+  }
+
+  const details = deriveSkillGrantDetails(background.entries || background.description, skillEntries);
+  const options = filterSelectableSkillEntries(mapSkillNamesToEntries(details.choiceSkillNames, skillEntries), actor);
+
+  return {
+    count: Math.min(details.choiceCount, options.length),
+    options
+  };
+}
+
+export function deriveSpeciesSkillChoiceConfig(
+  species: CompendiumSpeciesEntry | null,
+  skillEntries: CompendiumReferenceEntry[],
+  actor?: ActorSheet | null
+): GuidedSkillChoiceConfig {
+  if (!species) {
+    return {
+      count: 0,
+      options: []
+    };
+  }
+
+  const details = deriveSkillGrantDetails(species.entries || species.description, skillEntries);
+  const options = filterSelectableSkillEntries(mapSkillNamesToEntries(details.choiceSkillNames, skillEntries), actor);
+
+  return {
+    count: Math.min(details.choiceCount, options.length),
+    options
+  };
+}
+
+export function deriveSpeciesSkillProficiencies(species: CompendiumSpeciesEntry | null) {
   if (!species) {
     return [];
   }
 
-  if (!/\bskill of your choice\b/i.test(species.entries || species.description)) {
-    return [];
-  }
-
-  return skillEntries;
+  return deriveSkillGrantDetails(species.entries || species.description, []).fixedSkillNames;
 }
 
 export function deriveSpeciesOriginFeatOptions(species: CompendiumSpeciesEntry | null, feats: FeatEntry[]) {
@@ -159,6 +316,119 @@ export function extractTaggedNames(text: string, tag: "feat" | "item" | "skill" 
   return Array.from(new Set(matches.map((entry) => entry[1]?.trim()).filter(Boolean)));
 }
 
+export function deriveClassSkillChoiceConfig(
+  classEntry: ClassEntry | null,
+  skillEntries: CompendiumReferenceEntry[],
+  actor?: ActorSheet | null
+): GuidedSkillChoiceConfig {
+  if (!classEntry) {
+    return {
+      count: 0,
+      options: []
+    };
+  }
+
+  const rule = guidedClassSkillChoiceRules[normalizeKey(classEntry.name)];
+
+  if (!rule) {
+    return {
+      count: 0,
+      options: []
+    };
+  }
+
+  const options = filterSelectableSkillEntries(mapSkillNamesToEntries(rule.skillNames, skillEntries), actor);
+
+  return {
+    count: Math.min(rule.count, options.length),
+    options
+  };
+}
+
+function deriveSkillGrantDetails(text: string, skillEntries: CompendiumReferenceEntry[]): SkillGrantDetails {
+  const lines = text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const fixedSkillNames = new Set<string>();
+  const choiceSkillNames = new Set<string>();
+  let choiceCount = 0;
+
+  lines.forEach((line) => {
+    const normalized = normalizeKey(line);
+    const taggedSkillNames = extractTaggedNames(line, "skill");
+
+    if (!taggedSkillNames.length && !normalized.includes("skill")) {
+      return;
+    }
+
+    if (normalized.includes("skill or tool")) {
+      return;
+    }
+
+    const plusFromAmongMatch = line.match(/\bplus\s+((?:\d+)|one|two|three|four|five|six)\s+from among\b/i);
+    if (plusFromAmongMatch) {
+      const splitIndex = plusFromAmongMatch.index ?? 0;
+      extractTaggedNames(line.slice(0, splitIndex), "skill").forEach((skillName) => fixedSkillNames.add(skillName));
+      const optionNames = extractTaggedNames(line.slice(splitIndex + plusFromAmongMatch[0].length), "skill");
+      choiceCount = Math.max(choiceCount, parseChoiceCount(plusFromAmongMatch[1], 1));
+      optionNames.forEach((skillName) => choiceSkillNames.add(skillName));
+      return;
+    }
+
+    const chooseTaggedMatch =
+      line.match(/\b((?:\d+)|one|two|three|four|five|six)\s+(?:of\s+)?(?:the\s+following\s+)?skills?\s+of\s+your\s+choice\b/i) ??
+      line.match(/\bchoose\s+((?:\d+)|one|two|three|four|five|six)\s+(?:of\s+)?(?:the\s+following\s+)?skills?\b/i);
+    if (chooseTaggedMatch) {
+      const optionNames = taggedSkillNames.length > 0 ? taggedSkillNames : skillEntries.map((entry) => entry.name);
+      choiceCount = Math.max(choiceCount, parseChoiceCount(chooseTaggedMatch[1], 1));
+      optionNames.forEach((skillName) => choiceSkillNames.add(skillName));
+      return;
+    }
+
+    const chooseAnySkillMatch = line.match(/\b((?:\d+)|one|two|three|four|five|six)\s+skills?\s+of\s+your\s+choice\b/i);
+    if (chooseAnySkillMatch) {
+      choiceCount = Math.max(choiceCount, parseChoiceCount(chooseAnySkillMatch[1], 1));
+      (taggedSkillNames.length > 0 ? taggedSkillNames : skillEntries.map((entry) => entry.name)).forEach((skillName) =>
+        choiceSkillNames.add(skillName)
+      );
+      return;
+    }
+
+    if (taggedSkillNames.length > 1 && /\b(?:gain|have)\s+proficiency\s+(?:in|with)\b/i.test(normalized) && /\bor\b/i.test(normalized)) {
+      choiceCount = Math.max(choiceCount, 1);
+      taggedSkillNames.forEach((skillName) => choiceSkillNames.add(skillName));
+      return;
+    }
+
+    if (/^skill proficiencies?:/i.test(normalized) || /\b(?:gain|have)\s+proficiency\s+(?:in|with)\b/i.test(normalized)) {
+      taggedSkillNames.forEach((skillName) => fixedSkillNames.add(skillName));
+    }
+  });
+
+  return {
+    fixedSkillNames: Array.from(fixedSkillNames),
+    choiceCount,
+    choiceSkillNames: Array.from(choiceSkillNames)
+  };
+}
+
+function mapSkillNamesToEntries(skillNames: string[], skillEntries: CompendiumReferenceEntry[]) {
+  return skillNames
+    .map((skillName) => skillEntries.find((entry) => normalizeKey(entry.name) === normalizeKey(skillName)) ?? null)
+    .filter((entry): entry is CompendiumReferenceEntry => Boolean(entry));
+}
+
+function filterSelectableSkillEntries(skillEntries: CompendiumReferenceEntry[], actor?: ActorSheet | null) {
+  if (!actor) {
+    return skillEntries;
+  }
+
+  return skillEntries.filter(
+    (entry) => !actor.skills.some((skill) => normalizeKey(skill.name) === normalizeKey(entry.name) && skill.proficient)
+  );
+}
+
 export function extractAbilityKeysFromText(text: string) {
   const normalized = text.toLowerCase();
   const matches: AbilityKey[] = [];
@@ -171,6 +441,120 @@ export function extractAbilityKeysFromText(text: string) {
   if (normalized.includes("charisma")) matches.push("cha");
 
   return matches;
+}
+
+function normalizeBackgroundAbilityGrants(grants: CompendiumBackgroundEntry["abilityChoices"]): GuidedAbilityChoiceGrant[] {
+  return grants
+    .map((grant) => ({
+      abilities: Array.from(new Set(grant.abilities)),
+      amount: Number.isFinite(grant.amount) ? Math.round(grant.amount) : 0,
+      count: Number.isFinite(grant.count) ? Math.max(0, Math.round(grant.count)) : 0
+    }))
+    .filter((grant) => grant.abilities.length > 0 && grant.amount !== 0 && grant.count > 0);
+}
+
+function buildFallbackBackgroundAbilityModes(abilities: AbilityKey[]) {
+  const uniqueAbilities = Array.from(new Set(abilities));
+
+  if (uniqueAbilities.length >= 3) {
+    return [
+      [
+        { abilities: uniqueAbilities, amount: 2, count: 1 },
+        { abilities: uniqueAbilities, amount: 1, count: 1 }
+      ],
+      [{ abilities: uniqueAbilities, amount: 1, count: 3 }]
+    ] satisfies GuidedAbilityChoiceGrant[][];
+  }
+
+  if (uniqueAbilities.length > 0) {
+    return [
+      [
+        {
+          abilities: uniqueAbilities,
+          amount: 1,
+          count: uniqueAbilities.length
+        }
+      ]
+    ] satisfies GuidedAbilityChoiceGrant[][];
+  }
+
+  return [];
+}
+
+function appendStandardBackgroundAbilityAlternative(modes: GuidedAbilityChoiceMode[]) {
+  const primaryMode = modes[0];
+
+  if (!primaryMode) {
+    return;
+  }
+
+  const standardAbilities = getStandardBackgroundAbilityPool(primaryMode.grants);
+
+  if (standardAbilities.length === 0) {
+    return;
+  }
+
+  const hasPlusTwoPlusOneMode = modes.some((mode) => isStandardPlusTwoPlusOneMode(mode.grants));
+  const hasThreePlusOneMode = modes.some((mode) => isStandardThreePlusOneMode(mode.grants));
+
+  if (!hasPlusTwoPlusOneMode) {
+    const grants: GuidedAbilityChoiceGrant[] = [
+      { abilities: standardAbilities, amount: 2, count: 1 },
+      { abilities: standardAbilities, amount: 1, count: 1 }
+    ];
+    modes.push({
+      id: "plus-two-plus-one",
+      label: formatBackgroundAbilityModeLabel(grants),
+      grants
+    });
+  }
+
+  if (!hasThreePlusOneMode) {
+    const grants: GuidedAbilityChoiceGrant[] = [{ abilities: standardAbilities, amount: 1, count: 3 }];
+    modes.push({
+      id: "three-plus-one",
+      label: formatBackgroundAbilityModeLabel(grants),
+      grants
+    });
+  }
+}
+
+function getStandardBackgroundAbilityPool(grants: GuidedAbilityChoiceGrant[]) {
+  if (isStandardPlusTwoPlusOneMode(grants) || isStandardThreePlusOneMode(grants)) {
+    return grants[0]?.abilities ?? [];
+  }
+
+  return [];
+}
+
+function isStandardPlusTwoPlusOneMode(grants: GuidedAbilityChoiceGrant[]) {
+  if (grants.length !== 2) {
+    return false;
+  }
+
+  const sorted = [...grants].sort((left, right) => right.amount - left.amount);
+  return (
+    sorted[0]?.amount === 2 &&
+    sorted[0]?.count === 1 &&
+    sorted[1]?.amount === 1 &&
+    sorted[1]?.count === 1 &&
+    sameAbilityPool(sorted[0]?.abilities ?? [], sorted[1]?.abilities ?? []) &&
+    sorted[0]!.abilities.length >= 3
+  );
+}
+
+function isStandardThreePlusOneMode(grants: GuidedAbilityChoiceGrant[]) {
+  return grants.length === 1 && grants[0]?.amount === 1 && grants[0]?.count === 3 && grants[0].abilities.length >= 3;
+}
+
+function sameAbilityPool(left: AbilityKey[], right: AbilityKey[]) {
+  return left.length === right.length && left.every((entry) => right.includes(entry));
+}
+
+function formatBackgroundAbilityModeLabel(grants: GuidedAbilityChoiceGrant[]) {
+  return grants
+    .flatMap((grant) => Array.from({ length: grant.count }, () => `${grant.amount >= 0 ? "+" : ""}${grant.amount}`))
+    .join(" / ");
 }
 
 export function normalizeSpeciesSize(value: string | undefined): ActorSheet["creatureSize"] | null {
@@ -192,7 +576,7 @@ export function collectGuidedFeatures(actor: ActorSheet, classes: ClassEntry[], 
   const subclassFeatureNames = actor.classes.flatMap((actorClass) => {
     const classEntry = findCompendiumClass(actorClass, classes);
     const subclassId =
-      subclassOverrides?.[actorClass.id] ?? actor.build?.classes.find((entry) => entry.id === actorClass.id)?.subclassId;
+      subclassOverrides?.[actorClass.id] ?? actorClass.subclassId ?? actor.build?.classes.find((entry) => entry.id === actorClass.id)?.subclassId;
     const subclass = classEntry?.subclasses.find((entry) => entry.id === subclassId);
 
     if (!subclass) {
@@ -300,7 +684,7 @@ export function deriveGrantedSpellState(actor: ActorSheet, compendium: CampaignS
     ...availableClassFeatures(actor, compendium.classes).map((entry) => entry.description),
     ...actor.classes.flatMap((actorClass) => {
       const classEntry = findCompendiumClass(actorClass, compendium.classes);
-      const subclassId = actor.build?.classes.find((entry) => entry.id === actorClass.id)?.subclassId;
+      const subclassId = actorClass.subclassId ?? actor.build?.classes.find((entry) => entry.id === actorClass.id)?.subclassId;
       const subclass = classEntry?.subclasses.find((entry) => entry.id === subclassId);
       return subclass?.features.filter((entry) => entry.level <= actorClass.level).map((entry) => entry.description) ?? [];
     })
@@ -383,9 +767,29 @@ export function validateGuideSelections(params: {
   mode: GuidedFlowMode;
   targetClass: ClassEntry;
   currentSubclassId: string;
+  speciesSkillChoiceCount?: number;
+  backgroundSkillChoiceCount?: number;
+  backgroundAbilityChoiceCount?: number;
+  classSkillChoiceCount?: number;
 }) {
   if (params.mode === "setup" && (!params.setup.speciesId || !params.setup.backgroundId || !params.setup.classId)) {
     return "Choose a species, background, and class.";
+  }
+
+  if (!hasEnoughGuideSelections(params.setup.speciesSkillChoices, params.speciesSkillChoiceCount ?? 0)) {
+    return "Choose every required species skill.";
+  }
+
+  if (!hasEnoughGuideSelections(params.setup.backgroundSkillChoices, params.backgroundSkillChoiceCount ?? 0)) {
+    return "Choose every required background skill.";
+  }
+
+  if (!hasEnoughGuideSelections(params.setup.abilityChoices, params.backgroundAbilityChoiceCount ?? 0)) {
+    return "Choose the background ability score increases.";
+  }
+
+  if (!hasEnoughGuideSelections(params.setup.classSkillChoices, params.classSkillChoiceCount ?? 0)) {
+    return "Choose every required class skill.";
   }
 
   if (params.spec.subclassOptions.length > 0 && !params.currentSubclassId && !params.setup.subclassId.trim()) {
@@ -614,7 +1018,7 @@ export function deriveGuidedChoiceSpec(params: {
   const targetLevel = Math.max(1, currentLevel + 1);
   const unlockedClassFeatures = classEntry.features.filter((entry) => entry.level > currentLevel && entry.level <= targetLevel);
   const currentSubclassId = currentActorClass
-    ? params.actor.build?.classes.find((entry) => entry.id === currentActorClass.id)?.subclassId ?? ""
+    ? currentActorClass.subclassId ?? params.actor.build?.classes.find((entry) => entry.id === currentActorClass.id)?.subclassId ?? ""
     : "";
   const activeSubclassId = params.targetSubclassId || currentSubclassId;
   const activeSubclass =
@@ -698,7 +1102,7 @@ export function deriveGuidedChoiceSpec(params: {
     knownSpellCount,
     spellbookOptions: leveledSpellOptions,
     spellbookCount,
-    expertiseSkillOptions: params.actor.skills.filter((entry) => (entry.proficient || currentLevel === 0) && !entry.expertise),
+    expertiseSkillOptions: params.actor.skills.filter((entry) => entry.proficient && !entry.expertise),
     expertiseCount,
     abilityImprovementCount
   };
@@ -1102,24 +1506,50 @@ export function describeDerivedResource(className: string, label: string, max: n
 }
 
 export function mergeDerivedResources(resources: ResourceEntry[], derived: DerivedResourceDefinition[]) {
-  const manualByKey = new Map(resources.map((entry) => [normalizeKey(entry.name), entry]));
+  const manualByKey = new Map<string, ResourceEntry>();
+  const derivedById = new Map<string, ResourceEntry>();
+  const derivedByKey = new Map<string, ResourceEntry>();
+  const consumedIds = new Set<string>();
   const merged: ResourceEntry[] = [];
 
+  resources.forEach((entry) => {
+    if (entry.id.startsWith("derived:")) {
+      derivedById.set(entry.id, entry);
+      derivedByKey.set(normalizeKey(entry.name), entry);
+      return;
+    }
+
+    manualByKey.set(normalizeKey(entry.name), entry);
+  });
+
   derived.forEach((entry) => {
-    const existing = manualByKey.get(normalizeKey(entry.name));
+    const existingDerived = derivedById.get(entry.id) ?? derivedByKey.get(normalizeKey(entry.name));
+    const manualOverride = manualByKey.get(normalizeKey(entry.name));
+    const existing = existingDerived ?? manualOverride;
+    const max = existingDerived ? entry.max : existing?.max && existing.max > 0 ? existing.max : entry.max;
+    const current = Math.min(max, existing?.current ?? entry.max);
+
+    if (existing) {
+      consumedIds.add(existing.id);
+    }
 
     merged.push({
       id: existing?.id ?? entry.id,
-      name: existing?.name ?? entry.name,
-      current: existing?.current ?? entry.max,
-      max: existing?.max && existing.max > 0 ? existing.max : entry.max,
-      resetOn: existing?.resetOn || entry.resetOn,
-      restoreAmount: existing?.restoreAmount && existing.restoreAmount > 0 ? existing.restoreAmount : entry.restoreAmount
+      name: existingDerived ? entry.name : existing?.name ?? entry.name,
+      current,
+      max,
+      resetOn: existingDerived ? entry.resetOn : existing?.resetOn || entry.resetOn,
+      restoreAmount:
+        existingDerived
+          ? entry.restoreAmount
+          : existing?.restoreAmount && existing.restoreAmount > 0
+            ? existing.restoreAmount
+            : entry.restoreAmount
     });
   });
 
   resources.forEach((entry) => {
-    if (!derived.some((derivedEntry) => normalizeKey(derivedEntry.name) === normalizeKey(entry.name))) {
+    if (!consumedIds.has(entry.id)) {
       merged.push(entry);
     }
   });
@@ -1168,7 +1598,7 @@ export function collectFeatureRows(
 
   actor.classes.forEach((actorClass) => {
     const classEntry = findCompendiumClass(actorClass, compendium.classes);
-    const subclassId = actor.build?.classes.find((entry) => entry.id === actorClass.id)?.subclassId;
+    const subclassId = actorClass.subclassId ?? actor.build?.classes.find((entry) => entry.id === actorClass.id)?.subclassId;
     const subclass = classEntry?.subclasses.find((entry) => entry.id === subclassId);
 
     subclass?.features
@@ -1410,9 +1840,9 @@ export function syncBuildClasses(actorClasses: ActorClassEntry[], currentBuildCl
       classId: entry.compendiumId,
       className: entry.name,
       classSource: entry.source,
-      subclassId: existing?.subclassId,
-      subclassName: existing?.subclassName,
-      subclassSource: existing?.subclassSource,
+      subclassId: entry.subclassId ?? existing?.subclassId,
+      subclassName: entry.subclassName ?? existing?.subclassName,
+      subclassSource: entry.subclassSource ?? existing?.subclassSource,
       level: entry.level
     };
   });

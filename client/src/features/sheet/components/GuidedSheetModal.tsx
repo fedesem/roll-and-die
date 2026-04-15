@@ -4,10 +4,11 @@ import type { ReactNode } from "react";
 import type { AbilityKey } from "@shared/types";
 
 import { ModalFrame } from "../../../components/ModalFrame";
+import { NumericInput } from "../../../components/NumericInput";
 import type { ActorSheet } from "@shared/types";
 import type { GuidedSheetFlowState } from "../hooks/useGuidedSheetFlow";
 import { collectSpellRows, createReferenceRow, findSpellNamesByIds, guideOptionDisabled, replaceGuideSelection } from "../selectors/playerNpcSheet2024Selectors";
-import { abilityOrder, findCompendiumClass } from "../sheetUtils";
+import { abilityModifier, abilityOrder, findCompendiumClass, formatModifier } from "../sheetUtils";
 import { NEW_GUIDED_CLASS_ID, type SheetCompendium } from "../playerNpcSheet2024Types";
 import { DetailCollection, Field, inputClass, secondaryButtonClass } from "./sheetPrimitives";
 
@@ -54,14 +55,11 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
                       className={inputClass}
                       value={guided.guidedSetup.speciesId}
                       onChange={(event) => {
-                        const nextSpecies = compendium.races.find((entry) => entry.id === event.target.value) ?? null;
-                        const nextSpeciesSkillOptions = guided.guidedSpeciesSkillChoices;
-                        const nextSpeciesFeatOptions = nextSpecies ? compendium.feats.filter((entry) => guided.guidedSpeciesOriginFeatOptions.some((option) => option.id === entry.id)) : [];
                         guided.setGuidedSetup((current) => ({
                           ...current,
                           speciesId: event.target.value,
-                          speciesSkillChoice: nextSpeciesSkillOptions[0]?.name ?? "",
-                          speciesOriginFeatId: nextSpeciesFeatOptions[0]?.id ?? ""
+                          speciesSkillChoices: [],
+                          speciesOriginFeatId: ""
                         }));
                       }}
                     >
@@ -78,16 +76,14 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
                       className={inputClass}
                       value={guided.guidedSetup.backgroundId}
                       onChange={(event) => {
-                        const nextBackground = compendium.backgrounds.find((entry) => entry.id === event.target.value) ?? null;
-                        const nextAbilityConfig = nextBackground ? guided.guidedAbilityChoiceConfig : guided.guidedAbilityChoiceConfig;
-                        const nextFeatOptions = nextBackground ? guided.guidedOriginFeatOptions : [];
-                        const nextEquipmentGroups = nextBackground ? guided.guidedEquipmentGroups : [];
                         guided.setGuidedSetup((current) => ({
                           ...current,
                           backgroundId: event.target.value,
-                          originFeatId: nextFeatOptions[0]?.id ?? "",
-                          equipmentChoiceIds: Object.fromEntries(nextEquipmentGroups.map((group) => [group.id, group.options[0]?.id ?? ""])),
-                          abilityChoices: nextAbilityConfig.abilities.slice(0, nextAbilityConfig.count)
+                          backgroundAbilityModeId: "",
+                          backgroundSkillChoices: [],
+                          originFeatId: "",
+                          equipmentChoiceIds: {},
+                          abilityChoices: []
                         }));
                       }}
                     >
@@ -100,7 +96,19 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
                     </select>
                   </Field>
                   <Field label="Class">
-                    <select className={inputClass} value={guided.guidedSetup.classId} onChange={(event) => guided.setGuidedSetup((current) => ({ ...current, classId: event.target.value }))}>
+                    <select
+                      className={inputClass}
+                      value={guided.guidedSetup.classId}
+                      onChange={(event) =>
+                        guided.setGuidedSetup((current) => ({
+                          ...current,
+                          classId: event.target.value,
+                          classSkillChoices: [],
+                          expertiseSkillChoices: [],
+                          subclassId: ""
+                        }))
+                      }
+                    >
                       <option value="">Select a class</option>
                       {compendium.classes.map((entry) => (
                         <option key={entry.id} value={entry.id}>
@@ -111,18 +119,85 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
                   </Field>
                 </div>
 
-                {guided.guidedSpeciesSkillChoices.length > 0 || guided.guidedSpeciesOriginFeatOptions.length > 0 ? (
+                <div className="space-y-3 border border-white/8 bg-black/20 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.24em] text-amber-400/80">Base Ability Scores</p>
+                      <p className="mt-1 text-sm text-zinc-400">Set the starting scores here. Background ability choices are added on top of these values.</p>
+                    </div>
+                    {guided.guidedAbilityChoiceSlots.length > 0 ? (
+                      <p className="max-w-[16rem] text-right text-xs text-zinc-500">
+                        Background spread: {guided.guidedAbilityChoiceMode?.label ?? "None"}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {abilityOrder.map((ability) => {
+                      const baseScore = guided.guidedSetup.baseAbilities[ability.key];
+                      const guidedBonus = guided.guidedAbilityChoiceSlots.reduce(
+                        (sum, slot, index) => sum + (guided.guidedSetup.abilityChoices[index] === ability.key ? slot.amount : 0),
+                        0
+                      );
+                      const finalScore = baseScore + guidedBonus;
+
+                      return (
+                        <div key={ability.key} className="space-y-3 border border-amber-900/20 bg-zinc-900/60 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-medium tracking-[0.18em] text-amber-50">{ability.label}</p>
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                                Final {finalScore} ({formatModifier(abilityModifier(finalScore))})
+                              </p>
+                            </div>
+                            {guidedBonus > 0 ? <p className="text-xs text-amber-300/80">+{guidedBonus} background</p> : null}
+                          </div>
+                          <Field label="Base Score">
+                            <NumericInput
+                              className={inputClass}
+                              min={1}
+                              max={20}
+                              value={baseScore}
+                              emptyValue={10}
+                              onValueChange={(value) =>
+                                guided.setGuidedSetup((current) => ({
+                                  ...current,
+                                  baseAbilities: {
+                                    ...current.baseAbilities,
+                                    [ability.key]: value ?? 10
+                                  }
+                                }))
+                              }
+                            />
+                          </Field>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {guided.guidedSpeciesSkillChoiceConfig.count > 0 || guided.guidedSpeciesOriginFeatOptions.length > 0 ? (
                   <div className="grid gap-4 md:grid-cols-2">
-                    {guided.guidedSpeciesSkillChoices.length > 0 ? (
-                      <Field label="Species Skill Choice">
-                        <select className={inputClass} value={guided.guidedSetup.speciesSkillChoice} onChange={(event) => guided.setGuidedSetup((current) => ({ ...current, speciesSkillChoice: event.target.value }))}>
-                          {guided.guidedSpeciesSkillChoices.map((entry) => (
-                            <option key={entry.id} value={entry.name}>
-                              {entry.name}
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
+                    {guided.guidedSpeciesSkillChoiceConfig.count > 0 ? (
+                      Array.from({ length: guided.guidedSpeciesSkillChoiceConfig.count }, (_, index) => (
+                        <Field key={`species-skill-${index}`} label={`Species Skill ${index + 1}`}>
+                          <select
+                            className={inputClass}
+                            value={guided.guidedSetup.speciesSkillChoices[index] ?? ""}
+                            onChange={(event) =>
+                              guided.setGuidedSetup((current) => ({
+                                ...current,
+                                speciesSkillChoices: replaceGuideSelection(current.speciesSkillChoices, index, event.target.value)
+                              }))
+                            }
+                          >
+                            {guided.guidedSpeciesSkillChoiceConfig.options.map((entry) => (
+                              <option key={entry.id} value={entry.name} disabled={guideOptionDisabled(guided.guidedSetup.speciesSkillChoices, index, entry.name)}>
+                                {entry.name}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      ))
                     ) : null}
                     {guided.guidedSpeciesOriginFeatOptions.length > 0 ? (
                       <Field label="Species Feat Choice">
@@ -138,25 +213,74 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
                   </div>
                 ) : null}
 
-                {guided.guidedAbilityChoiceConfig.count > 0 ? (
+                {guided.guidedBackgroundSkillChoiceConfig.count > 0 ? (
+                  <div className="space-y-3 border border-white/8 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-amber-400/80">Background Skill Choices</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {Array.from({ length: guided.guidedBackgroundSkillChoiceConfig.count }, (_, index) => (
+                        <Field key={`background-skill-${index}`} label={`Background Skill ${index + 1}`}>
+                          <select
+                            className={inputClass}
+                            value={guided.guidedSetup.backgroundSkillChoices[index] ?? ""}
+                            onChange={(event) =>
+                              guided.setGuidedSetup((current) => ({
+                                ...current,
+                                backgroundSkillChoices: replaceGuideSelection(current.backgroundSkillChoices, index, event.target.value)
+                              }))
+                            }
+                          >
+                            {guided.guidedBackgroundSkillChoiceConfig.options.map((entry) => (
+                              <option key={entry.id} value={entry.name} disabled={guideOptionDisabled(guided.guidedSetup.backgroundSkillChoices, index, entry.name)}>
+                                {entry.name}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {guided.guidedAbilityChoiceConfig.modes.length > 0 ? (
                   <div className="space-y-3 border border-white/8 bg-black/20 p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-amber-400/80">Ability Choices</p>
+                    {guided.guidedAbilityChoiceConfig.modes.length > 1 ? (
+                      <Field label="Background Ability Spread">
+                        <select
+                          className={inputClass}
+                          value={guided.guidedSetup.backgroundAbilityModeId}
+                          onChange={(event) =>
+                            guided.setGuidedSetup((current) => ({
+                              ...current,
+                              backgroundAbilityModeId: event.target.value,
+                              abilityChoices: []
+                            }))
+                          }
+                        >
+                          {guided.guidedAbilityChoiceConfig.modes.map((mode) => (
+                            <option key={mode.id} value={mode.id}>
+                              {mode.label}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    ) : null}
                     <div className="grid gap-3 md:grid-cols-2">
-                      {Array.from({ length: guided.guidedAbilityChoiceConfig.count }, (_, index) => (
-                        <Field key={index} label={`Choice ${index + 1}`}>
+                      {guided.guidedAbilityChoiceSlots.map((slot, index) => (
+                        <Field key={slot.id} label={`+${slot.amount} Ability ${index + 1}`}>
                           <select
                             className={inputClass}
                             value={guided.guidedSetup.abilityChoices[index] ?? ""}
                             onChange={(event) =>
                               guided.setGuidedSetup((current) => ({
                                 ...current,
-                                abilityChoices: current.abilityChoices.map((entry, abilityIndex) => (abilityIndex === index ? (event.target.value as AbilityKey) : entry))
+                                abilityChoices: replaceGuideSelection(current.abilityChoices, index, event.target.value as AbilityKey)
                               }))
                             }
                           >
                             <option value="">Select an ability</option>
-                            {guided.guidedAbilityChoiceConfig.abilities.map((abilityKey) => (
-                              <option key={abilityKey} value={abilityKey}>
+                            {slot.abilities.map((abilityKey) => (
+                              <option key={abilityKey} value={abilityKey} disabled={guideOptionDisabled(guided.guidedSetup.abilityChoices, index, abilityKey)}>
                                 {abilityKey.toUpperCase()}
                               </option>
                             ))}
@@ -204,6 +328,34 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
                         </select>
                       </Field>
                     ))}
+                  </div>
+                ) : null}
+
+                {guided.guidedClassSkillChoiceConfig.count > 0 ? (
+                  <div className="space-y-3 border border-white/8 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-amber-400/80">Class Skill Choices</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {Array.from({ length: guided.guidedClassSkillChoiceConfig.count }, (_, index) => (
+                        <Field key={`class-skill-${index}`} label={`Class Skill ${index + 1}`}>
+                          <select
+                            className={inputClass}
+                            value={guided.guidedSetup.classSkillChoices[index] ?? ""}
+                            onChange={(event) =>
+                              guided.setGuidedSetup((current) => ({
+                                ...current,
+                                classSkillChoices: replaceGuideSelection(current.classSkillChoices, index, event.target.value)
+                              }))
+                            }
+                          >
+                            {guided.guidedClassSkillChoiceConfig.options.map((entry) => (
+                              <option key={entry.id} value={entry.name} disabled={guideOptionDisabled(guided.guidedSetup.classSkillChoices, index, entry.name)}>
+                                {entry.name}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
 
@@ -261,7 +413,6 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
                         ? findCompendiumClass(targetActorClass, compendium.classes) ?? null
                         : null;
                   const nextLevel = guided.guidedClassId === NEW_GUIDED_CLASS_ID ? 1 : (targetActorClass?.level ?? 0) + 1;
-                  const buildClass = targetActorClass ? draft.build?.classes.find((entry) => entry.id === targetActorClass.id) : null;
 
                   return targetClassEntry && targetClassEntry.subclasses.length > 0 && nextLevel >= (targetClassEntry.subclassLevel ?? 99) ? (
                     <Field label="Subclass">
@@ -273,7 +424,7 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
                           </option>
                         ))}
                       </select>
-                      {buildClass?.subclassName ? <p className="mt-2 text-xs text-zinc-500">Current: {buildClass.subclassName}</p> : null}
+                      {targetActorClass?.subclassName ? <p className="mt-2 text-xs text-zinc-500">Current: {targetActorClass.subclassName}</p> : null}
                     </Field>
                   ) : null;
                 })()}

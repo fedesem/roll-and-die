@@ -94,6 +94,9 @@ export interface ActorClassEntry {
   compendiumId: string;
   name: string;
   source: string;
+  subclassId?: string;
+  subclassName?: string;
+  subclassSource?: string;
   level: number;
   hitDieFaces: number;
   usedHitDice: number;

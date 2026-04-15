@@ -64,7 +64,7 @@ export function sanitizeCompendiumEntry(kind: CompendiumKind, input: unknown) {
 
 export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: unknown) {
   if (Array.isArray(input)) {
-    return input;
+    return filterLatestCompendiumImportEntries(kind, readObjectArray(input));
   }
 
   if (typeof input !== "object" || input === null) {
@@ -74,30 +74,31 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
   const object = input as Record<string, unknown>;
 
   if (kind === "monsters" && Array.isArray(object.monster)) {
-    return object.monster;
+    return filterLatestCompendiumImportEntries(kind, readObjectArray(object.monster));
   }
 
   if (kind === "spells" && Array.isArray(object.spell)) {
-    return object.spell;
+    return filterLatestCompendiumImportEntries(kind, readObjectArray(object.spell));
   }
 
   if (kind === "feats" && Array.isArray(object.feat)) {
-    return object.feat;
+    return filterLatestCompendiumImportEntries(kind, readObjectArray(object.feat));
   }
 
   if (kind === "optionalFeatures" && Array.isArray(object.optionalfeature)) {
-    return object.optionalfeature;
+    return filterLatestCompendiumImportEntries(kind, readObjectArray(object.optionalfeature));
   }
 
   if (kind === "classes" && Array.isArray(object.class)) {
-    const subclassEntries = readObjectArray(object.subclass);
+    const classEntries = filterClassImportEntries(readObjectArray(object.class));
+    const subclassEntries = filterClassImportEntries(readObjectArray(object.subclass));
+    const classFeatureEntries = filterClassImportEntries(readObjectArray(object.classFeature));
+    const subclassFeatureEntries = filterClassImportEntries(readObjectArray(object.subclassFeature));
     const classFeatureLookup = new Map(
-      [...readObjectArray(object.classFeature), ...readObjectArray(object.subclassFeature)].map(
-        (entry) => [getCompendiumEntityKey(entry), entry] as const
-      )
+      [...classFeatureEntries, ...subclassFeatureEntries].map((entry) => [getCompendiumEntityKey(entry), entry] as const)
     );
 
-    return object.class.map((entry) => ({
+    return classEntries.map((entry) => ({
       ...entry,
       __classFeatureLookup: Object.fromEntries(classFeatureLookup),
       __subclassEntries: subclassEntries.filter((subclassEntry) => isSubclassForClassEntry(subclassEntry, entry))
@@ -105,42 +106,66 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
   }
 
   if (kind === "books" && Array.isArray(object.book)) {
-    return object.book;
+    return filterLatestCompendiumImportEntries(kind, readObjectArray(object.book));
   }
 
   if (kind === "variantRules" && Array.isArray(object.variantrule)) {
-    return object.variantrule;
+    return filterLatestCompendiumImportEntries(kind, readObjectArray(object.variantrule));
   }
 
   if (kind === "conditions" && Array.isArray(object.condition)) {
-    return object.condition;
+    return filterLatestCompendiumImportEntries(kind, readObjectArray(object.condition));
   }
 
   if (kind === "actions" && Array.isArray(object.action)) {
-    return object.action;
+    return filterLatestCompendiumImportEntries(kind, readObjectArray(object.action));
   }
 
   if (kind === "backgrounds" && Array.isArray(object.background)) {
-    return object.background;
+    return filterLatestCompendiumImportEntries(kind, readObjectArray(object.background));
   }
 
   if (kind === "items") {
-    return [...readObjectArray(object.item), ...readObjectArray(object.baseitem)];
+    return filterLatestCompendiumImportEntries(kind, [...readObjectArray(object.item), ...readObjectArray(object.baseitem)]);
   }
 
   if (kind === "languages" && Array.isArray(object.language)) {
-    return object.language;
+    return filterLatestCompendiumImportEntries(kind, readObjectArray(object.language));
   }
 
   if (kind === "races") {
-    return [...readObjectArray(object.race), ...readObjectArray(object.subrace)].filter(isImportableRaceReferenceEntry);
+    return filterLatestCompendiumImportEntries(kind, [...readObjectArray(object.race), ...readObjectArray(object.subrace)]).filter(
+      isImportableRaceReferenceEntry
+    );
   }
 
   if (kind === "skills" && Array.isArray(object.skill)) {
-    return object.skill;
+    return filterLatestCompendiumImportEntries(kind, readObjectArray(object.skill));
   }
 
   return [input];
+}
+
+function filterLatestCompendiumImportEntries<T extends Record<string, unknown>>(kind: CompendiumKind, entries: T[]) {
+  return entries.filter((entry) => !shouldSkipLatestImportEntry(kind, entry));
+}
+
+function shouldSkipLatestImportEntry(kind: CompendiumKind, entry: Record<string, unknown>) {
+  const source = readCompendiumImportSourceCode(kind, entry);
+
+  return source === "PHB";
+}
+
+function filterClassImportEntries<T extends Record<string, unknown>>(entries: T[]) {
+  return entries.filter((entry) => readString(entry.source).toUpperCase() !== "PHB");
+}
+
+function readCompendiumImportSourceCode(kind: CompendiumKind, entry: Record<string, unknown>) {
+  if (kind === "books") {
+    return (readString(entry.id) || readString(entry.source)).toUpperCase();
+  }
+
+  return readString(entry.source).toUpperCase();
 }
 
 export function isGeneratedSpellLookupImport(input: unknown) {
@@ -721,7 +746,7 @@ function sanitizeExternalClassSubclassEntry(
   className: string,
   classSource: string
 ): ClassSubclassEntry {
-  const subclassFeatures = readObjectArray(object.subclassFeatures);
+  const subclassFeatures = readArray(object.subclassFeatures);
   const name = requireString(object.name, "Subclass name");
   const source = readString(object.source);
 
@@ -924,8 +949,20 @@ function parseExternalClassSpellcastingAbility(object: Record<string, unknown>, 
 
 function readExternalSubclassLevel(entries: Record<string, unknown>[]) {
   const levels = entries.flatMap((entry) =>
-    readObjectArray(entry.subclassFeatures)
-      .map((feature) => readExternalClassFeatureLevel(feature.level) ?? readExternalClassFeatureLevel(readString(feature.subclassFeature)))
+    readArray(entry.subclassFeatures)
+      .map((feature) => {
+        if (typeof feature === "string") {
+          return parseExternalClassFeatureReference(feature, readString(entry.className) || "").level;
+        }
+
+        if (typeof feature !== "object" || feature === null) {
+          return null;
+        }
+
+        const object = feature as Record<string, unknown>;
+        const reference = readString(object.subclassFeature) || readString(object.classFeature) || readString(object.feature) || readString(object.ref);
+        return readExternalClassFeatureLevel(object.level) ?? (reference ? parseExternalClassFeatureReference(reference, readString(entry.className) || "").level : null);
+      })
       .filter((value): value is number => value !== null)
   );
 

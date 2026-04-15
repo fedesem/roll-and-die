@@ -58,6 +58,27 @@
   align-content: start;
 }
 
+.admin-list-pane,
+.admin-preview-pane {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.admin-scroll-region {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.admin-preview-scroll {
+  padding-right: 0.2rem;
+}
+
+.admin-preview-scroll > .admin-preview-card,
+.admin-preview-scroll > .monster-stat-block {
+  min-height: 100%;
+}
+
 .admin-search-field,
 .admin-field {
   display: grid;
@@ -77,10 +98,8 @@
 .admin-list-scroll {
   display: grid;
   gap: 0.5rem;
-  overflow: auto;
-  min-height: 0;
-  max-height: min(68dvh, 820px);
   padding-right: 0.15rem;
+  align-content: start;
 }
 
 .admin-list-row {
@@ -214,8 +233,16 @@
   background: rgba(8, 10, 13, 0.64);
 }
 
+.admin-import-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
 .admin-import-upload input[type="file"] {
   width: 100%;
+  flex: 1 1 18rem;
 }
 
 .admin-import-file-meta {

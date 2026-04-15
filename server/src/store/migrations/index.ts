@@ -31,6 +31,7 @@ import { drawingTextStyleMigration } from "./131_drawing_text_style.js";
 import { playerNpcSheetRebuildMigration } from "./132_player_npc_sheet_rebuild.js";
 import { actorSheetStateExpansionMigration } from "./133_actor_sheet_state_expansion.js";
 import { actorHitPointReductionMigration } from "./134_actor_hit_point_reduction.js";
+import { classSubclassStructureMigration } from "./135_class_subclass_structure.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -65,5 +66,6 @@ export const migrations = [
   drawingTextStyleMigration,
   playerNpcSheetRebuildMigration,
   actorSheetStateExpansionMigration,
-  actorHitPointReductionMigration
+  actorHitPointReductionMigration,
+  classSubclassStructureMigration
 ];

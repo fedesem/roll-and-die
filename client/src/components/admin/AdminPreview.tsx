@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import type {
   CampaignSourceBook,
   ClassEntry,
+  ClassSubclassEntry,
   CompendiumItemEntry,
   CompendiumOptionalFeatureEntry,
   CompendiumReferenceEntry,
@@ -288,7 +289,16 @@ export function ClassPreviewCard({
   sourceTitle?: string;
 }) {
   const normalizedDescription = normalizeClassPreviewDescription(entry);
-  const referencedSpells = getReferencedSpellsForClass(entry, spellEntries);
+  const [selectedSubclassId, setSelectedSubclassId] = useState("");
+
+  useEffect(() => {
+    setSelectedSubclassId((current) => (current && entry.subclasses.some((subclass) => subclass.id === current) ? current : ""));
+  }, [entry.name, entry.source, entry.subclasses]);
+
+  const selectedSubclass = entry.subclasses.find((subclass) => subclass.id === selectedSubclassId) ?? null;
+  const referencedSpells = getReferencedSpellsForClass(entry, spellEntries, selectedSubclass ?? undefined);
+  const featureTimeline = buildClassPreviewFeatureTimeline(entry, selectedSubclass);
+  const showFeaturesSection = featureTimeline.length > 0 || entry.subclasses.length > 0;
 
   return (
     <PreviewFrame eyebrow="Class" title={entry.name} source={entry.source} sourceTitle={sourceTitle}>
@@ -309,9 +319,23 @@ export function ClassPreviewCard({
               <strong>Saving Throws:</strong> {entry.savingThrowProficiencies.join(", ")}
             </div>
           )}
+          {entry.subclassLevel !== null && (
+            <div>
+              <strong>Subclass Choice:</strong> Level {entry.subclassLevel}
+            </div>
+          )}
           {hasStartingProficiencies(entry) && (
             <div>
-              <strong>Starting Proficiencies:</strong> {formatStartingProficiencies(entry)}
+              <strong>Starting Proficiencies:</strong>{" "}
+              <RulesText
+                text={formatStartingProficiencies(entry)}
+                spellEntries={spellEntries}
+                featEntries={featEntries}
+                classEntries={[entry]}
+                variantRuleEntries={variantRuleEntries}
+                conditionEntries={conditionEntries}
+                actionEntries={actionEntries}
+              />
             </div>
           )}
         </div>
@@ -348,52 +372,52 @@ export function ClassPreviewCard({
             </p>
           </Section>
         )}
-        {entry.features.length > 0 && (
-          <Section title="Features">
-            {entry.features.map((feature) => (
-              <p key={feature.reference || `${feature.level}-${feature.name}`} className="admin-preview-body">
-                <strong>
-                  Level {feature.level}: {feature.name}.
-                </strong>{" "}
-                <RulesText
-                  text={feature.description}
-                  spellEntries={spellEntries}
-                  featEntries={featEntries}
-                  classEntries={[entry]}
-                  variantRuleEntries={variantRuleEntries}
-                  conditionEntries={conditionEntries}
-                  actionEntries={actionEntries}
-                />
-              </p>
-            ))}
-          </Section>
-        )}
-        {entry.subclasses.length > 0 && (
-          <Section title="Subclasses">
-            {entry.subclasses.map((subclass) => (
-              <div key={subclass.id} className="admin-preview-body">
-                <strong>{subclass.name}</strong> {subclass.source ? `(${subclass.source})` : ""}
-                {subclass.description ? (
-                  <>
-                    {" "}
-                    <RulesText
-                      text={subclass.description}
-                      spellEntries={spellEntries}
-                      featEntries={featEntries}
-                      classEntries={[entry]}
-                      variantRuleEntries={variantRuleEntries}
-                      conditionEntries={conditionEntries}
-                      actionEntries={actionEntries}
-                    />
-                  </>
-                ) : null}
-                {subclass.features.length > 0 ? (
-                  <div>
-                    {subclass.features.map((feature) => (
-                      <p key={`${subclass.id}-${feature.reference || `${feature.level}-${feature.name}`}`} className="admin-preview-body">
+        {showFeaturesSection && (
+          <Section
+            title="Features"
+            actions={
+              entry.subclasses.length > 0 ? (
+                <label className="admin-preview-section-control">
+                  <span>Subclass</span>
+                  <select className="admin-preview-section-select" value={selectedSubclassId} onChange={(event) => setSelectedSubclassId(event.target.value)}>
+                    <option value="">None</option>
+                    {entry.subclasses.map((subclass) => (
+                      <option key={subclass.id} value={subclass.id}>
+                        {subclass.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null
+            }
+          >
+            {selectedSubclass ? (
+              <SelectedSubclassSummary
+                subclass={selectedSubclass}
+                classEntry={entry}
+                spellEntries={spellEntries}
+                featEntries={featEntries}
+                variantRuleEntries={variantRuleEntries}
+                conditionEntries={conditionEntries}
+                actionEntries={actionEntries}
+              />
+            ) : entry.subclasses.length > 0 ? (
+              <p className="admin-preview-footnote">Select a subclass to include its subclass features in the class timeline.</p>
+            ) : null}
+            {groupClassPreviewFeaturesByLevel(featureTimeline).map((levelGroup, levelGroupIndex) => (
+              <div key={`level:${levelGroup.level}`} className="admin-preview-level-group">
+                {levelGroupIndex > 0 ? <div className="admin-preview-level-divider" /> : null}
+                <p className="admin-preview-level-label">Level {levelGroup.level}</p>
+                <div className="admin-preview-feature-list">
+                  {levelGroup.features.map((feature) => (
+                    <article key={feature.key} className="admin-preview-feature-item">
+                      <p className="admin-preview-body">
                         <strong>
-                          Level {feature.level}: {feature.name}.
-                        </strong>{" "}
+                          {feature.name}
+                          {feature.kind === "subclass" && feature.subclassName ? ` (${feature.subclassName})` : ""}.
+                        </strong>
+                      </p>
+                      <p className="admin-preview-body">
                         <RulesText
                           text={feature.description}
                           spellEntries={spellEntries}
@@ -404,11 +428,14 @@ export function ClassPreviewCard({
                           actionEntries={actionEntries}
                         />
                       </p>
-                    ))}
-                  </div>
-                ) : null}
+                    </article>
+                  ))}
+                </div>
               </div>
             ))}
+            {selectedSubclass && selectedSubclass.features.length === 0 ? (
+              <p className="admin-preview-footnote">No subclass-specific features are stored for this entry yet.</p>
+            ) : null}
           </Section>
         )}
         {entry.tables.map((table) => (
@@ -468,6 +495,45 @@ export function ClassPreviewCard({
         ))}
       </div>
     </PreviewFrame>
+  );
+}
+
+function SelectedSubclassSummary({
+  subclass,
+  classEntry,
+  spellEntries = [],
+  featEntries = [],
+  variantRuleEntries = [],
+  conditionEntries = [],
+  actionEntries = []
+}: {
+  subclass: ClassSubclassEntry;
+  classEntry: ClassEntry | Omit<ClassEntry, "id">;
+  spellEntries?: SpellEntry[];
+  featEntries?: FeatEntry[];
+  variantRuleEntries?: CompendiumReferenceEntry[];
+  conditionEntries?: CompendiumReferenceEntry[];
+  actionEntries?: CompendiumReferenceEntry[];
+}) {
+  return (
+    <div className="rounded-md border border-white/8 bg-black/20 p-3">
+      <p className="text-sm font-semibold text-amber-50">
+        {subclass.name} {subclass.source ? <span className="font-normal text-zinc-400">({subclass.source})</span> : null}
+      </p>
+      {subclass.description ? (
+        <p className="admin-preview-body mt-2">
+          <RulesText
+            text={subclass.description}
+            spellEntries={spellEntries}
+            featEntries={featEntries}
+            classEntries={[classEntry]}
+            variantRuleEntries={variantRuleEntries}
+            conditionEntries={conditionEntries}
+            actionEntries={actionEntries}
+          />
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -556,10 +622,13 @@ function PreviewFrame({ eyebrow, title, source, sourceTitle, subtitle, children 
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) {
   return (
     <section className="admin-preview-section">
-      <h4>{title}</h4>
+      <div className="admin-preview-section-head">
+        <h4>{title}</h4>
+        {actions}
+      </div>
       {children}
     </section>
   );
@@ -665,11 +734,75 @@ function normalizeClassPreviewDescription(entry: ClassEntry | Omit<ClassEntry, "
     .join("\n");
 }
 
-function getReferencedSpellsForClass(entry: ClassEntry | Omit<ClassEntry, "id">, spellEntries: Array<SpellEntry | Omit<SpellEntry, "id">>) {
+interface ClassPreviewFeatureItem {
+  key: string;
+  kind: "class" | "subclass";
+  level: number;
+  name: string;
+  description: string;
+  subclassName?: string;
+}
+
+function buildClassPreviewFeatureTimeline(entry: ClassEntry | Omit<ClassEntry, "id">, selectedSubclass: ClassSubclassEntry | null) {
+  const classFeatures: ClassPreviewFeatureItem[] = entry.features.map((feature, index) => ({
+    key: feature.reference || `class:${feature.level}:${feature.name}:${index}`,
+    kind: "class",
+    level: feature.level,
+    name: feature.name,
+    description: feature.description
+  }));
+
+  const subclassFeatures: ClassPreviewFeatureItem[] = selectedSubclass
+    ? selectedSubclass.features.map((feature, index) => ({
+        key: `${selectedSubclass.id}:${feature.reference || `subclass:${feature.level}:${feature.name}:${index}`}`,
+        kind: "subclass",
+        level: feature.level,
+        name: feature.name,
+        description: feature.description,
+        subclassName: selectedSubclass.name
+      }))
+    : [];
+
+  return [...classFeatures, ...subclassFeatures].sort((left, right) => {
+    if (left.level !== right.level) {
+      return left.level - right.level;
+    }
+
+    if (left.kind !== right.kind) {
+      return left.kind === "class" ? -1 : 1;
+    }
+
+    return left.key.localeCompare(right.key);
+  });
+}
+
+function groupClassPreviewFeaturesByLevel(features: ClassPreviewFeatureItem[]) {
+  const groups = new Map<number, ClassPreviewFeatureItem[]>();
+
+  features.forEach((feature) => {
+    const current = groups.get(feature.level) ?? [];
+    current.push(feature);
+    groups.set(feature.level, current);
+  });
+
+  return Array.from(groups.entries())
+    .sort(([leftLevel], [rightLevel]) => leftLevel - rightLevel)
+    .map(([level, levelFeatures]) => ({
+      level,
+      features: levelFeatures
+    }));
+}
+
+function getReferencedSpellsForClass(
+  entry: ClassEntry | Omit<ClassEntry, "id">,
+  spellEntries: Array<SpellEntry | Omit<SpellEntry, "id">>,
+  selectedSubclass?: ClassSubclassEntry
+) {
   const availableSpellNames = new Set(spellEntries.map((spell) => spell.name.toLowerCase()));
   const rawTexts = [
     entry.description,
     ...entry.features.map((feature) => feature.description),
+    ...(selectedSubclass ? [selectedSubclass.description, ...selectedSubclass.features.map((feature) => feature.description)] : []),
     ...entry.tables.flatMap((table) => [table.name, ...table.columns, ...table.rows.flat()])
   ];
   const matches = rawTexts

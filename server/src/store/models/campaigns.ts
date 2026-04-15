@@ -1286,6 +1286,9 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
       compendiumId: string;
       name: string;
       source: string;
+      subclassId: string;
+      subclassName: string;
+      subclassSource: string;
       level: number;
       hitDieFaces: number;
       usedHitDice: number;
@@ -1298,6 +1301,9 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
         compendium_id as compendiumId,
         name,
         source,
+        subclass_id as subclassId,
+        subclass_name as subclassName,
+        subclass_source as subclassSource,
         level,
         hit_die_faces as hitDieFaces,
         used_hit_dice as usedHitDice,
@@ -1313,6 +1319,9 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
     compendiumId: entry.compendiumId,
     name: entry.name,
     source: entry.source,
+    subclassId: entry.subclassId || undefined,
+    subclassName: entry.subclassName || undefined,
+    subclassSource: entry.subclassSource || undefined,
     level: entry.level,
     hitDieFaces: entry.hitDieFaces,
     usedHitDice: entry.usedHitDice,
@@ -1947,8 +1956,11 @@ function prepareCampaignWriteStatements(database: DatabaseSync): CampaignWriteSt
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     insertActorClass: database.prepare(`
-      INSERT INTO actor_classes (actor_id, id, sort_order, compendium_id, name, source, level, hit_die_faces, used_hit_dice, spellcasting_ability)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO actor_classes (
+        actor_id, id, sort_order, compendium_id, name, source, subclass_id, subclass_name, subclass_source,
+        level, hit_die_faces, used_hit_dice, spellcasting_ability
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     insertActorSkill: database.prepare(`
       INSERT INTO actor_skills (actor_id, id, sort_order, name, ability, proficient, expertise)
@@ -2130,6 +2142,9 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
         actorClass.compendiumId,
         actorClass.name,
         actorClass.source,
+        actorClass.subclassId ?? "",
+        actorClass.subclassName ?? "",
+        actorClass.subclassSource ?? "",
         actorClass.level,
         actorClass.hitDieFaces,
         actorClass.usedHitDice,
@@ -2703,6 +2718,9 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
     compendiumId: string;
     name: string;
     source: string;
+    subclassId: string;
+    subclassName: string;
+    subclassSource: string;
     level: number;
     hitDieFaces: number;
     usedHitDice: number;
@@ -2716,6 +2734,9 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         compendium_id as compendiumId,
         name,
         source,
+        subclass_id as subclassId,
+        subclass_name as subclassName,
+        subclass_source as subclassSource,
         level,
         hit_die_faces as hitDieFaces,
         used_hit_dice as usedHitDice,
@@ -2731,6 +2752,9 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
       compendiumId: row.compendiumId,
       name: row.name,
       source: row.source,
+      subclassId: row.subclassId || undefined,
+      subclassName: row.subclassName || undefined,
+      subclassSource: row.subclassSource || undefined,
       level: row.level,
       hitDieFaces: row.hitDieFaces,
       usedHitDice: row.usedHitDice,
@@ -3667,8 +3691,11 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
     database
       .prepare(
         `
-          INSERT INTO actor_classes (actor_id, id, sort_order, compendium_id, name, source, level, hit_die_faces, used_hit_dice, spellcasting_ability)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO actor_classes (
+            actor_id, id, sort_order, compendium_id, name, source, subclass_id, subclass_name, subclass_source,
+            level, hit_die_faces, used_hit_dice, spellcasting_ability
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       )
       .run(
@@ -3678,6 +3705,9 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
         actorClass.compendiumId,
         actorClass.name,
         actorClass.source,
+        actorClass.subclassId ?? "",
+        actorClass.subclassName ?? "",
+        actorClass.subclassSource ?? "",
         actorClass.level,
         actorClass.hitDieFaces,
         actorClass.usedHitDice,

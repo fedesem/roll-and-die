@@ -70,11 +70,41 @@ export interface DerivedResourceDefinition {
   source: string;
 }
 
+export interface GuidedSkillChoiceConfig {
+  count: number;
+  options: CampaignSnapshot["compendium"]["skills"];
+}
+
+export interface GuidedAbilityChoiceGrant {
+  abilities: AbilityKey[];
+  amount: number;
+  count: number;
+}
+
+export interface GuidedAbilityChoiceMode {
+  id: string;
+  label: string;
+  grants: GuidedAbilityChoiceGrant[];
+}
+
+export interface GuidedAbilityChoiceConfig {
+  modes: GuidedAbilityChoiceMode[];
+  defaultModeId: string;
+}
+
+export interface GuidedAbilityChoiceSlot {
+  id: string;
+  abilities: AbilityKey[];
+  amount: number;
+}
+
 export interface GuidedSetupState {
   speciesId: string;
   backgroundId: string;
   classId: string;
   subclassId: string;
+  baseAbilities: ActorSheet["abilities"];
+  backgroundAbilityModeId: string;
   classFeatIds: string[];
   optionalFeatureIds: string[];
   cantripIds: string[];
@@ -84,7 +114,9 @@ export interface GuidedSetupState {
   asiMode: "feat" | "ability";
   asiFeatId: string;
   asiAbilityChoices: AbilityKey[];
-  speciesSkillChoice: string;
+  speciesSkillChoices: string[];
+  backgroundSkillChoices: string[];
+  classSkillChoices: string[];
   speciesOriginFeatId: string;
   originFeatId: string;
   equipmentChoiceIds: Record<string, string>;

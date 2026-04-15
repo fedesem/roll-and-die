@@ -7,25 +7,36 @@ import type {
   ClassEntry,
   CompendiumBackgroundEntry,
   CompendiumOptionalFeatureEntry,
+  CompendiumReferenceEntry,
   CompendiumSpeciesEntry,
   FeatEntry,
   SpellEntry
 } from "@shared/types";
 
 import {
+  applyGuideBaseAbilities,
   applyBackgroundToActor,
+  applyClassSkillChoicesToActor,
   applyClassToActor,
   applyGuideSelectionsToActor,
   applySpeciesChoiceSelections,
   applySpeciesToActor
 } from "../src/features/sheet/selectors/playerNpcSheet2024Mutations";
 import {
+  deriveBackgroundSkillChoiceConfig,
+  deriveBackgroundAbilityConfig,
+  deriveBackgroundSkillProficiencies,
+  deriveClassSkillChoiceConfig,
+  deriveGuidedAbilityChoiceSlots,
+  deriveGuidedChoiceSpec,
   deriveGuidedHitPointMax,
   derivePreparedSpellLimit,
+  deriveSpeciesSkillChoiceConfig,
   deriveSpellSlots,
   healHitPoints,
   mergeDerivedResources,
   normalizeHitPoints,
+  selectGuidedAbilityChoiceMode,
   syncBuildClasses
 } from "../src/features/sheet/selectors/playerNpcSheet2024Selectors";
 
@@ -262,6 +273,18 @@ function createOptionalFeature(overrides: Partial<CompendiumOptionalFeatureEntry
   };
 }
 
+function createSkillReference(name: string): CompendiumReferenceEntry {
+  return {
+    id: `skill-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+    name,
+    source: "PHB",
+    category: "Skill",
+    description: `${name} skill.`,
+    entries: `${name} skill.`,
+    tags: []
+  };
+}
+
 function createCompendium(overrides: Partial<CampaignSnapshot["compendium"]> = {}): CampaignSnapshot["compendium"] {
   return {
     spells: [],
@@ -370,6 +393,225 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     expect(derivePreparedSpellLimit(actor, [cleric, druid])).toBe(8);
   });
 
+  it("parses guided background and species skill choices from imported text", () => {
+    const skillEntries = ["Arcana", "History", "Insight", "Perception", "Religion", "Survival"].map(createSkillReference);
+    const background = createBackground({
+      abilityChoices: [],
+      skillProficiencies: [],
+      featIds: [],
+      startingEquipment: [],
+      entries: "Skill Proficiencies:. {@skill Survival}, plus one from among {@skill Arcana}, {@skill History}, and {@skill Religion}"
+    });
+    const species = createSpecies({
+      entries: "Keen Senses\nYou have proficiency in the {@skill Insight}, {@skill Perception}, or {@skill Survival} skill."
+    });
+
+    expect(deriveBackgroundSkillProficiencies(background)).toEqual(["Survival"]);
+    expect(deriveBackgroundSkillChoiceConfig(background, skillEntries).count).toBe(1);
+    expect(deriveBackgroundSkillChoiceConfig(background, skillEntries).options.map((entry) => entry.name)).toEqual([
+      "Arcana",
+      "History",
+      "Religion"
+    ]);
+
+    expect(deriveSpeciesSkillChoiceConfig(species, skillEntries).count).toBe(1);
+    expect(deriveSpeciesSkillChoiceConfig(species, skillEntries).options.map((entry) => entry.name)).toEqual([
+      "Insight",
+      "Perception",
+      "Survival"
+    ]);
+  });
+
+  it("applies fixed and chosen setup skills from species and backgrounds", () => {
+    const actor = createActor({
+      abilities: {
+        str: 10,
+        dex: 10,
+        con: 10,
+        int: 10,
+        wis: 10,
+        cha: 10
+      },
+      skills: [
+        { id: "skill-arcana", name: "Arcana", ability: "int", proficient: false, expertise: false },
+        { id: "skill-history", name: "History", ability: "int", proficient: false, expertise: false },
+        { id: "skill-perception", name: "Perception", ability: "wis", proficient: false, expertise: false },
+        { id: "skill-survival", name: "Survival", ability: "wis", proficient: false, expertise: false }
+      ]
+    });
+    const species = createSpecies({
+      entries: "Keen Senses\nYou have proficiency in the {@skill Perception} skill."
+    });
+    const background = createBackground({
+      abilityChoices: [],
+      skillProficiencies: [],
+      featIds: [],
+      startingEquipment: [],
+      entries: "Skill Proficiencies:. {@skill Survival}, plus one from among {@skill Arcana}, {@skill History}"
+    });
+
+    const speciesApplied = applySpeciesChoiceSelections(actor, species, [], [], "");
+    const backgroundApplied = applyBackgroundToActor(speciesApplied, background, [], {
+      skillChoices: ["History"],
+      equipmentChoiceIds: {},
+      abilityChoices: []
+    });
+
+    expect(backgroundApplied.skills.find((entry) => entry.name === "Perception")?.proficient).toBe(true);
+    expect(backgroundApplied.skills.find((entry) => entry.name === "Survival")?.proficient).toBe(true);
+    expect(backgroundApplied.skills.find((entry) => entry.name === "History")?.proficient).toBe(true);
+    expect(backgroundApplied.skills.find((entry) => entry.name === "Arcana")?.proficient).toBe(false);
+  });
+
+  it("applies guide base abilities before background bonuses", () => {
+    const actor = createActor({
+      abilities: {
+        str: 10,
+        dex: 10,
+        con: 10,
+        int: 10,
+        wis: 10,
+        cha: 10
+      }
+    });
+    const background = createBackground({
+      abilityChoices: [
+        { abilities: ["str", "dex", "con", "int", "wis", "cha"], amount: 2, count: 1 },
+        { abilities: ["str", "dex", "con", "int", "wis", "cha"], amount: 1, count: 1 }
+      ],
+      skillProficiencies: [],
+      featIds: [],
+      startingEquipment: []
+    });
+    const abilityConfig = deriveBackgroundAbilityConfig(background);
+    const plusTwoPlusOneMode = selectGuidedAbilityChoiceMode(abilityConfig, "primary");
+    const threePlusOneMode = selectGuidedAbilityChoiceMode(abilityConfig, "three-plus-one");
+
+    const baseApplied = applyGuideBaseAbilities(actor, {
+      str: 10,
+      dex: 12,
+      con: 14,
+      int: 8,
+      wis: 13,
+      cha: 18
+    });
+    const backgroundApplied = applyBackgroundToActor(baseApplied, background, [], {
+      abilityChoices: ["str", "cha"],
+      abilityChoiceModeId: plusTwoPlusOneMode?.id,
+      equipmentChoiceIds: {},
+      skillChoices: []
+    });
+    const backgroundAppliedThreePlusOne = applyBackgroundToActor(baseApplied, background, [], {
+      abilityChoices: ["str", "dex", "con"],
+      abilityChoiceModeId: threePlusOneMode?.id,
+      equipmentChoiceIds: {},
+      skillChoices: []
+    });
+
+    expect(abilityConfig.modes.map((entry) => entry.label)).toEqual(["+2 / +1", "+1 / +1 / +1"]);
+    expect(deriveGuidedAbilityChoiceSlots(threePlusOneMode).map((entry) => entry.amount)).toEqual([1, 1, 1]);
+
+    expect(backgroundApplied.abilities).toMatchObject({
+      str: 12,
+      dex: 12,
+      con: 14,
+      int: 8,
+      wis: 13,
+      cha: 19
+    });
+    expect(backgroundAppliedThreePlusOne.abilities).toMatchObject({
+      str: 11,
+      dex: 13,
+      con: 15,
+      int: 8,
+      wis: 13,
+      cha: 18
+    });
+  });
+
+  it("derives class skill choices and limits setup expertise to proficient skills", () => {
+    const rogue = createClass({
+      id: "rogue",
+      name: "Rogue",
+      spellPreparation: "none",
+      features: [
+        {
+          level: 1,
+          name: "Expertise",
+          description: "You gain Expertise in two of your skill proficiencies of your choice.",
+          source: "PHB",
+          reference: ""
+        }
+      ]
+    });
+    const actor = createActor({
+      skills: [
+        { id: "skill-acrobatics", name: "Acrobatics", ability: "dex", proficient: false, expertise: false },
+        { id: "skill-athletics", name: "Athletics", ability: "str", proficient: false, expertise: false },
+        { id: "skill-deception", name: "Deception", ability: "cha", proficient: false, expertise: false },
+        { id: "skill-insight", name: "Insight", ability: "wis", proficient: true, expertise: false },
+        { id: "skill-perception", name: "Perception", ability: "wis", proficient: false, expertise: false },
+        { id: "skill-stealth", name: "Stealth", ability: "dex", proficient: false, expertise: false }
+      ]
+    });
+    const skillEntries = ["Acrobatics", "Athletics", "Deception", "Insight", "Perception", "Stealth"].map(createSkillReference);
+    const classSkillConfig = deriveClassSkillChoiceConfig(rogue, skillEntries, actor);
+    const setupActor = applyClassSkillChoicesToActor(actor, ["Stealth", "Deception"]);
+    const choiceSpec = deriveGuidedChoiceSpec({
+      actor: setupActor,
+      classes: [rogue],
+      spells: [],
+      feats: [],
+      optionalFeatures: [],
+      targetClassId: rogue.id,
+      targetActorClassId: "",
+      targetSubclassId: "",
+      mode: "setup"
+    });
+
+    expect(classSkillConfig.count).toBe(4);
+    expect(classSkillConfig.options.map((entry) => entry.name)).toEqual([
+      "Acrobatics",
+      "Athletics",
+      "Deception",
+      "Perception",
+      "Stealth"
+    ]);
+    expect(choiceSpec.expertiseCount).toBe(2);
+    expect(choiceSpec.expertiseSkillOptions.map((entry) => entry.name)).toEqual(["Deception", "Insight", "Stealth"]);
+  });
+
+  it("syncs build classes from actor subclass fields", () => {
+    const actorClasses: ActorClassEntry[] = [
+      {
+        id: "wizard-actor",
+        compendiumId: "wizard",
+        name: "Wizard",
+        source: "PHB",
+        subclassId: "evoker",
+        subclassName: "School of Evocation",
+        subclassSource: "PHB",
+        level: 3,
+        hitDieFaces: 6,
+        usedHitDice: 1,
+        spellcastingAbility: "int"
+      }
+    ];
+
+    expect(syncBuildClasses(actorClasses, [])).toEqual([
+      {
+        id: "wizard-actor",
+        classId: "wizard",
+        className: "Wizard",
+        classSource: "PHB",
+        subclassId: "evoker",
+        subclassName: "School of Evocation",
+        subclassSource: "PHB",
+        level: 3
+      }
+    ]);
+  });
+
   it("merges derived resources while preserving manual overrides", () => {
     const merged = mergeDerivedResources(
       [
@@ -392,6 +634,43 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     expect(merged).toEqual([
       { id: "manual-1", name: "Wizard Arcane Recovery", current: 1, max: 5, resetOn: "Long Rest", restoreAmount: 2 },
       { id: "manual-2", name: "Custom Pool", current: 2, max: 2, resetOn: "Short Rest", restoreAmount: 2 }
+    ]);
+  });
+
+  it("refreshes saved derived resources from the current class definition while preserving remaining uses", () => {
+    const merged = mergeDerivedResources(
+      [
+        {
+          id: "derived:cleric-actor:channeldivinity",
+          name: "Channel Divinity",
+          current: 1,
+          max: 1,
+          resetOn: "Long Rest",
+          restoreAmount: 1
+        }
+      ],
+      [
+        {
+          id: "derived:cleric-actor:channeldivinity",
+          name: "Cleric Channel Divinity",
+          max: 2,
+          resetOn: "Short Rest",
+          restoreAmount: 2,
+          description: "Derived",
+          source: "PHB"
+        }
+      ]
+    );
+
+    expect(merged).toEqual([
+      {
+        id: "derived:cleric-actor:channeldivinity",
+        name: "Cleric Channel Divinity",
+        current: 1,
+        max: 2,
+        resetOn: "Short Rest",
+        restoreAmount: 2
+      }
     ]);
   });
 
@@ -418,7 +697,7 @@ describe("playerNpcSheet2024 extracted helpers", () => {
 
     let actor = createActor();
     actor = applySpeciesToActor(actor, species);
-    actor = applySpeciesChoiceSelections(actor, species, compendium.feats, "Perception", "");
+    actor = applySpeciesChoiceSelections(actor, species, compendium.feats, ["Perception"], "");
     actor = applyBackgroundToActor(actor, background, compendium.feats, {
       featId: originFeat.id,
       abilityChoices: ["int", "wis"],
@@ -432,6 +711,15 @@ describe("playerNpcSheet2024 extracted helpers", () => {
         backgroundId: background.id,
         classId: classEntry.id,
         subclassId: "",
+        baseAbilities: {
+          str: 10,
+          dex: 12,
+          con: 14,
+          int: 16,
+          wis: 16,
+          cha: 10
+        },
+        backgroundAbilityModeId: "primary",
         classFeatIds: [guideFeat.id],
         optionalFeatureIds: [],
         cantripIds: [],
@@ -441,7 +729,9 @@ describe("playerNpcSheet2024 extracted helpers", () => {
         asiMode: "feat",
         asiFeatId: "",
         asiAbilityChoices: [],
-        speciesSkillChoice: "Perception",
+        speciesSkillChoices: ["Perception"],
+        backgroundSkillChoices: [],
+        classSkillChoices: [],
         speciesOriginFeatId: "",
         originFeatId: originFeat.id,
         equipmentChoiceIds: { "group-1": "option-1" },
@@ -524,6 +814,15 @@ describe("playerNpcSheet2024 extracted helpers", () => {
         backgroundId: "",
         classId: classEntry.id,
         subclassId: "",
+        baseAbilities: {
+          str: 10,
+          dex: 12,
+          con: 14,
+          int: 16,
+          wis: 16,
+          cha: 10
+        },
+        backgroundAbilityModeId: "",
         classFeatIds: [feat.id],
         optionalFeatureIds: [],
         cantripIds: [],
@@ -533,7 +832,9 @@ describe("playerNpcSheet2024 extracted helpers", () => {
         asiMode: "feat",
         asiFeatId: "",
         asiAbilityChoices: [],
-        speciesSkillChoice: "",
+        speciesSkillChoices: [],
+        backgroundSkillChoices: [],
+        classSkillChoices: [],
         speciesOriginFeatId: "",
         originFeatId: "",
         equipmentChoiceIds: {},
