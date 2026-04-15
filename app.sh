@@ -62,6 +62,22 @@ run_dev_npm() {
   exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" run --rm --no-deps "$SERVICE" npm "${NPM_ARGS[@]}"
 }
 
+run_dev_npm_script() {
+  local script_name="$1"
+  shift || true
+
+  if [[ "$MODE" != "dev" ]]; then
+    echo "$script_name is only supported when APP_MODE=dev"
+    exit 1
+  fi
+
+  if [[ $# -eq 0 ]]; then
+    exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" run --rm --no-deps "$SERVICE" npm run "$script_name"
+  fi
+
+  exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" run --rm --no-deps "$SERVICE" npm run "$script_name" -- "$@"
+}
+
 run_service_logs() {
   exec "${COMPOSE_CMD[@]}" --profile "$PROFILE" logs -f "$SERVICE"
 }
@@ -87,12 +103,15 @@ case "$ACTION" in
     "${COMPOSE_CMD[@]}" --profile "$PROFILE" restart "$SERVICE"
     run_service_logs
     ;;
+  test)
+    run_dev_npm_script test "${NPM_ARGS[@]}"
+    ;;
   npm)
     run_dev_npm
     ;;
   *)
     echo "invalid action: $ACTION"
-    echo "usage: ./app.sh [up|down|build|logs|ps|restart|npm]"
+    echo "usage: ./app.sh [up|down|build|logs|ps|restart|test|npm]"
     exit 1
     ;;
 esac
