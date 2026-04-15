@@ -90,18 +90,22 @@ export function normalizeCompendiumImportEntries(kind: CompendiumKind, input: un
   }
 
   if (kind === "classes" && Array.isArray(object.class)) {
-    const classEntries = filterClassImportEntries(readObjectArray(object.class));
-    const subclassEntries = filterClassImportEntries(readObjectArray(object.subclass));
-    const classFeatureEntries = filterClassImportEntries(readObjectArray(object.classFeature));
-    const subclassFeatureEntries = filterClassImportEntries(readObjectArray(object.subclassFeature));
-    const classFeatureLookup = new Map(
-      [...classFeatureEntries, ...subclassFeatureEntries].map((entry) => [getCompendiumEntityKey(entry), entry] as const)
+    const classEntries = filterClassImportEntries(resolveExternalCopyEntries(readObjectArray(object.class), createExternalClassImportKey));
+    const subclassEntries = filterClassImportEntries(
+      resolveExternalCopyEntries(readObjectArray(object.subclass), createExternalSubclassImportKey)
     );
+    const classFeatureEntries = filterClassImportEntries(
+      resolveExternalCopyEntries(readObjectArray(object.classFeature), createExternalClassFeatureImportKey)
+    );
+    const subclassFeatureEntries = filterClassImportEntries(
+      resolveExternalCopyEntries(readObjectArray(object.subclassFeature), createExternalSubclassFeatureImportKey)
+    );
+    const classFeatureEntriesForLookup = [...classFeatureEntries, ...subclassFeatureEntries];
 
     return classEntries.map((entry) => ({
       ...entry,
-      __classFeatureLookup: Object.fromEntries(classFeatureLookup),
-      __subclassEntries: subclassEntries.filter((subclassEntry) => isSubclassForClassEntry(subclassEntry, entry))
+      __classFeatureEntries: classFeatureEntriesForLookup,
+      __subclassEntries: selectSubclassEntriesForClassEntry(subclassEntries, entry)
     }));
   }
 
@@ -158,6 +162,183 @@ function shouldSkipLatestImportEntry(kind: CompendiumKind, entry: Record<string,
 
 function filterClassImportEntries<T extends Record<string, unknown>>(entries: T[]) {
   return entries.filter((entry) => readString(entry.source).toUpperCase() !== "PHB");
+}
+
+function resolveExternalCopyEntries<T extends Record<string, unknown>>(
+  entries: T[],
+  createKey: (entry: Record<string, unknown>) => string
+) {
+  const entriesByKey = new Map(entries.map((entry) => [createKey(entry), entry] as const).filter(([key]) => key.length > 0));
+  const cache = new Map<string, T>();
+  const resolving = new Set<string>();
+
+  return entries.map((entry) => resolveExternalCopyEntry(entry, entriesByKey, cache, resolving, createKey));
+}
+
+function resolveExternalCopyEntry<T extends Record<string, unknown>>(
+  entry: T,
+  entriesByKey: Map<string, T>,
+  cache: Map<string, T>,
+  resolving: Set<string>,
+  createKey: (entry: Record<string, unknown>) => string
+): T {
+  const key = createKey(entry);
+
+  if (key && cache.has(key)) {
+    return cache.get(key) as T;
+  }
+
+  const strippedEntry = stripExternalCopyMetadata(entry) as T;
+  const copy = asOptionalObject(entry._copy);
+
+  if (!copy) {
+    if (key) {
+      cache.set(key, strippedEntry);
+    }
+    return strippedEntry;
+  }
+
+  if (key) {
+    if (resolving.has(key)) {
+      return strippedEntry;
+    }
+    resolving.add(key);
+  }
+
+  const sourceKey = createKey(copy);
+  const sourceEntry = sourceKey ? entriesByKey.get(sourceKey) : null;
+  const resolvedSource = sourceEntry ? resolveExternalCopyEntry(sourceEntry, entriesByKey, cache, resolving, createKey) : null;
+  const mergedEntry = (resolvedSource ? mergeExternalCopyObjects(resolvedSource, strippedEntry) : strippedEntry) as T;
+
+  if (key) {
+    resolving.delete(key);
+    cache.set(key, mergedEntry);
+  }
+
+  return mergedEntry;
+}
+
+function stripExternalCopyMetadata<T extends Record<string, unknown>>(entry: T) {
+  const { _copy: _ignoredCopy, ...rest } = entry;
+  return rest;
+}
+
+function mergeExternalCopyObjects(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...base };
+
+  Object.entries(override).forEach(([key, value]) => {
+    if (key === "_copy") {
+      return;
+    }
+
+    const current = merged[key];
+    merged[key] = isPlainObject(current) && isPlainObject(value) ? mergeExternalCopyObjects(current, value) : value;
+  });
+
+  return merged;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function createExternalClassImportKey(entry: Record<string, unknown>) {
+  return [readString(entry.name), readString(entry.source)].filter(Boolean).join("|").toLowerCase();
+}
+
+function createExternalSubclassImportKey(entry: Record<string, unknown>) {
+  return [
+    readString(entry.name),
+    readString(entry.source),
+    readString(entry.className),
+    readString(entry.classSource),
+    readString(entry.shortName) || readString(entry.name)
+  ]
+    .filter(Boolean)
+    .join("|")
+    .toLowerCase();
+}
+
+function createExternalClassFeatureImportKey(entry: Record<string, unknown>) {
+  const level = readExternalClassFeatureLevel(entry.level);
+
+  return [readString(entry.name), readString(entry.source), readString(entry.className), readString(entry.classSource), String(level ?? "")]
+    .filter(Boolean)
+    .join("|")
+    .toLowerCase();
+}
+
+function createExternalSubclassFeatureImportKey(entry: Record<string, unknown>) {
+  const level = readExternalClassFeatureLevel(entry.level);
+
+  return [
+    readString(entry.name),
+    readString(entry.source),
+    readString(entry.className),
+    readString(entry.classSource),
+    readString(entry.subclassShortName),
+    readString(entry.subclassSource),
+    String(level ?? "")
+  ]
+    .filter(Boolean)
+    .join("|")
+    .toLowerCase();
+}
+
+function selectSubclassEntriesForClassEntry<T extends Record<string, unknown>>(subclassEntries: T[], classEntry: Record<string, unknown>) {
+  const selectedByKey = new Map<string, { entry: T; index: number; score: number }>();
+
+  subclassEntries.forEach((subclassEntry, index) => {
+    const score = scoreSubclassEntryForClass(subclassEntry, classEntry);
+
+    if (score === 0) {
+      return;
+    }
+
+    const key = createExternalSubclassNaturalKey(subclassEntry);
+    const current = selectedByKey.get(key);
+
+    if (!current || score > current.score || (score === current.score && index < current.index)) {
+      selectedByKey.set(key, { entry: subclassEntry, index, score });
+    }
+  });
+
+  return Array.from(selectedByKey.values())
+    .sort((left, right) => left.index - right.index)
+    .map((entry) => entry.entry);
+}
+
+function scoreSubclassEntryForClass(subclassEntry: Record<string, unknown>, classEntry: Record<string, unknown>) {
+  const subclassClassName = readString(subclassEntry.className).toLowerCase();
+  const className = readString(classEntry.name).toLowerCase();
+
+  if (!subclassClassName || !className || subclassClassName !== className) {
+    return 0;
+  }
+
+  const subclassClassSource = readString(subclassEntry.classSource).toLowerCase();
+  const classSource = readString(classEntry.source).toLowerCase();
+
+  if (!subclassClassSource || !classSource) {
+    return 2;
+  }
+
+  if (subclassClassSource === classSource) {
+    return 3;
+  }
+
+  if (classSource !== "phb" && subclassClassSource === "phb") {
+    return 1;
+  }
+
+  return 0;
+}
+
+function createExternalSubclassNaturalKey(entry: Record<string, unknown>) {
+  return [readString(entry.name), readString(entry.source), readString(entry.shortName) || readString(entry.name)]
+    .filter(Boolean)
+    .join("|")
+    .toLowerCase();
 }
 
 function readCompendiumImportSourceCode(kind: CompendiumKind, entry: Record<string, unknown>) {
@@ -681,25 +862,24 @@ function sanitizeExternalFeatEntry(object: Record<string, unknown>): FeatEntry {
 }
 
 function sanitizeExternalClassEntry(object: Record<string, unknown>): ClassEntry {
-  const lookupObject =
-    typeof object.__classFeatureLookup === "object" && object.__classFeatureLookup !== null
-      ? (object.__classFeatureLookup as Record<string, unknown>)
-      : {};
-
-  const lookup = new Map(
-    Object.entries(lookupObject)
-      .filter(([, value]) => typeof value === "object" && value !== null)
-      .map(([key, value]) => [key, value as Record<string, unknown>] as const)
-  );
+  const lookupEntries = Array.isArray(object.__classFeatureEntries)
+    ? readObjectArray(object.__classFeatureEntries)
+    : Object.values(
+        typeof object.__classFeatureLookup === "object" && object.__classFeatureLookup !== null
+          ? (object.__classFeatureLookup as Record<string, unknown>)
+          : {}
+      ).filter((value): value is Record<string, unknown> => typeof value === "object" && value !== null);
 
   const primaryAbilities = readPrimaryAbilities(object.primaryAbility);
   const savingThrowProficiencies = readStringArray(object.proficiency).map(toTitleCase);
   const starting = asOptionalObject(object.startingProficiencies);
   const subclassEntries = readObjectArray(object.__subclassEntries);
+  const className = requireString(object.name, "Class name");
+  const classSource = readString(object.source);
 
   return {
     id: readString(object.id) || createId("cls"),
-    name: requireString(object.name, "Class name"),
+    name: className,
     source: formatSourceWithPage(object, "Class"),
     description: joinEntries(object.entries) || readString(object.description),
     hitDieFaces: clampNumber(asOptionalObject(object.hd)?.faces, 0, 20, 0),
@@ -710,13 +890,11 @@ function sanitizeExternalClassEntry(object: Record<string, unknown>): ClassEntry
       weapons: readStringArray(starting?.weapons),
       tools: readStringArray(starting?.tools)
     },
-    spellcastingAbility: parseExternalClassSpellcastingAbility(object, requireString(object.name, "Class name")),
-    spellPreparation: parseClassSpellPreparation(object.spellPreparation, requireString(object.name, "Class name")),
+    spellcastingAbility: parseExternalClassSpellcastingAbility(object, className),
+    spellPreparation: parseClassSpellPreparation(object.spellPreparation, className),
     subclassLevel: readExternalSubclassLevel(subclassEntries),
-    features: parseExternalClassFeatures(object.classFeatures, lookup, requireString(object.name, "Class name"), readString(object.source)),
-    subclasses: subclassEntries.map((entry) =>
-      sanitizeExternalClassSubclassEntry(entry, lookup, requireString(object.name, "Class name"), readString(object.source))
-    ),
+    features: parseExternalClassFeatures(object.classFeatures, lookupEntries, className, classSource, { classSource }),
+    subclasses: subclassEntries.map((entry) => sanitizeExternalClassSubclassEntry(entry, lookupEntries, className, classSource)),
     tables: parseExternalClassTables(object.classTableGroups)
   };
 }
@@ -742,23 +920,29 @@ function sanitizeClassSubclassEntry(input: Record<string, unknown>, className: s
 
 function sanitizeExternalClassSubclassEntry(
   object: Record<string, unknown>,
-  lookup: Map<string, Record<string, unknown>>,
+  lookupEntries: Record<string, unknown>[],
   className: string,
   classSource: string
 ): ClassSubclassEntry {
   const subclassFeatures = readArray(object.subclassFeatures);
   const name = requireString(object.name, "Subclass name");
   const source = readString(object.source);
+  const subclassShortName = readString(object.shortName) || name;
+  const subclassClassSource = readString(object.classSource) || classSource;
 
   return {
     id: readString(object.id) || createId("subcls"),
     name,
-    shortName: readString(object.shortName) || name,
+    shortName: subclassShortName,
     source,
     className: readString(object.className) || className,
-    classSource: readString(object.classSource) || classSource,
+    classSource: subclassClassSource,
     description: joinEntries(object.entries) || readString(object.description),
-    features: parseExternalClassFeatures(subclassFeatures, lookup, className, source || classSource)
+    features: parseExternalClassFeatures(subclassFeatures, lookupEntries, className, source || subclassClassSource, {
+      classSource: subclassClassSource,
+      subclassShortName,
+      subclassSource: source
+    })
   };
 }
 
@@ -1139,24 +1323,6 @@ function parseItemValueCp(value: unknown) {
 
 function isImportableRaceReferenceEntry(entry: Record<string, unknown>) {
   return readString(entry.name).trim().length > 0;
-}
-
-function isSubclassForClassEntry(subclassEntry: Record<string, unknown>, classEntry: Record<string, unknown>) {
-  const subclassClassName = readString(subclassEntry.className);
-  const className = readString(classEntry.name);
-
-  if (!subclassClassName || !className || subclassClassName.toLowerCase() !== className.toLowerCase()) {
-    return false;
-  }
-
-  const subclassClassSource = readString(subclassEntry.classSource);
-  const classSource = readString(classEntry.source);
-
-  if (!subclassClassSource || !classSource) {
-    return true;
-  }
-
-  return subclassClassSource.toLowerCase() === classSource.toLowerCase();
 }
 
 function parseAbilityOrNull(value: unknown): AbilityKey | null {
@@ -1744,9 +1910,10 @@ function formatExternalFeatPrerequisite(value: unknown) {
 
 function parseExternalClassFeatures(
   value: unknown,
-  lookup: Map<string, Record<string, unknown>>,
+  lookupEntries: Record<string, unknown>[],
   className: string,
-  classSource: string
+  fallbackSource: string,
+  matchContext: ExternalClassFeatureMatchContext = {}
 ): ClassFeatureEntry[] {
   if (!Array.isArray(value)) {
     return [];
@@ -1772,8 +1939,23 @@ function parseExternalClassFeatures(
   });
 
   return flattened
-    .map(({ entry, fallbackLevel }) => resolveExternalClassFeatureEntry(entry, lookup, className, classSource, fallbackLevel))
+    .map(({ entry, fallbackLevel }) =>
+      resolveExternalClassFeatureEntry(entry, lookupEntries, className, fallbackSource, fallbackLevel, matchContext)
+    )
     .filter((entry): entry is ClassFeatureEntry => entry !== null);
+}
+
+interface ExternalClassFeatureMatchContext {
+  classSource?: string;
+  subclassShortName?: string;
+  subclassSource?: string;
+}
+
+interface FeatureEntryRenderState {
+  lookupEntries?: Record<string, unknown>[];
+  matchContext?: ExternalClassFeatureMatchContext;
+  fallbackClassName?: string;
+  activeReferences?: Set<string>;
 }
 
 function parseExternalClassTables(value: unknown) {
@@ -1790,13 +1972,14 @@ function parseExternalClassTables(value: unknown) {
 
 function resolveExternalClassFeatureEntry(
   value: unknown,
-  lookup: Map<string, Record<string, unknown>>,
+  lookupEntries: Record<string, unknown>[],
   className: string,
-  classSource: string,
-  fallbackLevel: number | null
+  fallbackSource: string,
+  fallbackLevel: number | null,
+  matchContext: ExternalClassFeatureMatchContext
 ): ClassFeatureEntry | null {
   if (typeof value === "string") {
-    return buildExternalClassFeatureFromReference(value, lookup, className, classSource, fallbackLevel);
+    return buildExternalClassFeatureFromReference(value, lookupEntries, className, fallbackSource, fallbackLevel, matchContext);
   }
 
   if (typeof value !== "object" || value === null) {
@@ -1808,11 +1991,18 @@ function resolveExternalClassFeatureEntry(
     readString(object.classFeature) || readString(object.subclassFeature) || readString(object.feature) || readString(object.ref);
 
   if (reference) {
-    return buildExternalClassFeatureFromReference(reference, lookup, className, classSource, fallbackLevel);
+    return buildExternalClassFeatureFromReference(reference, lookupEntries, className, fallbackSource, fallbackLevel, matchContext);
   }
 
   const inlineName = readString(object.name) || `Level ${fallbackLevel ?? 1} Feature`;
-  const inlineDescription = renderEntryNode(object.entry) || joinEntries(object.entries) || joinEntries(object.headerEntries);
+  const renderState: FeatureEntryRenderState = {
+    lookupEntries,
+    matchContext,
+    fallbackClassName: className,
+    activeReferences: new Set<string>()
+  };
+  const inlineDescription =
+    renderEntryNode(object.entry, renderState) || joinEntries(object.entries, renderState) || joinEntries(object.headerEntries, renderState);
   const inlineLevel = readExternalClassFeatureLevel(object.level) ?? fallbackLevel ?? 1;
 
   if (!inlineName && !inlineDescription) {
@@ -1823,22 +2013,30 @@ function resolveExternalClassFeatureEntry(
     level: inlineLevel,
     name: inlineName,
     description: inlineDescription,
-    source: readString(object.source) || classSource,
+    source: readString(object.source) || fallbackSource,
     reference: readString(object.reference)
   };
 }
 
 function buildExternalClassFeatureFromReference(
   reference: string,
-  lookup: Map<string, Record<string, unknown>>,
+  lookupEntries: Record<string, unknown>[],
   className: string,
-  classSource: string,
-  fallbackLevel: number | null
+  fallbackSource: string,
+  fallbackLevel: number | null,
+  matchContext: ExternalClassFeatureMatchContext
 ): ClassFeatureEntry | null {
   const parsedReference = parseExternalClassFeatureReference(reference, className);
-  const feature = findExternalClassFeatureData(parsedReference, lookup);
+  const feature = findExternalClassFeatureData(parsedReference, lookupEntries, matchContext);
   const level = feature ? readExternalClassFeatureLevel(feature.level) : null;
-  const description = feature ? getExternalClassFeatureDescription(feature) : "";
+  const description = feature
+    ? getExternalClassFeatureDescription(feature, {
+        lookupEntries,
+        matchContext: mergeFeatureMatchContext(matchContext, parsedReference),
+        fallbackClassName: parsedReference.className || className,
+        activeReferences: new Set([normalizeReferencedClassFeatureKey(reference)])
+      })
+    : "";
   const resolvedName = feature ? requireString(feature.name, "Class feature name") : parsedReference.name;
 
   if (!resolvedName) {
@@ -1849,7 +2047,7 @@ function buildExternalClassFeatureFromReference(
     level: level ?? parsedReference.level ?? fallbackLevel ?? 1,
     name: resolvedName,
     description,
-    source: feature ? readString(feature.source) || classSource : parsedReference.source || classSource,
+    source: feature ? readString(feature.source) || parsedReference.source || fallbackSource : parsedReference.source || fallbackSource,
     reference
   };
 }
@@ -1857,63 +2055,105 @@ function buildExternalClassFeatureFromReference(
 function parseExternalClassFeatureReference(reference: string, fallbackClassName: string) {
   const trimmed = reference.trim();
   const parts = trimmed.split("|").map((part) => part.trim());
+  const directLevel = readExternalClassFeatureLevel(parts[3]);
+  const subclassLevel = readExternalClassFeatureLevel(parts[5]);
+  const isSubclassReference = parts.length >= 6 && directLevel === null && subclassLevel !== null;
 
   return {
     name: parts[0] || extractPipeDisplayName(trimmed),
     className: parts[1] || fallbackClassName,
     classSource: parts[2] || "",
-    level: readExternalClassFeatureLevel(parts[3]),
-    source: parts[4] || ""
+    subclassShortName: isSubclassReference ? parts[3] || "" : "",
+    subclassSource: isSubclassReference ? parts[4] || "" : "",
+    level: isSubclassReference ? subclassLevel : directLevel,
+    source: isSubclassReference ? parts[4] || "" : parts[4] || ""
   };
 }
 
 function findExternalClassFeatureData(
   reference: ReturnType<typeof parseExternalClassFeatureReference>,
-  lookup: Map<string, Record<string, unknown>>
-) {
-  const key = [reference.name, reference.className, reference.source, reference.level ?? ""].filter(Boolean).join("|").toLowerCase();
-
-  const directMatch = lookup.get(key);
-  if (directMatch) {
-    return directMatch;
-  }
-
+  lookupEntries: Record<string, unknown>[],
+  matchContext: ExternalClassFeatureMatchContext
+): Record<string, unknown> | null {
   const normalizedName = reference.name.toLowerCase();
   const normalizedClassName = reference.className.toLowerCase();
   const normalizedSource = reference.source.toLowerCase();
-  const normalizedClassSource = reference.classSource.toLowerCase();
+  const targetClassSource = (reference.classSource || matchContext.classSource || "").toLowerCase();
+  const targetSubclassShortName = (reference.subclassShortName || matchContext.subclassShortName || "").toLowerCase();
+  const targetSubclassSource = (reference.subclassSource || matchContext.subclassSource || "").toLowerCase();
+  let bestMatch: Record<string, unknown> | null = null;
+  let bestScore = -1;
 
-  return (
-    Array.from(lookup.values()).find((entry) => {
-      const entryName = readString(entry.name).toLowerCase();
-      const entryClassName = readString(entry.className).toLowerCase();
-      const entrySource = readString(entry.source).toLowerCase();
-      const entryClassSource = readString(entry.classSource).toLowerCase();
-      const entryLevel = readExternalClassFeatureLevel(entry.level);
+  lookupEntries.forEach((entry) => {
+    const entryName = readString(entry.name).toLowerCase();
+    const entryClassName = readString(entry.className).toLowerCase();
+    const entrySource = readString(entry.source).toLowerCase();
+    const entryClassSource = readString(entry.classSource).toLowerCase();
+    const entrySubclassShortName = readString(entry.subclassShortName).toLowerCase();
+    const entrySubclassSource = readString(entry.subclassSource).toLowerCase();
+    const entryLevel = readExternalClassFeatureLevel(entry.level);
 
-      if (entryName !== normalizedName) {
-        return false;
+    if (entryName !== normalizedName) {
+      return;
+    }
+
+    if (normalizedClassName && entryClassName && entryClassName !== normalizedClassName) {
+      return;
+    }
+
+    if (reference.level !== null && entryLevel !== null && entryLevel !== reference.level) {
+      return;
+    }
+
+    if (normalizedSource && entrySource && entrySource !== normalizedSource) {
+      return;
+    }
+
+    if (targetSubclassShortName && entrySubclassShortName !== targetSubclassShortName) {
+      return;
+    }
+
+    if (targetSubclassSource && entrySubclassSource !== targetSubclassSource) {
+      return;
+    }
+
+    let score = 0;
+
+    if (reference.level !== null && entryLevel === reference.level) {
+      score += 8;
+    }
+
+    if (normalizedSource && entrySource === normalizedSource) {
+      score += 8;
+    }
+
+    if (normalizedClassName && entryClassName === normalizedClassName) {
+      score += 4;
+    }
+
+    if (targetSubclassShortName && entrySubclassShortName === targetSubclassShortName) {
+      score += 6;
+    }
+
+    if (targetSubclassSource && entrySubclassSource === targetSubclassSource) {
+      score += 6;
+    }
+
+    if (targetClassSource) {
+      if (entryClassSource === targetClassSource) {
+        score += 5;
+      } else if (entryClassSource === "phb") {
+        score += 1;
       }
+    }
 
-      if (normalizedClassName && entryClassName && entryClassName !== normalizedClassName) {
-        return false;
-      }
+    if (score >= bestScore) {
+      bestMatch = entry;
+      bestScore = score;
+    }
+  });
 
-      if (reference.level !== null && entryLevel !== null && entryLevel !== reference.level) {
-        return false;
-      }
-
-      if (normalizedSource && entrySource && entrySource !== normalizedSource) {
-        return false;
-      }
-
-      if (normalizedClassSource && entryClassSource && entryClassSource !== normalizedClassSource) {
-        return false;
-      }
-
-      return true;
-    }) ?? null
-  );
+  return bestMatch;
 }
 
 function readExternalClassFeatureLevel(value: unknown) {
@@ -1931,11 +2171,69 @@ function readExternalClassFeatureLevel(value: unknown) {
   return null;
 }
 
-function getExternalClassFeatureDescription(feature: Record<string, unknown>) {
-  return renderEntryNode(feature.entry) || joinEntries(feature.entries) || joinEntries(feature.headerEntries);
+function getExternalClassFeatureDescription(feature: Record<string, unknown>, renderState: FeatureEntryRenderState = {}) {
+  return (
+    renderEntryNode(feature.entry, renderState) ||
+    joinEntries(feature.entries, renderState) ||
+    joinEntries(feature.headerEntries, renderState)
+  );
 }
 
-function renderTableCell(value: unknown) {
+function mergeFeatureMatchContext(
+  base: ExternalClassFeatureMatchContext,
+  reference: ReturnType<typeof parseExternalClassFeatureReference>
+): ExternalClassFeatureMatchContext {
+  return {
+    classSource: reference.classSource || base.classSource,
+    subclassShortName: reference.subclassShortName || base.subclassShortName,
+    subclassSource: reference.subclassSource || base.subclassSource
+  };
+}
+
+function normalizeReferencedClassFeatureKey(reference: string) {
+  return reference.trim().toLowerCase();
+}
+
+function renderReferencedClassFeature(reference: string, renderState: FeatureEntryRenderState) {
+  if (!reference) {
+    return "";
+  }
+
+  const normalizedReference = normalizeReferencedClassFeatureKey(reference);
+
+  if (renderState.activeReferences?.has(normalizedReference)) {
+    return extractPipeDisplayName(reference);
+  }
+
+  if (!renderState.lookupEntries || renderState.lookupEntries.length === 0) {
+    return extractPipeDisplayName(reference);
+  }
+
+  renderState.activeReferences?.add(normalizedReference);
+
+  try {
+    const parsedReference = parseExternalClassFeatureReference(reference, renderState.fallbackClassName || "");
+    const nextMatchContext = mergeFeatureMatchContext(renderState.matchContext ?? {}, parsedReference);
+    const feature = findExternalClassFeatureData(parsedReference, renderState.lookupEntries, nextMatchContext);
+
+    if (!feature) {
+      return parsedReference.name || extractPipeDisplayName(reference);
+    }
+
+    const featureName = readString(feature.name) || parsedReference.name;
+    const featureDescription = getExternalClassFeatureDescription(feature, {
+      ...renderState,
+      matchContext: nextMatchContext,
+      fallbackClassName: parsedReference.className || renderState.fallbackClassName
+    });
+
+    return [featureName, featureDescription].filter(Boolean).join("\n");
+  } finally {
+    renderState.activeReferences?.delete(normalizedReference);
+  }
+}
+
+function renderTableCell(value: unknown, renderState?: FeatureEntryRenderState) {
   if (typeof value === "string") {
     return value.trim();
   }
@@ -1948,7 +2246,7 @@ function renderTableCell(value: unknown) {
     return "";
   }
 
-  return renderEntryNode(value);
+  return renderEntryNode(value, renderState);
 }
 
 function readPrimaryAbilities(value: unknown) {
@@ -1971,12 +2269,6 @@ function readPrimaryAbilities(value: unknown) {
       .filter((key) => ["str", "dex", "con", "int", "wis", "cha"].includes(key))
       .map(toTitleCase);
   });
-}
-
-function getCompendiumEntityKey(entry: Record<string, unknown>) {
-  const level = typeof entry.level === "number" && Number.isFinite(entry.level) ? String(entry.level) : readString(entry.level);
-
-  return [readString(entry.name), readString(entry.className), readString(entry.source), level].filter(Boolean).join("|").toLowerCase();
 }
 
 function readReferenceCategory(
@@ -2218,12 +2510,15 @@ function pushFrequencyGroups(groups: MonsterSpellcastingEntry[], value: unknown,
   }
 }
 
-function joinEntries(value: unknown) {
+function joinEntries(value: unknown, renderState?: FeatureEntryRenderState) {
   if (!Array.isArray(value)) {
     return "";
   }
 
-  return value.map(renderEntryNode).filter(Boolean).join("\n");
+  return value
+    .map((entry) => renderEntryNode(entry, renderState))
+    .filter(Boolean)
+    .join("\n");
 }
 
 function renderRulesText(value: string) {
@@ -2564,7 +2859,7 @@ function buildConditionImmunityLine(value: unknown) {
   return conditions.length > 0 ? `Condition Immunities: ${conditions.join(", ")}` : "";
 }
 
-function renderEntryNode(value: unknown): string {
+function renderEntryNode(value: unknown, renderState?: FeatureEntryRenderState): string {
   if (typeof value === "string") {
     return value.trim();
   }
@@ -2576,26 +2871,61 @@ function renderEntryNode(value: unknown): string {
   const object = value as {
     type?: unknown;
     name?: unknown;
+    caption?: unknown;
     entry?: unknown;
     entries?: unknown;
     items?: unknown;
+    rows?: unknown;
+    rowsSpellProgression?: unknown;
+    colLabels?: unknown;
+    subclassFeature?: unknown;
+    classFeature?: unknown;
   };
 
   if (object.type === "list") {
     return readArray(object.items)
-      .map((item) => renderEntryNode(item))
+      .map((item) => renderEntryNode(item, renderState))
       .filter(Boolean)
       .join("\n");
   }
 
   if (object.type === "item") {
     const name = readString(object.name);
-    const body = renderEntryNode(object.entry) || joinEntries(object.entries);
+    const body = renderEntryNode(object.entry, renderState) || joinEntries(object.entries, renderState);
     return [name ? `${name}.` : "", body].filter(Boolean).join(" ");
   }
 
+  const featureReference = readString(object.subclassFeature) || readString(object.classFeature);
+  if (object.type === "refSubclassFeature" || object.type === "refClassFeature" || featureReference) {
+    return renderReferencedClassFeature(featureReference, renderState ?? {});
+  }
+
+  if (object.type === "table") {
+    const caption = readString(object.caption) || readString(object.name);
+    const labels = readArray(object.colLabels)
+      .map((entry) => renderTableCell(entry, renderState))
+      .filter(Boolean);
+    const rows = readArray(Array.isArray(object.rows) && object.rows.length > 0 ? object.rows : object.rowsSpellProgression)
+      .map((row) => {
+        if (!Array.isArray(row)) {
+          return "";
+        }
+
+        const cells = row.map((cell) => renderTableCell(cell, renderState));
+
+        if (labels.length > 0 && labels.length === cells.length) {
+          return cells.map((cell, index) => `${labels[index]}: ${cell}`).join("; ");
+        }
+
+        return cells.filter(Boolean).join(" | ");
+      })
+      .filter(Boolean);
+
+    return [caption, ...rows].filter(Boolean).join("\n");
+  }
+
   const name = readString(object.name);
-  const body = renderEntryNode(object.entry) || joinEntries(object.entries);
+  const body = renderEntryNode(object.entry, renderState) || joinEntries(object.entries, renderState);
   return [name, body].filter(Boolean).join("\n");
 }
 

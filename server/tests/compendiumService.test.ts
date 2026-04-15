@@ -175,6 +175,234 @@ describe("class compendium imports", () => {
     expect(classEntry.subclasses.map((subclass) => subclass.name)).toEqual(["College of Swords"]);
     expect(classEntry.subclasses[0]?.features.map((feature) => feature.name)).toEqual(["College of Swords"]);
   });
+
+  it("keeps non-PHB subclasses when only a PHB class-source variant exists", () => {
+    const [entry] = normalizeCompendiumImportEntries("classes", {
+      class: [
+        {
+          name: "Warlock",
+          source: "PHB",
+          hd: { faces: 8 },
+          proficiency: ["wis", "cha"],
+          classFeatures: []
+        },
+        {
+          name: "Warlock",
+          source: "XPHB",
+          edition: "one",
+          hd: { faces: 8 },
+          proficiency: ["wis", "cha"],
+          classFeatures: []
+        }
+      ],
+      subclass: [
+        {
+          name: "The Hexblade",
+          shortName: "Hexblade",
+          source: "XGE",
+          className: "Warlock",
+          classSource: "PHB",
+          subclassFeatures: ["The Hexblade|Warlock||Hexblade|XGE|3"]
+        }
+      ],
+      subclassFeature: [
+        {
+          name: "The Hexblade",
+          className: "Warlock",
+          classSource: "PHB",
+          subclassShortName: "Hexblade",
+          subclassSource: "XGE",
+          level: 3,
+          source: "XGE",
+          entries: ["Hexblade feature."]
+        }
+      ]
+    });
+
+    const classEntry = sanitizeCompendiumEntry("classes", entry);
+
+    expect(classEntry.source).toBe("XPHB");
+    expect(classEntry.subclasses.map((subclass) => `${subclass.name}|${subclass.source}`)).toEqual(["The Hexblade|XGE"]);
+    expect(classEntry.subclasses[0]?.features.map((feature) => ({ level: feature.level, name: feature.name }))).toEqual([
+      { level: 3, name: "The Hexblade" }
+    ]);
+  });
+
+  it("resolves copied subclass features and prefers the matching class-source variant", () => {
+    const [entry] = normalizeCompendiumImportEntries("classes", {
+      class: [
+        {
+          name: "Warlock",
+          source: "XPHB",
+          edition: "one",
+          hd: { faces: 8 },
+          proficiency: ["wis", "cha"],
+          classFeatures: []
+        }
+      ],
+      subclass: [
+        {
+          name: "The Celestial",
+          shortName: "Celestial",
+          source: "XGE",
+          className: "Warlock",
+          classSource: "XPHB",
+          _copy: {
+            name: "The Celestial",
+            shortName: "Celestial",
+            source: "XGE",
+            className: "Warlock",
+            classSource: "PHB"
+          },
+          subclassFeatures: ["The Celestial|Warlock|XPHB|Celestial|XGE|3", "Radiant Soul|Warlock||Celestial|XGE|6"]
+        }
+      ],
+      subclassFeature: [
+        {
+          name: "The Celestial",
+          className: "Warlock",
+          classSource: "PHB",
+          subclassShortName: "Celestial",
+          subclassSource: "XGE",
+          level: 1,
+          source: "XGE",
+          entries: ["Legacy celestial feature."]
+        },
+        {
+          name: "The Celestial",
+          className: "Warlock",
+          classSource: "XPHB",
+          subclassShortName: "Celestial",
+          subclassSource: "XGE",
+          level: 3,
+          source: "XGE",
+          _copy: {
+            name: "The Celestial",
+            className: "Warlock",
+            classSource: "PHB",
+            subclassShortName: "Celestial",
+            subclassSource: "XGE",
+            level: 1,
+            source: "XGE"
+          }
+        },
+        {
+          name: "Radiant Soul",
+          className: "Warlock",
+          classSource: "PHB",
+          subclassShortName: "Celestial",
+          subclassSource: "XGE",
+          level: 6,
+          source: "XGE",
+          entries: ["Legacy radiant soul."]
+        },
+        {
+          name: "Radiant Soul",
+          className: "Warlock",
+          classSource: "XPHB",
+          subclassShortName: "Celestial",
+          subclassSource: "XGE",
+          level: 6,
+          source: "XGE",
+          entries: ["Modern radiant soul."]
+        }
+      ]
+    });
+
+    const classEntry = sanitizeCompendiumEntry("classes", entry);
+
+    expect(classEntry.subclasses).toHaveLength(1);
+    expect(classEntry.subclasses[0]?.features.map((feature) => ({
+      level: feature.level,
+      name: feature.name,
+      description: feature.description
+    }))).toEqual([
+      {
+        level: 3,
+        name: "The Celestial",
+        description: "Legacy celestial feature."
+      },
+      {
+        level: 6,
+        name: "Radiant Soul",
+        description: "Modern radiant soul."
+      }
+    ]);
+  });
+
+  it("expands referenced child features inside the first subclass feature description", () => {
+    const [entry] = normalizeCompendiumImportEntries("classes", {
+      class: [
+        {
+          name: "Warlock",
+          source: "XPHB",
+          edition: "one",
+          hd: { faces: 8 },
+          proficiency: ["wis", "cha"],
+          classFeatures: []
+        }
+      ],
+      subclass: [
+        {
+          name: "The Celestial",
+          shortName: "Celestial",
+          source: "XGE",
+          className: "Warlock",
+          classSource: "XPHB",
+          subclassFeatures: ["The Celestial|Warlock|XPHB|Celestial|XGE|3"]
+        }
+      ],
+      subclassFeature: [
+        {
+          name: "The Celestial",
+          className: "Warlock",
+          classSource: "XPHB",
+          subclassShortName: "Celestial",
+          subclassSource: "XGE",
+          level: 3,
+          source: "XGE",
+          entries: [
+            "Your patron is a celestial being.",
+            {
+              type: "entries",
+              name: "Expanded Spell List",
+              entries: [
+                {
+                  type: "table",
+                  caption: "Celestial Expanded Spells",
+                  colLabels: ["Spell Level", "Spells"],
+                  rows: [["1st", "{@spell cure wounds}, {@spell guiding bolt}"]]
+                }
+              ]
+            },
+            {
+              type: "refSubclassFeature",
+              subclassFeature: "Healing Light|Warlock|XPHB|Celestial|XGE|3"
+            }
+          ]
+        },
+        {
+          name: "Healing Light",
+          className: "Warlock",
+          classSource: "XPHB",
+          subclassShortName: "Celestial",
+          subclassSource: "XGE",
+          level: 3,
+          source: "XGE",
+          entries: ["You can heal creatures with celestial energy."]
+        }
+      ]
+    });
+
+    const classEntry = sanitizeCompendiumEntry("classes", entry);
+    const description = classEntry.subclasses[0]?.features[0]?.description ?? "";
+
+    expect(description).toContain("Expanded Spell List");
+    expect(description).toContain("Celestial Expanded Spells");
+    expect(description).toContain("Spell Level: 1st; Spells: {@spell cure wounds}, {@spell guiding bolt}");
+    expect(description).toContain("Healing Light");
+    expect(description).toContain("You can heal creatures with celestial energy.");
+  });
 });
 
 describe("reference compendium imports", () => {
