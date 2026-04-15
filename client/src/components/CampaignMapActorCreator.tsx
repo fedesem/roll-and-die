@@ -7,6 +7,7 @@ import type { ActorTypeFilter, AvailableActorEntry } from "../features/campaign/
 import { createClientActorDraft } from "../lib/drafts";
 import { CampaignActionButton } from "./CampaignActionButton";
 import { RulesText } from "./admin/AdminPreview";
+import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
 import { MonsterCatalogOption, MonsterStatBlock } from "./monster/MonsterStatBlock";
 
 interface CampaignMapActorCreatorProps {
@@ -84,7 +85,7 @@ export function CampaignMapActorCreator({
   }
 
   return (
-    <div className="stack-form actor-creation-modal">
+    <div className="stack-form actor-creation-modal min-h-0 h-full">
       <div className="inline-form compact">
         <select value={actorCreatorKind} onChange={(event) => onActorCreatorKindChange(event.target.value as ActorKind)}>
           <option value="character">Character</option>
@@ -94,63 +95,69 @@ export function CampaignMapActorCreator({
         </select>
       </div>
       {actorCreatorKind === "monster" ? (
-        <div className="popup-grid monster-browser">
-          <section className="sheet-panel monster-browser-list-panel">
+        <ViewportWorkspace
+          columns="minmax(380px, 500px) minmax(0, 1fr)"
+          stackBreakpoint="1100"
+          heightMode="fill"
+          workspaceMinHeight="32rem"
+          className="monster-browser-workspace min-h-0"
+        >
+          <WorkspacePane as="section" className="sheet-panel monster-browser-list-panel">
             <input placeholder="Search monsters" onChange={(event) => onMonsterQueryChange(event.target.value)} />
-            <div className="actor-list-scroll actor-creation-results">
-              <div className="list-stack">
-                {filteredCatalog.map((monster) => (
-                  <div key={monster.id} className="popup-row actor-popup-row">
-                    <MonsterCatalogOption
-                      monster={monster}
-                      selected={selectedMonsterTemplate?.id === monster.id}
-                      onSelect={() => onSelectMonster(monster.id)}
-                    />
-                    <div className="actor-list-actions">
-                      <CampaignActionButton
-                        onClick={() => void onCreateMonsterActor(monster, selectedMap.id)}
-                        title="Create actor from monster"
-                        aria-label="Create actor from monster"
-                        icon={Plus}
-                        tone="accent"
-                      />
-                    </div>
-                  </div>
-                ))}
-                {filteredCatalog.length === 0 ? <p className="empty-state">No monsters match that search.</p> : null}
-              </div>
-            </div>
-          </section>
-          <section className="sheet-panel monster-preview-card monster-browser-preview-panel">
-            {selectedMonsterTemplate ? (
-              <MonsterStatBlock
-                monster={selectedMonsterTemplate}
-                eyebrow="Preview"
-                renderText={(text) => (
-                  <RulesText
-                    text={text}
-                    spellEntries={compendium.spells}
-                    featEntries={compendium.feats}
-                    classEntries={compendium.classes}
-                    variantRuleEntries={compendium.variantRules}
-                    conditionEntries={compendium.conditions}
+            <WorkspacePaneBody className="actor-list-scroll actor-creation-results" contentClassName="list-stack">
+              {filteredCatalog.map((monster) => (
+                <div key={monster.id} className="popup-row actor-popup-row">
+                  <MonsterCatalogOption
+                    monster={monster}
+                    selected={selectedMonsterTemplate?.id === monster.id}
+                    onSelect={() => onSelectMonster(monster.id)}
                   />
-                )}
-                action={
-                  <CampaignActionButton
-                    onClick={() => void onCreateMonsterActor(selectedMonsterTemplate, selectedMap.id)}
-                    icon={FilePlus2}
-                    tone="accent"
-                  >
-                    Create on map
-                  </CampaignActionButton>
-                }
-              />
-            ) : (
-              <p className="empty-state">Select a monster to preview its stat block.</p>
-            )}
-          </section>
-        </div>
+                  <div className="actor-list-actions">
+                    <CampaignActionButton
+                      onClick={() => void onCreateMonsterActor(monster, selectedMap.id)}
+                      title="Create actor from monster"
+                      aria-label="Create actor from monster"
+                      icon={Plus}
+                      tone="accent"
+                    />
+                  </div>
+                </div>
+              ))}
+              {filteredCatalog.length === 0 ? <p className="empty-state">No monsters match that search.</p> : null}
+            </WorkspacePaneBody>
+          </WorkspacePane>
+          <WorkspacePane as="section" className="sheet-panel monster-browser-preview-panel">
+            <WorkspacePaneBody className="monster-browser-preview-scroll" fill>
+              {selectedMonsterTemplate ? (
+                <MonsterStatBlock
+                  monster={selectedMonsterTemplate}
+                  eyebrow="Preview"
+                  renderText={(text) => (
+                    <RulesText
+                      text={text}
+                      spellEntries={compendium.spells}
+                      featEntries={compendium.feats}
+                      classEntries={compendium.classes}
+                      variantRuleEntries={compendium.variantRules}
+                      conditionEntries={compendium.conditions}
+                    />
+                  )}
+                  action={
+                    <CampaignActionButton
+                      onClick={() => void onCreateMonsterActor(selectedMonsterTemplate, selectedMap.id)}
+                      icon={FilePlus2}
+                      tone="accent"
+                    >
+                      Create on map
+                    </CampaignActionButton>
+                  }
+                />
+              ) : (
+                <p className="empty-state">Select a monster to preview its stat block.</p>
+              )}
+            </WorkspacePaneBody>
+          </WorkspacePane>
+        </ViewportWorkspace>
       ) : (
         <div className="inline-form compact">
           <input placeholder="Actor name" value={newActorName} onChange={(event) => setNewActorName(event.target.value)} />

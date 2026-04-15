@@ -5,6 +5,7 @@ import type { ActorKind, ActorSheet, CampaignMap, CampaignMember, MemberRole } f
 
 import type { ActorTypeFilter, AvailableActorEntry } from "../features/campaign/types";
 import { CampaignActionButton } from "./CampaignActionButton";
+import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
 
 interface CampaignActorManagerProps {
   role: MemberRole;
@@ -79,8 +80,14 @@ export function CampaignActorManager({
   }, [availableActors, mapFilter, ownerFilter, role]);
 
   return (
-    <div className="popup-grid">
-      <section className="dark-card popup-card actor-list-card">
+    <ViewportWorkspace
+      columns="repeat(2, minmax(0, 1fr))"
+      stackBreakpoint="1100"
+      heightMode="fill"
+      workspaceMinHeight="32rem"
+      className="h-full"
+    >
+      <WorkspacePane as="section" className="dark-card popup-card actor-list-card">
         <div className="panel-head">
           <div>
             <p className="panel-label">Roster</p>
@@ -128,63 +135,61 @@ export function CampaignActorManager({
             <input placeholder="Search your actors" value={actorSearch} onChange={(event) => onActorSearchChange(event.target.value)} />
           </div>
         )}
-        <div className="actor-list-scroll">
-          <div className="list-stack">
-            {filteredActors.map(({ actor, activeMaps, onCurrentMap, isOnAllMaps, ownerName }) => {
-              const canManage = canManageActor(actor);
+        <WorkspacePaneBody className="actor-list-scroll" contentClassName="list-stack">
+          {filteredActors.map(({ actor, activeMaps, onCurrentMap, isOnAllMaps, ownerName }) => {
+            const canManage = canManageActor(actor);
 
-              return (
-                <div key={actor.id} className="popup-row actor-popup-row">
-                  <div className={`list-row actor-list-row-static ${selectedActor?.id === actor.id ? "is-selected" : ""}`}>
-                    <div className="actor-row-main">
-                      <span className="actor-row-name">{actor.name}</span>
-                      <div className="actor-row-meta">
-                        <ActorMetaIconBadge icon={iconForActorKind(actor.kind)} label={actor.kind} />
-                        {role === "dm" ? <ActorOwnerBadge ownerName={ownerName} /> : null}
-                        {role === "dm" && onCurrentMap ? <ActorMetaIconBadge icon={MapPinned} label="Assigned" /> : null}
-                        {role === "dm" ? (
-                          isOnAllMaps ? (
-                            <ActorMetaIconBadge icon={Map} label="All maps" />
-                          ) : (
-                            activeMaps.map((map) => (
-                              <span key={map.id} className="badge map-badge">
-                                {map.name}
-                              </span>
-                            ))
-                          )
-                        ) : null}
-                      </div>
+            return (
+              <div key={actor.id} className="popup-row actor-popup-row">
+                <div className={`list-row actor-list-row-static ${selectedActor?.id === actor.id ? "is-selected" : ""}`}>
+                  <div className="actor-row-main">
+                    <span className="actor-row-name">{actor.name}</span>
+                    <div className="actor-row-meta">
+                      <ActorMetaIconBadge icon={iconForActorKind(actor.kind)} label={actor.kind} />
+                      {role === "dm" ? <ActorOwnerBadge ownerName={ownerName} /> : null}
+                      {role === "dm" && onCurrentMap ? <ActorMetaIconBadge icon={MapPinned} label="Assigned" /> : null}
+                      {role === "dm" ? (
+                        isOnAllMaps ? (
+                          <ActorMetaIconBadge icon={Map} label="All maps" />
+                        ) : (
+                          activeMaps.map((map) => (
+                            <span key={map.id} className="badge map-badge">
+                              {map.name}
+                            </span>
+                          ))
+                        )
+                      ) : null}
                     </div>
                   </div>
-                  <div className="actor-list-actions">
-                    <CampaignActionButton
-                      title="Open sheet"
-                      aria-label="Open sheet"
-                      disabled={!canOpenSheet(actor)}
-                      onClick={() => onOpenSheet(actor.id)}
-                      icon={ScrollText}
-                    />
-                    {canManage && (
-                      <CampaignActionButton
-                        title="Delete actor"
-                        onClick={() => onDeleteActor(actor)}
-                        aria-label="Delete actor"
-                        icon={Trash2}
-                        tone="danger"
-                      />
-                    )}
-                  </div>
                 </div>
-              );
-            })}
-            {filteredActors.length === 0 && (
-              <p className="empty-state">{role === "dm" ? "No actors match that search." : "You do not have any actors yet."}</p>
-            )}
-          </div>
-        </div>
-      </section>
+                <div className="actor-list-actions">
+                  <CampaignActionButton
+                    title="Open sheet"
+                    aria-label="Open sheet"
+                    disabled={!canOpenSheet(actor)}
+                    onClick={() => onOpenSheet(actor.id)}
+                    icon={ScrollText}
+                  />
+                  {canManage && (
+                    <CampaignActionButton
+                      title="Delete actor"
+                      onClick={() => onDeleteActor(actor)}
+                      aria-label="Delete actor"
+                      icon={Trash2}
+                      tone="danger"
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {filteredActors.length === 0 && (
+            <p className="empty-state">{role === "dm" ? "No actors match that search." : "You do not have any actors yet."}</p>
+          )}
+        </WorkspacePaneBody>
+      </WorkspacePane>
 
-      <section className="dark-card popup-card actor-create-card">
+      <WorkspacePane as="section" className="dark-card popup-card actor-create-card">
         <div className="panel-head">
           <div>
             <p className="panel-label">Create</p>
@@ -200,23 +205,25 @@ export function CampaignActorManager({
             </button>
           )}
         </div>
-        {role === "dm" ? (
-          <p className="empty-state">
-            Create DM-owned actors from the Maps tab after selecting the map you want to edit. Player-owned actors still appear here in the
-            general roster.
-          </p>
-        ) : (
-          <div className="space-y-4">
-            <p className="empty-state">Open the popup to create a new actor. Character and summon creation now use the same modal flow as the board sheet.</p>
-            {!actorCreatorOpen ? null : (
-              <div className="rounded-none border border-amber-200/15 bg-amber-300/8 px-4 py-3 text-sm text-amber-100">
-                The actor creation popup is already open.
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-    </div>
+        <WorkspacePaneBody scroll="none">
+          {role === "dm" ? (
+            <p className="empty-state">
+              Create DM-owned actors from the Maps tab after selecting the map you want to edit. Player-owned actors still appear here in the
+              general roster.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <p className="empty-state">Open the popup to create a new actor. Character and summon creation now use the same modal flow as the board sheet.</p>
+              {!actorCreatorOpen ? null : (
+                <div className="rounded-none border border-amber-200/15 bg-amber-300/8 px-4 py-3 text-sm text-amber-100">
+                  The actor creation popup is already open.
+                </div>
+              )}
+            </div>
+          )}
+        </WorkspacePaneBody>
+      </WorkspacePane>
+    </ViewportWorkspace>
   );
 }
 

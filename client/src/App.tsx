@@ -512,7 +512,9 @@ export default function App() {
   }
 
   return (
-    <div className={`app-shell workspace-shell${selectedCampaignId && snapshot && isCampaignBoardRoute ? " is-room-active" : ""}`}>
+    <div
+      className={`app-shell workspace-shell${selectedCampaignId && snapshot && isCampaignBoardRoute ? " is-room-active" : ""}${route.name === "admin" ? " is-admin-route" : ""}`}
+    >
       <AppTopbar
         userName={session.user.name}
         isAdmin={session.user.isAdmin}

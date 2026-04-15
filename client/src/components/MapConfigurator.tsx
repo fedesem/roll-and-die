@@ -13,6 +13,7 @@ import { DoorOpen, EyeOff, MousePointer2, Move, Radio, RotateCcw, Square, Trash2
 import type { CampaignMap, MapTeleporter, MapWall, MapWallKind, Point } from "@shared/types";
 import { snapPointToGrid, snapPointToGridIntersection } from "@shared/vision";
 import { NumericInput } from "./NumericInput";
+import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
 import { resolveAssetUrl } from "../lib/assets";
 import { createGridStyle } from "../lib/gridStyle";
 import { readImageDimensionsFromFile } from "../lib/media";
@@ -714,9 +715,15 @@ export function MapConfigurator({
               : `Click two snapped border points to place a ${obstacleLabel(editorMode).toLowerCase()}. Right click keeps the tool active.`;
 
   return (
-    <div className="map-editor">
-      <div className="map-editor-grid">
-        <div className="map-preview-shell">
+    <div className="map-editor h-full">
+      <ViewportWorkspace
+        columns="minmax(0, 1.45fr) minmax(360px, 420px)"
+        stackBreakpoint="1500"
+        heightMode="fill"
+        workspaceMinHeight="40rem"
+        className="map-editor-workspace"
+      >
+        <WorkspacePane as="div" className="map-preview-shell">
           <div className="panel-head">
             <div>
               <p className="panel-label">Preview</p>
@@ -753,281 +760,172 @@ export function MapConfigurator({
               </label>
             </div>
           </div>
+          <WorkspacePaneBody className="map-preview-pane-body" contentClassName="map-preview-panel-content" fill>
+            <div
+              ref={previewRef}
+              className={`map-preview-stage ${dragging || panning ? "is-dragging" : ""} ${editorMode !== "align" ? "is-editing" : ""} mode-${editorMode}`}
+              onClick={handlePreviewClick}
+              onContextMenu={(event) => {
+                event.preventDefault();
 
-          <div
-            ref={previewRef}
-            className={`map-preview-stage ${dragging || panning ? "is-dragging" : ""} ${editorMode !== "align" ? "is-editing" : ""} mode-${editorMode}`}
-            onClick={handlePreviewClick}
-            onContextMenu={(event) => {
-              event.preventDefault();
-
-              if (editorMode !== "align" && editorMode !== "select") {
-                setObstacleAnchor(null);
-                setTeleporterAnchor(null);
-                setHoverPoint(null);
-              }
-            }}
-            onPointerDownCapture={handlePreviewPointerDownCapture}
-            onPointerDown={handlePreviewPointerDown}
-            onPointerMove={handlePreviewPointerMove}
-            onPointerUp={handlePreviewPointerUp}
-            onPointerLeave={() => {
-              if (selectionBox) {
-                const box = normalizeSelectionRect(selectionBox);
-
-                if (box.width >= selectionDragThreshold || box.height >= selectionDragThreshold) {
-                  setSelectedItemIds(
-                    map.walls
-                      .filter((wall) => segmentBoundsIntersectsRect(worldToScreen(wall.start), worldToScreen(wall.end), box))
-                      .map((wall) => `wall:${wall.id}`)
-                  );
-                  suppressClickRef.current = true;
+                if (editorMode !== "align" && editorMode !== "select") {
+                  setObstacleAnchor(null);
+                  setTeleporterAnchor(null);
+                  setHoverPoint(null);
                 }
+              }}
+              onPointerDownCapture={handlePreviewPointerDownCapture}
+              onPointerDown={handlePreviewPointerDown}
+              onPointerMove={handlePreviewPointerMove}
+              onPointerUp={handlePreviewPointerUp}
+              onPointerLeave={() => {
+                if (selectionBox) {
+                  const box = normalizeSelectionRect(selectionBox);
 
-                setSelectionBox(null);
-              }
-              setHoverPoint(null);
-            }}
-            onWheel={handlePreviewWheel}
-          >
-            <div className="map-preview-overlay-tools">
-              <button
-                className={`icon-action-button ${editorMode === "select" ? "is-active" : ""}`}
-                type="button"
-                disabled={disabled}
-                title="Select"
-                onClick={() => {
-                  setEditorMode("select");
-                  setObstacleAnchor(null);
-                  setHoverPoint(null);
-                }}
-              >
-                <MousePointer2 size={15} />
-              </button>
-              <button
-                className={`icon-action-button ${editorMode === "align" ? "is-active" : ""}`}
-                type="button"
-                title="Align image"
-                onClick={() => {
-                  setEditorMode("align");
-                  setObstacleAnchor(null);
-                  setTeleporterAnchor(null);
-                  setHoverPoint(null);
-                }}
-              >
-                <Move size={15} />
-              </button>
-              <button
-                className={`icon-action-button ${editorMode === "wall" ? "is-active" : ""}`}
-                type="button"
-                disabled={disabled}
-                title="Wall"
-                onClick={() => {
-                  setEditorMode("wall");
-                  setObstacleAnchor(null);
-                  setTeleporterAnchor(null);
-                }}
-              >
-                <Square size={15} />
-              </button>
-              <button
-                className={`icon-action-button ${editorMode === "transparent" ? "is-active" : ""}`}
-                type="button"
-                disabled={disabled}
-                title="Transparent wall"
-                onClick={() => {
-                  setEditorMode("transparent");
-                  setObstacleAnchor(null);
-                  setTeleporterAnchor(null);
-                }}
-              >
-                <Waves size={15} />
-              </button>
-              <button
-                className={`icon-action-button ${editorMode === "opaque" ? "is-active" : ""}`}
-                type="button"
-                disabled={disabled}
-                title="Opaque wall"
-                onClick={() => {
-                  setEditorMode("opaque");
-                  setObstacleAnchor(null);
-                  setTeleporterAnchor(null);
-                }}
-              >
-                <EyeOff size={15} />
-              </button>
-              <button
-                className={`icon-action-button ${editorMode === "door" ? "is-active" : ""}`}
-                type="button"
-                disabled={disabled}
-                title="Door"
-                onClick={() => {
-                  setEditorMode("door");
-                  setObstacleAnchor(null);
-                  setTeleporterAnchor(null);
-                }}
-              >
-                <DoorOpen size={15} />
-              </button>
-              <button
-                className={`icon-action-button ${editorMode === "teleporter" ? "is-active" : ""}`}
-                type="button"
-                disabled={disabled}
-                title="Teleporter"
-                onClick={() => {
-                  setEditorMode("teleporter");
-                  setObstacleAnchor(null);
-                  setTeleporterAnchor(null);
-                }}
-              >
-                <Radio size={15} />
-              </button>
-              <button
-                className="icon-action-button danger-button"
-                type="button"
-                disabled={disabled || (selectedItemIds.length === 0 && map.walls.length === 0 && map.teleporters.length === 0)}
-                title={selectedItemIds.length > 0 ? "Delete selected" : "Clear all map items"}
-                onClick={() => {
-                  if (selectedItemIds.length > 0) {
-                    removeSelectedItems(selectedItemIds);
-                    return;
-                  }
-                  clearMapItems();
-                }}
-              >
-                <Trash2 size={15} />
-              </button>
-            </div>
-            {map.backgroundUrl && (
-              <div
-                className="map-preview-image"
-                style={{
-                  left: backgroundRect.left,
-                  top: backgroundRect.top,
-                  width: backgroundRect.width,
-                  height: backgroundRect.height,
-                  backgroundImage: `url(${backgroundImageUrl})`
-                }}
-              />
-            )}
-            {gridStyle && <div className="map-preview-grid" style={gridStyle} />}
-
-            <svg
-              className="map-preview-overlay"
-              width={viewportSize.width}
-              height={viewportSize.height}
-              viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
-            >
-              {map.walls.map((wall) => {
-                const start = worldToScreen(wall.start);
-                const end = worldToScreen(wall.end);
-                return (
-                  <line
-                    key={wall.id}
-                    x1={start.x}
-                    y1={start.y}
-                    x2={end.x}
-                    y2={end.y}
-                    className={`map-preview-wall kind-${wall.kind} ${wall.isOpen ? "is-open" : ""} ${wall.isLocked ? "is-locked" : ""} ${selectedItemIds.includes(`wall:${wall.id}`) ? "is-selected" : ""}`}
-                  />
-                );
-              })}
-              {map.teleporters.map((teleporter) => {
-                const pointA = worldToScreen(teleporter.pointA);
-                const pointB = worldToScreen(teleporter.pointB);
-                const selected = selectedItemIds.includes(`teleporter:${teleporter.id}`);
-
-                return (
-                  <g key={teleporter.id} className={selected ? "is-selected" : undefined}>
-                    {hoveredTeleporterId === teleporter.id && (
-                      <line
-                        x1={pointA.x}
-                        y1={pointA.y}
-                        x2={pointB.x}
-                        y2={pointB.y}
-                        className="map-preview-teleporter-link"
-                        stroke="rgba(200, 119, 255, 0.76)"
-                      />
-                    )}
-                    {[pointA, pointB].map((point, index) => (
-                      <g key={`${teleporter.id}:${index}`}>
-                        <circle
-                          cx={point.x}
-                          cy={point.y}
-                          r={12}
-                          className="map-preview-teleporter-node"
-                          fill="rgba(148, 73, 214, 0.92)"
-                          stroke="rgba(245, 229, 255, 0.92)"
-                        />
-                        <text
-                          x={point.x}
-                          y={point.y}
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          className="map-preview-teleporter-label"
-                          fill="rgba(255, 248, 252, 0.96)"
-                        >
-                          {teleporter.pairNumber}
-                        </text>
-                      </g>
-                    ))}
-                  </g>
-                );
-              })}
-              {obstacleAnchor && hoverPoint && editorMode !== "select" && editorMode !== "align" && editorMode !== "teleporter" && (
-                <line
-                  x1={worldToScreen(obstacleAnchor).x}
-                  y1={worldToScreen(obstacleAnchor).y}
-                  x2={worldToScreen(hoverPoint).x}
-                  y2={worldToScreen(hoverPoint).y}
-                  className={`map-preview-wall is-preview kind-${editorMode}`}
-                />
-              )}
-              {teleporterAnchor && hoverPoint && editorMode === "teleporter" && (
-                <g>
-                  <line
-                    x1={worldToScreen(teleporterAnchor).x}
-                    y1={worldToScreen(teleporterAnchor).y}
-                    x2={worldToScreen(hoverPoint).x}
-                    y2={worldToScreen(hoverPoint).y}
-                    className="map-preview-teleporter-link is-preview"
-                    stroke="rgba(200, 119, 255, 0.76)"
-                  />
-                  {[teleporterAnchor, hoverPoint].map((point, index) => {
-                    const screen = worldToScreen(point);
-                    return (
-                      <circle
-                        key={`preview-teleporter:${index}`}
-                        cx={screen.x}
-                        cy={screen.y}
-                        r={10}
-                        className="map-preview-teleporter-node is-preview"
-                        fill="rgba(148, 73, 214, 0.42)"
-                        stroke="rgba(245, 229, 255, 0.92)"
-                      />
+                  if (box.width >= selectionDragThreshold || box.height >= selectionDragThreshold) {
+                    setSelectedItemIds(
+                      map.walls
+                        .filter((wall) => segmentBoundsIntersectsRect(worldToScreen(wall.start), worldToScreen(wall.end), box))
+                        .map((wall) => `wall:${wall.id}`)
                     );
-                  })}
-                </g>
-              )}
-              {normalizedSelectionBox && (
-                <rect
-                  x={normalizedSelectionBox.x}
-                  y={normalizedSelectionBox.y}
-                  width={normalizedSelectionBox.width}
-                  height={normalizedSelectionBox.height}
-                  className="selection-rect"
+                    suppressClickRef.current = true;
+                  }
+
+                  setSelectionBox(null);
+                }
+                setHoverPoint(null);
+              }}
+              onWheel={handlePreviewWheel}
+            >
+              <div className="map-preview-overlay-tools">
+                <button
+                  className={`icon-action-button ${editorMode === "select" ? "is-active" : ""}`}
+                  type="button"
+                  disabled={disabled}
+                  title="Select"
+                  onClick={() => {
+                    setEditorMode("select");
+                    setObstacleAnchor(null);
+                    setHoverPoint(null);
+                  }}
+                >
+                  <MousePointer2 size={15} />
+                </button>
+                <button
+                  className={`icon-action-button ${editorMode === "align" ? "is-active" : ""}`}
+                  type="button"
+                  title="Align image"
+                  onClick={() => {
+                    setEditorMode("align");
+                    setObstacleAnchor(null);
+                    setTeleporterAnchor(null);
+                    setHoverPoint(null);
+                  }}
+                >
+                  <Move size={15} />
+                </button>
+                <button
+                  className={`icon-action-button ${editorMode === "wall" ? "is-active" : ""}`}
+                  type="button"
+                  disabled={disabled}
+                  title="Wall"
+                  onClick={() => {
+                    setEditorMode("wall");
+                    setObstacleAnchor(null);
+                    setTeleporterAnchor(null);
+                  }}
+                >
+                  <Square size={15} />
+                </button>
+                <button
+                  className={`icon-action-button ${editorMode === "transparent" ? "is-active" : ""}`}
+                  type="button"
+                  disabled={disabled}
+                  title="Transparent wall"
+                  onClick={() => {
+                    setEditorMode("transparent");
+                    setObstacleAnchor(null);
+                    setTeleporterAnchor(null);
+                  }}
+                >
+                  <Waves size={15} />
+                </button>
+                <button
+                  className={`icon-action-button ${editorMode === "opaque" ? "is-active" : ""}`}
+                  type="button"
+                  disabled={disabled}
+                  title="Opaque wall"
+                  onClick={() => {
+                    setEditorMode("opaque");
+                    setObstacleAnchor(null);
+                    setTeleporterAnchor(null);
+                  }}
+                >
+                  <EyeOff size={15} />
+                </button>
+                <button
+                  className={`icon-action-button ${editorMode === "door" ? "is-active" : ""}`}
+                  type="button"
+                  disabled={disabled}
+                  title="Door"
+                  onClick={() => {
+                    setEditorMode("door");
+                    setObstacleAnchor(null);
+                    setTeleporterAnchor(null);
+                  }}
+                >
+                  <DoorOpen size={15} />
+                </button>
+                <button
+                  className={`icon-action-button ${editorMode === "teleporter" ? "is-active" : ""}`}
+                  type="button"
+                  disabled={disabled}
+                  title="Teleporter"
+                  onClick={() => {
+                    setEditorMode("teleporter");
+                    setObstacleAnchor(null);
+                    setTeleporterAnchor(null);
+                  }}
+                >
+                  <Radio size={15} />
+                </button>
+                <button
+                  className="icon-action-button danger-button"
+                  type="button"
+                  disabled={disabled || (selectedItemIds.length === 0 && map.walls.length === 0 && map.teleporters.length === 0)}
+                  title={selectedItemIds.length > 0 ? "Delete selected" : "Clear all map items"}
+                  onClick={() => {
+                    if (selectedItemIds.length > 0) {
+                      removeSelectedItems(selectedItemIds);
+                      return;
+                    }
+                    clearMapItems();
+                  }}
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+              {map.backgroundUrl && (
+                <div
+                  className="map-preview-image"
+                  style={{
+                    left: backgroundRect.left,
+                    top: backgroundRect.top,
+                    width: backgroundRect.width,
+                    height: backgroundRect.height,
+                    backgroundImage: `url(${backgroundImageUrl})`
+                  }}
                 />
               )}
-            </svg>
+              {gridStyle && <div className="map-preview-grid" style={gridStyle} />}
 
-            <svg
-              className="map-preview-hit-layer"
-              width={viewportSize.width}
-              height={viewportSize.height}
-              viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
-            >
-              {(editorMode === "select" || editorMode === "door" || editorMode === "transparent" || editorMode === "opaque") &&
-                map.walls.map((wall) => {
+              <svg
+                className="map-preview-overlay"
+                width={viewportSize.width}
+                height={viewportSize.height}
+                viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
+              >
+                {map.walls.map((wall) => {
                   const start = worldToScreen(wall.start);
                   const end = worldToScreen(wall.end);
                   return (
@@ -1037,62 +935,173 @@ export function MapConfigurator({
                       y1={start.y}
                       x2={end.x}
                       y2={end.y}
-                      className="map-preview-hit"
-                      strokeWidth={18}
-                      onClick={(event) => {
-                        event.stopPropagation();
-
-                        if (editorMode === "select") {
-                          toggleItemSelection(`wall:${wall.id}`);
-                          return;
-                        }
-
-                        if (editorMode === "door" || editorMode === "transparent" || editorMode === "opaque") {
-                          const point = toWorldPoint(event.clientX, event.clientY);
-
-                          if (!point) {
-                            return;
-                          }
-
-                          updateWalls(replaceWallSection(map.walls, wall.id, point, editorMode, map.grid.cellSize));
-                          setSelectedItemIds([`wall:${wall.id}`]);
-                        }
-                      }}
+                      className={`map-preview-wall kind-${wall.kind} ${wall.isOpen ? "is-open" : ""} ${wall.isLocked ? "is-locked" : ""} ${selectedItemIds.includes(`wall:${wall.id}`) ? "is-selected" : ""}`}
                     />
                   );
                 })}
-              {map.teleporters.flatMap((teleporter) =>
-                [teleporter.pointA, teleporter.pointB].map((point, index) => {
-                  const screen = worldToScreen(point);
+                {map.teleporters.map((teleporter) => {
+                  const pointA = worldToScreen(teleporter.pointA);
+                  const pointB = worldToScreen(teleporter.pointB);
+                  const selected = selectedItemIds.includes(`teleporter:${teleporter.id}`);
+
                   return (
-                    <circle
-                      key={`${teleporter.id}:${index}`}
-                      cx={screen.x}
-                      cy={screen.y}
-                      r={14}
-                      className="map-preview-hit-node"
-                      onClick={(event) => {
-                        event.stopPropagation();
-
-                        if (editorMode === "select") {
-                          toggleItemSelection(`teleporter:${teleporter.id}`);
-                        }
-                      }}
-                      onPointerEnter={() => setHoveredTeleporterId(teleporter.id)}
-                      onPointerLeave={() => setHoveredTeleporterId((current) => (current === teleporter.id ? null : current))}
-                    />
+                    <g key={teleporter.id} className={selected ? "is-selected" : undefined}>
+                      {hoveredTeleporterId === teleporter.id && (
+                        <line
+                          x1={pointA.x}
+                          y1={pointA.y}
+                          x2={pointB.x}
+                          y2={pointB.y}
+                          className="map-preview-teleporter-link"
+                          stroke="rgba(200, 119, 255, 0.76)"
+                        />
+                      )}
+                      {[pointA, pointB].map((point, index) => (
+                        <g key={`${teleporter.id}:${index}`}>
+                          <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r={12}
+                            className="map-preview-teleporter-node"
+                            fill="rgba(148, 73, 214, 0.92)"
+                            stroke="rgba(245, 229, 255, 0.92)"
+                          />
+                          <text
+                            x={point.x}
+                            y={point.y}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            className="map-preview-teleporter-label"
+                            fill="rgba(255, 248, 252, 0.96)"
+                          >
+                            {teleporter.pairNumber}
+                          </text>
+                        </g>
+                      ))}
+                    </g>
                   );
-                })
-              )}
-            </svg>
+                })}
+                {obstacleAnchor && hoverPoint && editorMode !== "select" && editorMode !== "align" && editorMode !== "teleporter" && (
+                  <line
+                    x1={worldToScreen(obstacleAnchor).x}
+                    y1={worldToScreen(obstacleAnchor).y}
+                    x2={worldToScreen(hoverPoint).x}
+                    y2={worldToScreen(hoverPoint).y}
+                    className={`map-preview-wall is-preview kind-${editorMode}`}
+                  />
+                )}
+                {teleporterAnchor && hoverPoint && editorMode === "teleporter" && (
+                  <g>
+                    <line
+                      x1={worldToScreen(teleporterAnchor).x}
+                      y1={worldToScreen(teleporterAnchor).y}
+                      x2={worldToScreen(hoverPoint).x}
+                      y2={worldToScreen(hoverPoint).y}
+                      className="map-preview-teleporter-link is-preview"
+                      stroke="rgba(200, 119, 255, 0.76)"
+                    />
+                    {[teleporterAnchor, hoverPoint].map((point, index) => {
+                      const screen = worldToScreen(point);
+                      return (
+                        <circle
+                          key={`preview-teleporter:${index}`}
+                          cx={screen.x}
+                          cy={screen.y}
+                          r={10}
+                          className="map-preview-teleporter-node is-preview"
+                          fill="rgba(148, 73, 214, 0.42)"
+                          stroke="rgba(245, 229, 255, 0.92)"
+                        />
+                      );
+                    })}
+                  </g>
+                )}
+                {normalizedSelectionBox && (
+                  <rect
+                    x={normalizedSelectionBox.x}
+                    y={normalizedSelectionBox.y}
+                    width={normalizedSelectionBox.width}
+                    height={normalizedSelectionBox.height}
+                    className="selection-rect"
+                  />
+                )}
+              </svg>
 
-            <div className="map-preview-crosshair" />
-          </div>
+              <svg
+                className="map-preview-hit-layer"
+                width={viewportSize.width}
+                height={viewportSize.height}
+                viewBox={`0 0 ${viewportSize.width} ${viewportSize.height}`}
+              >
+                {(editorMode === "select" || editorMode === "door" || editorMode === "transparent" || editorMode === "opaque") &&
+                  map.walls.map((wall) => {
+                    const start = worldToScreen(wall.start);
+                    const end = worldToScreen(wall.end);
+                    return (
+                      <line
+                        key={wall.id}
+                        x1={start.x}
+                        y1={start.y}
+                        x2={end.x}
+                        y2={end.y}
+                        className="map-preview-hit"
+                        strokeWidth={18}
+                        onClick={(event) => {
+                          event.stopPropagation();
 
-          <p className="panel-hint">{helperText}</p>
-        </div>
+                          if (editorMode === "select") {
+                            toggleItemSelection(`wall:${wall.id}`);
+                            return;
+                          }
 
-        <div className="map-form-stack">
+                          if (editorMode === "door" || editorMode === "transparent" || editorMode === "opaque") {
+                            const point = toWorldPoint(event.clientX, event.clientY);
+
+                            if (!point) {
+                              return;
+                            }
+
+                            updateWalls(replaceWallSection(map.walls, wall.id, point, editorMode, map.grid.cellSize));
+                            setSelectedItemIds([`wall:${wall.id}`]);
+                          }
+                        }}
+                      />
+                    );
+                  })}
+                {map.teleporters.flatMap((teleporter) =>
+                  [teleporter.pointA, teleporter.pointB].map((point, index) => {
+                    const screen = worldToScreen(point);
+                    return (
+                      <circle
+                        key={`${teleporter.id}:${index}`}
+                        cx={screen.x}
+                        cy={screen.y}
+                        r={14}
+                        className="map-preview-hit-node"
+                        onClick={(event) => {
+                          event.stopPropagation();
+
+                          if (editorMode === "select") {
+                            toggleItemSelection(`teleporter:${teleporter.id}`);
+                          }
+                        }}
+                        onPointerEnter={() => setHoveredTeleporterId(teleporter.id)}
+                        onPointerLeave={() => setHoveredTeleporterId((current) => (current === teleporter.id ? null : current))}
+                      />
+                    );
+                  })
+                )}
+              </svg>
+
+              <div className="map-preview-crosshair" />
+            </div>
+
+            <p className="panel-hint">{helperText}</p>
+          </WorkspacePaneBody>
+        </WorkspacePane>
+
+        <WorkspacePane as="div" className="map-form-pane">
+          <WorkspacePaneBody className="map-form-scroll" contentClassName="map-form-stack">
           <div className="map-form-section">
             <div className="panel-head">
               <div>
@@ -1225,8 +1234,9 @@ export function MapConfigurator({
               </label>
             </div>
           </div>
-        </div>
-      </div>
+          </WorkspacePaneBody>
+        </WorkspacePane>
+      </ViewportWorkspace>
     </div>
   );
 }

@@ -12,7 +12,7 @@ import {
   SpellPreviewCard,
   UserPreviewCard
 } from "./admin/AdminPreview";
-import { AdminScrollRegion } from "./admin/AdminScrollRegion";
+import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
 import styles from "./AdminPanel.module.css";
 import { useAdminOverviewQuery } from "../features/admin/useAdminOverviewQuery";
 import { useAdminPanelActions } from "../features/admin/useAdminPanelActions";
@@ -741,130 +741,137 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
             ) : null}
           </div>
 
-          <div className={styles.upperGrid}>
+          <ViewportWorkspace
+            columns="minmax(300px, 0.82fr) minmax(0, 1.18fr)"
+            stackBreakpoint="1180"
+            heightMode="fill"
+            className={styles.upperGrid}
+          >
             {mode === "list" || tab === "users" ? (
-              <section className="admin-pane admin-list-pane">
-                <div className="panel-head">
-                  <div>
-                    <p className="panel-label">Library</p>
-                    <h3>{labelForTab(tab)}</h3>
+              <WorkspacePane as="section" className="admin-pane">
+                <div className="admin-pane-head-stack">
+                  <div className="panel-head">
+                    <div>
+                      <p className="panel-label">Library</p>
+                      <h3>{labelForTab(tab)}</h3>
+                    </div>
+                    <div className="admin-row-actions">
+                      <span className="badge subtle">{countForTab(tab, counts)}</span>
+                      {tab !== "users" ? (
+                        <button
+                          type="button"
+                          className="danger-button"
+                          disabled={countForTab(tab, counts) === 0}
+                          onClick={() => void clearCompendium(tab)}
+                        >
+                          Clear all
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
-                  <div className="admin-row-actions">
-                    <span className="badge subtle">{countForTab(tab, counts)}</span>
-                    {tab !== "users" ? (
-                      <button
-                        type="button"
-                        className="danger-button"
-                        disabled={countForTab(tab, counts) === 0}
-                        onClick={() => void clearCompendium(tab)}
-                      >
-                        Clear all
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-                <label className="admin-search-field">
-                  <span>Search</span>
-                  <input
-                    placeholder={`Search ${labelForTab(tab).toLowerCase()}`}
-                    value={search[tab]}
-                    onChange={(event) => setSearch((current) => ({ ...current, [tab]: event.target.value }))}
-                  />
-                </label>
-                {tab !== "users" ? (
-                  <div className={`grid gap-3 ${currentSecondaryTypeOptions.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
-                    <label className="admin-search-field">
-                      <span>Source</span>
-                      <select
-                        value={activeListControls.source}
-                        onChange={(event) =>
-                          setListControls((current) => ({
-                            ...current,
-                            [tab]: {
-                              ...current[tab],
-                              source: event.target.value
-                            }
-                          }))
-                        }
-                      >
-                        <option value="">All sources</option>
-                        {currentSourceOptions.map((option) => (
-                          <option key={option.value} value={option.value} title={option.label}>
-                            {option.value}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="admin-search-field">
-                      <span>{getPrimaryFilterLabel(tab)}</span>
-                      <select
-                        value={activeListControls.type}
-                        onChange={(event) =>
-                          setListControls((current) => ({
-                            ...current,
-                            [tab]: {
-                              ...current[tab],
-                              type: event.target.value
-                            }
-                          }))
-                        }
-                      >
-                        <option value="">{getPrimaryFilterEmptyLabel(tab)}</option>
-                        {currentTypeOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {currentSecondaryTypeOptions.length > 0 ? (
+                  <label className="admin-search-field">
+                    <span>Search</span>
+                    <input
+                      placeholder={`Search ${labelForTab(tab).toLowerCase()}`}
+                      value={search[tab]}
+                      onChange={(event) => setSearch((current) => ({ ...current, [tab]: event.target.value }))}
+                    />
+                  </label>
+                  {tab !== "users" ? (
+                    <div className={`grid gap-3 ${currentSecondaryTypeOptions.length > 0 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
                       <label className="admin-search-field">
-                        <span>{getSecondaryFilterLabel(tab)}</span>
+                        <span>Source</span>
                         <select
-                          value={activeListControls.secondaryType}
+                          value={activeListControls.source}
                           onChange={(event) =>
                             setListControls((current) => ({
                               ...current,
                               [tab]: {
                                 ...current[tab],
-                                secondaryType: event.target.value
+                                source: event.target.value
                               }
                             }))
                           }
                         >
-                          <option value="">{getSecondaryFilterEmptyLabel(tab)}</option>
-                          {currentSecondaryTypeOptions.map((option) => (
+                          <option value="">All sources</option>
+                          {currentSourceOptions.map((option) => (
+                            <option key={option.value} value={option.value} title={option.label}>
+                              {option.value}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="admin-search-field">
+                        <span>{getPrimaryFilterLabel(tab)}</span>
+                        <select
+                          value={activeListControls.type}
+                          onChange={(event) =>
+                            setListControls((current) => ({
+                              ...current,
+                              [tab]: {
+                                ...current[tab],
+                                type: event.target.value
+                              }
+                            }))
+                          }
+                        >
+                          <option value="">{getPrimaryFilterEmptyLabel(tab)}</option>
+                          {currentTypeOptions.map((option) => (
                             <option key={option} value={option}>
                               {option}
                             </option>
                           ))}
                         </select>
                       </label>
-                    ) : null}
-                    <label className="admin-search-field">
-                      <span>Sort</span>
-                      <select
-                        value={activeListControls.sort}
-                        onChange={(event) =>
-                          setListControls((current) => ({
-                            ...current,
-                            [tab]: {
-                              ...current[tab],
-                              sort: event.target.value as ListSort
+                      {currentSecondaryTypeOptions.length > 0 ? (
+                        <label className="admin-search-field">
+                          <span>{getSecondaryFilterLabel(tab)}</span>
+                          <select
+                            value={activeListControls.secondaryType}
+                            onChange={(event) =>
+                              setListControls((current) => ({
+                                ...current,
+                                [tab]: {
+                                  ...current[tab],
+                                  secondaryType: event.target.value
+                                }
+                              }))
                             }
-                          }))
-                        }
-                      >
-                        {currentSortOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                ) : null}
-                <AdminScrollRegion variant="list">
+                          >
+                            <option value="">{getSecondaryFilterEmptyLabel(tab)}</option>
+                            {currentSecondaryTypeOptions.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
+                      <label className="admin-search-field">
+                        <span>Sort</span>
+                        <select
+                          value={activeListControls.sort}
+                          onChange={(event) =>
+                            setListControls((current) => ({
+                              ...current,
+                              [tab]: {
+                                ...current[tab],
+                                sort: event.target.value as ListSort
+                              }
+                            }))
+                          }
+                        >
+                          {currentSortOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  ) : null}
+                </div>
+                <WorkspacePaneBody className="admin-scroll-region" contentClassName="admin-list-scroll">
                   {tab === "users" &&
                     users.map((user) => (
                       <button
@@ -1006,19 +1013,19 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                     races: races.length,
                     skills: skills.length
                   }) === 0 && <p className="empty-state">No entries found.</p>}
-                </AdminScrollRegion>
-              </section>
+                </WorkspacePaneBody>
+              </WorkspacePane>
             ) : (
-              <section className="admin-pane admin-form-pane">
+              <WorkspacePane as="section" className="admin-pane admin-form-pane">
                 <div className="panel-head">
                   <div>
                     <p className="panel-label">{mode === "add" ? "Create" : "Import"}</p>
                     <h3>{mode === "add" ? `Add ${singularLabel(tab)}` : `Import ${labelForTab(tab)}`}</h3>
                   </div>
                 </div>
-
-                {mode === "add" ? (
-                  <>
+                <WorkspacePaneBody className="admin-scroll-region">
+                  {mode === "add" ? (
+                    <>
                     {tab === "spells" && (
                       <form className="admin-form-grid" onSubmit={handleSpellSubmit}>
                         <AdminField label="Name">
@@ -1571,9 +1578,9 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                         message="Use Import mode for these reference libraries. The backend now supports direct imports for the matching 5etools JSON files."
                       />
                     )}
-                  </>
-                ) : (
-                  <>
+                    </>
+                  ) : (
+                    <>
                     <label className="admin-search-field">
                       <span>JSON files</span>
                       <div className="admin-import-upload">
@@ -1679,12 +1686,13 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                       <span>Example JSON</span>
                       <textarea className="admin-json admin-json-example" value={importExample} readOnly />
                     </label>
-                  </>
-                )}
-              </section>
+                    </>
+                  )}
+                </WorkspacePaneBody>
+              </WorkspacePane>
             )}
 
-            <section className="admin-pane admin-preview-pane">
+            <WorkspacePane as="section" className="admin-pane">
               <div className="panel-head">
                 <div>
                   <p className="panel-label">Selected</p>
@@ -1827,7 +1835,7 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                 ) : null}
               </div>
 
-              <AdminScrollRegion variant="preview">
+              <WorkspacePaneBody className="admin-scroll-region admin-preview-scroll" fill>
                 {tab === "users" &&
                   (selectedUser ? (
                     <UserPreviewCard user={selectedUser} />
@@ -2050,9 +2058,9 @@ export function AdminPanel({ token, currentUserId, onStatus, onRefreshSourceBook
                   ) : (
                     <PreviewPlaceholder title="Skills" message="Select a skill to preview it here." />
                   ))}
-              </AdminScrollRegion>
-            </section>
-          </div>
+              </WorkspacePaneBody>
+            </WorkspacePane>
+          </ViewportWorkspace>
         </div>
       </section>
     </main>

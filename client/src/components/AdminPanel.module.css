@@ -1,13 +1,17 @@
 .page {
-  min-height: calc(100dvh - 4.75rem);
+  display: grid;
+  min-height: 0;
+  block-size: 100%;
   padding: 1.25rem;
+  overflow: hidden;
 }
 
 .shell {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 1rem;
-  min-height: calc(100dvh - 7.25rem);
+  min-height: 0;
+  block-size: 100%;
   padding: 0;
   overflow: hidden;
   align-content: start;
@@ -43,12 +47,10 @@
   min-height: 0;
   padding: 0 1.25rem 1.25rem;
   align-content: start;
+  overflow: hidden;
 }
 
 .upperGrid {
-  display: grid;
-  grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.18fr);
-  gap: 1rem;
   min-height: 0;
 }
 
@@ -88,10 +90,6 @@
 }
 
 @media (max-width: 1180px) {
-  .upperGrid {
-    grid-template-columns: 1fr;
-  }
-
   .page {
     padding: 0.9rem;
   }

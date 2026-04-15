@@ -6,6 +6,7 @@ import type { ActorKind, ActorSheet, CampaignSnapshot, MemberRole, MonsterTempla
 import { CharacterSheet } from "./CharacterSheet";
 import { CampaignActionButton } from "./CampaignActionButton";
 import { RulesText } from "./admin/AdminPreview";
+import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
 import { MonsterCatalogOption, MonsterStatBlock } from "./monster/MonsterStatBlock";
 
 interface PlayerActorCreatorModalProps {
@@ -83,7 +84,7 @@ export function PlayerActorCreatorModal({
   }, [onSelectMonster, selectedMonsterTemplate, visibleSelectedMonsterTemplate]);
 
   return (
-    <div className="stack-form min-h-0">
+    <div className="stack-form min-h-0 h-full">
       <div className="inline-form compact">
         <select value={actorCreatorKind} onChange={(event) => onActorCreatorKindChange(event.target.value as ActorKind)}>
           <option value="character">Character</option>
@@ -92,8 +93,14 @@ export function PlayerActorCreatorModal({
       </div>
 
       {actorCreatorKind === "monster" ? (
-        <div className="popup-grid monster-browser min-h-0">
-          <section className="sheet-panel monster-browser-list-panel">
+        <ViewportWorkspace
+          columns="minmax(380px, 500px) minmax(0, 1fr)"
+          stackBreakpoint="1100"
+          heightMode="fill"
+          workspaceMinHeight="32rem"
+          className="monster-browser-workspace min-h-0"
+        >
+          <WorkspacePane as="section" className="sheet-panel monster-browser-list-panel">
             <input placeholder="Search monsters" value={monsterQuery} onChange={(event) => onMonsterQueryChange(event.target.value)} />
             <div className="grid gap-3 md:grid-cols-4">
               <label className="grid gap-2 text-sm text-slate-300">
@@ -139,46 +146,46 @@ export function PlayerActorCreatorModal({
                 </select>
               </label>
             </div>
-            <div className="actor-list-scroll actor-creation-results">
-              <div className="monster-list">
-                {displayedMonsterCatalog.map((monster) => (
-                  <MonsterCatalogOption
-                    key={monster.id}
-                    monster={monster}
-                    selected={visibleSelectedMonsterTemplate?.id === monster.id}
-                    onSelect={() => onSelectMonster(monster.id)}
-                  />
-                ))}
-                {displayedMonsterCatalog.length === 0 ? <p className="empty-state">No monsters match those filters.</p> : null}
-              </div>
-            </div>
-          </section>
-          <section className="sheet-panel monster-preview-card monster-browser-preview-panel">
-            {visibleSelectedMonsterTemplate ? (
-              <MonsterStatBlock
-                monster={visibleSelectedMonsterTemplate}
-                eyebrow="Preview"
-                renderText={(text) => (
-                  <RulesText
-                    text={text}
-                    spellEntries={compendium.spells}
-                    featEntries={compendium.feats}
-                    classEntries={compendium.classes}
-                    variantRuleEntries={compendium.variantRules}
-                    conditionEntries={compendium.conditions}
-                  />
-                )}
-                action={
-                  <CampaignActionButton onClick={() => onCreateMonsterActor(visibleSelectedMonsterTemplate)} icon={FilePlus2} tone="accent">
-                    {role === "dm" ? "Add to roster" : "Create summon / familiar"}
-                  </CampaignActionButton>
-                }
-              />
-            ) : (
-              <p className="empty-state">Select a monster to preview its stat block.</p>
-            )}
-          </section>
-        </div>
+            <WorkspacePaneBody className="actor-list-scroll actor-creation-results" contentClassName="monster-list">
+              {displayedMonsterCatalog.map((monster) => (
+                <MonsterCatalogOption
+                  key={monster.id}
+                  monster={monster}
+                  selected={visibleSelectedMonsterTemplate?.id === monster.id}
+                  onSelect={() => onSelectMonster(monster.id)}
+                />
+              ))}
+              {displayedMonsterCatalog.length === 0 ? <p className="empty-state">No monsters match those filters.</p> : null}
+            </WorkspacePaneBody>
+          </WorkspacePane>
+          <WorkspacePane as="section" className="sheet-panel monster-browser-preview-panel">
+            <WorkspacePaneBody className="monster-browser-preview-scroll" fill>
+              {visibleSelectedMonsterTemplate ? (
+                <MonsterStatBlock
+                  monster={visibleSelectedMonsterTemplate}
+                  eyebrow="Preview"
+                  renderText={(text) => (
+                    <RulesText
+                      text={text}
+                      spellEntries={compendium.spells}
+                      featEntries={compendium.feats}
+                      classEntries={compendium.classes}
+                      variantRuleEntries={compendium.variantRules}
+                      conditionEntries={compendium.conditions}
+                    />
+                  )}
+                  action={
+                    <CampaignActionButton onClick={() => onCreateMonsterActor(visibleSelectedMonsterTemplate)} icon={FilePlus2} tone="accent">
+                      {role === "dm" ? "Add to roster" : "Create summon / familiar"}
+                    </CampaignActionButton>
+                  }
+                />
+              ) : (
+                <p className="empty-state">Select a monster to preview its stat block.</p>
+              )}
+            </WorkspacePaneBody>
+          </WorkspacePane>
+        </ViewportWorkspace>
       ) : actorDraft ? (
         <CharacterSheet
           token={token}

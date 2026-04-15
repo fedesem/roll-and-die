@@ -45,7 +45,7 @@ export function CampaignMapEditor({
   }
 
   return (
-    <section className="popup-card maps-editor-card">
+    <section className="popup-card maps-editor-card h-full">
       {role === "dm" ? (
         <div className="inline-form compact map-editor-savebar">
           {mapEditorMode === "edit" ? (

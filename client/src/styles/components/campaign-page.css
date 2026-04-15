@@ -382,6 +382,7 @@
 }
 
 .actor-list-scroll {
+  min-height: 0;
   max-height: min(50vh, 520px);
   overflow: auto;
   overscroll-behavior: contain;
@@ -411,6 +412,7 @@
 }
 
 .maps-list-scroll {
+  min-height: 0;
   max-height: min(54vh, 520px);
   overflow: auto;
   overscroll-behavior: contain;
@@ -505,6 +507,17 @@
 
 .actor-creation-results {
   max-height: min(56vh, 640px);
+}
+
+.viewport-workspace .actor-list-scroll,
+.viewport-workspace .maps-list-scroll,
+.viewport-workspace .actor-creation-results {
+  height: 100%;
+  max-height: none;
+}
+
+.viewport-workspace .maps-list-scroll {
+  mask-image: none;
 }
 
 .actor-list-card .list-stack {

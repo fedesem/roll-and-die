@@ -4,13 +4,11 @@
   display: grid;
   gap: 0.85rem;
   min-width: 0;
+  min-height: 0;
 }
 
-.map-editor-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(360px, 420px);
-  gap: 1.15rem;
-  align-items: start;
+.map-editor-workspace {
+  min-height: 0;
 }
 
 .map-preview-shell {
@@ -19,6 +17,19 @@
   padding: 1rem;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
   min-height: 0;
+}
+
+.map-preview-pane-body,
+.map-form-scroll,
+.map-form-pane {
+  min-height: 0;
+}
+
+.map-preview-panel-content {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  min-height: 100%;
 }
 
 .map-preview-actions {
@@ -74,8 +85,8 @@
 
 .map-preview-stage {
   position: relative;
-  height: min(82vh, 980px);
-  min-height: 620px;
+  height: 100%;
+  min-height: clamp(30rem, 58vh, 46rem);
   overflow: hidden;
   border-radius: 0;
   border: 1px solid rgba(211, 162, 50, 0.22);

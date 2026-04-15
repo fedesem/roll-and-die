@@ -265,35 +265,20 @@
   gap: 0.6rem;
 }
 
-.monster-browser {
-  grid-template-columns: minmax(380px, 500px) minmax(0, 1fr);
-  align-items: stretch;
-}
-
 .monster-browser-list-panel {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  height: clamp(30rem, 62vh, 42rem);
   min-height: 0;
 }
 
 .monster-browser-preview-panel {
-  height: clamp(30rem, 62vh, 42rem);
   min-height: 0;
   align-content: start;
-  overflow: auto;
 }
 
-.monster-browser-list-panel .monster-list,
-.monster-browser-list-panel .actor-creation-results {
-  min-height: 0;
-  max-height: none;
-  height: 100%;
+.monster-browser-preview-scroll {
+  padding-right: 0.45rem;
 }
 
 .monster-browser-list-panel .actor-creation-results {
-  overflow-y: scroll;
-  overflow-x: hidden;
   padding-right: 0.45rem;
 }
 

@@ -1,0 +1,101 @@
+.viewport-workspace {
+  --workspace-columns: minmax(320px, 0.82fr) minmax(0, 1.18fr);
+  --workspace-min-height: 32rem;
+  --workspace-viewport-offset: 12rem;
+  display: grid;
+  grid-template-columns: var(--workspace-columns);
+  gap: 1rem;
+  min-width: 0;
+  min-height: 0;
+  align-items: stretch;
+  align-content: start;
+}
+
+.viewport-workspace--viewport {
+  block-size: max(var(--workspace-min-height), calc(100dvh - var(--workspace-viewport-offset)));
+}
+
+.viewport-workspace--fill {
+  block-size: 100%;
+}
+
+.viewport-workspace--pane-scroll {
+  min-height: 0;
+}
+
+.workspace-pane {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  min-width: 0;
+  min-height: 0;
+  align-content: start;
+}
+
+.workspace-pane-body {
+  min-width: 0;
+  min-height: 0;
+  block-size: 100%;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.workspace-pane-body--scroll-y {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.workspace-pane-body--scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.workspace-pane-body--scroll-both {
+  overflow: auto;
+}
+
+.workspace-pane-body--scroll-none {
+  overflow: visible;
+}
+
+.workspace-pane-body__content {
+  display: grid;
+  gap: 0.7rem;
+  min-width: 0;
+  min-height: 0;
+  align-content: start;
+}
+
+.workspace-pane-body--fill > .workspace-pane-body__content {
+  min-height: 100%;
+}
+
+.workspace-scroll-inline {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+@media (max-width: 1500px) {
+  .viewport-workspace--stack-1500 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1280px) {
+  .viewport-workspace--stack-1280 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1180px) {
+  .viewport-workspace--stack-1180 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1100px) {
+  .viewport-workspace--stack-1100 {
+    grid-template-columns: 1fr;
+  }
+}
