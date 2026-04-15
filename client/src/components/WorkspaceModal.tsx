@@ -18,6 +18,7 @@ export interface WorkspaceModalView {
   id: string;
   title: string;
   size?: WorkspaceModalSize;
+  closeOnBackdrop?: boolean;
   data?: unknown;
 }
 
@@ -32,6 +33,7 @@ type WorkspaceModalProps =
       title: string;
       onClose: () => void;
       size?: WorkspaceModalSize;
+      closeOnBackdrop?: boolean;
       backdropClassName?: string;
       allowBackgroundInteraction?: boolean;
       children: ReactNode;
@@ -40,6 +42,7 @@ type WorkspaceModalProps =
   | {
       onClose: () => void;
       initialView: WorkspaceModalView;
+      closeOnBackdrop?: boolean;
       backdropClassName?: string;
       allowBackgroundInteraction?: boolean;
       children: (controls: WorkspaceModalControls) => ReactNode;
@@ -64,9 +67,10 @@ export function WorkspaceModal(props: WorkspaceModalProps) {
       initialPropView ?? {
         id: "__default__",
         title: plainTitle,
-        size: plainSize
+        size: plainSize,
+        closeOnBackdrop: props.closeOnBackdrop
       },
-    [initialPropView, plainSize, plainTitle]
+    [initialPropView, plainSize, plainTitle, props.closeOnBackdrop]
   );
   const initialViewKey = useMemo(
     () =>
@@ -74,9 +78,10 @@ export function WorkspaceModal(props: WorkspaceModalProps) {
         id: initialView.id,
         title: initialView.title,
         size: initialView.size ?? "default",
+        closeOnBackdrop: initialView.closeOnBackdrop ?? true,
         data: initialView.data ?? null
       }),
-    [initialView.data, initialView.id, initialView.size, initialView.title]
+    [initialView.closeOnBackdrop, initialView.data, initialView.id, initialView.size, initialView.title]
   );
   const stableInitialViewRef = useRef(initialView);
   const stableInitialViewKeyRef = useRef(initialViewKey);
@@ -117,6 +122,7 @@ export function WorkspaceModal(props: WorkspaceModalProps) {
     closeModal: onClose
   };
   const sizeClass = getSizeClass(currentView.size ?? "default");
+  const closeOnBackdrop = currentView.closeOnBackdrop ?? true;
   const backdropClassName = props.backdropClassName ?? "bg-slate-950/70 backdrop-blur-md";
   const allowBackgroundInteraction = props.allowBackgroundInteraction ?? false;
   let content: ReactNode;
@@ -133,6 +139,7 @@ export function WorkspaceModal(props: WorkspaceModalProps) {
       onClose={closeCurrentView}
       backdropClassName={backdropClassName}
       panelClassName={sizeClass}
+      closeOnBackdrop={closeOnBackdrop}
       allowBackgroundInteraction={allowBackgroundInteraction}
     >
       <WorkspaceModalHeaderContext.Provider value={{ setHeaderActions }}>

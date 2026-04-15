@@ -237,6 +237,7 @@ export function CampaignPage({
       id: "board-map-actor-create",
       title: map ? `Create actor for ${map.name}` : "Create actor",
       size: "wide",
+      closeOnBackdrop: false,
       data: { mapId }
     };
   }
@@ -423,6 +424,7 @@ export function CampaignPage({
           title={selectedActor ? `${selectedActor.name} Sheet` : "Interactive Sheet"}
           size="wide"
           backdropClassName="bg-transparent"
+          closeOnBackdrop={false}
           onClose={() => onSetActivePopup(null)}
         >
           <CharacterSheet

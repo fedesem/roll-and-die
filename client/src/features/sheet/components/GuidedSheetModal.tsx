@@ -27,7 +27,12 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
   }
 
   return (
-    <ModalFrame onClose={guided.closeGuidedFlow} backdropClassName="bg-black/60" panelClassName="max-w-3xl border-white/10 bg-slate-950">
+    <ModalFrame
+      onClose={guided.closeGuidedFlow}
+      backdropClassName="bg-black/60"
+      panelClassName="max-w-3xl border-white/10 bg-slate-950"
+      closeOnBackdrop={false}
+    >
       <>
         <div className="flex items-start justify-between gap-3">
           <div>

@@ -192,6 +192,7 @@ export function CampaignHubPage({
       id: "map-actor-create",
       title: map ? `Create actor for ${map.name}` : "Create actor",
       size: "wide",
+      closeOnBackdrop: false,
       data: { mapId }
     };
   }
@@ -418,7 +419,7 @@ export function CampaignHubPage({
       ) : null}
 
       {role !== "dm" && actorCreatorOpen ? (
-        <WorkspaceModal title="Create Actor" size="wide" onClose={() => onActorCreatorOpenChange(false)}>
+        <WorkspaceModal title="Create Actor" size="wide" closeOnBackdrop={false} onClose={() => onActorCreatorOpenChange(false)}>
           <PlayerActorCreatorModal
             token={token}
             role={role}
@@ -444,6 +445,7 @@ export function CampaignHubPage({
         <WorkspaceModal
           title={selectedActor ? `${selectedActor.name} Sheet` : "Interactive Sheet"}
           size="wide"
+          closeOnBackdrop={false}
           onClose={() => onSetActivePopup(null)}
         >
           <CharacterSheet
