@@ -12,7 +12,9 @@ import type {
   CompendiumItemGrant,
   CompendiumOptionalFeatureEntry,
   CompendiumReferenceEntry,
+  CompendiumSpeciesChoiceGroup,
   CompendiumSpeciesEntry,
+  CurrencyPouch,
   FeatEntry,
   MonsterActionEntry,
   MonsterAttackType,
@@ -706,7 +708,8 @@ function sanitizeClassEntry(input: unknown): ClassEntry {
       name: requireString(entry.name, "Class table name"),
       columns: readStringArray(entry.columns),
       rows: Array.isArray(entry.rows) ? entry.rows.map((row) => (Array.isArray(row) ? row.map((cell) => String(cell ?? "")) : [])) : []
-    }))
+    })),
+    startingEquipment: readStartingEquipmentGroups(object.startingEquipment)
   };
 }
 
@@ -781,6 +784,9 @@ function sanitizeSpeciesEntry(input: unknown): CompendiumSpeciesEntry {
   const base = sanitizeReferenceEntry("races", input);
   const object = asObject(input, "species entry");
   const speed = asOptionalObject(object.speed);
+  const explicitChoiceGroups = readSpeciesChoiceGroups(object.choiceGroups);
+  const choiceGroups = explicitChoiceGroups.length > 0 ? explicitChoiceGroups : deriveSpeciesChoiceGroups(object.entries);
+  const baseSpellGrants = deriveBaseSpeciesSpellGrants(object.entries, new Set(choiceGroups.map((entry) => entry.label)));
 
   return {
     ...base,
@@ -789,7 +795,11 @@ function sanitizeSpeciesEntry(input: unknown): CompendiumSpeciesEntry {
     speed: clampNumber(speed?.walk ?? object.speed, 0, 200, 0),
     darkvision: clampNumber(object.darkvision, 0, 200, 0),
     languages: readChoiceLabels(object.languageProficiencies),
-    traitTags: readStringArray(object.traitTags)
+    traitTags: readStringArray(object.traitTags),
+    spellNames: readStringArray(object.spellNames).length > 0 ? readStringArray(object.spellNames) : baseSpellGrants.spellNames,
+    alwaysPreparedSpellNames:
+      readStringArray(object.alwaysPreparedSpellNames).length > 0 ? readStringArray(object.alwaysPreparedSpellNames) : baseSpellGrants.alwaysPreparedSpellNames,
+    choiceGroups
   };
 }
 
@@ -895,7 +905,8 @@ function sanitizeExternalClassEntry(object: Record<string, unknown>): ClassEntry
     subclassLevel: readExternalSubclassLevel(subclassEntries),
     features: parseExternalClassFeatures(object.classFeatures, lookupEntries, className, classSource, { classSource }),
     subclasses: subclassEntries.map((entry) => sanitizeExternalClassSubclassEntry(entry, lookupEntries, className, classSource)),
-    tables: parseExternalClassTables(object.classTableGroups)
+    tables: parseExternalClassTables(object.classTableGroups),
+    startingEquipment: readStartingEquipmentGroups(object.startingEquipment)
   };
 }
 
@@ -1229,29 +1240,386 @@ function readExternalFeatIds(value: unknown) {
   );
 }
 
-function readStartingEquipmentGroups(value: unknown): CompendiumEquipmentGroup[] {
-  return readObjectArray(value)
-    .map((entry, groupIndex) => {
-      const optionEntries = Object.entries(entry).filter(([, items]) => Array.isArray(items));
+function readSpeciesChoiceGroups(value: unknown): CompendiumSpeciesChoiceGroup[] {
+  const groups: Array<CompendiumSpeciesChoiceGroup | null> = readObjectArray(value).map((group, groupIndex) => {
+    const hint = readString(group.hint) || undefined;
+    const options = readObjectArray(group.options)
+      .map((option, optionIndex) => ({
+        id: readString(option.id) || `${groupIndex}:${optionIndex}`,
+        label: readString(option.label),
+        description: readString(option.description) || undefined,
+        featureName: readString(option.featureName) || undefined,
+        spellNames: readStringArray(option.spellNames),
+        alwaysPreparedSpellNames: readStringArray(option.alwaysPreparedSpellNames),
+        speedOverride: clampNullableNumber(option.speedOverride, 0, 300) ?? undefined,
+        visionRangeOverride: clampNullableNumber(option.visionRangeOverride, 0, 300) ?? undefined
+      }))
+      .filter((option) => option.label);
 
-      if (optionEntries.length === 0) {
+    if (options.length === 0) {
+      return null;
+    }
+
+    return {
+      id: readString(group.id) || `choice:${groupIndex}`,
+      label: readString(group.label) || `Choice ${groupIndex + 1}`,
+      ...(hint ? { hint } : {}),
+      options
+    } satisfies CompendiumSpeciesChoiceGroup;
+  });
+
+  return groups.filter((entry): entry is CompendiumSpeciesChoiceGroup => entry !== null);
+}
+
+function deriveSpeciesChoiceGroups(value: unknown): CompendiumSpeciesChoiceGroup[] {
+  return readObjectArray(value).flatMap((entry) => {
+    const groupName = readString(entry.name);
+
+    if (!groupName || !/\b(lineage|legacy|ancestry)\b/i.test(groupName)) {
+      return [];
+    }
+
+    const groupEntries = readArray(entry.entries);
+    const table = readObjectArray(groupEntries).find((node) => readString(node.type).toLowerCase() === "table" && readArray(node.rows).length > 0);
+    const list = readObjectArray(groupEntries).find((node) => readString(node.type).toLowerCase() === "list" && readObjectArray(node.items).length > 0);
+    const groupId = `choice:${toChoiceSlug(groupName)}`;
+    const options = table
+      ? deriveSpeciesChoiceOptionsFromTable(groupId, groupName, table)
+      : list
+        ? deriveSpeciesChoiceOptionsFromList(groupId, groupName, list)
+        : [];
+
+    if (options.length === 0) {
+      return [];
+    }
+
+    const groups: CompendiumSpeciesChoiceGroup[] = [
+      {
+        id: groupId,
+        label: groupName,
+        hint: readSpeciesChoiceHint(groupEntries),
+        options
+      }
+    ];
+
+    const abilityChoices = readSpellcastingAbilityChoicesFromText(groupEntries.map((entry) => renderEntryNode(entry)).join("\n"));
+
+    if (abilityChoices.length > 1 && options.some((option) => option.spellNames.length > 0 || option.alwaysPreparedSpellNames.length > 0)) {
+      groups.push({
+        id: `${groupId}:spellcasting-ability`,
+        label: `${deriveChoiceFamilyLabel(groupName)} Spellcasting Ability`,
+        options: abilityChoices.map((ability) => ({
+          id: ability,
+          label: formatAbilityLabel(ability),
+          description: `Use ${formatAbilityLabel(ability)} for the ${deriveChoiceFamilyLabel(groupName).toLowerCase()} spells.`,
+          spellNames: [],
+          alwaysPreparedSpellNames: []
+        }))
+      });
+    }
+
+    return groups;
+  });
+}
+
+function deriveSpeciesChoiceOptionsFromTable(groupId: string, groupName: string, table: Record<string, unknown>) {
+  const columnLabels = readArray(table.colLabels).map((entry) => renderRulesText(renderTableCell(entry)));
+
+  return readArray(table.rows)
+    .flatMap((row, rowIndex) => {
+      if (!Array.isArray(row) || row.length === 0) {
+        return [];
+      }
+
+      const rawLabel = renderRulesText(renderTableCell(row[0]));
+      const label = normalizeSpeciesChoiceLabel(groupName, rawLabel);
+      const descriptionParts: string[] = [];
+      let speedOverride: number | undefined;
+      let visionRangeOverride: number | undefined;
+      const spellNames: string[] = [];
+      const alwaysPreparedSpellNames: string[] = [];
+
+      row.slice(1).forEach((cell, cellIndex) => {
+        const header = columnLabels[cellIndex + 1] ?? "";
+        const rendered = renderRulesText(renderTableCell(cell));
+
+        if (rendered) {
+          descriptionParts.push(header ? `${header}: ${rendered}` : rendered);
+        }
+
+        const parsed = deriveSpellAndOverrideData(cell, header);
+        speedOverride ??= parsed.speedOverride;
+        visionRangeOverride ??= parsed.visionRangeOverride;
+        spellNames.push(...parsed.spellNames);
+        alwaysPreparedSpellNames.push(...parsed.alwaysPreparedSpellNames);
+      });
+
+      return [
+        {
+          id: `${groupId}:${toChoiceSlug(label || rawLabel || String(rowIndex))}`,
+          label: label || rawLabel || `Option ${rowIndex + 1}`,
+          description: descriptionParts.join(" "),
+          featureName: `${groupName}: ${label || rawLabel || `Option ${rowIndex + 1}`}`,
+          spellNames: uniqueStrings(spellNames),
+          alwaysPreparedSpellNames: uniqueStrings(alwaysPreparedSpellNames),
+          speedOverride,
+          visionRangeOverride
+        }
+      ];
+    })
+    .filter((entry) => entry.label);
+}
+
+function deriveSpeciesChoiceOptionsFromList(groupId: string, groupName: string, list: Record<string, unknown>) {
+  return readObjectArray(list.items)
+    .map((item, itemIndex) => {
+      const rawLabel = readString(item.name);
+      const label = normalizeSpeciesChoiceLabel(groupName, rawLabel);
+      const description = renderRulesText(joinEntries(item.entries));
+      const parsed = deriveSpellAndOverrideData(item.entries);
+
+      return {
+        id: `${groupId}:${toChoiceSlug(label || rawLabel || String(itemIndex))}`,
+        label: label || rawLabel || `Option ${itemIndex + 1}`,
+        description,
+        featureName: `${groupName}: ${label || rawLabel || `Option ${itemIndex + 1}`}`,
+        spellNames: parsed.spellNames,
+        alwaysPreparedSpellNames: parsed.alwaysPreparedSpellNames,
+        speedOverride: parsed.speedOverride,
+        visionRangeOverride: parsed.visionRangeOverride
+      };
+    })
+    .filter((entry) => entry.label);
+}
+
+function deriveBaseSpeciesSpellGrants(value: unknown, excludedGroupLabels: Set<string>) {
+  const spellNames: string[] = [];
+  const alwaysPreparedSpellNames: string[] = [];
+
+  readObjectArray(value).forEach((entry) => {
+    const entryName = readString(entry.name);
+
+    if (entryName && excludedGroupLabels.has(entryName)) {
+      return;
+    }
+
+    const parsed = deriveSpellAndOverrideData(entry.entries);
+    spellNames.push(...parsed.spellNames);
+    alwaysPreparedSpellNames.push(...parsed.alwaysPreparedSpellNames);
+  });
+
+  return {
+    spellNames: uniqueStrings(spellNames),
+    alwaysPreparedSpellNames: uniqueStrings(alwaysPreparedSpellNames)
+  };
+}
+
+function deriveSpellAndOverrideData(value: unknown, header = "") {
+  const strings = collectEntryStrings(value);
+  const renderedText = renderRulesText(strings.join(" "));
+  const spellNames: string[] = [];
+  const alwaysPreparedSpellNames: string[] = [];
+  const headerNormalized = readString(header).toLowerCase();
+
+  strings.forEach((segment) => {
+    segment
+      .split(/(?<=[.!?])\s+/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .forEach((sentence) => {
+        const taggedSpells = extractTaggedSpellNames(sentence);
+
+        if (taggedSpells.length === 0) {
+          return;
+        }
+
+        const normalized = renderRulesText(sentence).toLowerCase();
+
+        if (/level\s*[3579]/i.test(headerNormalized) || /level\s*(1[13579])/.test(headerNormalized)) {
+          alwaysPreparedSpellNames.push(...taggedSpells);
+          return;
+        }
+
+        if (/always have|always prepared|is always prepared|are always prepared|prepared spell/i.test(normalized)) {
+          alwaysPreparedSpellNames.push(...taggedSpells);
+          return;
+        }
+
+        if (/know|learn|gain|cantrip|you can cast/i.test(normalized) || /level\s*1/i.test(headerNormalized)) {
+          spellNames.push(...taggedSpells);
+        }
+      });
+  });
+
+  return {
+    spellNames: uniqueStrings(spellNames),
+    alwaysPreparedSpellNames: uniqueStrings(alwaysPreparedSpellNames),
+    speedOverride: parseSpeedOverride(renderedText),
+    visionRangeOverride: parseVisionRangeOverride(renderedText)
+  };
+}
+
+function collectEntryStrings(value: unknown): string[] {
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => collectEntryStrings(entry));
+  }
+
+  if (typeof value !== "object" || value === null) {
+    return [];
+  }
+
+  const object = value as Record<string, unknown>;
+  return [
+    ...collectEntryStrings(object.entry),
+    ...collectEntryStrings(object.entries),
+    ...collectEntryStrings(object.items),
+    ...collectEntryStrings(object.rows),
+    ...collectEntryStrings(object.rowsSpellProgression)
+  ];
+}
+
+function extractTaggedSpellNames(value: string) {
+  const matches = Array.from(value.matchAll(/\{@spell ([^}|#]+)(?:#[^}|]+)?(?:\|[^}]+)?}/gi));
+  return uniqueStrings(matches.map((entry) => entry[1]?.trim()).filter(Boolean));
+}
+
+function parseSpeedOverride(text: string) {
+  const match = text.match(/\b(?:your speed(?: is)?|speed increases to|have a speed of)[^0-9]*(\d+)\s*feet\b/i);
+  return match ? clampNumber(Number(match[1]), 0, 300, 0) : undefined;
+}
+
+function parseVisionRangeOverride(text: string) {
+  const match = text.match(/\bdarkvision[^0-9]*(\d+)\s*feet\b/i);
+  return match ? clampNumber(Number(match[1]), 0, 300, 0) : undefined;
+}
+
+function readSpellcastingAbilityChoicesFromText(text: string): AbilityKey[] {
+  if (!/spellcasting ability/i.test(text)) {
+    return [];
+  }
+
+  return [
+    /strength/i.test(text) ? "str" : null,
+    /dexterity/i.test(text) ? "dex" : null,
+    /constitution/i.test(text) ? "con" : null,
+    /intelligence/i.test(text) ? "int" : null,
+    /wisdom/i.test(text) ? "wis" : null,
+    /charisma/i.test(text) ? "cha" : null
+  ].filter((entry): entry is AbilityKey => entry !== null);
+}
+
+function readSpeciesChoiceHint(entries: unknown[]) {
+  const text = entries.map((entry) => renderRulesText(renderEntryNode(entry))).find((entry) => /^choose\b/i.test(entry) || /\bchoose\b.+\btable\b/i.test(entry));
+  return text || undefined;
+}
+
+function deriveChoiceFamilyLabel(groupName: string) {
+  const match = groupName.match(/\b(Lineage|Legacy|Ancestry)\b/i);
+  return match ? toTitleCase(match[1]) : groupName;
+}
+
+function formatAbilityLabel(ability: AbilityKey) {
+  return (
+    {
+      str: "Strength",
+      dex: "Dexterity",
+      con: "Constitution",
+      int: "Intelligence",
+      wis: "Wisdom",
+      cha: "Charisma"
+    } satisfies Record<AbilityKey, string>
+  )[ability];
+}
+
+function normalizeSpeciesChoiceLabel(groupName: string, rawLabel: string) {
+  const ancestryMatch = rawLabel.match(/\(([^)]+)\)$/);
+
+  if (/\bancestry\b/i.test(groupName) && ancestryMatch?.[1]) {
+    return ancestryMatch[1].trim();
+  }
+
+  return rawLabel.trim();
+}
+
+function toChoiceSlug(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function readStartingEquipmentGroups(value: unknown): CompendiumEquipmentGroup[] {
+  const structuredGroups = readObjectArray(value)
+    .map((entry, groupIndex) => {
+      const options = readObjectArray(entry.options)
+        .map((option, optionIndex) => ({
+          id: readString(option.id) || `${groupIndex}:${optionIndex}`,
+          label: readString(option.label) || buildEquipmentLabel(readString(option.id), optionIndex),
+          items: readEquipmentItemGrants(option.items)
+        }))
+        .filter((option) => option.items.length > 0);
+
+      if (options.length === 0) {
         return null;
       }
 
-      const options = optionEntries.map(([key, items], optionIndex) => ({
-        id: `${groupIndex}:${key}`,
-        label: buildEquipmentLabel(key, optionIndex),
-        items: readEquipmentItemGrants(items)
-      }));
-
       return {
-        id: `equipment:${groupIndex}`,
-        label: `Equipment ${groupIndex + 1}`,
-        choose: optionEntries.length > 1 ? 1 : 1,
+        id: readString(entry.id) || `equipment:${groupIndex}`,
+        label: readString(entry.label) || `Equipment ${groupIndex + 1}`,
+        choose: clampNumber(entry.choose, 1, 20, 1),
         options
       } satisfies CompendiumEquipmentGroup;
     })
     .filter((entry): entry is CompendiumEquipmentGroup => entry !== null);
+
+  if (structuredGroups.length > 0) {
+    return structuredGroups;
+  }
+
+  const root = asOptionalObject(value);
+  const defaultDataGroups = readObjectArray(root?.defaultData)
+    .map((entry, groupIndex) => buildEquipmentGroupFromOptionObject(entry, groupIndex))
+    .filter((entry): entry is CompendiumEquipmentGroup => entry !== null);
+
+  if (defaultDataGroups.length > 0) {
+    return defaultDataGroups;
+  }
+
+  return readObjectArray(value)
+    .map((entry, groupIndex) => buildEquipmentGroupFromOptionObject(entry, groupIndex))
+    .filter((entry): entry is CompendiumEquipmentGroup => entry !== null);
+}
+
+function buildEquipmentGroupFromOptionObject(entry: Record<string, unknown>, groupIndex: number) {
+  const optionEntries = Object.entries(entry).filter(([, items]) => Array.isArray(items));
+
+  if (optionEntries.length === 0) {
+    return null;
+  }
+
+  const options = optionEntries
+    .map(([key, items], optionIndex) => ({
+      id: `${groupIndex}:${key}`,
+      label: buildEquipmentLabel(key, optionIndex),
+      items: readEquipmentItemGrants(items)
+    }))
+    .filter((option) => option.items.length > 0);
+
+  if (options.length === 0) {
+    return null;
+  }
+
+  return {
+    id: `equipment:${groupIndex}`,
+    label: `Equipment ${groupIndex + 1}`,
+    choose: 1,
+    options
+  } satisfies CompendiumEquipmentGroup;
 }
 
 function buildEquipmentLabel(key: string, index: number) {
@@ -1281,6 +1649,36 @@ function readEquipmentItemGrants(value: unknown): CompendiumItemGrant[] {
     }
 
     const object = entry as Record<string, unknown>;
+    const valueCp = clampNullableNumber(object.value, 0, 1_000_000);
+
+    if (valueCp !== null) {
+      const currency = currencyFromValueCp(valueCp);
+
+      return [
+        {
+          name: buildCurrencyLabel(currency),
+          quantity: 1,
+          notes: "",
+          equipped: false,
+          type: "loot",
+          currency
+        }
+      ] satisfies CompendiumItemGrant[];
+    }
+
+    const equipmentType = readString(object.equipmentType);
+
+    if (equipmentType) {
+      return [
+        {
+          name: formatEquipmentTypeLabel(equipmentType),
+          quantity: clampNumber(object.quantity, 1, 999, 1),
+          notes: "of your choice",
+          equipped: false
+        }
+      ] satisfies CompendiumItemGrant[];
+    }
+
     const itemRef = readString(object.item);
     const special = readString(object.special);
     const name = readString(object.displayName) || (itemRef ? extractPipeDisplayName(itemRef) : special);
@@ -1300,6 +1698,30 @@ function readEquipmentItemGrants(value: unknown): CompendiumItemGrant[] {
       }
     ] satisfies CompendiumItemGrant[];
   });
+}
+
+function currencyFromValueCp(valueCp: number): Partial<CurrencyPouch> {
+  if (valueCp % 100 === 0) {
+    return { gp: valueCp / 100 };
+  }
+
+  if (valueCp % 10 === 0) {
+    return { sp: valueCp / 10 };
+  }
+
+  return { cp: valueCp };
+}
+
+function buildCurrencyLabel(currency: Partial<CurrencyPouch>) {
+  return Object.entries(currency)
+    .filter(([, amount]) => Number(amount) > 0)
+    .map(([denomination, amount]) => `${amount} ${denomination.toUpperCase()}`)
+    .join(", ");
+}
+
+function formatEquipmentTypeLabel(value: string) {
+  const normalized = value.replace(/^weapon/, "weapon ").replace(/([a-z])([A-Z])/g, "$1 $2").trim();
+  return toTitleCase(normalized);
 }
 
 function normalizeCompendiumItemId(value: string) {

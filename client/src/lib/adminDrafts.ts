@@ -318,7 +318,8 @@ export function classFormToEntry(form: ClassFormState): Omit<ClassEntry, "id"> {
       reference: feature.reference ?? ""
     })),
     subclasses: [],
-    tables: parseJsonArray<ClassEntry["tables"][number]>(form.tablesJson)
+    tables: parseJsonArray<ClassEntry["tables"][number]>(form.tablesJson),
+    startingEquipment: []
   };
 }
 

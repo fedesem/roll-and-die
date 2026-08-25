@@ -16,21 +16,26 @@ import type {
 import {
   applyGuideBaseAbilities,
   applyBackgroundToActor,
+  applyEquipmentSelectionsToActor,
   applyClassSkillChoicesToActor,
   applyClassToActor,
   applyGuideSelectionsToActor,
+  applySpeciesChoiceGroupSelections,
   applySpeciesChoiceSelections,
   applySpeciesToActor
 } from "../src/features/sheet/selectors/playerNpcSheet2024Mutations";
 import {
   deriveBackgroundSkillChoiceConfig,
   deriveBackgroundAbilityConfig,
+  deriveBackgroundEquipmentGroups,
   deriveBackgroundSkillProficiencies,
+  deriveClassEquipmentGroups,
   deriveClassSkillChoiceConfig,
   deriveGuidedAbilityChoiceSlots,
   deriveGuidedChoiceSpec,
   deriveGuidedHitPointMax,
   derivePreparedSpellLimit,
+  deriveSpeciesChoiceGroups,
   deriveSpeciesSkillChoiceConfig,
   deriveSpellSlots,
   healHitPoints,
@@ -157,6 +162,7 @@ function createClass(overrides: Partial<ClassEntry> = {}): ClassEntry {
     features: [],
     subclasses: [],
     tables: [],
+    startingEquipment: [],
     ...overrides
   };
 }
@@ -189,6 +195,9 @@ function createSpecies(overrides: Partial<CompendiumSpeciesEntry> = {}): Compend
     darkvision: 60,
     languages: ["Common", "Elvish"],
     traitTags: [],
+    spellNames: [],
+    alwaysPreparedSpellNames: [],
+    choiceGroups: [],
     ...overrides
   };
 }
@@ -529,6 +538,196 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     });
   });
 
+  it("reads structured species choices from the compendium entry", () => {
+    const dragonborn = createSpecies({
+      name: "Dragonborn",
+      choiceGroups: [
+        {
+          id: "choice:draconic-ancestry",
+          label: "Draconic Ancestry",
+          options: [
+            {
+              id: "black",
+              label: "Black",
+              description: "Damage Type: Acid",
+              featureName: "Draconic Ancestry: Black",
+              spellNames: [],
+              alwaysPreparedSpellNames: []
+            }
+          ]
+        }
+      ]
+    });
+    const elf = createSpecies({
+      choiceGroups: [
+        {
+          id: "choice:elven-lineage",
+          label: "Elven Lineage",
+          options: [
+            {
+              id: "lorwyn",
+              label: "Lorwyn",
+              description: "Level 1: Thorn Whip",
+              featureName: "Elven Lineage: Lorwyn",
+              spellNames: ["Thorn Whip"],
+              alwaysPreparedSpellNames: []
+            },
+            {
+              id: "shadowmoor",
+              label: "Shadowmoor",
+              description: "Level 1: Darkvision 120 feet and Starry Wisp",
+              featureName: "Elven Lineage: Shadowmoor",
+              spellNames: ["Starry Wisp"],
+              alwaysPreparedSpellNames: ["Heroism", "Gentle Repose"],
+              visionRangeOverride: 24
+            }
+          ]
+        },
+        {
+          id: "choice:elven-lineage:spellcasting-ability",
+          label: "Lineage Spellcasting Ability",
+          options: [
+            {
+              id: "int",
+              label: "Intelligence",
+              description: "Use Intelligence for the lineage spells.",
+              spellNames: [],
+              alwaysPreparedSpellNames: []
+            }
+          ]
+        }
+      ]
+    });
+
+    expect(deriveSpeciesChoiceGroups(dragonborn).map((group) => group.label)).toEqual(["Draconic Ancestry"]);
+    expect(deriveSpeciesChoiceGroups(elf).map((group) => group.label)).toEqual(["Elven Lineage", "Lineage Spellcasting Ability"]);
+    expect(deriveSpeciesChoiceGroups(elf)[0]?.options.map((option) => option.label)).toEqual(["Lorwyn", "Shadowmoor"]);
+  });
+
+  it("applies species lineage choices, package equipment, and class equipment with coins", () => {
+    const actor = createActor();
+    const elf = createSpecies({
+      speed: 30,
+      darkvision: 60,
+      choiceGroups: [
+        {
+          id: "lineage",
+          label: "Elven Lineage",
+          options: [
+            {
+              id: "wood-elf",
+              label: "Wood Elf",
+              description: "Your Speed is 35 feet. You also know Druidcraft.",
+              featureName: "Elven Lineage: Wood Elf",
+              spellNames: ["Druidcraft"],
+              alwaysPreparedSpellNames: [],
+              speedOverride: 35
+            }
+          ]
+        },
+        {
+          id: "lineage-spellcasting",
+          label: "Lineage Spellcasting Ability",
+          options: [
+            {
+              id: "wis",
+              label: "Wisdom",
+              description: "Use Wisdom for the lineage spells.",
+              spellNames: [],
+              alwaysPreparedSpellNames: []
+            }
+          ]
+        }
+      ]
+    });
+    const background = createBackground({
+      source: "XPHB",
+      abilityChoices: [],
+      skillProficiencies: [],
+      featIds: [],
+      startingEquipment: [],
+      entries:
+        "Equipment:. Choose A or B: (A) {@item Quarterstaff|XPHB}, {@item Robe|XPHB}, 8 GP; or (B) 50 GP"
+    });
+    const fighter = createClass({
+      id: "fighter",
+      name: "Fighter",
+      hitDieFaces: 10,
+      spellPreparation: "none",
+      startingEquipment: [
+        {
+          id: "equipment",
+          label: "Class Equipment",
+          choose: 1,
+          options: [
+            {
+              id: "a",
+              label: "Option A",
+              items: [
+                { name: "Chain Mail", quantity: 1, notes: "", equipped: false },
+                { name: "Greatsword", quantity: 1, notes: "", equipped: false },
+                { name: "Flail", quantity: 1, notes: "", equipped: false },
+                { name: "Javelin", quantity: 8, notes: "", equipped: false },
+                { name: "Dungeoneer's Pack", quantity: 1, notes: "", equipped: false },
+                { name: "4 GP", quantity: 1, notes: "", equipped: false, type: "loot", currency: { gp: 4 } }
+              ]
+            },
+            {
+              id: "b",
+              label: "Option B",
+              items: [
+                { name: "Studded Leather Armor", quantity: 1, notes: "", equipped: false },
+                { name: "Scimitar", quantity: 1, notes: "", equipped: false },
+                { name: "Shortsword", quantity: 1, notes: "", equipped: false },
+                { name: "Longbow", quantity: 1, notes: "", equipped: false },
+                { name: "Arrow", quantity: 20, notes: "", equipped: false },
+                { name: "Quiver", quantity: 1, notes: "", equipped: false },
+                { name: "Dungeoneer's Pack", quantity: 1, notes: "", equipped: false },
+                { name: "11 GP", quantity: 1, notes: "", equipped: false, type: "loot", currency: { gp: 11 } }
+              ]
+            },
+            {
+              id: "c",
+              label: "Option C",
+              items: [{ name: "155 GP", quantity: 1, notes: "", equipped: false, type: "loot", currency: { gp: 155 } }]
+            }
+          ]
+        }
+      ]
+    });
+    const speciesGroups = deriveSpeciesChoiceGroups(elf);
+    const backgroundGroups = deriveBackgroundEquipmentGroups(background);
+    const classGroups = deriveClassEquipmentGroups(fighter);
+
+    const withSpeciesChoices = applySpeciesChoiceGroupSelections(
+      applySpeciesToActor(actor, elf),
+      elf,
+      speciesGroups,
+      {
+        lineage: "wood-elf",
+        "lineage-spellcasting": "wis"
+      },
+      [createSpell({ id: "spell-druidcraft", name: "Druidcraft", level: "cantrip" })]
+    );
+    const withBackground = applyBackgroundToActor(withSpeciesChoices, background, [], {
+      equipmentChoiceIds: {
+        [backgroundGroups[0]?.id ?? ""]: backgroundGroups[0]?.options[0]?.id ?? ""
+      },
+      abilityChoices: [],
+      skillChoices: []
+    });
+    const withClassEquipment = applyEquipmentSelectionsToActor(withBackground, classGroups, {
+      [classGroups[0]?.id ?? ""]: classGroups[0]?.options[2]?.id ?? ""
+    });
+
+    expect(withSpeciesChoices.speed).toBe(35);
+    expect(withSpeciesChoices.spells).toContain("Druidcraft");
+    expect(withSpeciesChoices.features).toContain("Elven Lineage: Wood Elf");
+    expect(backgroundGroups[0]?.options).toHaveLength(2);
+    expect(withClassEquipment.inventory.map((entry) => entry.name)).toEqual(expect.arrayContaining(["Quarterstaff", "Robe"]));
+    expect(withClassEquipment.currency.gp).toBe(163);
+  });
+
   it("derives class skill choices and limits setup expertise to proficient skills", () => {
     const rogue = createClass({
       id: "rogue",
@@ -733,6 +932,7 @@ describe("playerNpcSheet2024 extracted helpers", () => {
         backgroundSkillChoices: [],
         classSkillChoices: [],
         speciesOriginFeatId: "",
+        speciesChoiceIds: {},
         originFeatId: originFeat.id,
         equipmentChoiceIds: { "group-1": "option-1" },
         abilityChoices: ["int", "wis"]
@@ -836,6 +1036,7 @@ describe("playerNpcSheet2024 extracted helpers", () => {
         backgroundSkillChoices: [],
         classSkillChoices: [],
         speciesOriginFeatId: "",
+        speciesChoiceIds: {},
         originFeatId: "",
         equipmentChoiceIds: {},
         abilityChoices: []

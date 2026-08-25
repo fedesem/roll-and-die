@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import type { AbilityKey } from "@shared/types";
 
+import { ClassPreviewCard, ReferencePreviewCard } from "../../../components/admin/AdminPreview";
 import { ModalFrame } from "../../../components/ModalFrame";
 import { NumericInput } from "../../../components/NumericInput";
 import type { ActorSheet } from "@shared/types";
@@ -10,7 +11,7 @@ import type { GuidedSheetFlowState } from "../hooks/useGuidedSheetFlow";
 import { collectSpellRows, createReferenceRow, findSpellNamesByIds, guideOptionDisabled, replaceGuideSelection } from "../selectors/playerNpcSheet2024Selectors";
 import { abilityModifier, abilityOrder, findCompendiumClass, formatModifier } from "../sheetUtils";
 import { NEW_GUIDED_CLASS_ID, type SheetCompendium } from "../playerNpcSheet2024Types";
-import { DetailCollection, Field, inputClass, secondaryButtonClass } from "./sheetPrimitives";
+import { DetailCollection, Field, HoverPreviewTrigger, inputClass, secondaryButtonClass } from "./sheetPrimitives";
 
 interface GuidedSheetModalProps {
   draft: ActorSheet;
@@ -25,6 +26,14 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
   if (!guided.guidedFlowOpen) {
     return null;
   }
+
+  const previewLookupProps = {
+    spellEntries: compendium.spells,
+    featEntries: compendium.feats,
+    classEntries: compendium.classes,
+    variantRuleEntries: compendium.variantRules,
+    conditionEntries: compendium.conditions
+  };
 
   return (
     <ModalFrame
@@ -56,73 +65,174 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
               <>
                 <div className="grid gap-4 md:grid-cols-2">
                   <Field label="Species">
-                    <select
-                      className={inputClass}
-                      value={guided.guidedSetup.speciesId}
-                      onChange={(event) => {
-                        guided.setGuidedSetup((current) => ({
-                          ...current,
-                          speciesId: event.target.value,
-                          speciesSkillChoices: [],
-                          speciesOriginFeatId: ""
-                        }));
-                      }}
-                    >
-                      <option value="">Select a species</option>
-                      {compendium.races.map((entry) => (
-                        <option key={entry.id} value={entry.id}>
-                          {entry.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="space-y-2">
+                      <select
+                        className={inputClass}
+                        value={guided.guidedSetup.speciesId}
+                        onChange={(event) => {
+                          guided.setGuidedSetup((current) => ({
+                            ...current,
+                            speciesId: event.target.value,
+                            speciesSkillChoices: [],
+                            speciesOriginFeatId: "",
+                            speciesChoiceIds: {}
+                          }));
+                        }}
+                      >
+                        <option value="">Select a species</option>
+                        {compendium.races.map((entry) => (
+                          <option key={entry.id} value={entry.id}>
+                            {entry.name}
+                          </option>
+                        ))}
+                      </select>
+                      <HoverPreviewTrigger
+                        label="Species Preview"
+                        caption={
+                          guided.guidedSelectedSpecies
+                            ? [guided.guidedSelectedSpecies.category, `${guided.guidedSelectedSpecies.speed} ft`, guided.guidedSelectedSpecies.darkvision > 0 ? `Darkvision ${guided.guidedSelectedSpecies.darkvision} ft` : null]
+                                .filter(Boolean)
+                                .join(" • ")
+                            : undefined
+                        }
+                        emptyMessage="Select a species to preview it."
+                        preview={
+                          guided.guidedSelectedSpecies ? (
+                            <ReferencePreviewCard title="Species" eyebrow="Species" entry={guided.guidedSelectedSpecies} {...previewLookupProps} />
+                          ) : null
+                        }
+                      />
+                    </div>
                   </Field>
                   <Field label="Background">
-                    <select
-                      className={inputClass}
-                      value={guided.guidedSetup.backgroundId}
-                      onChange={(event) => {
-                        guided.setGuidedSetup((current) => ({
-                          ...current,
-                          backgroundId: event.target.value,
-                          backgroundAbilityModeId: "",
-                          backgroundSkillChoices: [],
-                          originFeatId: "",
-                          equipmentChoiceIds: {},
-                          abilityChoices: []
-                        }));
-                      }}
-                    >
-                      <option value="">Select a background</option>
-                      {compendium.backgrounds.map((entry) => (
-                        <option key={entry.id} value={entry.id}>
-                          {entry.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="space-y-2">
+                      <select
+                        className={inputClass}
+                        value={guided.guidedSetup.backgroundId}
+                        onChange={(event) => {
+                          guided.setGuidedSetup((current) => ({
+                            ...current,
+                            backgroundId: event.target.value,
+                            backgroundAbilityModeId: "",
+                            backgroundSkillChoices: [],
+                            originFeatId: "",
+                            equipmentChoiceIds: {},
+                            abilityChoices: []
+                          }));
+                        }}
+                      >
+                        <option value="">Select a background</option>
+                        {compendium.backgrounds.map((entry) => (
+                          <option key={entry.id} value={entry.id}>
+                            {entry.name}
+                          </option>
+                        ))}
+                      </select>
+                      <HoverPreviewTrigger
+                        label="Background Preview"
+                        caption={
+                          guided.guidedSelectedBackground
+                            ? [
+                                guided.guidedSelectedBackground.category,
+                                guided.guidedSelectedBackground.skillProficiencies.length > 0
+                                  ? `Skills: ${guided.guidedSelectedBackground.skillProficiencies.join(", ")}`
+                                  : null,
+                                guided.guidedSelectedBackground.featIds.length > 0 ? `Feats: ${guided.guidedSelectedBackground.featIds.join(", ")}` : null
+                              ]
+                                .filter(Boolean)
+                                .join(" • ")
+                            : undefined
+                        }
+                        emptyMessage="Select a background to preview it."
+                        preview={
+                          guided.guidedSelectedBackground ? (
+                            <ReferencePreviewCard title="Background" eyebrow="Background" entry={guided.guidedSelectedBackground} {...previewLookupProps} />
+                          ) : null
+                        }
+                      />
+                    </div>
                   </Field>
                   <Field label="Class">
-                    <select
-                      className={inputClass}
-                      value={guided.guidedSetup.classId}
-                      onChange={(event) =>
-                        guided.setGuidedSetup((current) => ({
-                          ...current,
-                          classId: event.target.value,
-                          classSkillChoices: [],
-                          expertiseSkillChoices: [],
-                          subclassId: ""
-                        }))
-                      }
-                    >
-                      <option value="">Select a class</option>
-                      {compendium.classes.map((entry) => (
-                        <option key={entry.id} value={entry.id}>
-                          {entry.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="space-y-2">
+                      <select
+                        className={inputClass}
+                        value={guided.guidedSetup.classId}
+                        onChange={(event) =>
+                          guided.setGuidedSetup((current) => ({
+                            ...current,
+                            classId: event.target.value,
+                            classSkillChoices: [],
+                            expertiseSkillChoices: [],
+                            subclassId: ""
+                          }))
+                        }
+                      >
+                        <option value="">Select a class</option>
+                        {compendium.classes.map((entry) => (
+                          <option key={entry.id} value={entry.id}>
+                            {entry.name}
+                          </option>
+                        ))}
+                      </select>
+                      <HoverPreviewTrigger
+                        label="Class Preview"
+                        caption={
+                          guided.guidedSelectedClass
+                            ? [
+                                `d${guided.guidedSelectedClass.hitDieFaces} Hit Die`,
+                                guided.guidedSelectedClass.primaryAbilities.length > 0 ? `Primary: ${guided.guidedSelectedClass.primaryAbilities.join(" or ")}` : null,
+                                guided.guidedSelectedClass.savingThrowProficiencies.length > 0
+                                  ? `Saves: ${guided.guidedSelectedClass.savingThrowProficiencies.join(", ")}`
+                                  : null
+                              ]
+                                .filter(Boolean)
+                                .join(" • ")
+                            : undefined
+                        }
+                        emptyMessage="Select a class to preview it."
+                        preview={guided.guidedSelectedClass ? <ClassPreviewCard entry={guided.guidedSelectedClass} {...previewLookupProps} /> : null}
+                      />
+                    </div>
                   </Field>
                 </div>
+
+                {guided.guidedSpeciesChoiceGroups.length > 0 ? (
+                  <div className="space-y-3 border border-white/8 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-amber-400/80">Species Choices</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {guided.guidedSpeciesChoiceGroups.map((group) => {
+                        const selectedOption = group.options.find((option) => option.id === guided.guidedSetup.speciesChoiceIds[group.id]) ?? null;
+
+                        return (
+                          <Field key={group.id} label={group.label} hint={group.hint}>
+                            <div className="space-y-2">
+                              <select
+                                className={inputClass}
+                                value={guided.guidedSetup.speciesChoiceIds[group.id] ?? ""}
+                                onChange={(event) =>
+                                  guided.setGuidedSetup((current) => ({
+                                    ...current,
+                                    speciesChoiceIds: {
+                                      ...current.speciesChoiceIds,
+                                      [group.id]: event.target.value
+                                    }
+                                  }))
+                                }
+                              >
+                                {group.options.map((option) => (
+                                  <option key={option.id} value={option.id}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                              {selectedOption?.description ? <p className="text-xs leading-5 text-zinc-400">{selectedOption.description}</p> : null}
+                            </div>
+                          </Field>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="space-y-3 border border-white/8 bg-black/20 p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -309,7 +419,8 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
                 ) : null}
 
                 {guided.guidedEquipmentGroups.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-3 border border-white/8 bg-black/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-amber-400/80">Starting Equipment</p>
                     {guided.guidedEquipmentGroups.map((group) => (
                       <Field key={group.id} label={group.label}>
                         <select
@@ -363,27 +474,6 @@ export function GuidedSheetModal({ draft, compendium, filteredFeats, guided, onO
                     </div>
                   </div>
                 ) : null}
-
-                <div className="grid gap-3 md:grid-cols-3">
-                  {guided.guidedSelectedSpecies ? <DetailCollection entries={[createReferenceRow("Species", guided.guidedSelectedSpecies)]} emptyMessage="" renderText={renderRulesText} /> : null}
-                  {guided.guidedSelectedBackground ? <DetailCollection entries={[createReferenceRow("Background", guided.guidedSelectedBackground)]} emptyMessage="" renderText={renderRulesText} /> : null}
-                  {guided.guidedSelectedClass ? (
-                    <DetailCollection
-                      entries={[
-                        {
-                          id: guided.guidedSelectedClass.id,
-                          eyebrow: "Class",
-                          title: guided.guidedSelectedClass.name,
-                          subtitle: `d${guided.guidedSelectedClass.hitDieFaces} Hit Die`,
-                          source: guided.guidedSelectedClass.source,
-                          description: guided.guidedSelectedClass.description
-                        }
-                      ]}
-                      emptyMessage=""
-                      renderText={renderRulesText}
-                    />
-                  ) : null}
-                </div>
               </>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">

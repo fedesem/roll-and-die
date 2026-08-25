@@ -630,6 +630,7 @@ async function readClassEntries(database: DatabaseSync): Promise<ClassEntry[]> {
       featuresJson: string;
       subclassesJson: string;
       tablesJson: string;
+      startingEquipmentJson: string;
     }>(
       database,
       `
@@ -649,7 +650,8 @@ async function readClassEntries(database: DatabaseSync): Promise<ClassEntry[]> {
         subclass_level as subclassLevel,
         features_json as featuresJson,
         subclasses_json as subclassesJson,
-        tables_json as tablesJson
+        tables_json as tablesJson,
+        starting_equipment_json as startingEquipmentJson
       FROM compendium_classes
       ORDER BY sort_order, name, id
     `
@@ -672,7 +674,8 @@ async function readClassEntries(database: DatabaseSync): Promise<ClassEntry[]> {
     subclassLevel: row.subclassLevel,
     features: classFeaturesByClassId.get(row.id) ?? parseJsonArray<ClassFeatureEntry>(row.featuresJson),
     subclasses: classSubclassesByClassId.get(row.id) ?? parseJsonArray<ClassSubclassEntry>(row.subclassesJson),
-    tables: classTablesByClassId.get(row.id) ?? parseJsonArray<ClassEntry["tables"][number]>(row.tablesJson)
+    tables: classTablesByClassId.get(row.id) ?? parseJsonArray<ClassEntry["tables"][number]>(row.tablesJson),
+    startingEquipment: parseJsonArray<ClassEntry["startingEquipment"][number]>(row.startingEquipmentJson)
   }));
 }
 async function readReferenceEntries<K extends ReferenceCompendiumKind>(database: DatabaseSync, kind: K): Promise<CompendiumData[K]> {
@@ -772,7 +775,10 @@ function buildReferenceEntry(
         speed: readJsonNumber(details.speed),
         darkvision: readJsonNumber(details.darkvision),
         languages: readJsonArray<string>(details.languages),
-        traitTags: readJsonArray<string>(details.traitTags)
+        traitTags: readJsonArray<string>(details.traitTags),
+        spellNames: readJsonArray<string>(details.spellNames),
+        alwaysPreparedSpellNames: readJsonArray<string>(details.alwaysPreparedSpellNames),
+        choiceGroups: readJsonArray(details.choiceGroups)
       } satisfies CompendiumSpeciesEntry;
     default:
       return base;
@@ -1322,8 +1328,8 @@ async function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortO
           hit_die_faces, primary_abilities_json, saving_throw_proficiencies_json,
           starting_armor_json, starting_weapons_json, starting_tools_json,
           spellcasting_ability, spell_preparation, subclass_level,
-          features_json, subclasses_json, tables_json
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          features_json, subclasses_json, tables_json, starting_equipment_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           sort_order = excluded.sort_order,
           name = excluded.name,
@@ -1340,7 +1346,8 @@ async function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortO
           subclass_level = excluded.subclass_level,
           features_json = excluded.features_json,
           subclasses_json = excluded.subclasses_json,
-          tables_json = excluded.tables_json
+          tables_json = excluded.tables_json,
+          starting_equipment_json = excluded.starting_equipment_json
       `
     )
     .run(
@@ -1360,7 +1367,8 @@ async function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortO
       entry.subclassLevel,
       JSON.stringify(entry.features),
       JSON.stringify(normalizedSubclasses),
-      JSON.stringify(entry.tables)
+      JSON.stringify(entry.tables),
+      JSON.stringify(entry.startingEquipment)
     );
   database.prepare("DELETE FROM compendium_class_features WHERE class_id = ?").run(classId);
   database.prepare("DELETE FROM compendium_class_tables WHERE class_id = ?").run(classId);
@@ -1498,7 +1506,10 @@ function serializeReferenceDetails(kind: ReferenceCompendiumKind, entry: Compend
         speed: species.speed,
         darkvision: species.darkvision,
         languages: species.languages,
-        traitTags: species.traitTags
+        traitTags: species.traitTags,
+        spellNames: species.spellNames,
+        alwaysPreparedSpellNames: species.alwaysPreparedSpellNames,
+        choiceGroups: species.choiceGroups
       };
     }
     default:

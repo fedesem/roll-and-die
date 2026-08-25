@@ -403,6 +403,44 @@ describe("class compendium imports", () => {
     expect(description).toContain("Healing Light");
     expect(description).toContain("You can heal creatures with celestial energy.");
   });
+
+  it("imports class starting equipment packages from raw compendium data", () => {
+    const classEntry = sanitizeCompendiumEntry("classes", {
+      name: "Fighter",
+      source: "XPHB",
+      hd: { faces: 10 },
+      proficiency: ["str", "con"],
+      classFeatures: [],
+      startingEquipment: {
+        additionalFromBackground: true,
+        defaultData: [
+          {
+            A: [
+              { item: "chain mail|xphb" },
+              { item: "greatsword|xphb" },
+              { item: "flail|xphb" },
+              { item: "javelin|xphb", quantity: 8 },
+              { item: "dungeoneer's pack|xphb" },
+              { value: 400 }
+            ],
+            B: [{ value: 15500 }]
+          }
+        ]
+      }
+    });
+
+    expect(classEntry.startingEquipment).toHaveLength(1);
+    expect(classEntry.startingEquipment[0]?.options.map((option) => option.label)).toEqual(["Option A", "Option B"]);
+    expect(classEntry.startingEquipment[0]?.options[0]?.items.map((item) => item.name)).toEqual([
+      "chain mail",
+      "greatsword",
+      "flail",
+      "javelin",
+      "dungeoneer's pack",
+      "4 GP"
+    ]);
+    expect(classEntry.startingEquipment[0]?.options[1]?.items[0]?.currency).toEqual({ gp: 155 });
+  });
 });
 
 describe("reference compendium imports", () => {
@@ -449,5 +487,99 @@ describe("reference compendium imports", () => {
     });
 
     expect(entries.map((entry) => `${String(entry.id)}|${String(entry.name)}`)).toEqual(["XPHB|Player's Handbook (2024)"]);
+  });
+
+  it("derives table-based species choice groups and base species spells from raw race entries", () => {
+    const species = sanitizeCompendiumEntry("races", {
+      name: "Tiefling",
+      source: "XPHB",
+      size: ["M"],
+      speed: 30,
+      darkvision: 60,
+      creatureTypes: ["humanoid"],
+      languageProficiencies: [{ common: true, infernal: true }],
+      entries: [
+        {
+          type: "entries",
+          name: "Fiendish Legacy",
+          entries: [
+            "Choose a legacy from the Fiendish Legacies table.",
+            "Intelligence, Wisdom, or Charisma is your spellcasting ability for the spells you cast with this trait (choose the ability when you select the legacy).",
+            {
+              type: "table",
+              caption: "Fiendish Legacies",
+              colLabels: ["Legacy", "Level 1", "Level 3", "Level 5"],
+              rows: [
+                [
+                  "Abyssal",
+                  "You have resistance to Poison damage. You also know the {@spell Poison Spray|XPHB} cantrip.",
+                  "{@spell Ray of Sickness|XPHB}",
+                  "{@spell Hold Person|XPHB}"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          type: "entries",
+          name: "Otherworldly Presence",
+          entries: ["You know the {@spell Thaumaturgy|XPHB} cantrip."]
+        }
+      ]
+    });
+
+    expect(species.choiceGroups.map((group) => group.label)).toEqual(["Fiendish Legacy", "Legacy Spellcasting Ability"]);
+    expect(species.choiceGroups[0]?.options[0]).toMatchObject({
+      label: "Abyssal",
+      spellNames: ["Poison Spray"],
+      alwaysPreparedSpellNames: ["Ray of Sickness", "Hold Person"]
+    });
+    expect(species.spellNames).toEqual(["Thaumaturgy"]);
+  });
+
+  it("derives list-based species choice groups from raw race entries", () => {
+    const species = sanitizeCompendiumEntry("races", {
+      name: "Gnome",
+      source: "XPHB",
+      size: ["S"],
+      speed: 30,
+      darkvision: 60,
+      creatureTypes: ["humanoid"],
+      languageProficiencies: [{ common: true, gnomish: true }],
+      entries: [
+        {
+          type: "entries",
+          name: "Gnomish Lineage",
+          entries: [
+            "Choose one of the following options; whichever one you choose, Intelligence, Wisdom, or Charisma is your spellcasting ability for the spells you cast with this trait.",
+            {
+              type: "list",
+              style: "list-hang-notitle",
+              items: [
+                {
+                  type: "item",
+                  name: "Forest Gnome",
+                  entries: [
+                    "You know the {@spell Minor Illusion|XPHB} cantrip. You also always have the {@spell Speak with Animals|XPHB} spell prepared."
+                  ]
+                },
+                {
+                  type: "item",
+                  name: "Rock Gnome",
+                  entries: ["You know the {@spell Mending|XPHB} and {@spell Prestidigitation|XPHB} cantrips."]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+
+    expect(species.choiceGroups.map((group) => group.label)).toEqual(["Gnomish Lineage", "Lineage Spellcasting Ability"]);
+    expect(species.choiceGroups[0]?.options.map((option) => option.label)).toEqual(["Forest Gnome", "Rock Gnome"]);
+    expect(species.choiceGroups[0]?.options[0]).toMatchObject({
+      spellNames: ["Minor Illusion"],
+      alwaysPreparedSpellNames: ["Speak with Animals"]
+    });
   });
 });

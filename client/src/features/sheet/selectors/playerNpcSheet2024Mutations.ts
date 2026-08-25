@@ -12,10 +12,11 @@ import type {
   InventoryEntry,
   PlayerNpcBuildSelection,
   ResourceEntry,
+  SpellEntry,
   SpellSlotTrack
 } from "@shared/types";
 
-import type { GuidedChoiceSpec, GuidedFlowMode, GuidedSetupState } from "../playerNpcSheet2024Types";
+import type { GuidedChoiceSpec, GuidedEquipmentGroup, GuidedFlowMode, GuidedSetupState, GuidedSpeciesChoiceGroup } from "../playerNpcSheet2024Types";
 import {
   abilityModifierTotal,
   cloneActor,
@@ -90,6 +91,11 @@ export function applySpeciesToActor(actor: ActorSheet, species: CompendiumSpecie
   next.creatureSize = normalizeSpeciesSize(species.sizes[0]) ?? next.creatureSize;
   next.visionRange = species.darkvision > 0 ? Math.max(next.visionRange, Math.round(species.darkvision / 5)) : next.visionRange;
   next.languageProficiencies = mergeTextValues(next.languageProficiencies, species.languages);
+  next.spells = mergeTextValues(next.spells, species.spellNames);
+  next.spellState = {
+    ...next.spellState,
+    alwaysPrepared: mergeTextValues(next.spellState.alwaysPrepared, species.alwaysPreparedSpellNames)
+  };
   next.build = {
     ruleset: "dnd-2024",
     mode: next.build?.mode ?? "guided",
@@ -139,6 +145,78 @@ export function applySpeciesChoiceSelections(
       next.feats.push(featEntry.name);
     }
   }
+
+  return next;
+}
+
+export function applySpeciesChoiceGroupSelections(
+  actor: ActorSheet,
+  species: CompendiumSpeciesEntry | null,
+  groups: GuidedSpeciesChoiceGroup[],
+  selectedChoiceIds: Record<string, string>,
+  spells: SpellEntry[]
+) {
+  if (!species || groups.length === 0) {
+    return actor;
+  }
+
+  const next = cloneActor(actor);
+  const selections: PlayerNpcBuildSelection[] = [];
+
+  groups.forEach((group) => {
+    const selectedOption = group.options.find((option) => option.id === selectedChoiceIds[group.id]);
+
+    if (!selectedOption) {
+      return;
+    }
+
+    if (selectedOption.featureName) {
+      next.features = mergeTextValues(next.features, [selectedOption.featureName]);
+    }
+
+    if (selectedOption.speedOverride) {
+      next.speed = Math.max(next.speed, selectedOption.speedOverride);
+    }
+
+    if (selectedOption.visionRangeOverride) {
+      next.visionRange = Math.max(next.visionRange, selectedOption.visionRangeOverride);
+    }
+
+    if (selectedOption.spellNames?.length) {
+      next.spells = mergeTextValues(next.spells, resolveSpellNames(selectedOption.spellNames, spells));
+    }
+
+    if (selectedOption.alwaysPreparedSpellNames?.length) {
+      next.spellState = {
+        ...next.spellState,
+        alwaysPrepared: mergeTextValues(next.spellState.alwaysPrepared, resolveSpellNames(selectedOption.alwaysPreparedSpellNames, spells))
+      };
+    }
+
+    selections.push(
+      createBuildSelection(
+        "custom",
+        1,
+        undefined,
+        `${species.name} ${group.label}`,
+        species.source,
+        [selectedOption.label, selectedOption.description].filter(Boolean).join(" - ")
+      )
+    );
+  });
+
+  next.build = {
+    ruleset: "dnd-2024",
+    mode: next.build?.mode ?? "guided",
+    classes: next.build?.classes ?? [],
+    speciesId: next.build?.speciesId,
+    speciesName: next.build?.speciesName,
+    speciesSource: next.build?.speciesSource,
+    backgroundId: next.build?.backgroundId,
+    backgroundName: next.build?.backgroundName,
+    backgroundSource: next.build?.backgroundSource,
+    selections: [...(next.build?.selections ?? []), ...selections]
+  };
 
   return next;
 }
@@ -207,12 +285,35 @@ export function applyBackgroundToActor(
     }
   });
 
-  deriveBackgroundEquipmentGroups(background).forEach((group) => {
-    const selectedOptionId = options?.equipmentChoiceIds?.[group.id];
-    const selectedOption = group.options.find((entry) => entry.id === selectedOptionId) ?? group.options[0];
+  return applyEquipmentSelectionsToActor(next, deriveBackgroundEquipmentGroups(background), options?.equipmentChoiceIds ?? {});
+}
+
+export function applyEquipmentSelectionsToActor(actor: ActorSheet, groups: GuidedEquipmentGroup[], selectedChoiceIds: Record<string, string>) {
+  if (groups.length === 0) {
+    return actor;
+  }
+
+  const next = cloneActor(actor);
+
+  groups.forEach((group) => {
+    const selectedOption = group.options.find((option) => option.id === selectedChoiceIds[group.id]) ?? group.options[0];
 
     selectedOption?.items.forEach((item) => {
-      if (next.inventory.some((entry) => normalizeKey(entry.name) === normalizeKey(item.name))) {
+      if (item.currency) {
+        next.currency = {
+          pp: next.currency.pp + (item.currency.pp ?? 0),
+          gp: next.currency.gp + (item.currency.gp ?? 0),
+          ep: next.currency.ep + (item.currency.ep ?? 0),
+          sp: next.currency.sp + (item.currency.sp ?? 0),
+          cp: next.currency.cp + (item.currency.cp ?? 0)
+        };
+        return;
+      }
+
+      const existingItem = next.inventory.find((entry) => normalizeKey(entry.name) === normalizeKey(item.name));
+
+      if (existingItem) {
+        existingItem.quantity += item.quantity;
         return;
       }
 
@@ -492,6 +593,10 @@ function applySkillChoiceSelections(actor: ActorSheet, skillNames: string[]) {
       };
     }
   });
+}
+
+function resolveSpellNames(spellNames: string[], spells: SpellEntry[]) {
+  return spellNames.map((spellName) => spells.find((entry) => normalizeKey(entry.name) === normalizeKey(spellName))?.name ?? spellName);
 }
 
 function normalizeGuideAbilityScore(value: number) {

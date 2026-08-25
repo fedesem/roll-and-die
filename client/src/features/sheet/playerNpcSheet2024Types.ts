@@ -3,7 +3,10 @@ import type {
   ActorSheet,
   CampaignSnapshot,
   ClassSubclassEntry,
+  CompendiumEquipmentGroup,
+  CompendiumItemGrant,
   CompendiumOptionalFeatureEntry,
+  CompendiumSpeciesChoiceGroup,
   FeatEntry,
   MemberRole,
   SkillEntry,
@@ -98,6 +101,20 @@ export interface GuidedAbilityChoiceSlot {
   amount: number;
 }
 
+export type GuidedEquipmentGrant = CompendiumItemGrant;
+
+export type GuidedSpeciesChoiceGroup = CompendiumSpeciesChoiceGroup;
+
+export interface GuidedEquipmentOption {
+  id: string;
+  label: string;
+  items: GuidedEquipmentGrant[];
+}
+
+export type GuidedEquipmentGroup = CompendiumEquipmentGroup & {
+  source: "background" | "class";
+};
+
 export interface GuidedSetupState {
   speciesId: string;
   backgroundId: string;
@@ -118,6 +135,7 @@ export interface GuidedSetupState {
   backgroundSkillChoices: string[];
   classSkillChoices: string[];
   speciesOriginFeatId: string;
+  speciesChoiceIds: Record<string, string>;
   originFeatId: string;
   equipmentChoiceIds: Record<string, string>;
   abilityChoices: AbilityKey[];

@@ -1,5 +1,5 @@
-import { Dice6, Plus, RotateCcw, Skull, ThumbsDown, ThumbsUp } from "lucide-react";
-import { memo, useState, type ReactNode } from "react";
+import { Dice6, Eye, Plus, RotateCcw, Skull, ThumbsDown, ThumbsUp } from "lucide-react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { ActorSheet, CompendiumReferenceEntry } from "@shared/types";
 
@@ -190,6 +190,127 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
       </span>
       {children}
     </label>
+  );
+}
+
+export function HoverPreviewTrigger({
+  label,
+  caption,
+  emptyMessage,
+  preview,
+  placement = "right-start",
+  previewClassName = "w-[min(48rem,calc(100vw-2rem))] max-w-[48rem]"
+}: {
+  label: string;
+  caption?: string;
+  emptyMessage: string;
+  preview: ReactNode | null;
+  placement?: "top-start" | "bottom-start" | "left-start" | "right-start";
+  previewClassName?: string;
+}) {
+  const triggerRef = useRef<HTMLDivElement | null>(null);
+  const closeTimeoutRef = useRef<number | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [anchor, setAnchor] = useState<FloatingAnchor | null>(null);
+
+  const updateAnchor = () => {
+    if (!triggerRef.current) {
+      return;
+    }
+
+    setAnchor(anchorFromRect(triggerRef.current.getBoundingClientRect()));
+  };
+
+  const clearCloseTimeout = () => {
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
+
+  const openPreview = () => {
+    if (!preview) {
+      return;
+    }
+
+    clearCloseTimeout();
+    updateAnchor();
+    setIsOpen(true);
+  };
+
+  const closePreviewSoon = () => {
+    clearCloseTimeout();
+    closeTimeoutRef.current = window.setTimeout(() => {
+      setIsOpen(false);
+    }, 110);
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const syncAnchor = () => {
+      if (!triggerRef.current) {
+        return;
+      }
+
+      setAnchor(anchorFromRect(triggerRef.current.getBoundingClientRect()));
+    };
+
+    window.addEventListener("resize", syncAnchor);
+    window.addEventListener("scroll", syncAnchor, true);
+    return () => {
+      window.removeEventListener("resize", syncAnchor);
+      window.removeEventListener("scroll", syncAnchor, true);
+    };
+  }, [isOpen]);
+
+  useEffect(
+    () => () => {
+      if (closeTimeoutRef.current !== null) {
+        window.clearTimeout(closeTimeoutRef.current);
+      }
+    },
+    []
+  );
+
+  if (!preview) {
+    return <p className="text-[11px] text-zinc-500">{emptyMessage}</p>;
+  }
+
+  return (
+    <>
+      <div
+        ref={triggerRef}
+        className="flex items-center justify-between gap-3 border border-dashed border-amber-500/25 bg-amber-500/[0.04] px-3 py-2 text-left transition hover:border-amber-500/60 hover:bg-amber-500/[0.08] focus-visible:border-amber-500/70 focus-visible:outline-none"
+        tabIndex={0}
+        onPointerEnter={openPreview}
+        onPointerLeave={closePreviewSoon}
+        onFocus={openPreview}
+        onBlur={closePreviewSoon}
+      >
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-amber-300/80">{label}</p>
+          {caption ? <p className="mt-1 truncate text-xs text-zinc-400">{caption}</p> : null}
+        </div>
+        <span className="shrink-0 text-zinc-400">
+          <Eye size={15} strokeWidth={2} />
+        </span>
+      </div>
+      {isOpen ? (
+        <FloatingLayer
+          anchor={anchor}
+          placement={placement}
+          offset={12}
+          className={`pointer-events-auto z-[2147483000] ${previewClassName}`}
+          onPointerEnter={openPreview}
+          onPointerLeave={closePreviewSoon}
+        >
+          <div className="max-h-[calc(100vh-2rem)] overflow-y-auto overscroll-contain shadow-[0_28px_90px_rgba(0,0,0,0.5)]">{preview}</div>
+        </FloatingLayer>
+      ) : null}
+    </>
   );
 }
 

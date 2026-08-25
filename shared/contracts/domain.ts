@@ -42,6 +42,8 @@ import type {
   CompendiumItemGrant,
   CompendiumOptionalFeatureEntry,
   CompendiumReferenceEntry,
+  CompendiumSpeciesChoiceGroup,
+  CompendiumSpeciesChoiceOption,
   CompendiumSpeciesEntry,
   CompendiumData,
   CurrencyPouch,
@@ -544,7 +546,8 @@ export const classEntrySchema: z.ZodType<ClassEntry> = z.object({
   subclassLevel: finiteNumber.nullable(),
   features: z.array(classFeatureEntrySchema),
   subclasses: z.array(classSubclassEntrySchema),
-  tables: z.array(classTableEntrySchema)
+  tables: z.array(classTableEntrySchema),
+  startingEquipment: z.array(z.lazy(() => compendiumEquipmentGroupSchema))
 });
 
 const compendiumReferenceEntryObject = z.object({
@@ -566,7 +569,16 @@ export const compendiumItemGrantSchema: z.ZodType<CompendiumItemGrant> = z.objec
   notes: trimmedString,
   equipped: z.boolean(),
   type: z.enum(["gear", "reagent", "loot", "consumable"]).optional(),
-  containsValueCp: finiteNumber.optional()
+  containsValueCp: finiteNumber.optional(),
+  currency: z
+    .object({
+      pp: finiteNumber.optional(),
+      gp: finiteNumber.optional(),
+      ep: finiteNumber.optional(),
+      sp: finiteNumber.optional(),
+      cp: finiteNumber.optional()
+    })
+    .optional()
 });
 
 export const compendiumEquipmentOptionSchema: z.ZodType<CompendiumEquipmentOption> = z.object({
@@ -580,6 +592,24 @@ export const compendiumEquipmentGroupSchema: z.ZodType<CompendiumEquipmentGroup>
   label: trimmedString,
   choose: finiteNumber,
   options: z.array(compendiumEquipmentOptionSchema)
+});
+
+export const compendiumSpeciesChoiceOptionSchema: z.ZodType<CompendiumSpeciesChoiceOption> = z.object({
+  id: trimmedString,
+  label: trimmedString,
+  description: trimmedString.optional(),
+  featureName: trimmedString.optional(),
+  spellNames: z.array(trimmedString),
+  alwaysPreparedSpellNames: z.array(trimmedString),
+  speedOverride: finiteNumber.optional(),
+  visionRangeOverride: finiteNumber.optional()
+});
+
+export const compendiumSpeciesChoiceGroupSchema: z.ZodType<CompendiumSpeciesChoiceGroup> = z.object({
+  id: trimmedString,
+  label: trimmedString,
+  hint: trimmedString.optional(),
+  options: z.array(compendiumSpeciesChoiceOptionSchema)
 });
 
 export const compendiumAbilityChoiceSchema: z.ZodType<CompendiumAbilityChoice> = z.object({
@@ -603,7 +633,10 @@ export const compendiumSpeciesEntrySchema: z.ZodType<CompendiumSpeciesEntry> = c
   speed: finiteNumber,
   darkvision: finiteNumber,
   languages: z.array(trimmedString),
-  traitTags: z.array(trimmedString)
+  traitTags: z.array(trimmedString),
+  spellNames: z.array(trimmedString),
+  alwaysPreparedSpellNames: z.array(trimmedString),
+  choiceGroups: z.array(compendiumSpeciesChoiceGroupSchema)
 });
 
 export const compendiumItemEntrySchema: z.ZodType<CompendiumItemEntry> = compendiumReferenceEntryObject.extend({

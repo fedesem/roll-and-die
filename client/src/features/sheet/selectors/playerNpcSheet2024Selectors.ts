@@ -7,7 +7,6 @@ import type {
   CampaignSnapshot,
   ClassEntry,
   CompendiumBackgroundEntry,
-  CompendiumEquipmentGroup,
   CompendiumItemEntry,
   CompendiumOptionalFeatureEntry,
   CompendiumReferenceEntry,
@@ -27,8 +26,11 @@ import type {
   DetailRowEntry,
   DetailRowMeta,
   GuidedChoiceSpec,
+  GuidedEquipmentGrant,
+  GuidedEquipmentGroup,
   GuidedFlowMode,
   GuidedSkillChoiceConfig,
+  GuidedSpeciesChoiceGroup,
   GuidedSetupState,
   SheetTab
 } from "../playerNpcSheet2024Types";
@@ -273,42 +275,50 @@ export function deriveSpeciesOriginFeatOptions(species: CompendiumSpeciesEntry |
     .filter((entry): entry is FeatEntry => Boolean(entry));
 }
 
-export function deriveBackgroundEquipmentGroups(background: CompendiumBackgroundEntry | null): CompendiumEquipmentGroup[] {
+export function deriveSpeciesChoiceGroups(species: CompendiumSpeciesEntry | null): GuidedSpeciesChoiceGroup[] {
+  return species?.choiceGroups ?? [];
+}
+
+export function deriveBackgroundEquipmentGroups(background: CompendiumBackgroundEntry | null): GuidedEquipmentGroup[] {
   if (!background) {
     return [];
   }
 
   if (background.startingEquipment.length > 0) {
-    return background.startingEquipment;
+    return background.startingEquipment.map((group) => mapCompendiumEquipmentGroup("background", `background:${background.id}`, group));
   }
 
   const entryText = background.entries || background.description;
-  const itemNames = extractTaggedNames(entryText, "item");
+  const equipmentLine = extractEquipmentLine(entryText);
+  const parsedChoices = parseEquipmentChoicesFromText(entryText, `background:${background.id}:equipment`, "Background Equipment", "background");
 
-  if (itemNames.length === 0) {
-    return [];
+  if (parsedChoices.length > 0) {
+    return parsedChoices;
   }
 
   return [
     {
-      id: `${background.id}:fallback-equipment`,
-      label: "Suggested Starting Equipment",
+      id: `background:${background.id}:fallback-equipment`,
+      label: "Background Equipment",
+      source: "background" as const,
       choose: 1,
       options: [
         {
-          id: `${background.id}:fallback-equipment:default`,
+          id: `background:${background.id}:fallback-equipment:default`,
           label: "Default package",
-          items: itemNames.map((itemName) => ({
-            name: itemName,
-            quantity: 1,
-            equipped: false,
-            notes: "",
-            type: "gear"
-          }))
+          items: parseEquipmentPackage(equipmentLine ?? "")
         }
       ]
     }
-  ];
+  ].filter((group) => group.options[0]?.items.length > 0);
+}
+
+export function deriveClassEquipmentGroups(classEntry: ClassEntry | null): GuidedEquipmentGroup[] {
+  if (!classEntry) {
+    return [];
+  }
+
+  return classEntry.startingEquipment.map((group) => mapCompendiumEquipmentGroup("class", `class:${classEntry.id}`, group));
 }
 
 export function extractTaggedNames(text: string, tag: "feat" | "item" | "skill" | "spell") {
@@ -343,6 +353,191 @@ export function deriveClassSkillChoiceConfig(
     count: Math.min(rule.count, options.length),
     options
   };
+}
+
+function mapCompendiumEquipmentGroup(source: GuidedEquipmentGroup["source"], prefix: string, group: ClassEntry["startingEquipment"][number]): GuidedEquipmentGroup {
+  return {
+    ...group,
+    id: `${prefix}:${group.id}`,
+    label: group.label || (source === "class" ? "Class Equipment" : "Background Equipment"),
+    source
+  };
+}
+
+function equipmentItem(name: string, quantity = 1, notes = "", type: ActorSheet["inventory"][number]["type"] = "gear"): GuidedEquipmentGrant {
+  return {
+    name,
+    quantity,
+    notes,
+    equipped: false,
+    type
+  };
+}
+
+function equipmentCurrency(currency: Partial<ActorSheet["currency"]>): GuidedEquipmentGrant {
+  const label = Object.entries(currency)
+    .filter(([, amount]) => Number(amount) > 0)
+    .map(([denomination, amount]) => `${amount} ${denomination.toUpperCase()}`)
+    .join(", ");
+
+  return {
+    name: label,
+    quantity: 1,
+    notes: "",
+    equipped: false,
+    type: "loot",
+    currency
+  };
+}
+
+function parseEquipmentChoicesFromText(
+  text: string,
+  groupId: string,
+  label: string,
+  source: GuidedEquipmentGroup["source"]
+): GuidedEquipmentGroup[] {
+  const equipmentLine = extractEquipmentLine(text);
+
+  if (!equipmentLine) {
+    return [];
+  }
+
+  const choiceMatches = Array.from(equipmentLine.matchAll(/\(([A-Z])\)\s*([^;]+?)(?=(?:;\s*(?:or\s*)?\([A-Z]\))|$)/g));
+
+  if (choiceMatches.length === 0) {
+    return [];
+  }
+
+  return [
+    {
+      id: groupId,
+      label,
+      source: source as GuidedEquipmentGroup["source"],
+      choose: 1,
+      options: choiceMatches
+        .map((match) => ({
+          id: `${groupId}:${match[1].toLowerCase()}`,
+          label: `Option ${match[1]}`,
+          items: parseEquipmentPackage(match[2] ?? "")
+        }))
+        .filter((option) => option.items.length > 0)
+    }
+  ].filter((group) => group.options.length > 0);
+}
+
+function extractEquipmentLine(text: string) {
+  return text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .find((line) => /^equipment\s*:?\s*/i.test(line));
+}
+
+function parseEquipmentPackage(text: string): GuidedEquipmentGrant[] {
+  const normalized = text
+    .replace(/^equipment\s*:?\s*/i, "")
+    .replace(/\s+or\s+/gi, ", ")
+    .replace(/\s+and\s+/gi, ", ");
+  const segments = normalized
+    .split(/\s*,\s*/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  const grants: GuidedEquipmentGrant[] = [];
+
+  segments.forEach((segment) => {
+    const currency = parseCurrencyFromText(segment);
+
+    if (currency) {
+      grants.push(equipmentCurrency(currency));
+    }
+
+    const withoutCurrency = segment.replace(/\b\d+\s*(pp|gp|ep|sp|cp)\b/gi, "").replace(/\bcontaining\b/gi, "").trim();
+
+    if (!withoutCurrency) {
+      return;
+    }
+
+    const itemMatch = withoutCurrency.match(/\{@item ([^}|]+)(?:\|[^}|]+)?(?:\|([^}]+))?}/i);
+
+    if (itemMatch) {
+      const parsedGrant = parseTaggedEquipmentGrant(itemMatch[1] ?? "", itemMatch[2] ?? "", withoutCurrency.replace(itemMatch[0], "").trim());
+
+      if (parsedGrant) {
+        grants.push(parsedGrant);
+      }
+      return;
+    }
+
+    const cleaned = withoutCurrency
+      .replace(/^\(?same as above\)?$/i, "")
+      .replace(/^(?:a|an|the)\s+/i, "")
+      .trim();
+
+    if (cleaned) {
+      grants.push(equipmentItem(capitalizeEquipmentLabel(cleaned)));
+    }
+  });
+
+  return mergeEquipmentGrants(grants);
+}
+
+function capitalizeEquipmentLabel(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function parseTaggedEquipmentGrant(rawName: string, rawDisplay: string, trailingText: string) {
+  const display = rawDisplay || rawName;
+  const quantityMatch = display.match(/^(\d+)\s+(.+)$/i) ?? trailingText.match(/\((\d+)\s+[^)]+\)/i);
+  const quantity = quantityMatch ? Number(quantityMatch[1]) : 1;
+  const name = (quantityMatch ? rawName : display).trim() || rawName.trim();
+  const notes = trailingText.replace(/^\((.+)\)$/i, "$1").trim();
+
+  return equipmentItem(name, quantity, notes && !/^\d+\s+/.test(trailingText) ? notes : "");
+}
+
+function parseCurrencyFromText(text: string) {
+  const match = text.match(/(\d+)\s*(pp|gp|ep|sp|cp)\b/i);
+
+  if (!match) {
+    return null;
+  }
+
+  const amount = Number(match[1]);
+  const denomination = match[2].toLowerCase() as keyof ActorSheet["currency"];
+
+  return Number.isFinite(amount) && amount > 0 ? { [denomination]: amount } satisfies Partial<ActorSheet["currency"]> : null;
+}
+
+function mergeEquipmentGrants(grants: GuidedEquipmentGrant[]) {
+  const merged = new Map<string, GuidedEquipmentGrant>();
+
+  grants.forEach((grant) => {
+    if (grant.currency) {
+      const key = `currency:${Object.entries(grant.currency)
+        .map(([denomination, amount]) => `${denomination}:${amount}`)
+        .join(",")}`;
+      merged.set(key, grant);
+      return;
+    }
+
+    const key = normalizeKey(grant.name);
+    const current = merged.get(key);
+
+    if (!current) {
+      merged.set(key, grant);
+      return;
+    }
+
+    merged.set(key, {
+      ...current,
+      quantity: current.quantity + grant.quantity
+    });
+  });
+
+  return Array.from(merged.values());
 }
 
 function deriveSkillGrantDetails(text: string, skillEntries: CompendiumReferenceEntry[]): SkillGrantDetails {
@@ -767,6 +962,7 @@ export function validateGuideSelections(params: {
   mode: GuidedFlowMode;
   targetClass: ClassEntry;
   currentSubclassId: string;
+  speciesChoiceGroups?: GuidedSpeciesChoiceGroup[];
   speciesSkillChoiceCount?: number;
   backgroundSkillChoiceCount?: number;
   backgroundAbilityChoiceCount?: number;
@@ -778,6 +974,10 @@ export function validateGuideSelections(params: {
 
   if (!hasEnoughGuideSelections(params.setup.speciesSkillChoices, params.speciesSkillChoiceCount ?? 0)) {
     return "Choose every required species skill.";
+  }
+
+  if ((params.speciesChoiceGroups ?? []).some((group) => !params.setup.speciesChoiceIds[group.id]?.trim())) {
+    return "Choose every required species option.";
   }
 
   if (!hasEnoughGuideSelections(params.setup.backgroundSkillChoices, params.backgroundSkillChoiceCount ?? 0)) {

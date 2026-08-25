@@ -416,6 +416,7 @@ export interface ClassEntry {
   features: ClassFeatureEntry[];
   subclasses: ClassSubclassEntry[];
   tables: ClassTableEntry[];
+  startingEquipment: CompendiumEquipmentGroup[];
 }
 
 export interface CompendiumReferenceEntry {
@@ -436,6 +437,7 @@ export interface CompendiumItemGrant {
   equipped: boolean;
   type?: InventoryItemType;
   containsValueCp?: number;
+  currency?: Partial<CurrencyPouch>;
 }
 
 export interface CompendiumEquipmentOption {
@@ -449,6 +451,24 @@ export interface CompendiumEquipmentGroup {
   label: string;
   choose: number;
   options: CompendiumEquipmentOption[];
+}
+
+export interface CompendiumSpeciesChoiceOption {
+  id: string;
+  label: string;
+  description?: string;
+  featureName?: string;
+  spellNames: string[];
+  alwaysPreparedSpellNames: string[];
+  speedOverride?: number;
+  visionRangeOverride?: number;
+}
+
+export interface CompendiumSpeciesChoiceGroup {
+  id: string;
+  label: string;
+  hint?: string;
+  options: CompendiumSpeciesChoiceOption[];
 }
 
 export interface CompendiumAbilityChoice {
@@ -473,6 +493,9 @@ export interface CompendiumSpeciesEntry extends CompendiumReferenceEntry {
   darkvision: number;
   languages: string[];
   traitTags: string[];
+  spellNames: string[];
+  alwaysPreparedSpellNames: string[];
+  choiceGroups: CompendiumSpeciesChoiceGroup[];
 }
 
 export interface CompendiumItemEntry extends CompendiumReferenceEntry {

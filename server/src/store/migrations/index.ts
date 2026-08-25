@@ -32,6 +32,7 @@ import { playerNpcSheetRebuildMigration } from "./132_player_npc_sheet_rebuild.j
 import { actorSheetStateExpansionMigration } from "./133_actor_sheet_state_expansion.js";
 import { actorHitPointReductionMigration } from "./134_actor_hit_point_reduction.js";
 import { classSubclassStructureMigration } from "./135_class_subclass_structure.js";
+import { compendiumGuideChoicesMigration } from "./136_compendium_guide_choices.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -67,5 +68,6 @@ export const migrations = [
   playerNpcSheetRebuildMigration,
   actorSheetStateExpansionMigration,
   actorHitPointReductionMigration,
-  classSubclassStructureMigration
+  classSubclassStructureMigration,
+  compendiumGuideChoicesMigration
 ];

@@ -7,8 +7,10 @@ import type {
   GuidedAbilityChoiceMode,
   GuidedAbilityChoiceSlot,
   GuidedChoiceSpec,
+  GuidedEquipmentGroup,
   GuidedFlowMode,
   GuidedSkillChoiceConfig,
+  GuidedSpeciesChoiceGroup,
   GuidedSetupState,
   PlayerNpcSheet2024Props
 } from "../playerNpcSheet2024Types";
@@ -19,6 +21,8 @@ import {
   applyClassSkillChoicesToActor,
   applyClassToActor,
   applyGuideSelectionsToActor,
+  applyEquipmentSelectionsToActor,
+  applySpeciesChoiceGroupSelections,
   applySpeciesChoiceSelections,
   applySpeciesToActor,
   assignSubclassToActor,
@@ -34,7 +38,9 @@ import {
   deriveBackgroundEquipmentGroups,
   deriveGuidedChoiceSpec,
   deriveGuidedAbilityChoiceSlots,
+  deriveClassEquipmentGroups,
   deriveOriginFeatOptions,
+  deriveSpeciesChoiceGroups,
   deriveSpellSlots,
   deriveSpeciesOriginFeatOptions,
   deriveSpeciesSkillChoiceConfig,
@@ -46,7 +52,7 @@ import {
   syncBuildClasses,
   validateGuideSelections
 } from "../selectors/playerNpcSheet2024Selectors";
-import { abilityModifierTotal, cloneActor, findCompendiumClass, totalLevel } from "../sheetUtils";
+import { abilityModifierTotal, cloneActor, findCompendiumClass, normalizeKey, totalLevel } from "../sheetUtils";
 
 const emptyGuidedSetup: GuidedSetupState = {
   speciesId: "",
@@ -75,6 +81,7 @@ const emptyGuidedSetup: GuidedSetupState = {
   backgroundSkillChoices: [],
   classSkillChoices: [],
   speciesOriginFeatId: "",
+  speciesChoiceIds: {},
   originFeatId: "",
   equipmentChoiceIds: {},
   abilityChoices: []
@@ -123,8 +130,18 @@ function normalizeGuideAbilityChoices(current: AbilityKey[], slots: GuidedAbilit
 
 function normalizeGuideEquipmentChoiceIds(
   current: Record<string, string>,
-  groups: ReturnType<typeof deriveBackgroundEquipmentGroups>
+  groups: GuidedEquipmentGroup[]
 ) {
+  return Object.fromEntries(
+    groups.map((group) => {
+      const currentChoice = current[group.id];
+      const selectedChoice = group.options.some((option) => option.id === currentChoice) ? currentChoice : group.options[0]?.id ?? "";
+      return [group.id, selectedChoice];
+    })
+  );
+}
+
+function normalizeGuideSpeciesChoiceIds(current: Record<string, string>, groups: GuidedSpeciesChoiceGroup[]) {
   return Object.fromEntries(
     groups.map((group) => {
       const currentChoice = current[group.id];
@@ -170,11 +187,12 @@ export interface GuidedSheetFlowState {
   guidedBackgroundSkillChoiceConfig: GuidedSkillChoiceConfig;
   guidedClassSkillChoiceConfig: GuidedSkillChoiceConfig;
   guidedSpeciesOriginFeatOptions: PlayerNpcSheet2024Props["compendium"]["feats"];
+  guidedSpeciesChoiceGroups: GuidedSpeciesChoiceGroup[];
   guidedAbilityChoiceConfig: GuidedAbilityChoiceConfig;
   guidedAbilityChoiceMode: GuidedAbilityChoiceMode | null;
   guidedAbilityChoiceSlots: GuidedAbilityChoiceSlot[];
   guidedOriginFeatOptions: PlayerNpcSheet2024Props["compendium"]["feats"];
-  guidedEquipmentGroups: ReturnType<typeof deriveBackgroundEquipmentGroups>;
+  guidedEquipmentGroups: GuidedEquipmentGroup[];
   selectedGuideFeats: PlayerNpcSheet2024Props["compendium"]["feats"];
   selectedGuideOptionalFeatures: PlayerNpcSheet2024Props["compendium"]["optionalFeatures"];
   selectedGuideSpells: PlayerNpcSheet2024Props["compendium"]["spells"];
@@ -249,6 +267,10 @@ export function useGuidedSheetFlow({
     () => deriveSpeciesOriginFeatOptions(guidedSelectedSpecies, compendium.feats),
     [compendium.feats, guidedSelectedSpecies]
   );
+  const guidedSpeciesChoiceGroups = useMemo(
+    () => deriveSpeciesChoiceGroups(guidedSelectedSpecies),
+    [guidedSelectedSpecies]
+  );
   const guidedAbilityChoiceConfig = useMemo(
     () => deriveBackgroundAbilityConfig(guidedSelectedBackground),
     [guidedSelectedBackground]
@@ -265,9 +287,13 @@ export function useGuidedSheetFlow({
     () => deriveOriginFeatOptions(guidedSelectedBackground, compendium.feats),
     [compendium.feats, guidedSelectedBackground]
   );
+  const guidedClassEquipmentGroups = useMemo(
+    () => deriveClassEquipmentGroups(guidedSelectedClass),
+    [guidedSelectedClass]
+  );
   const guidedEquipmentGroups = useMemo(
-    () => deriveBackgroundEquipmentGroups(guidedSelectedBackground),
-    [guidedSelectedBackground]
+    () => [...deriveBackgroundEquipmentGroups(guidedSelectedBackground), ...guidedClassEquipmentGroups],
+    [guidedClassEquipmentGroups, guidedSelectedBackground]
   );
   const guidedSpeciesPreviewActor = useMemo(() => {
     if (guidedFlowMode !== "setup") {
@@ -391,6 +417,7 @@ export function useGuidedSheetFlow({
         guidedBackgroundSkillChoiceConfig.count,
         guidedBackgroundSkillChoiceConfig.options.map((entry) => entry.name)
       );
+      const nextSpeciesChoiceIds = normalizeGuideSpeciesChoiceIds(current.speciesChoiceIds, guidedSpeciesChoiceGroups);
       const nextClassSkillChoices = normalizeGuideSelections(
         current.classSkillChoices,
         guidedClassSkillChoiceConfig.count,
@@ -440,6 +467,7 @@ export function useGuidedSheetFlow({
         current.backgroundAbilityModeId === nextBackgroundAbilityModeId &&
         shallowEqualArray(current.speciesSkillChoices, nextSpeciesSkillChoices) &&
         shallowEqualArray(current.backgroundSkillChoices, nextBackgroundSkillChoices) &&
+        shallowEqualRecord(current.speciesChoiceIds, nextSpeciesChoiceIds) &&
         shallowEqualArray(current.classSkillChoices, nextClassSkillChoices) &&
         shallowEqualArray(current.abilityChoices, nextAbilityChoices) &&
         shallowEqualRecord(current.equipmentChoiceIds, nextEquipmentChoiceIds) &&
@@ -463,6 +491,7 @@ export function useGuidedSheetFlow({
         backgroundAbilityModeId: nextBackgroundAbilityModeId,
         speciesSkillChoices: nextSpeciesSkillChoices,
         backgroundSkillChoices: nextBackgroundSkillChoices,
+        speciesChoiceIds: nextSpeciesChoiceIds,
         classSkillChoices: nextClassSkillChoices,
         speciesOriginFeatId: nextSpeciesOriginFeatId,
         originFeatId: nextOriginFeatId,
@@ -487,6 +516,7 @@ export function useGuidedSheetFlow({
     guidedEquipmentGroups,
     guidedFlowOpen,
     guidedOriginFeatOptions,
+    guidedSpeciesChoiceGroups,
     guidedSpeciesOriginFeatOptions,
     guidedSpeciesSkillChoiceConfig
   ]);
@@ -509,11 +539,29 @@ export function useGuidedSheetFlow({
     [compendium, guidedSetup.optionalFeatureIds]
   );
   const selectedGuideSpells = useMemo(
-    () =>
-      mergeTextValues([], [...guidedSetup.cantripIds, ...guidedSetup.knownSpellIds, ...guidedSetup.spellbookSpellIds])
-        .map((entry) => compendium.spells.find((spell) => spell.id === entry) ?? null)
-        .filter((entry): entry is (typeof compendium.spells)[number] => Boolean(entry)),
-    [compendium, guidedSetup.cantripIds, guidedSetup.knownSpellIds, guidedSetup.spellbookSpellIds]
+    () => {
+      const selectedSpeciesSpellNames = guidedSpeciesChoiceGroups.flatMap((group) => {
+        const selectedOption = group.options.find((option) => option.id === guidedSetup.speciesChoiceIds[group.id]);
+        return [...(selectedOption?.spellNames ?? []), ...(selectedOption?.alwaysPreparedSpellNames ?? [])];
+      });
+
+      return mergeTextValues([], [
+        ...guidedSetup.cantripIds,
+        ...guidedSetup.knownSpellIds,
+        ...guidedSetup.spellbookSpellIds,
+        ...(guidedSelectedSpecies?.spellNames ?? []),
+        ...(guidedSelectedSpecies?.alwaysPreparedSpellNames ?? []),
+        ...selectedSpeciesSpellNames
+      ])
+        .map(
+          (entry) =>
+            compendium.spells.find((spell) => spell.id === entry) ??
+            compendium.spells.find((spell) => normalizeKey(spell.name) === normalizeKey(entry)) ??
+            null
+        )
+        .filter((entry): entry is (typeof compendium.spells)[number] => Boolean(entry));
+    },
+    [compendium, guidedSelectedSpecies, guidedSetup.cantripIds, guidedSetup.knownSpellIds, guidedSetup.speciesChoiceIds, guidedSetup.spellbookSpellIds, guidedSpeciesChoiceGroups]
   );
 
   function closeGuidedFlow() {
@@ -531,18 +579,21 @@ export function useGuidedSheetFlow({
 
     const nextSpeciesId = draft.build?.speciesId ?? compendium.races[0]?.id ?? "";
     const nextBackgroundId = draft.build?.backgroundId ?? compendium.backgrounds[0]?.id ?? "";
+    const nextClassId = draft.classes[0]?.compendiumId ?? compendium.classes[0]?.id ?? "";
     const backgroundEntry = compendium.backgrounds.find((entry) => entry.id === nextBackgroundId) ?? null;
-    const equipmentGroups = deriveBackgroundEquipmentGroups(backgroundEntry);
+    const classEntry = compendium.classes.find((entry) => entry.id === nextClassId) ?? null;
+    const equipmentGroups = [...deriveBackgroundEquipmentGroups(backgroundEntry), ...deriveClassEquipmentGroups(classEntry)];
     const originFeatOptions = deriveOriginFeatOptions(backgroundEntry, compendium.feats);
     const abilityConfig = deriveBackgroundAbilityConfig(backgroundEntry);
     const abilitySlots = deriveGuidedAbilityChoiceSlots(selectGuidedAbilityChoiceMode(abilityConfig, abilityConfig.defaultModeId));
     const speciesEntry = compendium.races.find((entry) => entry.id === nextSpeciesId) ?? null;
     const speciesFeatOptions = deriveSpeciesOriginFeatOptions(speciesEntry, compendium.feats);
+    const speciesChoiceGroups = deriveSpeciesChoiceGroups(speciesEntry);
 
     setGuidedSetup({
       speciesId: nextSpeciesId,
       backgroundId: nextBackgroundId,
-      classId: draft.classes[0]?.compendiumId ?? compendium.classes[0]?.id ?? "",
+      classId: nextClassId,
       subclassId: "",
       baseAbilities: normalizeGuideBaseAbilities(draft.abilities),
       backgroundAbilityModeId: abilityConfig.defaultModeId,
@@ -559,6 +610,7 @@ export function useGuidedSheetFlow({
       backgroundSkillChoices: [],
       classSkillChoices: [],
       speciesOriginFeatId: speciesFeatOptions[0]?.id ?? "",
+      speciesChoiceIds: Object.fromEntries(speciesChoiceGroups.map((group) => [group.id, group.options[0]?.id ?? ""])),
       originFeatId: originFeatOptions[0]?.id ?? "",
       equipmentChoiceIds: Object.fromEntries(equipmentGroups.map((group) => [group.id, group.options[0]?.id ?? ""])),
       abilityChoices: normalizeGuideAbilityChoices([], abilitySlots)
@@ -628,6 +680,7 @@ export function useGuidedSheetFlow({
       mode: "setup",
       targetClass: classEntry,
       currentSubclassId: "",
+      speciesChoiceGroups: guidedSpeciesChoiceGroups,
       speciesSkillChoiceCount: guidedSpeciesSkillChoiceConfig.count,
       backgroundSkillChoiceCount: guidedBackgroundSkillChoiceConfig.count,
       backgroundAbilityChoiceCount: guidedAbilityChoiceSlots.length,
@@ -663,6 +716,7 @@ export function useGuidedSheetFlow({
       next = applyGuideBaseAbilities(next, guidedSetup.baseAbilities);
       next = applySpeciesToActor(next, compendium.races.find((entry) => entry.id === guidedSetup.speciesId) ?? null);
       next = applySpeciesChoiceSelections(next, guidedSelectedSpecies, compendium.feats, guidedSetup.speciesSkillChoices, guidedSetup.speciesOriginFeatId);
+      next = applySpeciesChoiceGroupSelections(next, guidedSelectedSpecies, guidedSpeciesChoiceGroups, guidedSetup.speciesChoiceIds, compendium.spells);
       next = applyBackgroundToActor(next, backgroundForId(compendium.backgrounds, guidedSetup.backgroundId), compendium.feats, {
         featId: guidedSetup.originFeatId,
         abilityChoices: guidedSetup.abilityChoices,
@@ -672,6 +726,7 @@ export function useGuidedSheetFlow({
       });
       next = applyClassToActor(next, classEntry, compendium.classes);
       next = applyClassSkillChoicesToActor(next, guidedSetup.classSkillChoices);
+      next = applyEquipmentSelectionsToActor(next, guidedClassEquipmentGroups, guidedSetup.equipmentChoiceIds);
       if (guidedSetup.subclassId) {
         const actorClassId = next.classes.find((entry) => entry.compendiumId === classEntry.id)?.id ?? "";
         next = assignSubclassToActor(next, compendium.classes, actorClassId, guidedSetup.subclassId);
@@ -806,6 +861,7 @@ export function useGuidedSheetFlow({
     guidedBackgroundSkillChoiceConfig,
     guidedClassSkillChoiceConfig,
     guidedSpeciesOriginFeatOptions,
+    guidedSpeciesChoiceGroups,
     guidedAbilityChoiceConfig,
     guidedAbilityChoiceMode,
     guidedAbilityChoiceSlots,
