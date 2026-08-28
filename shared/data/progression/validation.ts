@@ -29,12 +29,31 @@ const grantsSchema = z
   })
   .strict();
 
+const optionRequirementsSchema = z
+  .object({
+    level: z.number().int().positive().optional(),
+    characterLevel: z.number().int().positive().optional(),
+    subclassId: z.string().min(1).optional(),
+    feature: z.string().min(1).optional(),
+    notFeature: z.string().min(1).optional(),
+    minAbility: z.partialRecord(abilitySchema, z.number().int()).optional(),
+    knownSpell: z
+      .object({
+        spellListId: z.string().min(1).optional(),
+        level: z.union([z.literal("cantrip"), z.number().int().min(1).max(9)]).optional(),
+        dealsDamage: z.boolean().optional()
+      })
+      .strict()
+      .optional()
+  })
+  .strict();
+
 const optionSchema = z
   .object({
     id: z.string().min(1),
     name: z.string().min(1),
     referenceId: z.string().refine(isCompendiumRef, "referenceId must use Name|SOURCE syntax").optional(),
-    requires: z.object({}).passthrough().optional(),
+    requires: optionRequirementsSchema.optional(),
     grants: grantsSchema.optional()
   })
   .strict();

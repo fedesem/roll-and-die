@@ -189,6 +189,7 @@ export interface SpellSelectionConfig {
   spells: SpellEntry[];
   selectedSpellIds: string[];
   maxSelections?: number;
+  lockEligibilityFilters?: boolean;
   applyLabel: string;
   onApply: (spellIds: string[]) => void;
 }

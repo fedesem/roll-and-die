@@ -138,6 +138,22 @@ describe("JSON Progression Registry & Engine", () => {
       )
     ).not.toContainEqual(award.effects[0]);
   });
+
+  it("rejects a Warlock award choice when its JSON prerequisite is not met", () => {
+    const before = createActor();
+    const award = createProgressionAwardFromActorDelta(before, before, {
+      id: "award-warlock-1",
+      characterLevel: 1,
+      classLevel: 1,
+      className: "Warlock",
+      classSource: "XPHB",
+      choices: [{ groupId: "warlock-invocations-1", optionIds: ["agonizing-blast"] }],
+      committedAt: "2026-01-01T00:00:00.000Z"
+    });
+
+    expect(validateProgressionAwardAgainstCurrentRules(award, before)).toContain("warlock-invocations-1: Requires Warlock level 2.");
+  });
+
   it("contains all 12 D&D 2024 classes, species, and backgrounds in the registry", () => {
     const classKeys = [
       "barbarian",

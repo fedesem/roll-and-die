@@ -178,6 +178,7 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
             guided.guidedChoiceSpec.cantripOptions.some((spell) => spell.id === entry)
           ),
           maxSelections: guided.guidedChoiceSpec.cantripCount > 0 ? guided.guidedChoiceSpec.cantripCount : undefined,
+          lockEligibilityFilters: true,
           applyLabel: "Apply Cantrips",
           onApply: (spellIds) =>
             guided.setGuidedSetup((current) => ({
@@ -194,6 +195,7 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
             guided.guidedChoiceSpec.knownSpellOptions.some((spell) => spell.id === entry)
           ),
           maxSelections: guided.guidedChoiceSpec.knownSpellCount > 0 ? guided.guidedChoiceSpec.knownSpellCount : undefined,
+          lockEligibilityFilters: true,
           applyLabel: "Apply Known Spells",
           onApply: (spellIds) =>
             guided.setGuidedSetup((current) => ({
@@ -210,6 +212,7 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
             guided.guidedChoiceSpec.spellbookOptions.some((spell) => spell.id === entry)
           ),
           maxSelections: guided.guidedChoiceSpec.spellbookCount > 0 ? guided.guidedChoiceSpec.spellbookCount : undefined,
+          lockEligibilityFilters: true,
           applyLabel: "Apply Spellbook Spells",
           onApply: (spellIds) =>
             guided.setGuidedSetup((current) => ({
@@ -226,6 +229,7 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
             guided.guidedChoiceSpec.preparedSpellOptions.some((spell) => spell.id === entry)
           ),
           maxSelections: guided.guidedChoiceSpec.preparedSpellCount > 0 ? guided.guidedChoiceSpec.preparedSpellCount : undefined,
+          lockEligibilityFilters: true,
           applyLabel: "Apply Prepared Spells",
           onApply: (spellIds) =>
             guided.setGuidedSetup((current) => ({
@@ -374,6 +378,7 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
           compendium={compendium}
           allowedSourceBooks={allowedSourceBooks}
           maxSelections={spellSelectionConfig.maxSelections}
+          lockEligibilityFilters={spellSelectionConfig.lockEligibilityFilters}
           applyLabel={spellSelectionConfig.applyLabel}
           onClose={() => actions.setSpellSelectionTarget(null)}
           onApply={(spellIds) => {
@@ -386,7 +391,6 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
       <GuidedSheetModal
         draft={state.draft}
         compendium={compendium}
-        filteredFeats={derived.filteredFeats}
         guided={guided}
         onOpenSpellSelection={actions.setSpellSelectionTarget}
         renderRulesText={renderRulesText}

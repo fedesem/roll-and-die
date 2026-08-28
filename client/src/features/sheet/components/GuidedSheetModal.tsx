@@ -27,20 +27,12 @@ import { DetailCollection, Field, HoverPreviewTrigger, inputClass, secondaryButt
 interface GuidedSheetModalProps {
   draft: ActorSheet;
   compendium: SheetCompendium;
-  filteredFeats: SheetCompendium["feats"];
   guided: GuidedSheetFlowState;
   onOpenSpellSelection: (target: "guideCantrips" | "guideKnown" | "guideSpellbook" | "guidePrepared") => void;
   renderRulesText: (text: string) => ReactNode;
 }
 
-export function GuidedSheetModal({
-  draft,
-  compendium,
-  filteredFeats,
-  guided,
-  onOpenSpellSelection,
-  renderRulesText
-}: GuidedSheetModalProps) {
+export function GuidedSheetModal({ draft, compendium, guided, onOpenSpellSelection, renderRulesText }: GuidedSheetModalProps) {
   if (!guided.guidedFlowOpen) {
     return null;
   }
@@ -1190,7 +1182,7 @@ export function GuidedSheetModal({
                             onChange={(event) => guided.setGuidedSetup((current) => ({ ...current, asiFeatId: event.target.value }))}
                           >
                             <option value="">Select a feat</option>
-                            {filteredFeats.map((entry) => (
+                            {guided.guidedFeatOptions.map((entry) => (
                               <option
                                 key={entry.id}
                                 value={entry.id}

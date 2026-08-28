@@ -46,6 +46,7 @@ import {
   deriveSpeciesOriginFeatOptions,
   deriveSpeciesSkillChoiceConfig,
   effectiveHitPointMax,
+  featMeetsProgressionPrerequisites,
   mergeDerivedResources,
   mergeTextValues,
   padGuideSelections,
@@ -258,6 +259,7 @@ export interface GuidedSheetFlowState {
   guidedAbilityChoiceMode: GuidedAbilityChoiceMode | null;
   guidedAbilityChoiceSlots: GuidedAbilityChoiceSlot[];
   guidedOriginFeatOptions: PlayerNpcSheet2024Props["compendium"]["feats"];
+  guidedFeatOptions: PlayerNpcSheet2024Props["compendium"]["feats"];
   guidedEquipmentGroups: GuidedEquipmentGroup[];
   selectedGuideFeats: PlayerNpcSheet2024Props["compendium"]["feats"];
   selectedGuideOptionalFeatures: PlayerNpcSheet2024Props["compendium"]["optionalFeatures"];
@@ -441,7 +443,14 @@ export function useGuidedSheetFlow({
         targetClassId: guidedSetup.classId,
         targetActorClassId: guidedClassId,
         targetSubclassId: guidedSetup.subclassId,
-        mode: guidedFlowMode
+        mode: guidedFlowMode,
+        selectedClassChoiceIds: guidedSetup.classChoiceIds,
+        selectedSpellIds: [
+          ...guidedSetup.cantripIds,
+          ...guidedSetup.knownSpellIds,
+          ...guidedSetup.spellbookSpellIds,
+          ...guidedSetup.preparedSpellIds
+        ]
       }),
     [
       compendium.classes,
@@ -452,10 +461,20 @@ export function useGuidedSheetFlow({
       guidedClassId,
       guidedFlowMode,
       guidedSetup.classId,
+      guidedSetup.classChoiceIds,
+      guidedSetup.cantripIds,
+      guidedSetup.knownSpellIds,
+      guidedSetup.preparedSpellIds,
+      guidedSetup.spellbookSpellIds,
       guidedSetup.subclassId,
       guidedSetupActorForGuideChoices
     ]
   );
+  const guidedFeatOptions = useMemo(() => {
+    const targetCharacterLevel =
+      guidedFlowMode === "levelup" ? totalLevel(guidedSetupActorForGuideChoices) + 1 : totalLevel(guidedSetupActorForGuideChoices);
+    return filteredFeats.filter((feat) => featMeetsProgressionPrerequisites(feat, guidedSetupActorForGuideChoices, targetCharacterLevel));
+  }, [filteredFeats, guidedFlowMode, guidedSetupActorForGuideChoices]);
 
   useEffect(() => {
     if (!guidedFlowOpen) {
@@ -512,9 +531,9 @@ export function useGuidedSheetFlow({
         guidedChoiceSpec.expertiseCount,
         guidedChoiceSpec.expertiseSkillOptions.map((entry) => entry.name)
       );
-      const nextAsiFeatId = filteredFeats.some((entry) => entry.id === current.asiFeatId)
+      const nextAsiFeatId = guidedFeatOptions.some((entry) => entry.id === current.asiFeatId)
         ? current.asiFeatId
-        : (filteredFeats[0]?.id ?? "");
+        : (guidedFeatOptions[0]?.id ?? "");
       const nextAsiAbilityChoices = padGuideSelections(
         current.asiAbilityChoices.filter((entry) => defaultGuideAbilityCycle.includes(entry)),
         guidedChoiceSpec.abilityImprovementCount * 2,
@@ -573,7 +592,7 @@ export function useGuidedSheetFlow({
       };
     });
   }, [
-    filteredFeats,
+    guidedFeatOptions,
     guidedAbilityChoiceConfig,
     guidedBackgroundSkillChoiceConfig,
     guidedChoiceSpec,
@@ -1028,6 +1047,7 @@ export function useGuidedSheetFlow({
     guidedAbilityChoiceMode,
     guidedAbilityChoiceSlots,
     guidedOriginFeatOptions,
+    guidedFeatOptions,
     guidedEquipmentGroups,
     selectedGuideFeats,
     selectedGuideOptionalFeatures,

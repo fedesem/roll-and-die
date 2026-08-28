@@ -811,6 +811,33 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     expect(choiceSpec.expertiseSkillOptions.map((entry) => entry.name)).toEqual(["Deception", "Insight", "Stealth"]);
   });
 
+  it("limits guided spell choices to the JSON class list, spell kind, learnable level, and unlearned spells", () => {
+    const wizard = createClass({ id: "wizard-xphb", name: "Wizard", source: "XPHB", spellPreparation: "spellbook" });
+    const actor = createActor({ spells: ["Magic Missile"] });
+    const fireBolt = createSpell({ id: "fire-bolt", name: "Fire Bolt", level: "cantrip", classes: ["Wizard"], damageNotation: "1d10" });
+    const guidance = createSpell({ id: "guidance", name: "Guidance", level: "cantrip", classes: ["Cleric"] });
+    const shield = createSpell({ id: "shield", name: "Shield", level: 1, classes: ["Wizard"] });
+    const magicMissile = createSpell({ id: "magic-missile", name: "Magic Missile", level: 1, classes: ["Wizard"] });
+    const mistyStep = createSpell({ id: "misty-step", name: "Misty Step", level: 2, classes: ["Wizard"] });
+
+    const choiceSpec = deriveGuidedChoiceSpec({
+      actor,
+      classes: [wizard],
+      spells: [fireBolt, guidance, shield, magicMissile, mistyStep],
+      feats: [],
+      optionalFeatures: [],
+      targetClassId: wizard.id,
+      targetActorClassId: "",
+      targetSubclassId: "",
+      mode: "setup"
+    });
+
+    expect(choiceSpec.cantripOptions.map((spell) => spell.name)).toEqual(["Fire Bolt"]);
+    expect(choiceSpec.spellbookOptions.map((spell) => spell.name)).toEqual(["Shield"]);
+    expect(choiceSpec.spellbookOptions.map((spell) => spell.name)).not.toContain("Misty Step");
+    expect(choiceSpec.spellbookOptions.map((spell) => spell.name)).not.toContain("Magic Missile");
+  });
+
   it("syncs build classes from actor subclass fields", () => {
     const actorClasses: ActorClassEntry[] = [
       {
@@ -1546,7 +1573,15 @@ describe("playerNpcSheet2024 extracted helpers", () => {
       optionalFeatures: [],
       actor: createActor()
     });
-    expect(warlockLvl1Groups.some((g) => g.id === "warlock-invocations-1")).toBe(true);
+    const invocationGroup = warlockLvl1Groups.find((g) => g.id === "warlock-invocations-1");
+    expect(invocationGroup).toBeDefined();
+    expect(invocationGroup?.options.map((option) => option.label)).toEqual([
+      "Pact of the Blade",
+      "Pact of the Tome",
+      "Pact of the Chain",
+      "Armor of Shadows",
+      "Eldritch Mind"
+    ]);
 
     const druidClass = createClass({ id: "druid-xphb", name: "Druid", source: "XPHB" });
     const druidCantrip = createSpell({ id: "guidance-xphb", name: "Guidance", source: "XPHB", level: "cantrip", classes: ["Druid"] });

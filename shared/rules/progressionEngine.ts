@@ -7,6 +7,7 @@ import type {
   ProgressionAwardChoice,
   ProgressionEffect,
   ResourceEntry,
+  SpellEntry,
   SpellSlotTrack
 } from "../types.js";
 import { createCompendiumRef, parseCompendiumRef } from "./compendiumRefs.js";
@@ -19,8 +20,111 @@ import {
   type ClassProgressionDef,
   type LevelProgressionConfig,
   type ProgressionChoiceGroupDef,
+  type ProgressionChoiceOption,
   type ProgressionResourceDef
 } from "../data/progression/index.js";
+
+export interface ProgressionChoiceEligibilityContext {
+  actor?: ActorSheet;
+  classDefinition?: ClassProgressionDef;
+  classLevel: number;
+  characterLevel: number;
+  subclassId?: string;
+  selectedFeatureNames?: string[];
+  spells?: SpellEntry[];
+  selectedSpellIds?: string[];
+}
+
+export function progressionChoiceOptionIneligibilityReason(
+  option: ProgressionChoiceOption,
+  context: ProgressionChoiceEligibilityContext
+): string | null {
+  const requirements = option.requires;
+  if (!requirements) return null;
+
+  if (requirements.level && context.classLevel < requirements.level) {
+    return context.classDefinition
+      ? `Requires ${context.classDefinition.name} level ${requirements.level}.`
+      : `Requires class level ${requirements.level}.`;
+  }
+  if (requirements.characterLevel && context.characterLevel < requirements.characterLevel) {
+    return `Requires character level ${requirements.characterLevel}.`;
+  }
+  if (requirements.subclassId && normalizeProgressionKey(requirements.subclassId) !== normalizeProgressionKey(context.subclassId ?? "")) {
+    return `Requires the ${requirements.subclassId} subclass.`;
+  }
+
+  const ownedFeatures = [
+    ...(context.actor?.features ?? []),
+    ...(context.actor?.feats ?? []),
+    ...(context.actor?.talents ?? []),
+    ...(context.selectedFeatureNames ?? [])
+  ];
+  if (requirements.feature && !ownedFeatures.some((entry) => progressionRequirementMatches(entry, requirements.feature!))) {
+    return `Requires ${requirements.feature}.`;
+  }
+  if (requirements.notFeature && ownedFeatures.some((entry) => progressionRequirementMatches(entry, requirements.notFeature!))) {
+    return `Unavailable while ${requirements.notFeature} is known.`;
+  }
+  if (
+    context.actor &&
+    requirements.minAbility &&
+    Object.entries(requirements.minAbility).some(([ability, minimum]) => context.actor!.abilities[ability as AbilityKey] < (minimum ?? 0))
+  ) {
+    return "Ability score prerequisite not met.";
+  }
+
+  if (requirements.knownSpell && context.spells) {
+    const knownSpellNames = new Set(
+      [
+        ...(context.actor?.spells ?? []),
+        ...(context.actor?.preparedSpells ?? []),
+        ...(context.actor?.spellState.spellbook ?? []),
+        ...(context.actor?.spellState.alwaysPrepared ?? []),
+        ...(context.actor?.spellState.atWill ?? []),
+        ...(context.actor?.spellState.perShortRest ?? []),
+        ...(context.actor?.spellState.perLongRest ?? [])
+      ].map(normalizeProgressionKey)
+    );
+    const selectedSpellIds = new Set(context.selectedSpellIds ?? []);
+    const hasEligibleSpell = context.spells.some((spell) => {
+      if (!knownSpellNames.has(normalizeProgressionKey(spell.name)) && !selectedSpellIds.has(spell.id)) return false;
+      if (requirements.knownSpell?.level !== undefined && spell.level !== requirements.knownSpell.level) return false;
+      if (requirements.knownSpell?.dealsDamage && !spell.damageNotation.trim()) return false;
+      if (requirements.knownSpell?.spellListId && !spellMatchesProgressionList(spell, requirements.knownSpell.spellListId)) {
+        return false;
+      }
+      return true;
+    });
+    if (!hasEligibleSpell) return "Requires an eligible known spell.";
+  }
+
+  return null;
+}
+
+export function progressionChoiceOptionIsEligible(option: ProgressionChoiceOption, context: ProgressionChoiceEligibilityContext): boolean {
+  return progressionChoiceOptionIneligibilityReason(option, context) === null;
+}
+
+function normalizeProgressionKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function progressionRequirementMatches(owned: string, required: string) {
+  const normalizedOwned = normalizeProgressionKey(owned);
+  const normalizedRequired = normalizeProgressionKey(required);
+  return normalizedOwned === normalizedRequired || normalizedOwned.startsWith(normalizedRequired);
+}
+
+function spellMatchesProgressionList(spell: SpellEntry, spellListId: string) {
+  const normalizedList = normalizeProgressionKey(spellListId);
+  return (
+    spell.classes.some((entry) => normalizeProgressionKey(entry) === normalizedList) ||
+    spell.classReferences.some(
+      (entry) => normalizeProgressionKey(entry.className) === normalizedList || normalizeProgressionKey(entry.name) === normalizedList
+    )
+  );
+}
 
 export function abilityModifier(score: number): number {
   return Math.floor((score - 10) / 2);
@@ -173,6 +277,11 @@ export function validateProgressionAwardAgainstCurrentRules(award: ProgressionAw
 
   const subclassName = award.subclassRef ? parseCompendiumRef(award.subclassRef)?.name : undefined;
   const requiredGroups = evaluateClassChoicesForLevel(classDefinition, award.classLevel, subclassName);
+  const selectedClassOptions = requiredGroups.flatMap((group) => {
+    const selectedIds = award.choices.find((choice) => choice.groupId === group.id)?.optionIds ?? [];
+    return group.options.filter((option) => selectedIds.includes(option.id));
+  });
+  const selectedFeatureNames = selectedClassOptions.flatMap((option) => option.grants?.features ?? []);
   requiredGroups
     .filter((group) => group.cadence === undefined || group.cadence === "onLevelUp" || group.cadence === "permanent")
     .forEach((group) => {
@@ -187,6 +296,15 @@ export function validateProgressionAwardAgainstCurrentRules(award: ProgressionAw
       selected.forEach((optionId) => {
         const option = group.options.find((entry) => entry.id === optionId);
         if (!option) return;
+        const prerequisiteError = progressionChoiceOptionIneligibilityReason(option, {
+          actor: actorBeforeAward,
+          classDefinition,
+          classLevel: award.classLevel,
+          characterLevel: award.characterLevel,
+          subclassId: subclassName,
+          selectedFeatureNames
+        });
+        if (prerequisiteError) errors.push(`${group.id}: ${prerequisiteError}`);
         const dependentChoices = [
           { suffix: "cantrips", count: option.grants?.cantripsCount ?? 0 },
           { suffix: "spells", count: option.grants?.spellsCount ?? 0 }
@@ -341,6 +459,20 @@ export function validateProgressionAwardAgainstCurrentRules(award: ProgressionAw
         errors.push(`${group.id} requires exactly ${group.choose} unique selection(s).`);
       } else if (selected.some((optionId) => !options.some((option) => option.id === optionId))) {
         errors.push(`${group.id} contains an unavailable option.`);
+      } else {
+        selected.forEach((optionId) => {
+          const option = options.find((entry) => entry.id === optionId);
+          if (!option) return;
+          const prerequisiteError = progressionChoiceOptionIneligibilityReason(option, {
+            actor: actorBeforeAward,
+            classDefinition,
+            classLevel: award.classLevel,
+            characterLevel: award.characterLevel,
+            subclassId: subclassName,
+            selectedFeatureNames
+          });
+          if (prerequisiteError) errors.push(`${group.id}: ${prerequisiteError}`);
+        });
       }
     });
     if (feat.abilityIncrease) {

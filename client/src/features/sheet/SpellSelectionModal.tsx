@@ -16,6 +16,7 @@ interface SpellSelectionModalProps {
   compendium: CampaignSnapshot["compendium"];
   allowedSourceBooks: string[];
   maxSelections?: number;
+  lockEligibilityFilters?: boolean;
   emptyMessage?: string;
   applyLabel?: string;
   onApply: (spellIds: string[]) => void;
@@ -44,6 +45,7 @@ export function SpellSelectionModal({
   compendium,
   allowedSourceBooks,
   maxSelections,
+  lockEligibilityFilters = false,
   emptyMessage = "No spells match these filters.",
   applyLabel = "Apply Spells",
   onApply,
@@ -285,7 +287,9 @@ export function SpellSelectionModal({
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5">
-          <div className="grid gap-3 border border-white/8 bg-black/20 p-4 md:grid-cols-4">
+          <div
+            className={`grid gap-3 border border-white/8 bg-black/20 p-4 ${lockEligibilityFilters ? "md:grid-cols-[minmax(0,1fr)_auto]" : "md:grid-cols-4"}`}
+          >
             <label className="space-y-1.5 text-sm text-zinc-300">
               <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">Name</span>
               <input
@@ -295,61 +299,69 @@ export function SpellSelectionModal({
                 placeholder="Search spell name"
               />
             </label>
-            <label className="space-y-1.5 text-sm text-zinc-300">
-              <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">Level</span>
-              <select
-                className={inputClass}
-                value={levelFilter}
-                onChange={(event) => setLevelFilter(event.target.value as SpellLevelFilter)}
-              >
-                <option value="all">All Levels</option>
-                <option value="cantrip">Cantrip</option>
-                {Array.from({ length: 9 }, (_, index) => index + 1).map((level) => (
-                  <option key={level} value={String(level)}>
-                    Level {level}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1.5 text-sm text-zinc-300">
-              <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">School</span>
-              <select
-                className={inputClass}
-                value={schoolFilter}
-                onChange={(event) => setSchoolFilter(event.target.value as SpellSchool | "all")}
-              >
-                <option value="all">All Schools</option>
-                {SPELL_SCHOOLS.map((school) => (
-                  <option key={school} value={school}>
-                    {school}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1.5 text-sm text-zinc-300">
-              <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">Class</span>
-              <select className={inputClass} value={classFilter} onChange={(event) => setClassFilter(event.target.value)}>
-                <option value="all">All Class Access</option>
-                {baseClassOptions.length > 0 ? (
-                  <optgroup label="Classes">
-                    {baseClassOptions.map((entry) => (
-                      <option key={entry.key} value={entry.key}>
-                        {entry.label}
+            {lockEligibilityFilters ? (
+              <p className="self-end border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-sm text-amber-100/80">
+                Class, spell type, and spell level are fixed by this wizard step.
+              </p>
+            ) : (
+              <>
+                <label className="space-y-1.5 text-sm text-zinc-300">
+                  <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">Level</span>
+                  <select
+                    className={inputClass}
+                    value={levelFilter}
+                    onChange={(event) => setLevelFilter(event.target.value as SpellLevelFilter)}
+                  >
+                    <option value="all">All Levels</option>
+                    <option value="cantrip">Cantrip</option>
+                    {Array.from({ length: 9 }, (_, index) => index + 1).map((level) => (
+                      <option key={level} value={String(level)}>
+                        Level {level}
                       </option>
                     ))}
-                  </optgroup>
-                ) : null}
-                {subclassOptionsByClass.map(([classLabel, entries]) => (
-                  <optgroup key={classLabel} label={`Subclasses · ${classLabel}`}>
-                    {entries.map((entry) => (
-                      <option key={entry.key} value={entry.key}>
-                        {entry.label}
+                  </select>
+                </label>
+                <label className="space-y-1.5 text-sm text-zinc-300">
+                  <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">School</span>
+                  <select
+                    className={inputClass}
+                    value={schoolFilter}
+                    onChange={(event) => setSchoolFilter(event.target.value as SpellSchool | "all")}
+                  >
+                    <option value="all">All Schools</option>
+                    {SPELL_SCHOOLS.map((school) => (
+                      <option key={school} value={school}>
+                        {school}
                       </option>
                     ))}
-                  </optgroup>
-                ))}
-              </select>
-            </label>
+                  </select>
+                </label>
+                <label className="space-y-1.5 text-sm text-zinc-300">
+                  <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">Class</span>
+                  <select className={inputClass} value={classFilter} onChange={(event) => setClassFilter(event.target.value)}>
+                    <option value="all">All Class Access</option>
+                    {baseClassOptions.length > 0 ? (
+                      <optgroup label="Classes">
+                        {baseClassOptions.map((entry) => (
+                          <option key={entry.key} value={entry.key}>
+                            {entry.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null}
+                    {subclassOptionsByClass.map(([classLabel, entries]) => (
+                      <optgroup key={classLabel} label={`Subclasses · ${classLabel}`}>
+                        {entries.map((entry) => (
+                          <option key={entry.key} value={entry.key}>
+                            {entry.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3 border border-white/8 bg-black/20 px-4 py-3 text-sm">

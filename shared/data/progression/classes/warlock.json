@@ -71,6 +71,10 @@
             {
               "id": "agonizing-blast",
               "name": "Agonizing Blast",
+              "requires": {
+                "level": 2,
+                "knownSpell": { "spellListId": "warlock", "level": "cantrip", "dealsDamage": true }
+              },
               "grants": { "features": ["Agonizing Blast (+Charisma modifier to Cantrip damage)"] }
             },
             {
@@ -86,31 +90,40 @@
             {
               "id": "fiendish-vigor",
               "name": "Fiendish Vigor",
+              "requires": { "level": 2 },
               "grants": { "features": ["Fiendish Vigor (Cast False Life at will without slot)"], "alwaysPreparedSpells": ["False Life"] }
             },
             {
               "id": "lessons-of-the-first-ones",
               "name": "Lessons of the First Ones",
+              "requires": { "level": 2 },
               "grants": { "features": ["Lessons of the First Ones (Gain an Origin Feat)"] }
             },
             {
               "id": "mask-of-many-faces",
               "name": "Mask of Many Faces",
+              "requires": { "level": 2 },
               "grants": { "features": ["Mask of Many Faces (Cast Disguise Self at will)"], "alwaysPreparedSpells": ["Disguise Self"] }
             },
             {
               "id": "misty-visions",
               "name": "Misty Visions",
+              "requires": { "level": 2 },
               "grants": { "features": ["Misty Visions (Cast Silent Image at will)"], "alwaysPreparedSpells": ["Silent Image"] }
             },
             {
               "id": "otherworldly-leap",
               "name": "Otherworldly Leap",
+              "requires": { "level": 2 },
               "grants": { "features": ["Otherworldly Leap (Cast Jump at will)"], "alwaysPreparedSpells": ["Jump"] }
             },
             {
               "id": "repelling-blast",
               "name": "Repelling Blast",
+              "requires": {
+                "level": 2,
+                "knownSpell": { "spellListId": "warlock", "level": "cantrip", "dealsDamage": true }
+              },
               "grants": { "features": ["Repelling Blast (Push target up to 10 ft on cantrip hit)"] }
             }
           ]

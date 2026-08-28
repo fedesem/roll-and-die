@@ -37,10 +37,16 @@ export interface ProgressionChoiceOption {
   referenceId?: string;
   requires?: {
     level?: number;
+    characterLevel?: number;
     subclassId?: string;
     feature?: string;
     notFeature?: string;
     minAbility?: Partial<Record<AbilityKey, number>>;
+    knownSpell?: {
+      spellListId?: string;
+      level?: number | "cantrip";
+      dealsDamage?: boolean;
+    };
   };
   grants?: {
     features?: string[];
