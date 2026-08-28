@@ -1,0 +1,41 @@
+{
+  "id": "sorcerer-clockwork-xphb",
+  "classId": "sorcerer-xphb",
+  "className": "Sorcerer",
+  "name": "Clockwork Sorcery",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Clockwork Spells", "Restore Balance"],
+      "alwaysPreparedSpells": ["Alarm", "Protection from Evil and Good", "Aid", "Lesser Restoration"],
+      "actions": [
+        {
+          "id": "action-restore-balance",
+          "name": "Restore Balance",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "reaction",
+          "range": "60 feet"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Dispel Magic", "Protection from Energy"]
+    },
+    "6": {
+      "features": ["Bastion of Law"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Freedom of Movement", "Summon Construct"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Greater Restoration", "Wall of Force"]
+    },
+    "14": {
+      "features": ["Trance of Order"]
+    },
+    "18": {
+      "features": ["Clockwork Cavalcade"]
+    }
+  }
+}

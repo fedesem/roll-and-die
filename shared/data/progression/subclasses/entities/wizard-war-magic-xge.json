@@ -1,0 +1,39 @@
+{
+  "id": "wizard-war-magic-xge",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "War Magic",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Arcane Deflection", "Tactical Wit"],
+      "grants": {
+        "passiveBonuses": [
+          {
+            "target": "initiative",
+            "statBonus": "int"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "id": "action-arcane-deflection",
+          "name": "Arcane Deflection",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "reaction",
+          "range": "Self"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Power Surge"]
+    },
+    "10": {
+      "features": ["Durable Magic"]
+    },
+    "14": {
+      "features": ["Deflecting Shroud"]
+    }
+  }
+}

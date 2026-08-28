@@ -1,0 +1,31 @@
+{
+  "id": "sorcerer-storm-xge",
+  "classId": "sorcerer-xphb",
+  "className": "Sorcerer",
+  "name": "Storm Sorcery",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Wind Speaker", "Tempestuous Magic"],
+      "actions": [
+        {
+          "id": "action-tempestuous-magic",
+          "name": "Tempestuous Magic",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "Self"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Heart of the Storm", "Storm Guide"]
+    },
+    "14": {
+      "features": ["Storm's Fury"]
+    },
+    "18": {
+      "features": ["Wind Soul"]
+    }
+  }
+}

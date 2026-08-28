@@ -1,0 +1,21 @@
+{
+  "id": "barbarian-ancestral-guardian-xge",
+  "classId": "barbarian-xphb",
+  "className": "Barbarian",
+  "name": "Path of the Ancestral Guardian",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Ancestral Protectors"]
+    },
+    "6": {
+      "features": ["Spirit Shield"]
+    },
+    "10": {
+      "features": ["Consult the Spirits"]
+    },
+    "14": {
+      "features": ["Vengeful Ancestors"]
+    }
+  }
+}

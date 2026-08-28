@@ -1,0 +1,43 @@
+{
+  "id": "tiefling-xphb",
+  "name": "Tiefling",
+  "source": "XPHB",
+  "sizes": ["Medium", "Small"],
+  "speed": 30,
+  "darkvision": 60,
+  "creatureTypes": ["Humanoid"],
+  "languages": ["Common"],
+  "bonusLanguageCount": 1,
+  "features": ["Darkvision", "Otherworldly Presence"],
+  "choices": [
+    {
+      "id": "tiefling-legacy",
+      "title": "Fiendish Legacy",
+      "source": "species",
+      "choose": 1,
+      "options": [
+        {
+          "id": "abyssal",
+          "name": "Abyssal (Poison Resistance, Poison Spray)",
+          "grants": {
+            "features": ["Fiendish Legacy: Abyssal"]
+          }
+        },
+        {
+          "id": "chthonic",
+          "name": "Chthonic (Necrotic Resistance, Chill Touch)",
+          "grants": {
+            "features": ["Fiendish Legacy: Chthonic"]
+          }
+        },
+        {
+          "id": "infernal",
+          "name": "Infernal (Fire Resistance, Fire Bolt)",
+          "grants": {
+            "features": ["Fiendish Legacy: Infernal"]
+          }
+        }
+      ]
+    }
+  ]
+}

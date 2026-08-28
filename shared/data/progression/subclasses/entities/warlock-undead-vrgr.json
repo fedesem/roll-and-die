@@ -1,0 +1,41 @@
+{
+  "id": "warlock-undead-vrgr",
+  "classId": "warlock-xphb",
+  "className": "Warlock",
+  "name": "The Undead",
+  "source": "VRGR",
+  "levels": {
+    "3": {
+      "features": ["Form of Dread", "Grave Touched", "Expanded Spell List (Undead)"],
+      "alwaysPreparedSpells": ["Bane", "False Life", "Blindness/Deafness", "Phantasmal Force"],
+      "actions": [
+        {
+          "id": "action-form-of-dread",
+          "name": "Form of Dread",
+          "source": "VRGR",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "Self"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Phantom Steed", "Speak with Dead"]
+    },
+    "6": {
+      "features": ["Grave Touched (Enhanced)"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Death Ward", "Shadow of Moil"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Antilife Shell", "Cloudkill"]
+    },
+    "10": {
+      "features": ["Mortal Husk"]
+    },
+    "14": {
+      "features": ["Spirit Projection"]
+    }
+  }
+}

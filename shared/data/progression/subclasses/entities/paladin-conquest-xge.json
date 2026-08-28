@@ -1,0 +1,45 @@
+{
+  "id": "paladin-conquest-xge",
+  "classId": "paladin-xphb",
+  "className": "Paladin",
+  "name": "Oath of Conquest",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Oath Spells (Conquest)", "Conquering Presence", "Guided Strike"],
+      "alwaysPreparedSpells": ["Armor of Agathys", "Command", "Hold Person", "Spiritual Weapon"],
+      "actions": [
+        {
+          "id": "action-conquering-presence",
+          "name": "Channel Divinity: Conquering Presence",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "action",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "30 feet"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Aura of Conquest"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Bestow Curse", "Fear"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Dominate Beast", "Stoneskin"]
+    },
+    "15": {
+      "features": ["Scornful Rebuke"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Cloudkill", "Dominate Person"]
+    },
+    "20": {
+      "features": ["Invincible Conqueror"]
+    }
+  }
+}

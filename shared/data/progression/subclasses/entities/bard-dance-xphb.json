@@ -1,0 +1,18 @@
+{
+  "id": "bard-dance-xphb",
+  "classId": "bard-xphb",
+  "className": "Bard",
+  "name": "College of Dance",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Dazzling Footwork", "Inspiring Movement"]
+    },
+    "6": {
+      "features": ["Leading Steps", "Tandem Footwork"]
+    },
+    "14": {
+      "features": ["Irresistible Dance"]
+    }
+  }
+}

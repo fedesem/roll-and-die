@@ -1,0 +1,45 @@
+{
+  "id": "paladin-glory-xphb",
+  "classId": "paladin-xphb",
+  "className": "Paladin",
+  "name": "Oath of Glory",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Oath Spells (Glory)", "Peerless Athlete", "Inspiring Smite"],
+      "alwaysPreparedSpells": ["Guiding Bolt", "Heroism", "Enhance Ability", "Magic Weapon"],
+      "actions": [
+        {
+          "id": "action-peerless-athlete",
+          "name": "Channel Divinity: Peerless Athlete",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "Self"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Aura of Alacrity"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Haste", "Protection from Energy"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Compulsion", "Freedom of Movement"]
+    },
+    "15": {
+      "features": ["Glorious Defense"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Commune", "Flame Strike"]
+    },
+    "20": {
+      "features": ["Living Legend"]
+    }
+  }
+}

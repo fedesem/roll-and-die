@@ -1,0 +1,42 @@
+{
+  "id": "cleric-grave-xge",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Grave Domain",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Domain Spells (Grave)", "Circle of Mortality", "Eyes of the Grave", "Path to the Grave"],
+      "alwaysPreparedSpells": ["Bane", "False Life", "Gentle Repose", "Ray of Enfeeblement"],
+      "actions": [
+        {
+          "id": "action-path-to-the-grave",
+          "name": "Channel Divinity: Path to the Grave",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "action",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "30 feet"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Revivify", "Vampiric Touch"]
+    },
+    "6": {
+      "features": ["Sentinel at Death's Door"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Blight", "Death Ward"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Antilife Shell", "Raise Dead"]
+    },
+    "17": {
+      "features": ["Keeper of Souls"]
+    }
+  }
+}

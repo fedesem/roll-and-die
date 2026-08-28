@@ -1,0 +1,17 @@
+{
+  "id": "musician",
+  "name": "Musician",
+  "source": "XPHB",
+  "category": "origin",
+  "features": ["Encouraging Song", "Heroic Inspiration Grant"],
+  "actions": [
+    {
+      "id": "musician-song",
+      "name": "Inspiring Performance",
+      "source": "XPHB",
+      "category": "feat",
+      "actionCost": "special",
+      "range": "30 feet"
+    }
+  ]
+}

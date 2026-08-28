@@ -1,0 +1,55 @@
+{
+  "id": "ranger-gloom-stalker-xphb",
+  "classId": "ranger-xphb",
+  "className": "Ranger",
+  "name": "Gloom Stalker",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Dread Ambusher", "Gloom Stalker Spells", "Umbral Sight"],
+      "alwaysPreparedSpells": ["Disguise Self"],
+      "grants": {
+        "passiveBonuses": [
+          {
+            "target": "initiative",
+            "statBonus": "wis"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "id": "action-dread-ambusher",
+          "name": "Dread Ambusher Strike",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "free",
+          "roll": {
+            "kind": "damage",
+            "diceFormula": "2d6"
+          }
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Rope Trick"]
+    },
+    "7": {
+      "features": ["Iron Mind"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Fear"]
+    },
+    "11": {
+      "features": ["Stalker's Flurry"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Greater Invisibility"]
+    },
+    "15": {
+      "features": ["Shadowy Dodge"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Seeming"]
+    }
+  }
+}

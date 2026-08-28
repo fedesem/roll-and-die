@@ -1,0 +1,31 @@
+{
+  "id": "rogue-mastermind-xge",
+  "classId": "rogue-xphb",
+  "className": "Rogue",
+  "name": "Mastermind",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Master of Intrigue", "Master of Tactics"],
+      "actions": [
+        {
+          "id": "action-master-of-tactics",
+          "name": "Help (Master of Tactics)",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "30 feet"
+        }
+      ]
+    },
+    "9": {
+      "features": ["Insightful Manipulator"]
+    },
+    "13": {
+      "features": ["Misdirection"]
+    },
+    "17": {
+      "features": ["Soul of Deceit"]
+    }
+  }
+}

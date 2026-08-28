@@ -1,0 +1,31 @@
+{
+  "id": "ranger-beast-master-xphb",
+  "classId": "ranger-xphb",
+  "className": "Ranger",
+  "name": "Beast Master",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Primal Companion"],
+      "actions": [
+        {
+          "id": "action-command-beast",
+          "name": "Command Primal Companion",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "60 feet"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Exceptional Training"]
+    },
+    "11": {
+      "features": ["Bestial Fury"]
+    },
+    "15": {
+      "features": ["Share Spells"]
+    }
+  }
+}

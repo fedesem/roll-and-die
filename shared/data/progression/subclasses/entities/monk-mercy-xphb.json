@@ -1,0 +1,21 @@
+{
+  "id": "monk-mercy-xphb",
+  "classId": "monk-xphb",
+  "className": "Monk",
+  "name": "Warrior of Mercy",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Implements of Mercy", "Hand of Harm", "Hand of Healing"]
+    },
+    "6": {
+      "features": ["Physician's Touch"]
+    },
+    "11": {
+      "features": ["Flurry of Healing and Harm"]
+    },
+    "17": {
+      "features": ["Hand of Ultimate Mercy"]
+    }
+  }
+}

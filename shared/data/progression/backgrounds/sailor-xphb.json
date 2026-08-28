@@ -1,0 +1,63 @@
+{
+  "id": "sailor-xphb",
+  "name": "Sailor",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["str", "dex", "wis"],
+    "options": ["str", "dex", "wis"]
+  },
+  "originFeatId": "tavern-brawler",
+  "originFeatName": "Tavern Brawler",
+  "skillProficiencies": ["Athletics", "Perception"],
+  "toolProficiencies": ["Navigator's Tools"],
+  "equipmentChoices": [
+    {
+      "id": "sailor-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Dagger, Navigator's Tools, Rope (50 ft), Traveler's Clothes, 20 GP",
+          "items": [
+            {
+              "name": "Dagger",
+              "quantity": 1
+            },
+            {
+              "name": "Navigator's Tools",
+              "quantity": 1
+            },
+            {
+              "name": "Rope, Hempen (50 feet)",
+              "quantity": 1
+            },
+            {
+              "name": "Traveler's Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 20,
+              "currency": {
+                "gp": 20
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

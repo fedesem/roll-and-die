@@ -1,0 +1,155 @@
+{
+  "id": "monk-xphb",
+  "name": "Monk",
+  "source": "XPHB",
+  "hitDieFaces": 8,
+  "primaryAbilities": ["dex", "wis"],
+  "savingThrows": ["str", "dex"],
+  "armorProficiencies": [],
+  "weaponProficiencies": ["Simple Weapons", "Martial Weapons (Light)"],
+  "toolProficiencies": ["One Artisan's Tools or Musical Instrument"],
+  "startingSkillChoices": { "choose": 2, "options": ["Acrobatics", "Athletics", "History", "Insight", "Religion", "Stealth"] },
+  "equipmentChoices": [
+    {
+      "id": "monk-equipment",
+      "label": "Class Equipment",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Spear, Daggers (5), Explorer's Pack, 11 GP",
+          "items": [
+            { "referenceId": "Spear|XPHB", "name": "Spear", "quantity": 1 },
+            { "referenceId": "Dagger|XPHB", "name": "Dagger", "quantity": 5 },
+            { "referenceId": "Explorer's Pack|XPHB", "name": "Explorer's Pack", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 11, "currency": { "gp": 11 } }
+          ]
+        },
+        { "id": "package-b", "label": "Option B: 50 GP", "items": [{ "name": "Gold Coins", "quantity": 50, "currency": { "gp": 50 } }] }
+      ]
+    }
+  ],
+  "multiclassing": {
+    "prerequisites": { "dex": 13, "wis": 13 },
+    "proficienciesGranted": {
+      "weapons": ["Simple Weapons", "Martial Weapons (Light)"]
+    },
+    "casterType": "none"
+  },
+  "levels": {
+    "1": {
+      "features": ["Martial Arts", "Unarmored Defense"],
+      "resources": [
+        {
+          "name": "Focus Points",
+          "maxFormula": { "type": "level" },
+          "resetOn": "shortRest"
+        }
+      ]
+    },
+    "2": {
+      "features": ["Monk's Focus", "Flurry of Blows", "Patient Defense", "Step of the Wind", "Unarmored Movement"]
+    },
+    "3": {
+      "features": ["Deflect Attacks", "Monastic Tradition"],
+      "subclassChoice": true
+    },
+    "4": {
+      "features": ["Ability Score Improvement", "Slow Fall"],
+      "asiChoice": true
+    },
+    "5": {
+      "features": ["Extra Attack", "Stunning Strike"]
+    },
+    "6": {
+      "features": ["Empowered Strikes"]
+    },
+    "7": {
+      "features": ["Evasion"]
+    },
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "9": {
+      "features": ["Acrobatic Movement"]
+    },
+    "10": {
+      "features": ["Heightened Focus", "Self-Restoration"]
+    },
+    "11": {},
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "13": {
+      "features": ["Deflect Energy"]
+    },
+    "14": {
+      "features": ["Disciplined Survivor"]
+    },
+    "15": {
+      "features": ["Perfect Focus"]
+    },
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "17": {},
+    "18": {
+      "features": ["Superior Defense"]
+    },
+    "19": {
+      "features": ["Epic Boon"],
+      "asiChoice": true
+    },
+    "20": {
+      "features": ["Body and Mind"]
+    }
+  },
+  "subclasses": [
+    {
+      "id": "monk-elements",
+      "name": "Warrior of the Elements",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Elemental Attunement", "Manipulate Elements"] },
+        "6": { "features": ["Elemental Burst"] },
+        "11": { "features": ["Stride of the Elements"] },
+        "17": { "features": ["Elemental Epitome"] }
+      }
+    },
+    {
+      "id": "monk-mercy",
+      "name": "Warrior of Mercy",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Hands of Harm", "Hands of Healing", "Implements of Mercy"] },
+        "6": { "features": ["Physician's Touch"] },
+        "11": { "features": ["Flurry of Healing and Harm"] },
+        "17": { "features": ["Hand of Ultimate Mercy"] }
+      }
+    },
+    {
+      "id": "monk-open-hand",
+      "name": "Warrior of the Open Hand",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Open Hand Technique"] },
+        "6": { "features": ["Wholeness of Body"] },
+        "11": { "features": ["Fleet Step"] },
+        "17": { "features": ["Quivering Palm"] }
+      }
+    },
+    {
+      "id": "monk-shadow",
+      "name": "Warrior of Shadow",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Shadow Arts"] },
+        "6": { "features": ["Shadow Step"] },
+        "11": { "features": ["Improved Shadow Step"] },
+        "17": { "features": ["Cloak of Shadows"] }
+      }
+    }
+  ]
+}

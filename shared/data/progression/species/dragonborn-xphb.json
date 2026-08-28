@@ -1,0 +1,92 @@
+{
+  "id": "dragonborn-xphb",
+  "name": "Dragonborn",
+  "source": "XPHB",
+  "sizes": ["Medium"],
+  "speed": 30,
+  "darkvision": 60,
+  "creatureTypes": ["Humanoid"],
+  "languages": ["Common", "Draconic"],
+  "bonusLanguageCount": 1,
+  "features": ["Breath Weapon", "Damage Resistance", "Darkvision", "Draconic Flight"],
+  "choices": [
+    {
+      "id": "dragonborn-ancestry",
+      "title": "Draconic Ancestry",
+      "source": "species",
+      "choose": 1,
+      "options": [
+        {
+          "id": "black",
+          "name": "Black (Acid, Line)",
+          "grants": {
+            "features": ["Draconic Ancestry: Black"]
+          }
+        },
+        {
+          "id": "blue",
+          "name": "Blue (Lightning, Line)",
+          "grants": {
+            "features": ["Draconic Ancestry: Blue"]
+          }
+        },
+        {
+          "id": "brass",
+          "name": "Brass (Fire, Line)",
+          "grants": {
+            "features": ["Draconic Ancestry: Brass"]
+          }
+        },
+        {
+          "id": "bronze",
+          "name": "Bronze (Lightning, Line)",
+          "grants": {
+            "features": ["Draconic Ancestry: Bronze"]
+          }
+        },
+        {
+          "id": "copper",
+          "name": "Copper (Acid, Line)",
+          "grants": {
+            "features": ["Draconic Ancestry: Copper"]
+          }
+        },
+        {
+          "id": "gold",
+          "name": "Gold (Fire, Cone)",
+          "grants": {
+            "features": ["Draconic Ancestry: Gold"]
+          }
+        },
+        {
+          "id": "green",
+          "name": "Green (Poison, Cone)",
+          "grants": {
+            "features": ["Draconic Ancestry: Green"]
+          }
+        },
+        {
+          "id": "red",
+          "name": "Red (Fire, Cone)",
+          "grants": {
+            "features": ["Draconic Ancestry: Red"]
+          }
+        },
+        {
+          "id": "silver",
+          "name": "Silver (Cold, Cone)",
+          "grants": {
+            "features": ["Draconic Ancestry: Silver"]
+          }
+        },
+        {
+          "id": "white",
+          "name": "White (Cold, Cone)",
+          "grants": {
+            "features": ["Draconic Ancestry: White"]
+          }
+        }
+      ]
+    }
+  ]
+}

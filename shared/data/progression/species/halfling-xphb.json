@@ -1,0 +1,12 @@
+{
+  "id": "halfling-xphb",
+  "name": "Halfling",
+  "source": "XPHB",
+  "sizes": ["Small"],
+  "speed": 30,
+  "darkvision": 0,
+  "creatureTypes": ["Humanoid"],
+  "languages": ["Common", "Halfling"],
+  "bonusLanguageCount": 1,
+  "features": ["Brave", "Halfling Nimbleness", "Lucky", "Naturally Stealthy"]
+}

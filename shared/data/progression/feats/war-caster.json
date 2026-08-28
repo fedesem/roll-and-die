@@ -1,0 +1,16 @@
+{
+  "id": "war-caster",
+  "name": "War Caster",
+  "source": "XPHB",
+  "category": "general",
+  "prerequisites": {
+    "spellcasting": true,
+    "minLevel": 4
+  },
+  "abilityIncrease": {
+    "choose": 1,
+    "options": ["int", "wis", "cha"],
+    "amount": 1
+  },
+  "features": ["Advantage on Concentration", "Somatic with Weapons/Shield", "Opportunity Attack Spell"]
+}

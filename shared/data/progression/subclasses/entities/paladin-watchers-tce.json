@@ -1,0 +1,45 @@
+{
+  "id": "paladin-watchers-tce",
+  "classId": "paladin-xphb",
+  "className": "Paladin",
+  "name": "Oath of the Watchers",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Oath Spells (Watchers)", "Watcher's Will", "Abjure the Extraplanar"],
+      "alwaysPreparedSpells": ["Alarm", "Detect Magic", "Moonbeam", "See Invisibility"],
+      "actions": [
+        {
+          "id": "action-watchers-will",
+          "name": "Channel Divinity: Watcher's Will",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "action",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "30 feet"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Aura of the Sentinel"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Counterspell", "Nondetection"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Banishment", "Dimension Door"]
+    },
+    "15": {
+      "features": ["Vigilant Rebuke"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Hold Monster", "Scrying"]
+    },
+    "20": {
+      "features": ["Mortal Bulwark"]
+    }
+  }
+}

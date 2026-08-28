@@ -1,0 +1,45 @@
+{
+  "id": "paladin-redemption-xge",
+  "classId": "paladin-xphb",
+  "className": "Paladin",
+  "name": "Oath of Redemption",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Oath Spells (Redemption)", "Emissary of Peace", "Rebuke the Violent"],
+      "alwaysPreparedSpells": ["Sanctuary", "Sleep", "Calm Emotions", "Hold Person"],
+      "actions": [
+        {
+          "id": "action-rebuke-the-violent",
+          "name": "Channel Divinity: Rebuke the Violent",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "reaction",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "30 feet"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Aura of the Guardian"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Counterspell", "Hypnotic Pattern"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Otiluke's Resilient Sphere", "Stoneskin"]
+    },
+    "15": {
+      "features": ["Protective Spirit"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Hold Monster", "Wall of Force"]
+    },
+    "20": {
+      "features": ["Emissary of Redemption"]
+    }
+  }
+}

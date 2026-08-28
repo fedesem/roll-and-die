@@ -1,0 +1,20 @@
+{
+  "id": "lucky",
+  "name": "Lucky",
+  "source": "XPHB",
+  "category": "origin",
+  "features": ["Luck Points"],
+  "actions": [
+    {
+      "id": "lucky-advantage",
+      "name": "Spend Luck Point (Advantage / Disadvantage)",
+      "source": "XPHB",
+      "category": "feat",
+      "actionCost": "reaction",
+      "resourceCost": {
+        "resourceName": "Luck Points",
+        "count": 1
+      }
+    }
+  ]
+}

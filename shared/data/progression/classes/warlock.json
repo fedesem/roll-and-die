@@ -1,0 +1,309 @@
+{
+  "id": "warlock-xphb",
+  "name": "Warlock",
+  "source": "XPHB",
+  "hitDieFaces": 8,
+  "primaryAbilities": ["cha"],
+  "savingThrows": ["wis", "cha"],
+  "armorProficiencies": ["Light Armor"],
+  "weaponProficiencies": ["Simple Weapons"],
+  "toolProficiencies": [],
+  "startingSkillChoices": {
+    "choose": 2,
+    "options": ["Arcana", "Deception", "History", "Intimidation", "Investigation", "Nature", "Religion"]
+  },
+  "equipmentChoices": [
+    {
+      "id": "warlock-equipment",
+      "label": "Class Equipment",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Leather Armor, Sickle, Daggers (2), Arcane Focus, Book, Scholar's Pack, 15 GP",
+          "items": [
+            { "referenceId": "Leather Armor|XPHB", "name": "Leather Armor", "quantity": 1 },
+            { "referenceId": "Sickle|XPHB", "name": "Sickle", "quantity": 1 },
+            { "referenceId": "Dagger|XPHB", "name": "Dagger", "quantity": 2 },
+            { "referenceId": "Orb|XPHB", "name": "Orb", "quantity": 1 },
+            { "referenceId": "Book|XPHB", "name": "Book", "quantity": 1 },
+            { "referenceId": "Scholar's Pack|XPHB", "name": "Scholar's Pack", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 15, "currency": { "gp": 15 } }
+          ]
+        },
+        { "id": "package-b", "label": "Option B: 100 GP", "items": [{ "name": "Gold Coins", "quantity": 100, "currency": { "gp": 100 } }] }
+      ]
+    }
+  ],
+  "spellListId": "warlock",
+  "multiclassing": {
+    "prerequisites": { "cha": 13 },
+    "proficienciesGranted": {
+      "armor": ["Light Armor"],
+      "weapons": ["Simple Weapons"]
+    },
+    "casterType": "pact"
+  },
+  "levels": {
+    "1": {
+      "features": ["Eldritch Invocations", "Pact Magic"],
+      "choices": [
+        {
+          "id": "warlock-invocations-1",
+          "title": "Eldritch Invocation",
+          "source": "class",
+          "choose": 1,
+          "options": [
+            {
+              "id": "pact-of-the-blade",
+              "name": "Pact of the Blade",
+              "grants": { "features": ["Pact of the Blade (Bond Weapon, Charisma to Attacks)"] }
+            },
+            {
+              "id": "pact-of-the-tome",
+              "name": "Pact of the Tome",
+              "grants": { "features": ["Pact of the Tome (Book of Shadows, Extra Cantrips/Rituals)"] }
+            },
+            {
+              "id": "pact-of-the-chain",
+              "name": "Pact of the Chain",
+              "grants": { "features": ["Pact of the Chain (Find Familiar with enhanced forms)"] }
+            },
+            {
+              "id": "agonizing-blast",
+              "name": "Agonizing Blast",
+              "grants": { "features": ["Agonizing Blast (+Charisma modifier to Cantrip damage)"] }
+            },
+            {
+              "id": "armor-of-shadows",
+              "name": "Armor of Shadows",
+              "grants": { "features": ["Armor of Shadows (Cast Mage Armor at will)"], "alwaysPreparedSpells": ["Mage Armor"] }
+            },
+            {
+              "id": "eldritch-mind",
+              "name": "Eldritch Mind",
+              "grants": { "features": ["Eldritch Mind (Advantage on Concentration saves)"] }
+            },
+            {
+              "id": "fiendish-vigor",
+              "name": "Fiendish Vigor",
+              "grants": { "features": ["Fiendish Vigor (Cast False Life at will without slot)"], "alwaysPreparedSpells": ["False Life"] }
+            },
+            {
+              "id": "lessons-of-the-first-ones",
+              "name": "Lessons of the First Ones",
+              "grants": { "features": ["Lessons of the First Ones (Gain an Origin Feat)"] }
+            },
+            {
+              "id": "mask-of-many-faces",
+              "name": "Mask of Many Faces",
+              "grants": { "features": ["Mask of Many Faces (Cast Disguise Self at will)"], "alwaysPreparedSpells": ["Disguise Self"] }
+            },
+            {
+              "id": "misty-visions",
+              "name": "Misty Visions",
+              "grants": { "features": ["Misty Visions (Cast Silent Image at will)"], "alwaysPreparedSpells": ["Silent Image"] }
+            },
+            {
+              "id": "otherworldly-leap",
+              "name": "Otherworldly Leap",
+              "grants": { "features": ["Otherworldly Leap (Cast Jump at will)"], "alwaysPreparedSpells": ["Jump"] }
+            },
+            {
+              "id": "repelling-blast",
+              "name": "Repelling Blast",
+              "grants": { "features": ["Repelling Blast (Push target up to 10 ft on cantrip hit)"] }
+            }
+          ]
+        }
+      ],
+      "spellcasting": {
+        "slots": [1, 0, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 2,
+        "spellsKnown": 2,
+        "changeCadence": "onLevelUp",
+        "spellcastingAbility": "cha"
+      }
+    },
+    "2": {
+      "features": ["Magical Cunning"],
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 3
+      }
+    },
+    "3": {
+      "features": ["Otherworldly Patron"],
+      "subclassChoice": true,
+      "spellcasting": {
+        "slots": [0, 2, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 4
+      }
+    },
+    "4": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [0, 2, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 3,
+        "spellsKnown": 5
+      }
+    },
+    "5": {
+      "spellcasting": {
+        "slots": [0, 0, 2, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 6
+      }
+    },
+    "6": {
+      "spellcasting": {
+        "slots": [0, 0, 2, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 7
+      }
+    },
+    "7": {
+      "spellcasting": {
+        "slots": [0, 0, 0, 2, 0, 0, 0, 0, 0],
+        "spellsKnown": 8
+      }
+    },
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [0, 0, 0, 2, 0, 0, 0, 0, 0],
+        "spellsKnown": 9
+      }
+    },
+    "9": {
+      "features": ["Contact Patron"],
+      "spellcasting": {
+        "slots": [0, 0, 0, 0, 2, 0, 0, 0, 0],
+        "spellsKnown": 10
+      }
+    },
+    "10": {
+      "spellcasting": {
+        "slots": [0, 0, 0, 0, 2, 0, 0, 0, 0],
+        "cantripsKnown": 4,
+        "spellsKnown": 10
+      }
+    },
+    "11": {
+      "features": ["Mystic Arcanum (Level 6)"],
+      "spellcasting": {
+        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0],
+        "spellsKnown": 11
+      }
+    },
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0],
+        "spellsKnown": 11
+      }
+    },
+    "13": {
+      "features": ["Mystic Arcanum (Level 7)"],
+      "spellcasting": {
+        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0],
+        "spellsKnown": 12
+      }
+    },
+    "14": {
+      "spellcasting": {
+        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0],
+        "spellsKnown": 12
+      }
+    },
+    "15": {
+      "features": ["Mystic Arcanum (Level 8)"],
+      "spellcasting": {
+        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0],
+        "spellsKnown": 13
+      }
+    },
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0],
+        "spellsKnown": 13
+      }
+    },
+    "17": {
+      "features": ["Mystic Arcanum (Level 9)"],
+      "spellcasting": {
+        "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0],
+        "spellsKnown": 14
+      }
+    },
+    "18": {
+      "spellcasting": {
+        "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0],
+        "spellsKnown": 14
+      }
+    },
+    "19": {
+      "features": ["Epic Boon"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0],
+        "spellsKnown": 15
+      }
+    },
+    "20": {
+      "features": ["Eldritch Master"],
+      "spellcasting": {
+        "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0],
+        "spellsKnown": 15
+      }
+    }
+  },
+  "subclasses": [
+    {
+      "id": "warlock-archfey",
+      "name": "Archfey Patron",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Patron Spells (Archfey)", "Steps of the Fey"] },
+        "6": { "features": ["Misty Wanderer"] },
+        "10": { "features": ["Beguiling Defenses"] },
+        "14": { "features": ["Bewitching Magic"] }
+      }
+    },
+    {
+      "id": "warlock-celestial",
+      "name": "Celestial Patron",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Healing Light", "Patron Spells (Celestial)", "Sacred Flame"] },
+        "6": { "features": ["Radiant Soul"] },
+        "10": { "features": ["Celestial Resilience"] },
+        "14": { "features": ["Searing Vengeance"] }
+      }
+    },
+    {
+      "id": "warlock-fiend",
+      "name": "Fiend Patron",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Dark One's Blessing", "Patron Spells (Fiend)"] },
+        "6": { "features": ["Dark One's Own Luck"] },
+        "10": { "features": ["Fiendish Resilience"] },
+        "14": { "features": ["Hurl Through Hell"] }
+      }
+    },
+    {
+      "id": "warlock-great-old-one",
+      "name": "Great Old One Patron",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Awakened Mind", "Patron Spells (Great Old One)", "Psychic Spells"] },
+        "6": { "features": ["Clairvoyant Combatant"] },
+        "10": { "features": ["Thought Shield"] },
+        "14": { "features": ["Create Thrall"] }
+      }
+    }
+  ]
+}

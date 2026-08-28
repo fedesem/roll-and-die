@@ -1,0 +1,36 @@
+{
+  "id": "rogue-phantom-tce",
+  "classId": "rogue-xphb",
+  "className": "Rogue",
+  "name": "Phantom",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Whispers of the Dead", "Wails from the Grave"],
+      "actions": [
+        {
+          "id": "action-wails-from-the-grave",
+          "name": "Wails from the Grave",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "free",
+          "range": "30 feet",
+          "roll": {
+            "kind": "damage",
+            "diceFormula": "1d6",
+            "damageType": "Necrotic"
+          }
+        }
+      ]
+    },
+    "9": {
+      "features": ["Tokens of the Departed"]
+    },
+    "13": {
+      "features": ["Ghost Walk"]
+    },
+    "17": {
+      "features": ["Death's Friend"]
+    }
+  }
+}

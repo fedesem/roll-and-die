@@ -1,0 +1,28 @@
+{
+  "id": "great-weapon-master",
+  "name": "Great Weapon Master",
+  "source": "XPHB",
+  "category": "general",
+  "prerequisites": {
+    "abilities": {
+      "str": 13
+    },
+    "minLevel": 4
+  },
+  "abilityIncrease": {
+    "choose": 1,
+    "options": ["str"],
+    "amount": 1
+  },
+  "features": ["Heavy Weapon Mastery (+PB Damage)", "Hew (Bonus Action Attack on Crit/Kill)"],
+  "actions": [
+    {
+      "id": "gwm-hew",
+      "name": "Hew Attack",
+      "source": "XPHB",
+      "category": "feat",
+      "actionCost": "bonus",
+      "range": "Weapon"
+    }
+  ]
+}

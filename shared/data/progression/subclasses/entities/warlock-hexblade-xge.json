@@ -1,0 +1,45 @@
+{
+  "id": "warlock-hexblade-xge",
+  "classId": "warlock-xphb",
+  "className": "Warlock",
+  "name": "The Hexblade",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Hexblade's Curse", "Hex Warrior", "Expanded Spell List (Hexblade)"],
+      "alwaysPreparedSpells": ["Shield", "Wrathful Smite", "Blur", "Branding Smite"],
+      "grants": {
+        "armorProficiencies": ["Medium Armor", "Shields"],
+        "weaponProficiencies": ["Martial Weapons"]
+      },
+      "actions": [
+        {
+          "id": "action-hexblades-curse",
+          "name": "Hexblade's Curse",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "30 feet"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Blink", "Elemental Weapon"]
+    },
+    "6": {
+      "features": ["Accursed Specter"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Phantasmal Killer", "Staggering Smite"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Banishing Smite", "Cone of Cold"]
+    },
+    "10": {
+      "features": ["Armor of Hexes"]
+    },
+    "14": {
+      "features": ["Master of Hexes"]
+    }
+  }
+}

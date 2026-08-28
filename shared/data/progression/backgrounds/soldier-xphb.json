@@ -1,0 +1,75 @@
+{
+  "id": "soldier-xphb",
+  "name": "Soldier",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["str", "dex", "con"],
+    "options": ["str", "dex", "con"]
+  },
+  "originFeatId": "savage-attacker",
+  "originFeatName": "Savage Attacker",
+  "skillProficiencies": ["Athletics", "Intimidation"],
+  "toolProficiencies": ["Gaming Set"],
+  "equipmentChoices": [
+    {
+      "id": "soldier-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Spear, Shortbow, Arrows (20), Gaming Set, Healer's Kit, Quiver, Traveler's Clothes, 14 GP",
+          "items": [
+            {
+              "name": "Spear",
+              "quantity": 1
+            },
+            {
+              "name": "Shortbow",
+              "quantity": 1
+            },
+            {
+              "name": "Arrows",
+              "quantity": 20
+            },
+            {
+              "name": "Gaming Set",
+              "quantity": 1
+            },
+            {
+              "name": "Healer's Kit",
+              "quantity": 1
+            },
+            {
+              "name": "Quiver",
+              "quantity": 1
+            },
+            {
+              "name": "Traveler's Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 14,
+              "currency": {
+                "gp": 14
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

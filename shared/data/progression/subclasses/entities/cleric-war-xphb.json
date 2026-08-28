@@ -1,0 +1,42 @@
+{
+  "id": "cleric-war-xphb",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "War Domain",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Domain Spells (War)", "Guided Strike", "War Priest"],
+      "alwaysPreparedSpells": ["Divine Favor", "Shield of Faith", "Magic Weapon", "Spiritual Weapon"],
+      "actions": [
+        {
+          "id": "action-guided-strike",
+          "name": "Channel Divinity: Guided Strike",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "reaction",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "Self"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Crusader's Mantle", "Spirit Guardians"]
+    },
+    "6": {
+      "features": ["War God's Blessing"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Freedom of Movement", "Stoneskin"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Flame Strike", "Hold Monster"]
+    },
+    "17": {
+      "features": ["Avatar of Battle"]
+    }
+  }
+}

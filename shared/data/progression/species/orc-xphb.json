@@ -1,0 +1,12 @@
+{
+  "id": "orc-xphb",
+  "name": "Orc",
+  "source": "XPHB",
+  "sizes": ["Medium"],
+  "speed": 30,
+  "darkvision": 120,
+  "creatureTypes": ["Humanoid"],
+  "languages": ["Common", "Orc"],
+  "bonusLanguageCount": 1,
+  "features": ["Adrenaline Rush", "Darkvision", "Relentless Endurance"]
+}

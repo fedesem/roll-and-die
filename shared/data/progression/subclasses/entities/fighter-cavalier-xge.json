@@ -1,0 +1,24 @@
+{
+  "id": "fighter-cavalier-xge",
+  "classId": "fighter-xphb",
+  "className": "Fighter",
+  "name": "Cavalier",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Bonus Proficiency (Cavalier)", "Born to the Saddle", "Unwavering Mark"]
+    },
+    "7": {
+      "features": ["Warding Maneuver"]
+    },
+    "10": {
+      "features": ["Hold the Line"]
+    },
+    "15": {
+      "features": ["Ferocious Charger"]
+    },
+    "18": {
+      "features": ["Vigilant Defender"]
+    }
+  }
+}

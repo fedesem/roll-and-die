@@ -1,0 +1,18 @@
+{
+  "id": "bard-valor-xphb",
+  "classId": "bard-xphb",
+  "className": "Bard",
+  "name": "College of Valor",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Combat Inspiration", "Martial Training"]
+    },
+    "6": {
+      "features": ["Extra Attack (Valor)"]
+    },
+    "14": {
+      "features": ["Battle Magic"]
+    }
+  }
+}

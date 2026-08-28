@@ -1,0 +1,56 @@
+{
+  "id": "warlock-celestial-xphb",
+  "classId": "warlock-xphb",
+  "className": "Warlock",
+  "name": "Celestial Patron",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Celestial Spells", "Healing Light"],
+      "alwaysPreparedSpells": ["Cure Wounds", "Guiding Bolt", "Flaming Sphere", "Lesser Restoration"],
+      "resources": [
+        {
+          "name": "Healing Light",
+          "maxFormula": {
+            "type": "levelMultiplier",
+            "multiplier": 1
+          },
+          "resetOn": "longRest",
+          "dice": "1d6"
+        }
+      ],
+      "actions": [
+        {
+          "id": "action-healing-light",
+          "name": "Healing Light",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "60 feet",
+          "roll": {
+            "kind": "heal",
+            "diceFormula": "1d6"
+          }
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Daylight", "Revivify"]
+    },
+    "6": {
+      "features": ["Radiant Soul"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Guardian of Faith", "Wall of Fire"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Flame Strike", "Greater Restoration"]
+    },
+    "10": {
+      "features": ["Celestial Resilience"]
+    },
+    "14": {
+      "features": ["Searing Vengeance"]
+    }
+  }
+}

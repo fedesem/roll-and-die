@@ -1,0 +1,21 @@
+{
+  "id": "monk-elements-xphb",
+  "classId": "monk-xphb",
+  "className": "Monk",
+  "name": "Warrior of the Elements",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Elemental Attunement", "Manipulate Elements"]
+    },
+    "6": {
+      "features": ["Elemental Burst"]
+    },
+    "11": {
+      "features": ["Stride of the Elements"]
+    },
+    "17": {
+      "features": ["Elemental Epitome"]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "cleric-arcana-scag",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Arcana Domain",
+  "source": "SCAG",
+  "levels": {
+    "3": {
+      "features": ["Domain Spells (Arcana)", "Arcane Initiate", "Arcane Abjuration"],
+      "alwaysPreparedSpells": ["Detect Magic", "Magic Missile", "Magic Weapon", "Nystul's Magic Aura"]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Dispel Magic", "Magic Circle"]
+    },
+    "6": {
+      "features": ["Spell Breaker"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Arcane Eye", "Leomund's Secret Chest"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Planar Binding", "Teleportation Circle"]
+    },
+    "17": {
+      "features": ["Arcane Mastery"]
+    }
+  }
+}

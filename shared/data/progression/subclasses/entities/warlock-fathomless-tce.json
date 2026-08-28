@@ -1,0 +1,46 @@
+{
+  "id": "warlock-fathomless-tce",
+  "classId": "warlock-xphb",
+  "className": "Warlock",
+  "name": "The Fathomless",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Tentacle of the Deeps", "Gift of the Sea", "Expanded Spell List (Fathomless)"],
+      "alwaysPreparedSpells": ["Create or Destroy Water", "Thunderwave", "Gust of Wind", "Silence"],
+      "actions": [
+        {
+          "id": "action-tentacle-of-the-deeps",
+          "name": "Tentacle of the Deeps",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "60 feet",
+          "roll": {
+            "kind": "damage",
+            "diceFormula": "1d8",
+            "damageType": "Cold"
+          }
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Lightning Bolt", "Sleet Storm"]
+    },
+    "6": {
+      "features": ["Oceanic Soul", "Guardian Coil"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Control Water", "Evard's Black Tentacles"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Bigby's Hand", "Cone of Cold"]
+    },
+    "10": {
+      "features": ["Grasping Tentacles"]
+    },
+    "14": {
+      "features": ["Fathomless Plunge"]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "monk-kensei-xge",
+  "classId": "monk-xphb",
+  "className": "Monk",
+  "name": "Way of the Kensei",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Path of the Kensei"]
+    },
+    "6": {
+      "features": ["One with the Blade", "Magic Kensei Weapons", "Deft Strike"]
+    },
+    "11": {
+      "features": ["Sharpen the Blade"]
+    },
+    "17": {
+      "features": ["Unerring Accuracy"]
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "id": "cleric-life-xphb",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Life Domain",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Domain Spells (Life)", "Disciple of Life", "Preserve Life"],
+      "alwaysPreparedSpells": ["Aid", "Bless", "Cure Wounds", "Lesser Restoration"],
+      "actions": [
+        {
+          "id": "action-preserve-life",
+          "name": "Channel Divinity: Preserve Life",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "action",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "30 feet",
+          "roll": {
+            "kind": "heal",
+            "diceFormula": "5 * level"
+          }
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Mass Healing Word", "Revivify"]
+    },
+    "6": {
+      "features": ["Blessed Healer"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Aura of Life", "Death Ward"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Greater Restoration", "Mass Cure Wounds"]
+    },
+    "17": {
+      "features": ["Supreme Healing"]
+    }
+  }
+}

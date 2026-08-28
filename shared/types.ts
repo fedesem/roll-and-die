@@ -77,6 +77,9 @@ export interface InventoryEntry {
   name: string;
   type: InventoryItemType;
   quantity: number;
+  weight?: number;
+  attuned?: boolean;
+  requiresAttunement?: boolean;
   equipped: boolean;
   notes: string;
 }
@@ -118,7 +121,7 @@ export interface ActorDeathSaveState {
 }
 
 export type ActorBonusSourceType = "gear" | "buff";
-export type ActorBonusTargetType = "armorClass" | "speed" | "ability" | "skill" | "savingThrow";
+export type ActorBonusTargetType = "armorClass" | "speed" | "initiative" | "ability" | "skill" | "savingThrow";
 
 export interface ActorBonusEntry {
   id: string;
@@ -127,6 +130,8 @@ export interface ActorBonusEntry {
   targetType: ActorBonusTargetType;
   targetKey: string;
   value: number;
+  statBonus?: AbilityKey;
+  minimum?: number;
   enabled: boolean;
 }
 
@@ -159,8 +164,62 @@ export interface PlayerNpcBuildSelection {
   notes: string;
 }
 
+export type ProgressionEffect =
+  | { id: string; kind: "feature" | "feat" | "talent"; ref: string }
+  | {
+      id: string;
+      kind: "spell";
+      ref: string;
+      bucket: "known" | "prepared" | "spellbook" | "alwaysPrepared" | "atWill" | "perShortRest" | "perLongRest";
+    }
+  | {
+      id: string;
+      kind: "proficiency";
+      proficiency: "skill" | "expertise" | "savingThrow" | "tool" | "language" | "armor" | "weapon";
+      value: string;
+    }
+  | { id: string; kind: "ability"; ability: AbilityKey; amount: number }
+  | { id: string; kind: "resource"; value: ResourceEntry }
+  | { id: string; kind: "action"; value: AttackEntry }
+  | { id: string; kind: "bonus"; value: ActorBonusEntry }
+  | { id: string; kind: "inventory"; ref: string; quantity: number };
+
+export interface ProgressionAwardChoice {
+  groupId: string;
+  optionIds: string[];
+}
+
+/**
+ * A completed wizard step. Effects are intentionally materialized here: rules
+ * file changes must never reinterpret a level that the actor already earned.
+ */
+export interface ProgressionAward {
+  id: string;
+  characterLevel: number;
+  classRef: string;
+  classLevel: number;
+  speciesRef?: string;
+  backgroundRef?: string;
+  subclassRef?: string;
+  definitionFingerprint: string;
+  choices: ProgressionAwardChoice[];
+  effects: ProgressionEffect[];
+  committedAt: string;
+}
+
+export interface ActorManualOverride {
+  id: string;
+  operation: "suppress" | "add" | "replace" | "field";
+  targetEffectId?: string;
+  effect?: ProgressionEffect;
+  targetField?: "armorClass" | "proficiencyBonus" | "speed" | "spellcastingAbility" | "hitPointMax";
+  value?: string | number | boolean;
+  notes: string;
+}
+
 export interface PlayerNpcBuild {
   ruleset: "dnd-2024";
+  schemaVersion?: 2;
   mode: PlayerNpcBuildMode;
   speciesId?: string;
   speciesName?: string;
@@ -170,6 +229,8 @@ export interface PlayerNpcBuild {
   backgroundSource?: string;
   classes: PlayerNpcBuildClassEntry[];
   selections: PlayerNpcBuildSelection[];
+  awards?: ProgressionAward[];
+  overrides?: ActorManualOverride[];
 }
 
 export interface ActorSheet {
@@ -205,6 +266,8 @@ export interface ActorSheet {
   skills: SkillEntry[];
   classes: ActorClassEntry[];
   savingThrowProficiencies: AbilityKey[];
+  armorProficiencies: string[];
+  weaponProficiencies: string[];
   toolProficiencies: string[];
   languageProficiencies: string[];
   spellSlots: SpellSlotTrack[];
@@ -360,6 +423,50 @@ export interface SpellEntry {
   classReferences: SpellClassReference[];
 }
 
+export interface CompendiumChoiceOption {
+  id: string;
+  label: string;
+  compendiumRef?: string;
+  disabledReason?: string;
+  description?: string;
+  source?: string;
+  prerequisites?: string;
+  grants?: {
+    features?: string[];
+    spells?: string[];
+    alwaysPreparedSpells?: string[];
+    attacks?: AttackEntry[];
+    skills?: string[];
+    expertise?: string[];
+    tools?: string[];
+    languages?: string[];
+    savingThrows?: AbilityKey[];
+    abilities?: Partial<Record<AbilityKey, number>>;
+    masteries?: string[];
+    resources?: ResourceEntry[];
+    armorProficiencies?: string[];
+    weaponProficiencies?: string[];
+    passiveBonuses?: Array<{
+      target: "skill" | "savingThrow" | "armorClass" | "speed" | "initiative";
+      skillName?: string;
+      ability?: AbilityKey;
+      statBonus?: AbilityKey;
+      bonus?: number;
+      minBonus?: number;
+    }>;
+  };
+}
+
+export interface CompendiumChoiceGroup {
+  id: string;
+  label: string;
+  hint?: string;
+  count: number;
+  level?: number;
+  parentOption?: { groupId: string; optionId: string };
+  options: CompendiumChoiceOption[];
+}
+
 export interface FeatEntry {
   id: string;
   name: string;
@@ -368,6 +475,7 @@ export interface FeatEntry {
   abilityScoreIncrease: string;
   prerequisites: string;
   description: string;
+  choiceGroups?: CompendiumChoiceGroup[];
 }
 
 export interface ClassFeatureEntry {
@@ -376,6 +484,7 @@ export interface ClassFeatureEntry {
   description: string;
   source: string;
   reference: string;
+  choiceGroups?: CompendiumChoiceGroup[];
 }
 
 export interface ClassTableEntry {
@@ -393,6 +502,7 @@ export interface ClassSubclassEntry {
   classSource: string;
   description: string;
   features: ClassFeatureEntry[];
+  choiceGroups?: CompendiumChoiceGroup[];
 }
 
 export interface ClassStartingProficiencies {
@@ -417,6 +527,7 @@ export interface ClassEntry {
   subclasses: ClassSubclassEntry[];
   tables: ClassTableEntry[];
   startingEquipment: CompendiumEquipmentGroup[];
+  choiceGroups?: CompendiumChoiceGroup[];
 }
 
 export interface CompendiumReferenceEntry {
@@ -762,7 +873,17 @@ export interface CampaignSnapshot {
   catalog: MonsterTemplate[];
   compendium: Pick<
     CompendiumData,
-    "spells" | "feats" | "classes" | "variantRules" | "conditions" | "optionalFeatures" | "backgrounds" | "items" | "languages" | "races" | "skills"
+    | "spells"
+    | "feats"
+    | "classes"
+    | "variantRules"
+    | "conditions"
+    | "optionalFeatures"
+    | "backgrounds"
+    | "items"
+    | "languages"
+    | "races"
+    | "skills"
   >;
   playerVision: Record<string, CellKey[]>;
 }

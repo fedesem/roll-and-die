@@ -41,8 +41,10 @@ import { invalidateRoomCompendiumCache } from "../services/roomCompendiumCache.j
 import {
   importGeneratedSpellLookupIntoSpells,
   importGeneratedSubclassLookupIntoClasses,
+  importSubclassesIntoClasses,
   isGeneratedSubclassLookupImport,
   isGeneratedSpellLookupImport,
+  isSubclassImport,
   normalizeCompendiumImportEntries,
   sanitizeCompendiumEntry,
   type CompendiumKind
@@ -277,6 +279,22 @@ export const adminController = {
         for (const spell of spells) {
           if (previousById.get(spell.id) !== JSON.stringify(spell)) {
             await upsertCompendiumEntry(database, "spells", spell);
+          }
+        }
+        return result;
+      });
+      invalidateRoomCompendiumCache();
+      response.status(201).json(result);
+      return;
+    }
+    if (kind === "classes" && isSubclassImport(body.entries)) {
+      const result = await runStoreTransaction(async (database) => {
+        const classes = await readCompendiumCollection(database, "classes");
+        const previousById = new Map(classes.map((entry) => [entry.id, JSON.stringify(entry)]));
+        const result = importSubclassesIntoClasses(classes, body.entries);
+        for (const entry of classes) {
+          if (previousById.get(entry.id) !== JSON.stringify(entry)) {
+            await upsertCompendiumEntry(database, "classes", entry);
           }
         }
         return result;

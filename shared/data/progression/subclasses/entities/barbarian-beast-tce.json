@@ -1,0 +1,21 @@
+{
+  "id": "barbarian-beast-tce",
+  "classId": "barbarian-xphb",
+  "className": "Barbarian",
+  "name": "Path of the Beast",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Form of the Beast"]
+    },
+    "6": {
+      "features": ["Bestial Soul"]
+    },
+    "10": {
+      "features": ["Infectious Fury"]
+    },
+    "14": {
+      "features": ["Call the Hunt"]
+    }
+  }
+}

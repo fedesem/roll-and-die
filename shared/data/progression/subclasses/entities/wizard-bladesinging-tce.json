@@ -1,0 +1,52 @@
+{
+  "id": "wizard-bladesinging-tce",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "Bladesinging",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Training in War and Song", "Bladesong"],
+      "grants": {
+        "armorProficiencies": ["Light Armor"],
+        "skills": ["Performance"]
+      },
+      "resources": [
+        {
+          "name": "Bladesong",
+          "maxFormula": {
+            "type": "statModifier",
+            "stat": "int",
+            "min": 2
+          },
+          "resetOn": "shortRest",
+          "shortRestRestore": "all",
+          "longRestRestore": "all"
+        }
+      ],
+      "actions": [
+        {
+          "id": "action-bladesong",
+          "name": "Bladesong",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "resourceCost": {
+            "resourceName": "Bladesong",
+            "count": 1
+          },
+          "range": "Self"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Extra Attack (Bladesinging)"]
+    },
+    "10": {
+      "features": ["Song of Defense"]
+    },
+    "14": {
+      "features": ["Song of Victory"]
+    }
+  }
+}

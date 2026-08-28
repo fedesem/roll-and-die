@@ -1,0 +1,45 @@
+{
+  "id": "paladin-devotion-xphb",
+  "classId": "paladin-xphb",
+  "className": "Paladin",
+  "name": "Oath of Devotion",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Oath Spells (Devotion)", "Sacred Weapon"],
+      "alwaysPreparedSpells": ["Protection from Evil and Good", "Shield of Faith", "Aid", "Zone of Truth"],
+      "actions": [
+        {
+          "id": "action-sacred-weapon",
+          "name": "Channel Divinity: Sacred Weapon",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "Self"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Aura of Devotion"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Beacon of Hope", "Dispel Magic"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Freedom of Movement", "Guardian of Faith"]
+    },
+    "15": {
+      "features": ["Smite of Protection"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Commune", "Flame Strike"]
+    },
+    "20": {
+      "features": ["Holy Nimbus"]
+    }
+  }
+}

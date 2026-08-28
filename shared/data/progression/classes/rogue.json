@@ -1,0 +1,279 @@
+{
+  "id": "rogue-xphb",
+  "name": "Rogue",
+  "source": "XPHB",
+  "hitDieFaces": 8,
+  "primaryAbilities": ["dex"],
+  "savingThrows": ["dex", "int"],
+  "armorProficiencies": ["Light Armor"],
+  "weaponProficiencies": ["Simple Weapons", "Martial Weapons (Finesse, Light)"],
+  "toolProficiencies": ["Thieves' Tools"],
+  "startingSkillChoices": {
+    "choose": 4,
+    "options": [
+      "Acrobatics",
+      "Athletics",
+      "Deception",
+      "Insight",
+      "Intimidation",
+      "Investigation",
+      "Perception",
+      "Persuasion",
+      "Sleight of Hand",
+      "Stealth"
+    ]
+  },
+  "equipmentChoices": [
+    {
+      "id": "rogue-equipment",
+      "label": "Class Equipment",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Leather Armor, Daggers (2), Shortsword, Shortbow, Arrows, Quiver, Thieves' Tools, Burglar's Pack, 8 GP",
+          "items": [
+            { "referenceId": "Leather Armor|XPHB", "name": "Leather Armor", "quantity": 1 },
+            { "referenceId": "Dagger|XPHB", "name": "Dagger", "quantity": 2 },
+            { "referenceId": "Shortsword|XPHB", "name": "Shortsword", "quantity": 1 },
+            { "referenceId": "Shortbow|XPHB", "name": "Shortbow", "quantity": 1 },
+            { "referenceId": "Arrows (20)|XPHB", "name": "Arrows (20)", "quantity": 1 },
+            { "referenceId": "Quiver|XPHB", "name": "Quiver", "quantity": 1 },
+            { "referenceId": "Thieves' Tools|XPHB", "name": "Thieves' Tools", "quantity": 1 },
+            { "referenceId": "Burglar's Pack|XPHB", "name": "Burglar's Pack", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 8, "currency": { "gp": 8 } }
+          ]
+        },
+        { "id": "package-b", "label": "Option B: 100 GP", "items": [{ "name": "Gold Coins", "quantity": 100, "currency": { "gp": 100 } }] }
+      ]
+    }
+  ],
+  "multiclassing": {
+    "prerequisites": { "dex": 13 },
+    "proficienciesGranted": {
+      "armor": ["Light Armor"],
+      "skills": { "count": 1, "chooseFrom": [] },
+      "tools": ["Thieves' Tools"]
+    },
+    "casterType": "none"
+  },
+  "levels": {
+    "1": {
+      "features": ["Expertise", "Sneak Attack", "Thieves' Cant", "Weapon Mastery"],
+      "expertiseChoices": 2,
+      "weaponMasteriesCount": 2,
+      "resources": [
+        {
+          "name": "Sneak Attack",
+          "maxFormula": { "type": "fixed", "value": 1 },
+          "resetOn": "shortRest",
+          "dice": "1d6"
+        }
+      ]
+    },
+    "2": {
+      "features": ["Cunning Action"]
+    },
+    "3": {
+      "features": ["Roguish Archetype", "Steady Aim"],
+      "subclassChoice": true,
+      "resources": [
+        {
+          "name": "Sneak Attack",
+          "maxFormula": { "type": "fixed", "value": 1 },
+          "resetOn": "shortRest",
+          "dice": "2d6"
+        }
+      ]
+    },
+    "4": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "5": {
+      "features": ["Cunning Strike", "Uncanny Dodge"],
+      "resources": [
+        {
+          "name": "Sneak Attack",
+          "maxFormula": { "type": "fixed", "value": 1 },
+          "resetOn": "shortRest",
+          "dice": "3d6"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Expertise"]
+    },
+    "7": {
+      "features": ["Evasion", "Reliable Talent"],
+      "resources": [
+        {
+          "name": "Sneak Attack",
+          "maxFormula": { "type": "fixed", "value": 1 },
+          "resetOn": "shortRest",
+          "dice": "4d6"
+        }
+      ]
+    },
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "9": {
+      "resources": [
+        {
+          "name": "Sneak Attack",
+          "maxFormula": { "type": "fixed", "value": 1 },
+          "resetOn": "shortRest",
+          "dice": "5d6"
+        }
+      ]
+    },
+    "10": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "11": {
+      "features": ["Improved Cunning Strike"],
+      "resources": [
+        {
+          "name": "Sneak Attack",
+          "maxFormula": { "type": "fixed", "value": 1 },
+          "resetOn": "shortRest",
+          "dice": "6d6"
+        }
+      ]
+    },
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "13": {
+      "resources": [
+        {
+          "name": "Sneak Attack",
+          "maxFormula": { "type": "fixed", "value": 1 },
+          "resetOn": "shortRest",
+          "dice": "7d6"
+        }
+      ]
+    },
+    "14": {
+      "features": ["Blindsense", "Devious Strikes"]
+    },
+    "15": {
+      "features": ["Slippery Mind"],
+      "resources": [
+        {
+          "name": "Sneak Attack",
+          "maxFormula": { "type": "fixed", "value": 1 },
+          "resetOn": "shortRest",
+          "dice": "8d6"
+        }
+      ]
+    },
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "17": {
+      "resources": [
+        {
+          "name": "Sneak Attack",
+          "maxFormula": { "type": "fixed", "value": 1 },
+          "resetOn": "shortRest",
+          "dice": "9d6"
+        }
+      ]
+    },
+    "18": {
+      "features": ["Elusive"]
+    },
+    "19": {
+      "features": ["Epic Boon"],
+      "asiChoice": true,
+      "resources": [
+        {
+          "name": "Sneak Attack",
+          "maxFormula": { "type": "fixed", "value": 1 },
+          "resetOn": "shortRest",
+          "dice": "10d6"
+        }
+      ]
+    },
+    "20": {
+      "features": ["Stroke of Luck"]
+    }
+  },
+  "subclasses": [
+    {
+      "id": "rogue-arcane-trickster",
+      "name": "Arcane Trickster",
+      "source": "XPHB",
+      "levels": {
+        "3": {
+          "features": ["Mage Hand Legerdemain", "Spellcasting (Arcane Trickster)"],
+          "spellcasting": {
+            "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+            "cantripsKnown": 3,
+            "spellsKnown": 3,
+            "spellcastingAbility": "int"
+          }
+        },
+        "9": {
+          "features": ["Magical Ambush"],
+          "spellcasting": {
+            "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+            "spellsKnown": 6
+          }
+        },
+        "13": {
+          "features": ["Versatile Trickster"],
+          "spellcasting": {
+            "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+            "spellsKnown": 9
+          }
+        },
+        "17": {
+          "features": ["Spell Thief"],
+          "spellcasting": {
+            "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+            "spellsKnown": 11
+          }
+        }
+      }
+    },
+    {
+      "id": "rogue-assassin",
+      "name": "Assassin",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Assassinate"] },
+        "9": { "features": ["Infiltration Expertise"] },
+        "13": { "features": ["Envenom Weapons"] },
+        "17": { "features": ["Death Strike"] }
+      }
+    },
+    {
+      "id": "rogue-soulknife",
+      "name": "Soulknife",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Psionic Power (Soulknife)", "Psychic Blades"] },
+        "9": { "features": ["Soul Blades"] },
+        "13": { "features": ["Psychic Veil"] },
+        "17": { "features": ["Rend Mind"] }
+      }
+    },
+    {
+      "id": "rogue-thief",
+      "name": "Thief",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Fast Hands", "Second-Story Work"] },
+        "9": { "features": ["Supreme Sneak"] },
+        "13": { "features": ["Use Magic Device"] },
+        "17": { "features": ["Thief's Reflexes"] }
+      }
+    }
+  ]
+}

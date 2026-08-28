@@ -1,0 +1,63 @@
+{
+  "id": "criminal-xphb",
+  "name": "Criminal",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["dex", "con", "int"],
+    "options": ["dex", "con", "int"]
+  },
+  "originFeatId": "alert",
+  "originFeatName": "Alert",
+  "skillProficiencies": ["Sleight of Hand", "Stealth"],
+  "toolProficiencies": ["Thieves' Tools"],
+  "equipmentChoices": [
+    {
+      "id": "criminal-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Thieves' Tools, Dagger (2), Crowbar, Traveler's Clothes, 16 GP",
+          "items": [
+            {
+              "name": "Thieves' Tools",
+              "quantity": 1
+            },
+            {
+              "name": "Dagger",
+              "quantity": 2
+            },
+            {
+              "name": "Crowbar",
+              "quantity": 1
+            },
+            {
+              "name": "Traveler's Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 16,
+              "currency": {
+                "gp": 16
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

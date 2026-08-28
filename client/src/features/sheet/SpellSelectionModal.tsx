@@ -33,7 +33,8 @@ interface SpellAccessFilterOption {
 
 const inputClass =
   "w-full border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-amber-500/70";
-const buttonClass = "inline-flex items-center justify-center border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-zinc-200 transition hover:border-amber-500/70 hover:text-amber-50";
+const buttonClass =
+  "inline-flex items-center justify-center border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-zinc-200 transition hover:border-amber-500/70 hover:text-amber-50";
 
 export function SpellSelectionModal({
   title,
@@ -92,13 +93,22 @@ export function SpellSelectionModal({
     [spells]
   );
   const normalizedClassNames = useMemo(
-    () => new Set(compendium.classes.map((entry) => normalizeKey(entry.name))),
+    () =>
+      new Set([
+        ...compendium.classes.map((entry) => normalizeKey(entry.name)),
+        "artificer",
+        "bard",
+        "cleric",
+        "druid",
+        "paladin",
+        "ranger",
+        "sorcerer",
+        "warlock",
+        "wizard"
+      ]),
     [compendium.classes]
   );
-  const normalizedAllowedBooks = useMemo(
-    () => new Set(allowedSourceBooks.map((entry) => normalizeKey(entry))),
-    [allowedSourceBooks]
-  );
+  const normalizedAllowedBooks = useMemo(() => new Set(allowedSourceBooks.map((entry) => normalizeKey(entry))), [allowedSourceBooks]);
   const classOptions = useMemo(() => {
     const byKey = new Map<string, SpellAccessFilterOption>();
     const availableSubclasses = new Map<string, { label: string; classLabel: string }>();
@@ -278,11 +288,20 @@ export function SpellSelectionModal({
           <div className="grid gap-3 border border-white/8 bg-black/20 p-4 md:grid-cols-4">
             <label className="space-y-1.5 text-sm text-zinc-300">
               <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">Name</span>
-              <input className={inputClass} value={nameFilter} onChange={(event) => setNameFilter(event.target.value)} placeholder="Search spell name" />
+              <input
+                className={inputClass}
+                value={nameFilter}
+                onChange={(event) => setNameFilter(event.target.value)}
+                placeholder="Search spell name"
+              />
             </label>
             <label className="space-y-1.5 text-sm text-zinc-300">
               <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">Level</span>
-              <select className={inputClass} value={levelFilter} onChange={(event) => setLevelFilter(event.target.value as SpellLevelFilter)}>
+              <select
+                className={inputClass}
+                value={levelFilter}
+                onChange={(event) => setLevelFilter(event.target.value as SpellLevelFilter)}
+              >
                 <option value="all">All Levels</option>
                 <option value="cantrip">Cantrip</option>
                 {Array.from({ length: 9 }, (_, index) => index + 1).map((level) => (
@@ -294,7 +313,11 @@ export function SpellSelectionModal({
             </label>
             <label className="space-y-1.5 text-sm text-zinc-300">
               <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">School</span>
-              <select className={inputClass} value={schoolFilter} onChange={(event) => setSchoolFilter(event.target.value as SpellSchool | "all")}>
+              <select
+                className={inputClass}
+                value={schoolFilter}
+                onChange={(event) => setSchoolFilter(event.target.value as SpellSchool | "all")}
+              >
                 <option value="all">All Schools</option>
                 {SPELL_SCHOOLS.map((school) => (
                   <option key={school} value={school}>
@@ -331,7 +354,8 @@ export function SpellSelectionModal({
 
           <div className="mt-4 flex items-center justify-between gap-3 border border-white/8 bg-black/20 px-4 py-3 text-sm">
             <p className="text-zinc-300">
-              Showing <span className="text-amber-100">{filteredSpells.length}</span> of <span className="text-amber-100">{spells.length}</span> spells
+              Showing <span className="text-amber-100">{filteredSpells.length}</span> of{" "}
+              <span className="text-amber-100">{spells.length}</span> spells
             </p>
             <p className="text-zinc-400">
               Selected <span className="text-amber-100">{localSelectedIds.length}</span>
@@ -351,9 +375,7 @@ export function SpellSelectionModal({
                 <span className="text-center">View</span>
                 <span className="text-right">Pick</span>
               </div>
-              {filteredSpells.length === 0 ? (
-                <p className="px-4 py-5 text-sm text-zinc-500">{emptyMessage}</p>
-              ) : null}
+              {filteredSpells.length === 0 ? <p className="px-4 py-5 text-sm text-zinc-500">{emptyMessage}</p> : null}
               {filteredSpells.map((spell) => {
                 const selected = selectedSpellIdSet.has(spell.id);
                 const actionDisabled = !selected && selectionLimitReached;

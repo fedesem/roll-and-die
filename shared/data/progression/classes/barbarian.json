@@ -1,0 +1,192 @@
+{
+  "id": "barbarian-xphb",
+  "name": "Barbarian",
+  "source": "XPHB",
+  "hitDieFaces": 12,
+  "primaryAbilities": ["str"],
+  "savingThrows": ["str", "con"],
+  "armorProficiencies": ["Light Armor", "Medium Armor", "Shields"],
+  "weaponProficiencies": ["Simple Weapons", "Martial Weapons"],
+  "toolProficiencies": [],
+  "startingSkillChoices": { "choose": 2, "options": ["Animal Handling", "Athletics", "Intimidation", "Nature", "Perception", "Survival"] },
+  "equipmentChoices": [
+    {
+      "id": "barbarian-equipment",
+      "label": "Class Equipment",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Greataxe, Handaxe (4), Explorer's Pack, 15 GP",
+          "items": [
+            { "referenceId": "Greataxe|XPHB", "name": "Greataxe", "quantity": 1 },
+            { "referenceId": "Handaxe|XPHB", "name": "Handaxe", "quantity": 4 },
+            { "referenceId": "Explorer's Pack|XPHB", "name": "Explorer's Pack", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 15, "currency": { "gp": 15 } }
+          ]
+        },
+        { "id": "package-b", "label": "Option B: 75 GP", "items": [{ "name": "Gold Coins", "quantity": 75, "currency": { "gp": 75 } }] }
+      ]
+    }
+  ],
+  "multiclassing": {
+    "prerequisites": { "str": 13 },
+    "proficienciesGranted": {
+      "shields": true,
+      "weapons": ["Simple Weapons", "Martial Weapons"]
+    },
+    "casterType": "none"
+  },
+  "levels": {
+    "1": {
+      "features": ["Rage", "Unarmored Defense", "Weapon Mastery"],
+      "weaponMasteriesCount": 2,
+      "resources": [
+        {
+          "name": "Rage",
+          "maxFormula": { "type": "fixed", "value": 2 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "2": {
+      "features": ["Danger Sense", "Reckless Attack"]
+    },
+    "3": {
+      "features": ["Primal Path", "Primal Knowledge"],
+      "subclassChoice": true,
+      "resources": [
+        {
+          "name": "Rage",
+          "maxFormula": { "type": "fixed", "value": 3 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "4": {
+      "features": ["Ability Score Improvement"],
+      "weaponMasteriesCount": 3,
+      "asiChoice": true
+    },
+    "5": {
+      "features": ["Extra Attack", "Fast Movement"]
+    },
+    "6": {
+      "resources": [
+        {
+          "name": "Rage",
+          "maxFormula": { "type": "fixed", "value": 4 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Feral Instinct", "Instinctive Pounce"]
+    },
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "9": {
+      "features": ["Brutal Strike"]
+    },
+    "10": {
+      "weaponMasteriesCount": 4
+    },
+    "11": {
+      "features": ["Relentless Rage"]
+    },
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "resources": [
+        {
+          "name": "Rage",
+          "maxFormula": { "type": "fixed", "value": 5 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "13": {
+      "features": ["Brutal Strike (Improved)"]
+    },
+    "14": {},
+    "15": {
+      "features": ["Persistent Rage"]
+    },
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "17": {
+      "features": ["Brutal Strike (Extra Options)", "Indomitable Might"],
+      "resources": [
+        {
+          "name": "Rage",
+          "maxFormula": { "type": "fixed", "value": 6 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "18": {},
+    "19": {
+      "features": ["Epic Boon"],
+      "asiChoice": true
+    },
+    "20": {
+      "features": ["Primal Champion"],
+      "resources": [
+        {
+          "name": "Rage",
+          "maxFormula": { "type": "fixed", "value": 99 },
+          "resetOn": "longRest"
+        }
+      ]
+    }
+  },
+  "subclasses": [
+    {
+      "id": "barbarian-berserker",
+      "name": "Path of the Berserker",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Frenzy"] },
+        "6": { "features": ["Mindless Rage"] },
+        "10": { "features": ["Retaliation"] },
+        "14": { "features": ["Intimidating Presence"] }
+      }
+    },
+    {
+      "id": "barbarian-wild-heart",
+      "name": "Path of the Wild Heart",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Rage of the Wilds", "Speak with Animals"] },
+        "6": { "features": ["Aspect of the Wilds"] },
+        "10": { "features": ["Nature Speaker"] },
+        "14": { "features": ["Power of the Wilds"] }
+      }
+    },
+    {
+      "id": "barbarian-world-tree",
+      "name": "Path of the World Tree",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Vitality of the Tree"] },
+        "6": { "features": ["Branches of the Tree"] },
+        "10": { "features": ["Battering Roots"] },
+        "14": { "features": ["Travel Along the Tree"] }
+      }
+    },
+    {
+      "id": "barbarian-zealot",
+      "name": "Path of the Zealot",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Divine Fury", "Warrior of the Gods"] },
+        "6": { "features": ["Fanatical Focus"] },
+        "10": { "features": ["Zealous Presence"] },
+        "14": { "features": ["Rage beyond Death"] }
+      }
+    }
+  ]
+}

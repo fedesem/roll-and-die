@@ -1,0 +1,41 @@
+{
+  "id": "artificer-battle-smith-tce",
+  "classId": "artificer-tce",
+  "className": "Artificer",
+  "name": "Battle Smith",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Tool Proficiency (Battle Smith)", "Battle Smith Spells", "Battle Ready", "Steel Defender"],
+      "alwaysPreparedSpells": ["Heroism", "Shield"],
+      "grants": {
+        "weaponProficiencies": ["Martial Weapons"]
+      },
+      "actions": [
+        {
+          "id": "action-command-steel-defender",
+          "name": "Command Steel Defender",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "60 feet"
+        }
+      ]
+    },
+    "5": {
+      "features": ["Extra Attack (Battle Smith)"],
+      "alwaysPreparedSpells": ["Branding Smite", "Warding Bond"]
+    },
+    "9": {
+      "features": ["Arcane Jolt"],
+      "alwaysPreparedSpells": ["Aura of Vitality", "Conjure Barrage"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Aura of Purity", "Fire Shield"]
+    },
+    "15": {
+      "features": ["Improved Defender"],
+      "alwaysPreparedSpells": ["Banishing Smite", "Mass Cure Wounds"]
+    }
+  }
+}

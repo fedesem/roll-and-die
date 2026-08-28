@@ -1,0 +1,21 @@
+{
+  "id": "barbarian-storm-herald-xge",
+  "classId": "barbarian-xphb",
+  "className": "Barbarian",
+  "name": "Path of the Storm Herald",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Storm Aura"]
+    },
+    "6": {
+      "features": ["Storm Soul"]
+    },
+    "10": {
+      "features": ["Shielding Storm"]
+    },
+    "14": {
+      "features": ["Raging Storm"]
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "id": "charlatan-xphb",
+  "name": "Charlatan",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["dex", "con", "cha"],
+    "options": ["dex", "con", "cha"]
+  },
+  "originFeatId": "skilled",
+  "originFeatName": "Skilled",
+  "skillProficiencies": ["Deception", "Sleight of Hand"],
+  "toolProficiencies": ["Forgery Kit"],
+  "equipmentChoices": [
+    {
+      "id": "charlatan-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Forgery Kit, Costume (2), Fine Clothes, 15 GP",
+          "items": [
+            {
+              "name": "Forgery Kit",
+              "quantity": 1
+            },
+            {
+              "name": "Costume",
+              "quantity": 2
+            },
+            {
+              "name": "Fine Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 15,
+              "currency": {
+                "gp": 15
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

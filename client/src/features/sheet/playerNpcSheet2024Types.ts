@@ -3,6 +3,7 @@ import type {
   ActorSheet,
   CampaignSnapshot,
   ClassSubclassEntry,
+  CompendiumChoiceGroup,
   CompendiumEquipmentGroup,
   CompendiumItemGrant,
   CompendiumOptionalFeatureEntry,
@@ -42,7 +43,8 @@ export type SpellSelectionTarget =
   | "editPerLongRest"
   | "guideCantrips"
   | "guideKnown"
-  | "guideSpellbook";
+  | "guideSpellbook"
+  | "guidePrepared";
 
 export const NEW_GUIDED_CLASS_ID = "__new_class__";
 
@@ -115,6 +117,8 @@ export type GuidedEquipmentGroup = CompendiumEquipmentGroup & {
   source: "background" | "class";
 };
 
+export type HpProgressionMode = "average" | "roll";
+
 export interface GuidedSetupState {
   speciesId: string;
   backgroundId: string;
@@ -122,18 +126,27 @@ export interface GuidedSetupState {
   subclassId: string;
   baseAbilities: ActorSheet["abilities"];
   backgroundAbilityModeId: string;
+  hpMode: HpProgressionMode;
+  rolledHp: number | null;
   classFeatIds: string[];
   optionalFeatureIds: string[];
+  classChoiceIds: Record<string, string[]>;
+  featChoiceMap: Record<string, Record<string, string[]>>;
   cantripIds: string[];
   knownSpellIds: string[];
   spellbookSpellIds: string[];
+  preparedSpellIds: string[];
   expertiseSkillChoices: string[];
+  weaponMasteryChoices: string[];
   asiMode: "feat" | "ability";
+  asiAbilityMode: "+2" | "+1+1";
   asiFeatId: string;
   asiAbilityChoices: AbilityKey[];
   speciesSkillChoices: string[];
   backgroundSkillChoices: string[];
   classSkillChoices: string[];
+  languageChoices: string[];
+  speciesSizeChoice: "Medium" | "Small" | "";
   speciesOriginFeatId: string;
   speciesChoiceIds: Record<string, string>;
   originFeatId: string;
@@ -147,15 +160,27 @@ export interface GuidedChoiceSpec {
   classFeatCount: number;
   optionalFeatureOptions: CompendiumOptionalFeatureEntry[];
   optionalFeatureCount: number;
+  classChoiceGroups: CompendiumChoiceGroup[];
+  featChoiceGroups: Record<string, CompendiumChoiceGroup[]>;
   cantripOptions: SpellEntry[];
   cantripCount: number;
   knownSpellOptions: SpellEntry[];
   knownSpellCount: number;
   spellbookOptions: SpellEntry[];
   spellbookCount: number;
+  preparedSpellOptions: SpellEntry[];
+  preparedSpellCount: number;
+  languageOptions: string[];
+  languageCount: number;
+  sizeOptions: Array<"Tiny" | "Small" | "Medium" | "Large">;
   expertiseSkillOptions: SkillEntry[];
   expertiseCount: number;
+  weaponMasteryOptions: string[];
+  weaponMasteryCount: number;
   abilityImprovementCount: number;
+  hitDieFaces: number;
+  conModifier: number;
+  averageHpGain: number;
 }
 
 export interface SpellSelectionConfig {

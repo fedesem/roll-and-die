@@ -1,0 +1,21 @@
+{
+  "id": "wizard-evoker-xphb",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "Evoker",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Evocation Savant", "Sculpt Spells"]
+    },
+    "6": {
+      "features": ["Potent Cantrip"]
+    },
+    "10": {
+      "features": ["Empowered Evocation"]
+    },
+    "14": {
+      "features": ["Overchannel"]
+    }
+  }
+}

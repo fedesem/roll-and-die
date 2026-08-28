@@ -1,0 +1,46 @@
+{
+  "id": "cleric-tempest-phb",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Tempest Domain",
+  "source": "PHB",
+  "levels": {
+    "3": {
+      "features": ["Domain Spells (Tempest)", "Wrath of the Storm", "Destructive Wrath"],
+      "alwaysPreparedSpells": ["Fog Cloud", "Thunderwave", "Gust of Wind", "Shatter"],
+      "grants": {
+        "armorProficiencies": ["Heavy Armor"],
+        "weaponProficiencies": ["Martial Weapons"]
+      },
+      "actions": [
+        {
+          "id": "action-destructive-wrath",
+          "name": "Channel Divinity: Destructive Wrath",
+          "source": "PHB",
+          "category": "feature",
+          "actionCost": "free",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "Self"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Call Lightning", "Sleet Storm"]
+    },
+    "6": {
+      "features": ["Thunderbolt Strike"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Control Water", "Ice Storm"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Destructive Wave", "Insect Plague"]
+    },
+    "17": {
+      "features": ["Stormborn"]
+    }
+  }
+}

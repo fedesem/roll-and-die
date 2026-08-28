@@ -1,0 +1,25 @@
+{
+  "id": "magic-initiate-cleric",
+  "name": "Magic Initiate (Cleric)",
+  "source": "XPHB",
+  "category": "origin",
+  "features": ["Two Cleric Cantrips", "One 1st-Level Cleric Spell"],
+  "grants": {
+    "spellList": "Cleric",
+    "cantripsCount": 2,
+    "spellsCount": 1
+  },
+  "choices": [
+    {
+      "id": "magic-initiate-cleric-ability",
+      "title": "Spellcasting Ability",
+      "source": "feat",
+      "choose": 1,
+      "options": [
+        { "id": "int", "name": "Intelligence", "grants": { "features": ["Magic Initiate Spellcasting Ability: Intelligence"] } },
+        { "id": "wis", "name": "Wisdom", "grants": { "features": ["Magic Initiate Spellcasting Ability: Wisdom"] } },
+        { "id": "cha", "name": "Charisma", "grants": { "features": ["Magic Initiate Spellcasting Ability: Charisma"] } }
+      ]
+    }
+  ]
+}

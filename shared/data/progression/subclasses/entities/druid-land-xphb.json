@@ -1,0 +1,124 @@
+{
+  "id": "druid-land-xphb",
+  "classId": "druid-xphb",
+  "className": "Druid",
+  "name": "Circle of the Land",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Circle Spells (Land)", "Land's Aid"],
+      "choices": [
+        {
+          "id": "land-biome-choice",
+          "title": "Land Biome Selection",
+          "source": "subclass",
+          "choose": 1,
+          "cadence": "onLongRest",
+          "options": [
+            {
+              "id": "arid",
+              "name": "Arid",
+              "grants": {
+                "alwaysPreparedSpells": [
+                  "Blur",
+                  "Burning Hands",
+                  "Daylight",
+                  "Fireball",
+                  "Blight",
+                  "Wall of Fire",
+                  "Cloudkill",
+                  "Insect Plague"
+                ]
+              }
+            },
+            {
+              "id": "polar",
+              "name": "Polar",
+              "grants": {
+                "alwaysPreparedSpells": [
+                  "Hold Person",
+                  "Ray of Enfeeblement",
+                  "Sleet Storm",
+                  "Slow",
+                  "Ice Storm",
+                  "Otiluke's Resilient Sphere",
+                  "Cone of Cold",
+                  "Hold Monster"
+                ]
+              }
+            },
+            {
+              "id": "temperate",
+              "name": "Temperate",
+              "grants": {
+                "alwaysPreparedSpells": [
+                  "Misty Step",
+                  "Shocking Grasp",
+                  "Lightning Bolt",
+                  "Wind Wall",
+                  "Freedom of Movement",
+                  "Greater Invisibility",
+                  "Tree Stride",
+                  "Wrath of Nature"
+                ]
+              }
+            },
+            {
+              "id": "tropical",
+              "name": "Tropical",
+              "grants": {
+                "alwaysPreparedSpells": [
+                  "Melf's Acid Arrow",
+                  "Ray of Sickness",
+                  "Plant Growth",
+                  "Water Breathing",
+                  "Confusion",
+                  "Polymorph",
+                  "Insect Plague",
+                  "Wall of Thorns"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "id": "action-lands-aid",
+          "name": "Land's Aid",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "action",
+          "resourceCost": {
+            "resourceName": "Wild Shape",
+            "count": 1
+          },
+          "range": "60 feet",
+          "roll": {
+            "kind": "heal",
+            "diceFormula": "2d8 + wis"
+          }
+        }
+      ]
+    },
+    "6": {
+      "features": ["Natural Recovery"],
+      "actions": [
+        {
+          "id": "action-natural-recovery",
+          "name": "Natural Recovery",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "special",
+          "range": "Self"
+        }
+      ]
+    },
+    "10": {
+      "features": ["Nature's Ward"]
+    },
+    "14": {
+      "features": ["Nature's Sanctuary"]
+    }
+  }
+}

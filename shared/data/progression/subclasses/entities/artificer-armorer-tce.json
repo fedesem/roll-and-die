@@ -1,0 +1,31 @@
+{
+  "id": "artificer-armorer-tce",
+  "classId": "artificer-tce",
+  "className": "Artificer",
+  "name": "Armorer",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Tools of the Trade", "Armorer Spells", "Arcane Armor", "Armor Model"],
+      "alwaysPreparedSpells": ["Magic Missile", "Thunderwave"],
+      "grants": {
+        "armorProficiencies": ["Heavy Armor"]
+      }
+    },
+    "5": {
+      "features": ["Extra Attack (Armorer)"],
+      "alwaysPreparedSpells": ["Mirror Image", "Shatter"]
+    },
+    "9": {
+      "features": ["Armor Modifications"],
+      "alwaysPreparedSpells": ["Hypnotic Pattern", "Lightning Bolt"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Fire Shield", "Greater Invisibility"]
+    },
+    "15": {
+      "features": ["Perfected Armor"],
+      "alwaysPreparedSpells": ["Passwall", "Wall of Force"]
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "sorcerer-shadow-xge",
+  "classId": "sorcerer-xphb",
+  "className": "Sorcerer",
+  "name": "Shadow Magic",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Eyes of the Dark", "Strength of the Grave"],
+      "alwaysPreparedSpells": ["Darkness"]
+    },
+    "6": {
+      "features": ["Hound of Ill Omen"],
+      "actions": [
+        {
+          "id": "action-hound-of-ill-omen",
+          "name": "Hound of Ill Omen",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "120 feet"
+        }
+      ]
+    },
+    "14": {
+      "features": ["Shadow Walk"]
+    },
+    "18": {
+      "features": ["Umbral Form"]
+    }
+  }
+}

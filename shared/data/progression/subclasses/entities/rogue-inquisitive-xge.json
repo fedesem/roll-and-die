@@ -1,0 +1,31 @@
+{
+  "id": "rogue-inquisitive-xge",
+  "classId": "rogue-xphb",
+  "className": "Rogue",
+  "name": "Inquisitive",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Ear for Deceit", "Eye for Detail", "Insightful Fighting"],
+      "actions": [
+        {
+          "id": "action-insightful-fighting",
+          "name": "Insightful Fighting",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "30 feet"
+        }
+      ]
+    },
+    "9": {
+      "features": ["Steady Eye"]
+    },
+    "13": {
+      "features": ["Unerring Eye"]
+    },
+    "17": {
+      "features": ["Eye for Weakness"]
+    }
+  }
+}

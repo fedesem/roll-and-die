@@ -1,0 +1,18 @@
+{
+  "id": "bard-whispers-xge",
+  "classId": "bard-xphb",
+  "className": "Bard",
+  "name": "College of Whispers",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Psychic Blades", "Words of Terror"]
+    },
+    "6": {
+      "features": ["Mantle of Whispers"]
+    },
+    "14": {
+      "features": ["Shadow Lore"]
+    }
+  }
+}

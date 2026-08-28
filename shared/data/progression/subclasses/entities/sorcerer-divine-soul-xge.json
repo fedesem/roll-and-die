@@ -1,0 +1,35 @@
+{
+  "id": "sorcerer-divine-soul-xge",
+  "classId": "sorcerer-xphb",
+  "className": "Sorcerer",
+  "name": "Divine Soul",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Divine Magic", "Favored by the Gods"],
+      "actions": [
+        {
+          "id": "action-favored-by-the-gods",
+          "name": "Favored by the Gods",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "free",
+          "range": "Self",
+          "roll": {
+            "kind": "save",
+            "diceFormula": "2d4"
+          }
+        }
+      ]
+    },
+    "6": {
+      "features": ["Empowered Healing"]
+    },
+    "14": {
+      "features": ["Otherworldly Wings"]
+    },
+    "18": {
+      "features": ["Unearthly Recovery"]
+    }
+  }
+}

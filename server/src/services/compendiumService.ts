@@ -157,6 +157,9 @@ function filterLatestCompendiumImportEntries<T extends Record<string, unknown>>(
 }
 
 function shouldSkipLatestImportEntry(kind: CompendiumKind, entry: Record<string, unknown>) {
+  if (kind === "spells" || kind === "feats" || kind === "optionalFeatures" || kind === "items") {
+    return false;
+  }
   const source = readCompendiumImportSourceCode(kind, entry);
 
   return source === "PHB";
@@ -449,6 +452,53 @@ export function importGeneratedSubclassLookupIntoClasses(classes: ClassEntry[], 
   return {
     imported,
     skipped: Math.max(lookupData.entryCount - imported, 0)
+  };
+}
+
+export function isSubclassImport(input: unknown) {
+  const root = asOptionalObject(input);
+  if (!root) return false;
+  return Array.isArray(root.subclass) && !Array.isArray(root.class);
+}
+
+export function importSubclassesIntoClasses(classes: ClassEntry[], input: unknown) {
+  const root = asOptionalObject(input);
+  if (!root || !Array.isArray(root.subclass)) {
+    throw new HttpError(400, "The uploaded JSON is not a supported 5etools subclass file.");
+  }
+
+  const subclassEntries = resolveExternalCopyEntries(readObjectArray(root.subclass), createExternalSubclassImportKey);
+  const subclassFeatureEntries = resolveExternalCopyEntries(readObjectArray(root.subclassFeature), createExternalSubclassFeatureImportKey);
+
+  let imported = 0;
+
+  subclassEntries.forEach((rawSubclass) => {
+    const rawClassName = readString(rawSubclass.className);
+    if (!rawClassName) return;
+
+    const matchingClass = classes.find((c) => c.name.toLowerCase() === rawClassName.toLowerCase());
+    if (!matchingClass) return;
+
+    const sanitized = sanitizeExternalClassSubclassEntry(rawSubclass, subclassFeatureEntries, matchingClass.name, matchingClass.source);
+
+    const existingIndex = matchingClass.subclasses.findIndex(
+      (s) => s.name.toLowerCase() === sanitized.name.toLowerCase() && s.source.toLowerCase() === sanitized.source.toLowerCase()
+    );
+
+    if (existingIndex >= 0) {
+      if (matchingClass.subclasses[existingIndex].features.length === 0 && sanitized.features.length > 0) {
+        matchingClass.subclasses[existingIndex].features = sanitized.features;
+        matchingClass.subclasses[existingIndex].description = sanitized.description || matchingClass.subclasses[existingIndex].description;
+      }
+    } else {
+      matchingClass.subclasses.push(sanitized);
+      imported += 1;
+    }
+  });
+
+  return {
+    imported,
+    skipped: Math.max(subclassEntries.length - imported, 0)
   };
 }
 
@@ -767,7 +817,16 @@ function sanitizeItemEntry(input: unknown): CompendiumItemEntry {
     ...base,
     itemType: readString(object.type),
     rarity: readString(object.rarity),
-    armorType: readString(object.type) === "LA" ? "light" : readString(object.type) === "MA" ? "medium" : readString(object.type) === "HA" ? "heavy" : readString(object.type) === "S" ? "shield" : "",
+    armorType:
+      readString(object.type) === "LA"
+        ? "light"
+        : readString(object.type) === "MA"
+          ? "medium"
+          : readString(object.type) === "HA"
+            ? "heavy"
+            : readString(object.type) === "S"
+              ? "shield"
+              : "",
     armorClass: clampNumber(object.ac, 0, 30, 0),
     maxDexBonus: clampNullableNumber(object.dexterityMax, -5, 20),
     damage: readString(object.dmg1),
@@ -798,7 +857,9 @@ function sanitizeSpeciesEntry(input: unknown): CompendiumSpeciesEntry {
     traitTags: readStringArray(object.traitTags),
     spellNames: readStringArray(object.spellNames).length > 0 ? readStringArray(object.spellNames) : baseSpellGrants.spellNames,
     alwaysPreparedSpellNames:
-      readStringArray(object.alwaysPreparedSpellNames).length > 0 ? readStringArray(object.alwaysPreparedSpellNames) : baseSpellGrants.alwaysPreparedSpellNames,
+      readStringArray(object.alwaysPreparedSpellNames).length > 0
+        ? readStringArray(object.alwaysPreparedSpellNames)
+        : baseSpellGrants.alwaysPreparedSpellNames,
     choiceGroups
   };
 }
@@ -911,21 +972,28 @@ function sanitizeExternalClassEntry(object: Record<string, unknown>): ClassEntry
 }
 
 function sanitizeClassSubclassEntry(input: Record<string, unknown>, className: string, classSource: string): ClassSubclassEntry {
+  const source = requireString(input.source, "Subclass source");
+  const subclassClassSource = readString(input.classSource) || classSource;
+  const isRetrocompatibleLegacy = (subclassClassSource === "XPHB" || classSource === "XPHB") && source !== "XPHB";
+
   return {
     id: readString(input.id) || createId("subcls"),
     name: requireString(input.name, "Subclass name"),
     shortName: readString(input.shortName) || requireString(input.name, "Subclass short name"),
-    source: requireString(input.source, "Subclass source"),
+    source,
     className: readString(input.className) || className,
-    classSource: readString(input.classSource) || classSource,
+    classSource: subclassClassSource,
     description: readString(input.description),
-    features: readObjectArray(input.features).map((feature) => ({
-      level: clampNumber(feature.level, 1, 20, 1),
-      name: requireString(feature.name, "Subclass feature name"),
-      description: requireString(feature.description, "Subclass feature description"),
-      source: readString(feature.source),
-      reference: readString(feature.reference)
-    }))
+    features: readObjectArray(input.features).map((feature) => {
+      const parsedLevel = clampNumber(feature.level, 1, 20, 1);
+      return {
+        level: isRetrocompatibleLegacy && parsedLevel < 3 ? 3 : parsedLevel,
+        name: requireString(feature.name, "Subclass feature name"),
+        description: requireString(feature.description, "Subclass feature description"),
+        source: readString(feature.source),
+        reference: readString(feature.reference)
+      };
+    })
   };
 }
 
@@ -940,6 +1008,20 @@ function sanitizeExternalClassSubclassEntry(
   const source = readString(object.source);
   const subclassShortName = readString(object.shortName) || name;
   const subclassClassSource = readString(object.classSource) || classSource;
+  const isRetrocompatibleLegacy = (subclassClassSource === "XPHB" || classSource === "XPHB") && source !== "XPHB" && source !== "";
+
+  const rawFeatures = parseExternalClassFeatures(subclassFeatures, lookupEntries, className, source || subclassClassSource, {
+    classSource: subclassClassSource,
+    subclassShortName,
+    subclassSource: source
+  });
+
+  const features = rawFeatures.map((feature) => {
+    if (isRetrocompatibleLegacy && feature.level < 3) {
+      return { ...feature, level: 3 };
+    }
+    return feature;
+  });
 
   return {
     id: readString(object.id) || createId("subcls"),
@@ -949,11 +1031,7 @@ function sanitizeExternalClassSubclassEntry(
     className: readString(object.className) || className,
     classSource: subclassClassSource,
     description: joinEntries(object.entries) || readString(object.description),
-    features: parseExternalClassFeatures(subclassFeatures, lookupEntries, className, source || subclassClassSource, {
-      classSource: subclassClassSource,
-      subclassShortName,
-      subclassSource: source
-    })
+    features
   };
 }
 
@@ -1155,8 +1233,12 @@ function readExternalSubclassLevel(entries: Record<string, unknown>[]) {
         }
 
         const object = feature as Record<string, unknown>;
-        const reference = readString(object.subclassFeature) || readString(object.classFeature) || readString(object.feature) || readString(object.ref);
-        return readExternalClassFeatureLevel(object.level) ?? (reference ? parseExternalClassFeatureReference(reference, readString(entry.className) || "").level : null);
+        const reference =
+          readString(object.subclassFeature) || readString(object.classFeature) || readString(object.feature) || readString(object.ref);
+        return (
+          readExternalClassFeatureLevel(object.level) ??
+          (reference ? parseExternalClassFeatureReference(reference, readString(entry.className) || "").level : null)
+        );
       })
       .filter((value): value is number => value !== null)
   );
@@ -1184,7 +1266,9 @@ function readCompendiumAbilityChoices(value: unknown): CompendiumAbilityChoice[]
         return [];
       }
 
-      const abilities = readStringArray(choose.from).map(parseAbilityOrNull).filter((entry): entry is AbilityKey => entry !== null);
+      const abilities = readStringArray(choose.from)
+        .map(parseAbilityOrNull)
+        .filter((entry): entry is AbilityKey => entry !== null);
 
       if (abilities.length === 0) {
         return [];
@@ -1280,8 +1364,12 @@ function deriveSpeciesChoiceGroups(value: unknown): CompendiumSpeciesChoiceGroup
     }
 
     const groupEntries = readArray(entry.entries);
-    const table = readObjectArray(groupEntries).find((node) => readString(node.type).toLowerCase() === "table" && readArray(node.rows).length > 0);
-    const list = readObjectArray(groupEntries).find((node) => readString(node.type).toLowerCase() === "list" && readObjectArray(node.items).length > 0);
+    const table = readObjectArray(groupEntries).find(
+      (node) => readString(node.type).toLowerCase() === "table" && readArray(node.rows).length > 0
+    );
+    const list = readObjectArray(groupEntries).find(
+      (node) => readString(node.type).toLowerCase() === "list" && readObjectArray(node.items).length > 0
+    );
     const groupId = `choice:${toChoiceSlug(groupName)}`;
     const options = table
       ? deriveSpeciesChoiceOptionsFromTable(groupId, groupName, table)
@@ -1513,7 +1601,9 @@ function readSpellcastingAbilityChoicesFromText(text: string): AbilityKey[] {
 }
 
 function readSpeciesChoiceHint(entries: unknown[]) {
-  const text = entries.map((entry) => renderRulesText(renderEntryNode(entry))).find((entry) => /^choose\b/i.test(entry) || /\bchoose\b.+\btable\b/i.test(entry));
+  const text = entries
+    .map((entry) => renderRulesText(renderEntryNode(entry)))
+    .find((entry) => /^choose\b/i.test(entry) || /\bchoose\b.+\btable\b/i.test(entry));
   return text || undefined;
 }
 
@@ -1720,7 +1810,10 @@ function buildCurrencyLabel(currency: Partial<CurrencyPouch>) {
 }
 
 function formatEquipmentTypeLabel(value: string) {
-  const normalized = value.replace(/^weapon/, "weapon ").replace(/([a-z])([A-Z])/g, "$1 $2").trim();
+  const normalized = value
+    .replace(/^weapon/, "weapon ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .trim();
   return toTitleCase(normalized);
 }
 
@@ -2424,7 +2517,9 @@ function resolveExternalClassFeatureEntry(
     activeReferences: new Set<string>()
   };
   const inlineDescription =
-    renderEntryNode(object.entry, renderState) || joinEntries(object.entries, renderState) || joinEntries(object.headerEntries, renderState);
+    renderEntryNode(object.entry, renderState) ||
+    joinEntries(object.entries, renderState) ||
+    joinEntries(object.headerEntries, renderState);
   const inlineLevel = readExternalClassFeatureLevel(object.level) ?? fallbackLevel ?? 1;
 
   if (!inlineName && !inlineDescription) {

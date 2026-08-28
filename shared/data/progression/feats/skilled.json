@@ -1,0 +1,17 @@
+{
+  "id": "skilled",
+  "name": "Skilled",
+  "source": "XPHB",
+  "category": "origin",
+  "features": ["Three Proficiencies of Choice"],
+  "choices": [
+    {
+      "id": "skilled-proficiencies",
+      "title": "Skill or Tool Proficiencies",
+      "source": "feat",
+      "choose": 3,
+      "optionSetIds": ["skills", "artisan-tools", "other-tools"],
+      "options": []
+    }
+  ]
+}

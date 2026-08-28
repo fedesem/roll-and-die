@@ -1,0 +1,24 @@
+{
+  "id": "fighter-arcane-archer-xge",
+  "classId": "fighter-xphb",
+  "className": "Fighter",
+  "name": "Arcane Archer",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Arcane Archer Lore", "Arcane Shot"]
+    },
+    "7": {
+      "features": ["Magic Arrow", "Curving Shot"]
+    },
+    "10": {
+      "features": ["Additional Arcane Shot"]
+    },
+    "15": {
+      "features": ["Ever-Ready Shot"]
+    },
+    "18": {
+      "features": ["Improved Arcane Shot"]
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "id": "human-xphb",
+  "name": "Human",
+  "source": "XPHB",
+  "sizes": ["Medium", "Small"],
+  "speed": 30,
+  "darkvision": 0,
+  "creatureTypes": ["Humanoid"],
+  "languages": ["Common"],
+  "bonusLanguageCount": 2,
+  "skillChoices": { "choose": 1, "options": "all" },
+  "features": ["Heroic Inspiration", "Resourceful", "Skillful", "Versatile"],
+  "choices": [
+    {
+      "id": "human-origin-feat",
+      "title": "Human Origin Feat (Versatile)",
+      "source": "species",
+      "choose": 1,
+      "options": [
+        {
+          "id": "alert",
+          "name": "Alert",
+          "grants": {
+            "features": ["Feat: Alert"]
+          }
+        },
+        {
+          "id": "crafter",
+          "name": "Crafter",
+          "grants": {
+            "features": ["Feat: Crafter"]
+          }
+        },
+        {
+          "id": "healer",
+          "name": "Healer",
+          "grants": {
+            "features": ["Feat: Healer"]
+          }
+        },
+        {
+          "id": "lucky",
+          "name": "Lucky",
+          "grants": {
+            "features": ["Feat: Lucky"]
+          }
+        },
+        {
+          "id": "magic-initiate",
+          "name": "Magic Initiate",
+          "grants": {
+            "features": ["Feat: Magic Initiate"]
+          }
+        },
+        {
+          "id": "musician",
+          "name": "Musician",
+          "grants": {
+            "features": ["Feat: Musician"]
+          }
+        },
+        {
+          "id": "savage-attacker",
+          "name": "Savage Attacker",
+          "grants": {
+            "features": ["Feat: Savage Attacker"]
+          }
+        },
+        {
+          "id": "skilled",
+          "name": "Skilled",
+          "grants": {
+            "features": ["Feat: Skilled"]
+          }
+        },
+        {
+          "id": "tavern-brawler",
+          "name": "Tavern Brawler",
+          "grants": {
+            "features": ["Feat: Tavern Brawler"]
+          }
+        },
+        {
+          "id": "tough",
+          "name": "Tough",
+          "grants": {
+            "features": ["Feat: Tough"]
+          }
+        }
+      ]
+    }
+  ]
+}

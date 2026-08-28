@@ -1,0 +1,31 @@
+{
+  "id": "warlock-great-old-one-xphb",
+  "classId": "warlock-xphb",
+  "className": "Warlock",
+  "name": "Great Old One Patron",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Great Old One Spells", "Awakened Mind", "Psychic Spells"],
+      "alwaysPreparedSpells": ["Dissonant Whispers", "Tasha's Hideous Laughter", "Detect Thoughts", "Phantasmal Force"]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Clairvoyance", "Hunger of Hadar"]
+    },
+    "6": {
+      "features": ["Clairvoyant Combatant"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Confusion", "Evard's Black Tentacles"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Dominate Person", "Telekinesis"]
+    },
+    "10": {
+      "features": ["Thought Shield"]
+    },
+    "14": {
+      "features": ["Create Thrall"]
+    }
+  }
+}

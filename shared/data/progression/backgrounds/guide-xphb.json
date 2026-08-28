@@ -1,0 +1,75 @@
+{
+  "id": "guide-xphb",
+  "name": "Guide",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["dex", "con", "wis"],
+    "options": ["dex", "con", "wis"]
+  },
+  "originFeatId": "magic-initiate-druid",
+  "originFeatName": "Magic Initiate (Druid)",
+  "skillProficiencies": ["Stealth", "Survival"],
+  "toolProficiencies": ["Cartographer's Tools"],
+  "equipmentChoices": [
+    {
+      "id": "guide-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Shortbow, Arrows (20), Cartographer's Tools, Bedroll, Quiver, Tent, Traveler's Clothes, 2 GP",
+          "items": [
+            {
+              "name": "Shortbow",
+              "quantity": 1
+            },
+            {
+              "name": "Arrows",
+              "quantity": 20
+            },
+            {
+              "name": "Cartographer's Tools",
+              "quantity": 1
+            },
+            {
+              "name": "Bedroll",
+              "quantity": 1
+            },
+            {
+              "name": "Quiver",
+              "quantity": 1
+            },
+            {
+              "name": "Tent",
+              "quantity": 1
+            },
+            {
+              "name": "Traveler's Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 2,
+              "currency": {
+                "gp": 2
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "cleric-death-dmg",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Death Domain",
+  "source": "DMG",
+  "levels": {
+    "3": {
+      "features": ["Domain Spells (Death)", "Reaper", "Touch of Death"],
+      "alwaysPreparedSpells": ["False Life", "Ray of Sickness", "Blindness/Deafness", "Ray of Enfeeblement"],
+      "grants": {
+        "weaponProficiencies": ["Martial Weapons"]
+      }
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Animate Dead", "Vampiric Touch"]
+    },
+    "6": {
+      "features": ["Inescapable Destruction"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Blight", "Death Ward"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Antilife Shell", "Cloudkill"]
+    },
+    "17": {
+      "features": ["Improved Reaper"]
+    }
+  }
+}

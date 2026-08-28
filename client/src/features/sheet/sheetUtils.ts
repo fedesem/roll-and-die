@@ -68,11 +68,9 @@ export function bonusTotal(actor: ActorSheet, targetType: ActorBonusEntry["targe
       return sum;
     }
 
-    if (!normalizedKey) {
-      return sum + entry.value;
-    }
-
-    return normalizeKey(entry.targetKey) === normalizedKey ? sum + entry.value : sum;
+    if (normalizedKey && normalizeKey(entry.targetKey) !== normalizedKey) return sum;
+    const statValue = entry.statBonus ? abilityModifier(actor.abilities[entry.statBonus]) : 0;
+    return sum + entry.value + (entry.statBonus ? Math.max(entry.minimum ?? Number.NEGATIVE_INFINITY, statValue) : 0);
   }, 0);
 }
 

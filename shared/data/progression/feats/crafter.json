@@ -1,0 +1,17 @@
+{
+  "id": "crafter",
+  "name": "Crafter",
+  "source": "XPHB",
+  "category": "origin",
+  "features": ["Tool Proficiency (Crafter)", "Discount", "Fast Crafting"],
+  "choices": [
+    {
+      "id": "crafter-tools",
+      "title": "Artisan's Tool Proficiencies",
+      "source": "feat",
+      "choose": 3,
+      "optionSetId": "artisan-tools",
+      "options": []
+    }
+  ]
+}

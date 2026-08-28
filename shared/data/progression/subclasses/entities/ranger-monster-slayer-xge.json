@@ -1,0 +1,48 @@
+{
+  "id": "ranger-monster-slayer-xge",
+  "classId": "ranger-xphb",
+  "className": "Ranger",
+  "name": "Monster Slayer",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Hunter's Sense", "Slayer's Prey", "Monster Slayer Spells"],
+      "alwaysPreparedSpells": ["Protection from Evil and Good"],
+      "actions": [
+        {
+          "id": "action-slayers-prey",
+          "name": "Slayer's Prey",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "60 feet",
+          "roll": {
+            "kind": "damage",
+            "diceFormula": "1d6"
+          }
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Zone of Truth"]
+    },
+    "7": {
+      "features": ["Supernatural Defense"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Magic Circle"]
+    },
+    "11": {
+      "features": ["Magic-User's Nemesis"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Banishment"]
+    },
+    "15": {
+      "features": ["Slayer's Counter"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Hold Monster"]
+    }
+  }
+}

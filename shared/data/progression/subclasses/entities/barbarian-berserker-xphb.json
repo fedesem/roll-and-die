@@ -1,0 +1,21 @@
+{
+  "id": "barbarian-berserker-xphb",
+  "classId": "barbarian-xphb",
+  "className": "Barbarian",
+  "name": "Path of the Berserker",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Frenzy"]
+    },
+    "6": {
+      "features": ["Mindless Rage"]
+    },
+    "10": {
+      "features": ["Retaliation"]
+    },
+    "14": {
+      "features": ["Intimidating Presence"]
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "bard-eloquence-tce",
+  "classId": "bard-xphb",
+  "className": "Bard",
+  "name": "College of Eloquence",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Silver Tongue", "Unsettling Words"]
+    },
+    "6": {
+      "features": ["Unfailing Inspiration", "Universal Speech"]
+    },
+    "14": {
+      "features": ["Infectious Inspiration"]
+    }
+  }
+}

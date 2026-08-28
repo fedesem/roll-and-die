@@ -1,0 +1,666 @@
+[
+  {
+    "kind": "background",
+    "ref": "Acolyte|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Artisan|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Charlatan|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Criminal|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Entertainer|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Farmer|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Guard|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Guide|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Hermit|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Merchant|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Noble|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Sage|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Sailor|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Scribe|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Soldier|XPHB"
+  },
+  {
+    "kind": "background",
+    "ref": "Wayfarer|XPHB"
+  },
+  {
+    "kind": "class",
+    "ref": "Artificer|TCE"
+  },
+  {
+    "kind": "class",
+    "ref": "Barbarian|XPHB"
+  },
+  {
+    "kind": "class",
+    "ref": "Bard|XPHB"
+  },
+  {
+    "kind": "class",
+    "ref": "Cleric|XPHB"
+  },
+  {
+    "kind": "class",
+    "ref": "Druid|XPHB"
+  },
+  {
+    "kind": "class",
+    "ref": "Fighter|XPHB"
+  },
+  {
+    "kind": "class",
+    "ref": "Monk|XPHB"
+  },
+  {
+    "kind": "class",
+    "ref": "Paladin|XPHB"
+  },
+  {
+    "kind": "class",
+    "ref": "Ranger|XPHB"
+  },
+  {
+    "kind": "class",
+    "ref": "Rogue|XPHB"
+  },
+  {
+    "kind": "class",
+    "ref": "Sorcerer|XPHB"
+  },
+  {
+    "kind": "class",
+    "ref": "Warlock|XPHB"
+  },
+  {
+    "kind": "class",
+    "ref": "Wizard|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Alert|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Crafter|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Great Weapon Master|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Healer|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Lucky|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Magic Initiate (Cleric)|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Magic Initiate (Druid)|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Magic Initiate (Wizard)|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Musician|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Savage Attacker|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Sentinel|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Sharpshooter|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Skilled|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Tavern Brawler|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Tough|XPHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "War Caster|XPHB"
+  },
+  {
+    "kind": "species",
+    "ref": "Aasimar|XPHB"
+  },
+  {
+    "kind": "species",
+    "ref": "Dragonborn|XPHB"
+  },
+  {
+    "kind": "species",
+    "ref": "Dwarf|XPHB"
+  },
+  {
+    "kind": "species",
+    "ref": "Elf|XPHB"
+  },
+  {
+    "kind": "species",
+    "ref": "Gnome|XPHB"
+  },
+  {
+    "kind": "species",
+    "ref": "Goliath|XPHB"
+  },
+  {
+    "kind": "species",
+    "ref": "Halfling|XPHB"
+  },
+  {
+    "kind": "species",
+    "ref": "Human|XPHB"
+  },
+  {
+    "kind": "species",
+    "ref": "Orc|XPHB"
+  },
+  {
+    "kind": "species",
+    "ref": "Tiefling|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Aberrant Sorcery|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Abjurer|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Alchemist|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Arcana Domain|SCAG"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Arcane Archer|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Arcane Trickster|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Archfey Patron|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Armorer|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Artillerist|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Assassin|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Battle Master|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Battle Smith|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Beast Master|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Bladesinging|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Cavalier|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Celestial Patron|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Champion|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Circle of Dreams|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Circle of Spores|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Circle of the Land|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Circle of the Moon|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Circle of the Sea|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Circle of the Shepherd|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Circle of the Stars|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Circle of Wildfire|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Clockwork Sorcery|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "College of Creation|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "College of Dance|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "College of Eloquence|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "College of Glamour|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "College of Lore|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "College of Spirits|VRGR"
+  },
+  {
+    "kind": "subclass",
+    "ref": "College of Swords|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "College of Valor|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "College of Whispers|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Death Domain|DMG"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Divine Soul|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Diviner|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Draconic Sorcery|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Drakewarden|FTD"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Echo Knight|EGtW"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Eldritch Knight|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Evoker|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Fey Wanderer|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Fiend Patron|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Forge Domain|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Gloom Stalker|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Grave Domain|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Great Old One Patron|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Horizon Walker|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Hunter|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Illusionist|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Inquisitive|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Knowledge Domain|PHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Life Domain|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Light Domain|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Mastermind|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Monster Slayer|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Nature Domain|PHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Oath of Conquest|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Oath of Devotion|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Oath of Glory|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Oath of Redemption|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Oath of the Ancients|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Oath of the Crown|SCAG"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Oath of the Watchers|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Oath of Vengeance|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Oathbreaker|DMG"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Order Domain|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Order of Scribes|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Path of the Ancestral Guardian|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Path of the Beast|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Path of the Berserker|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Path of the Giant|BMT"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Path of the Storm Herald|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Path of the Wild Heart|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Path of the World Tree|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Path of the Zealot|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Path of Wild Magic|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Peace Domain|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Phantom|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Psi Warrior|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Rune Knight|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Samurai|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "School of Chronurgy|EGtW"
+  },
+  {
+    "kind": "subclass",
+    "ref": "School of Graviturgy|EGtW"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Scout|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Shadow Magic|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Soulknife|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Storm Sorcery|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Swarmkeeper|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Swashbuckler|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Tempest Domain|PHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "The Fathomless|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "The Genie|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "The Hexblade|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "The Undead|VRGR"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Thief|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Trickery Domain|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Twilight Domain|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "War Domain|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "War Magic|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Warrior of Mercy|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Warrior of Shadow|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Warrior of the Elements|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Warrior of the Open Hand|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Way of the Ascendant Dragon|FTD"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Way of the Astral Self|TCE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Way of the Drunken Master|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Way of the Kensei|XGE"
+  },
+  {
+    "kind": "subclass",
+    "ref": "Wild Magic Sorcery|XPHB"
+  }
+]

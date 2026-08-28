@@ -1,0 +1,35 @@
+{
+  "id": "rogue-soulknife-xphb",
+  "classId": "rogue-xphb",
+  "className": "Rogue",
+  "name": "Soulknife",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Psionic Power (Soulknife)", "Psychic Blades"],
+      "resources": [
+        {
+          "name": "Energy Dice (Soulknife)",
+          "maxFormula": {
+            "type": "statModifier",
+            "stat": "dex",
+            "multiplier": 2,
+            "min": 2
+          },
+          "resetOn": "longRest",
+          "shortRestRestore": 1,
+          "dice": "1d6"
+        }
+      ]
+    },
+    "9": {
+      "features": ["Soul Blades"]
+    },
+    "13": {
+      "features": ["Psychic Veil"]
+    },
+    "17": {
+      "features": ["Rend Mind"]
+    }
+  }
+}

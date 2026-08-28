@@ -1,0 +1,18 @@
+{
+  "id": "bard-lore-xphb",
+  "classId": "bard-xphb",
+  "className": "Bard",
+  "name": "College of Lore",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Bonus Proficiencies (Lore)", "Cutting Words"]
+    },
+    "6": {
+      "features": ["Magical Discoveries"]
+    },
+    "14": {
+      "features": ["Peerless Skill"]
+    }
+  }
+}

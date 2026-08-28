@@ -1,0 +1,305 @@
+{
+  "id": "druid-xphb",
+  "name": "Druid",
+  "source": "XPHB",
+  "hitDieFaces": 8,
+  "primaryAbilities": ["wis"],
+  "savingThrows": ["int", "wis"],
+  "armorProficiencies": ["Light Armor", "Shields"],
+  "weaponProficiencies": ["Simple Weapons"],
+  "toolProficiencies": ["Herbalism Kit"],
+  "startingSkillChoices": {
+    "choose": 2,
+    "options": ["Animal Handling", "Arcana", "Insight", "Medicine", "Nature", "Perception", "Religion", "Survival"]
+  },
+  "equipmentChoices": [
+    {
+      "id": "druid-equipment",
+      "label": "Class Equipment",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Leather Armor, Shield, Sickle, Druidic Focus, Explorer's Pack, Herbalism Kit, 9 GP",
+          "items": [
+            { "referenceId": "Leather Armor|XPHB", "name": "Leather Armor", "quantity": 1 },
+            { "referenceId": "Shield|XPHB", "name": "Shield", "quantity": 1 },
+            { "referenceId": "Sickle|XPHB", "name": "Sickle", "quantity": 1 },
+            { "referenceId": "Druidic Focus|XPHB", "name": "Druidic Focus", "quantity": 1 },
+            { "referenceId": "Explorer's Pack|XPHB", "name": "Explorer's Pack", "quantity": 1 },
+            { "referenceId": "Herbalism Kit|XPHB", "name": "Herbalism Kit", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 9, "currency": { "gp": 9 } }
+          ]
+        },
+        { "id": "package-b", "label": "Option B: 50 GP", "items": [{ "name": "Gold Coins", "quantity": 50, "currency": { "gp": 50 } }] }
+      ]
+    }
+  ],
+  "spellListId": "druid",
+  "multiclassing": {
+    "prerequisites": { "wis": 13 },
+    "proficienciesGranted": {
+      "armor": ["Light Armor", "Shields"]
+    },
+    "casterType": "full"
+  },
+  "levels": {
+    "1": {
+      "features": ["Druidic", "Primal Order", "Spellcasting"],
+      "choices": [
+        {
+          "id": "druid-primal-order",
+          "title": "Primal Order",
+          "source": "class",
+          "choose": 1,
+          "options": [
+            {
+              "id": "magician",
+              "name": "Magician",
+              "grants": {
+                "cantripsCount": 1,
+                "passiveBonuses": [
+                  {
+                    "target": "skill",
+                    "skillName": "Arcana",
+                    "statBonus": "wis",
+                    "minBonus": 1
+                  },
+                  {
+                    "target": "skill",
+                    "skillName": "Nature",
+                    "statBonus": "wis",
+                    "minBonus": 1
+                  }
+                ]
+              }
+            },
+            {
+              "id": "warden",
+              "name": "Warden",
+              "grants": {
+                "armorProficiencies": ["Medium Armor"],
+                "weaponProficiencies": ["Martial Weapons"]
+              }
+            }
+          ]
+        }
+      ],
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 2,
+        "preparedSpellsFormula": { "type": "abilityPlusLevel", "ability": "wis" },
+        "changeCadence": "onLongRest",
+        "ritualCasting": true,
+        "spellcastingAbility": "wis"
+      }
+    },
+    "2": {
+      "features": ["Wild Companion", "Wild Shape"],
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      "resources": [
+        {
+          "name": "Wild Shape",
+          "maxFormula": { "type": "fixed", "value": 2 },
+          "resetOn": "shortRest",
+          "shortRestRestore": 1,
+          "longRestRestore": "all"
+        }
+      ]
+    },
+    "3": {
+      "features": ["Druid Circle"],
+      "subclassChoice": true,
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0]
+      }
+    },
+    "4": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 3
+      }
+    },
+    "5": {
+      "features": ["Wild Resurgence"],
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0]
+      }
+    },
+    "6": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0]
+      },
+      "resources": [
+        {
+          "name": "Wild Shape",
+          "maxFormula": { "type": "fixed", "value": 3 },
+          "resetOn": "shortRest",
+          "shortRestRestore": 1,
+          "longRestRestore": "all"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Elemental Fury"],
+      "choices": [
+        {
+          "id": "druid-elemental-fury",
+          "title": "Elemental Fury",
+          "source": "class",
+          "choose": 1,
+          "options": [
+            {
+              "id": "potency",
+              "name": "Potent Spellcasting",
+              "grants": { "features": ["Elemental Fury: Potent Spellcasting"] }
+            },
+            {
+              "id": "strike",
+              "name": "Primal Strike",
+              "grants": { "features": ["Elemental Fury: Primal Strike"] }
+            }
+          ]
+        }
+      ],
+      "spellcasting": {
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0]
+      }
+    },
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0]
+      }
+    },
+    "9": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0]
+      }
+    },
+    "10": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        "cantripsKnown": 4
+      }
+    },
+    "11": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 0, 0, 0]
+      }
+    },
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 0, 0, 0]
+      }
+    },
+    "13": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 0, 0]
+      }
+    },
+    "14": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 0, 0]
+      }
+    },
+    "15": {
+      "features": ["Improved Elemental Fury"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 0]
+      }
+    },
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 0]
+      }
+    },
+    "17": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 1]
+      },
+      "resources": [
+        {
+          "name": "Wild Shape",
+          "maxFormula": { "type": "fixed", "value": 4 },
+          "resetOn": "shortRest",
+          "shortRestRestore": 1,
+          "longRestRestore": "all"
+        }
+      ]
+    },
+    "18": {
+      "features": ["Beast Spells"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 1, 1, 1, 1]
+      }
+    },
+    "19": {
+      "features": ["Epic Boon"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 2, 1, 1, 1]
+      }
+    },
+    "20": {
+      "features": ["Archdruid"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 2, 2, 1, 1]
+      }
+    }
+  },
+  "subclasses": [
+    {
+      "id": "druid-land",
+      "name": "Circle of the Land",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Circle Spells (Land)", "Land's Aid"] },
+        "6": { "features": ["Natural Recovery"] },
+        "10": { "features": ["Nature's Ward"] },
+        "14": { "features": ["Nature's Sanctuary"] }
+      }
+    },
+    {
+      "id": "druid-moon",
+      "name": "Circle of the Moon",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Circle Spells (Moon)", "Combat Wild Shape"] },
+        "6": { "features": ["Improved Circle Forms"] },
+        "10": { "features": ["Moonlight Step"] },
+        "14": { "features": ["Lunar Radiance"] }
+      }
+    },
+    {
+      "id": "druid-sea",
+      "name": "Circle of the Sea",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Circle Spells (Sea)", "Wrath of the Sea"] },
+        "6": { "features": ["Aquatic Affinity"] },
+        "10": { "features": ["Stormborn"] },
+        "14": { "features": ["Oceanic Spray"] }
+      }
+    },
+    {
+      "id": "druid-stars",
+      "name": "Circle of the Stars",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Star Map", "Starry Form"] },
+        "6": { "features": ["Cosmic Omen"] },
+        "10": { "features": ["Twinkling Constellations"] },
+        "14": { "features": ["Full of Stars"] }
+      }
+    }
+  ]
+}

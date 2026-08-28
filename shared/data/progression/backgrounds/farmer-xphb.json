@@ -1,0 +1,71 @@
+{
+  "id": "farmer-xphb",
+  "name": "Farmer",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["str", "con", "wis"],
+    "options": ["str", "con", "wis"]
+  },
+  "originFeatId": "tough",
+  "originFeatName": "Tough",
+  "skillProficiencies": ["Animal Handling", "Nature"],
+  "toolProficiencies": ["Carpenter's Tools"],
+  "equipmentChoices": [
+    {
+      "id": "farmer-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Sickle, Carpenter's Tools, Healer's Kit, Iron Pot, Shovel, Traveler's Clothes, 23 GP",
+          "items": [
+            {
+              "name": "Sickle",
+              "quantity": 1
+            },
+            {
+              "name": "Carpenter's Tools",
+              "quantity": 1
+            },
+            {
+              "name": "Healer's Kit",
+              "quantity": 1
+            },
+            {
+              "name": "Iron Pot",
+              "quantity": 1
+            },
+            {
+              "name": "Shovel",
+              "quantity": 1
+            },
+            {
+              "name": "Traveler's Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 23,
+              "currency": {
+                "gp": 23
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

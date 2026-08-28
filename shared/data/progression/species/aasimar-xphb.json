@@ -1,0 +1,43 @@
+{
+  "id": "aasimar-xphb",
+  "name": "Aasimar",
+  "source": "XPHB",
+  "sizes": ["Medium", "Small"],
+  "speed": 30,
+  "darkvision": 60,
+  "creatureTypes": ["Humanoid"],
+  "languages": ["Common"],
+  "bonusLanguageCount": 1,
+  "features": ["Celestial Resistance", "Darkvision", "Healing Hands", "Light Bearer"],
+  "choices": [
+    {
+      "id": "aasimar-celestial-revelation",
+      "title": "Celestial Revelation",
+      "source": "species",
+      "choose": 1,
+      "options": [
+        {
+          "id": "heavenly-wings",
+          "name": "Heavenly Wings",
+          "grants": {
+            "features": ["Celestial Revelation: Heavenly Wings"]
+          }
+        },
+        {
+          "id": "inner-radiance",
+          "name": "Inner Radiance",
+          "grants": {
+            "features": ["Celestial Revelation: Inner Radiance"]
+          }
+        },
+        {
+          "id": "necrotic-shroud",
+          "name": "Necrotic Shroud",
+          "grants": {
+            "features": ["Celestial Revelation: Necrotic Shroud"]
+          }
+        }
+      ]
+    }
+  ]
+}

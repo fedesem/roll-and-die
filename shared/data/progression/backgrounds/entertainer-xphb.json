@@ -1,0 +1,63 @@
+{
+  "id": "entertainer-xphb",
+  "name": "Entertainer",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["str", "dex", "cha"],
+    "options": ["str", "dex", "cha"]
+  },
+  "originFeatId": "musician",
+  "originFeatName": "Musician",
+  "skillProficiencies": ["Acrobatics", "Performance"],
+  "toolProficiencies": ["Musical Instrument"],
+  "equipmentChoices": [
+    {
+      "id": "entertainer-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Musical Instrument, Costume (2), Mirror, Perfume, 8 GP",
+          "items": [
+            {
+              "name": "Musical Instrument",
+              "quantity": 1
+            },
+            {
+              "name": "Costume",
+              "quantity": 2
+            },
+            {
+              "name": "Steel Mirror",
+              "quantity": 1
+            },
+            {
+              "name": "Perfume",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 8,
+              "currency": {
+                "gp": 8
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

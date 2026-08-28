@@ -1,0 +1,7 @@
+{
+  "id": "tavern-brawler",
+  "name": "Tavern Brawler",
+  "source": "XPHB",
+  "category": "origin",
+  "features": ["Enhanced Unarmed Strike (1d4)", "Damage Rerolls", "Push"]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "healer",
+  "name": "Healer",
+  "source": "XPHB",
+  "category": "origin",
+  "features": ["Battle Medic", "Healing Rerolls"],
+  "actions": [
+    {
+      "id": "healer-battle-medic",
+      "name": "Battle Medic",
+      "source": "XPHB",
+      "category": "feat",
+      "actionCost": "action",
+      "range": "Touch",
+      "roll": {
+        "kind": "heal",
+        "diceFormula": "1d4 + 4 + level"
+      }
+    }
+  ]
+}

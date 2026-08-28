@@ -1,0 +1,31 @@
+{
+  "id": "cleric-order-tce",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Order Domain",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Domain Spells (Order)", "Voice of Authority", "Order's Demand"],
+      "alwaysPreparedSpells": ["Command", "Heroism", "Hold Person", "Zone of Truth"],
+      "grants": {
+        "armorProficiencies": ["Heavy Armor"]
+      }
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Mass Healing Word", "Slow"]
+    },
+    "6": {
+      "features": ["Embodiment of the Law"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Compulsion", "Locate Creature"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Commune", "Dominate Person"]
+    },
+    "17": {
+      "features": ["Order's Wrath"]
+    }
+  }
+}

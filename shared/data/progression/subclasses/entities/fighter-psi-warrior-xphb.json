@@ -1,0 +1,38 @@
+{
+  "id": "fighter-psi-warrior-xphb",
+  "classId": "fighter-xphb",
+  "className": "Fighter",
+  "name": "Psi Warrior",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Psionic Power", "Protective Field", "Psionic Strike", "Telekinetic Movement"],
+      "resources": [
+        {
+          "name": "Energy Dice",
+          "maxFormula": {
+            "type": "statModifier",
+            "stat": "int",
+            "multiplier": 2,
+            "min": 2
+          },
+          "resetOn": "longRest",
+          "shortRestRestore": 1,
+          "dice": "1d6"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Psi-Powered Leap", "Telekinetic Thrust"]
+    },
+    "10": {
+      "features": ["Guarded Mind"]
+    },
+    "15": {
+      "features": ["Bulwark of Force"]
+    },
+    "18": {
+      "features": ["Telekinetic Master"]
+    }
+  }
+}

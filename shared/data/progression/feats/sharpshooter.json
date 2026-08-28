@@ -1,0 +1,18 @@
+{
+  "id": "sharpshooter",
+  "name": "Sharpshooter",
+  "source": "XPHB",
+  "category": "general",
+  "prerequisites": {
+    "abilities": {
+      "dex": 13
+    },
+    "minLevel": 4
+  },
+  "abilityIncrease": {
+    "choose": 1,
+    "options": ["dex"],
+    "amount": 1
+  },
+  "features": ["No Disadvantage at Long Range", "Ignore Half/Three-Quarters Cover", "Firing in Melee"]
+}

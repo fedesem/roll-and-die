@@ -1,0 +1,31 @@
+{
+  "id": "wizard-abjurer-xphb",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "Abjurer",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Abjuration Savant", "Arcane Ward"],
+      "actions": [
+        {
+          "id": "action-arcane-ward",
+          "name": "Arcane Ward",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "free",
+          "range": "Self"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Projected Ward"]
+    },
+    "10": {
+      "features": ["Spell Breaker"]
+    },
+    "14": {
+      "features": ["Spell Resistance"]
+    }
+  }
+}

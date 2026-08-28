@@ -1,0 +1,43 @@
+{
+  "id": "artificer-artillerist-tce",
+  "classId": "artificer-tce",
+  "className": "Artificer",
+  "name": "Artillerist",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Tool Proficiency (Artillerist)", "Artillerist Spells", "Eldritch Cannon"],
+      "alwaysPreparedSpells": ["Shield", "Thunderwave"],
+      "actions": [
+        {
+          "id": "action-eldritch-cannon",
+          "name": "Activate Eldritch Cannon",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "60 feet",
+          "roll": {
+            "kind": "damage",
+            "diceFormula": "2d8",
+            "damageType": "Force / Fire"
+          }
+        }
+      ]
+    },
+    "5": {
+      "features": ["Arcane Firearm"],
+      "alwaysPreparedSpells": ["Scorching Ray", "Shatter"]
+    },
+    "9": {
+      "features": ["Explosive Cannon"],
+      "alwaysPreparedSpells": ["Fireball", "Wind Wall"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Ice Storm", "Wall of Fire"]
+    },
+    "15": {
+      "features": ["Fortified Position"],
+      "alwaysPreparedSpells": ["Cone of Cold", "Wall of Force"]
+    }
+  }
+}

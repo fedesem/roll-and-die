@@ -1,0 +1,59 @@
+{
+  "id": "artisan-xphb",
+  "name": "Artisan",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["str", "dex", "int"],
+    "options": ["str", "dex", "int"]
+  },
+  "originFeatId": "crafter",
+  "originFeatName": "Crafter",
+  "skillProficiencies": ["Investigation", "Persuasion"],
+  "toolProficiencies": ["One Artisan's Tools"],
+  "equipmentChoices": [
+    {
+      "id": "artisan-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Artisan's Tools, Abacus, Traveler's Clothes, 25 GP",
+          "items": [
+            {
+              "name": "Artisan's Tools",
+              "quantity": 1
+            },
+            {
+              "name": "Abacus",
+              "quantity": 1
+            },
+            {
+              "name": "Traveler's Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 25,
+              "currency": {
+                "gp": 25
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

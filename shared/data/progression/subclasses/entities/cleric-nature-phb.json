@@ -1,0 +1,31 @@
+{
+  "id": "cleric-nature-phb",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Nature Domain",
+  "source": "PHB",
+  "levels": {
+    "3": {
+      "features": ["Acolyte of Nature", "Domain Spells (Nature)", "Charm Animals and Plants"],
+      "alwaysPreparedSpells": ["Animal Friendship", "Speak with Animals", "Barkskin", "Spike Growth"],
+      "grants": {
+        "armorProficiencies": ["Heavy Armor"]
+      }
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Plant Growth", "Wind Wall"]
+    },
+    "6": {
+      "features": ["Dampen Elements"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Dominate Beast", "Grasping Vine"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Insect Plague", "Tree Stride"]
+    },
+    "17": {
+      "features": ["Master of Nature"]
+    }
+  }
+}

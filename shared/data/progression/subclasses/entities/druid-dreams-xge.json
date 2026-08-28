@@ -1,0 +1,31 @@
+{
+  "id": "druid-dreams-xge",
+  "classId": "druid-xphb",
+  "className": "Druid",
+  "name": "Circle of Dreams",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Balm of the Summer Court"],
+      "resources": [
+        {
+          "name": "Balm of the Summer Court",
+          "maxFormula": {
+            "type": "level"
+          },
+          "resetOn": "longRest",
+          "dice": "1d6"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Hearth of Moonlight and Shadow"]
+    },
+    "10": {
+      "features": ["Hidden Paths"]
+    },
+    "14": {
+      "features": ["Walker in Dreams"]
+    }
+  }
+}

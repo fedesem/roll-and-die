@@ -1,0 +1,64 @@
+{
+  "id": "goliath-xphb",
+  "name": "Goliath",
+  "source": "XPHB",
+  "sizes": ["Medium"],
+  "speed": 35,
+  "darkvision": 0,
+  "creatureTypes": ["Humanoid"],
+  "languages": ["Common", "Giant"],
+  "bonusLanguageCount": 1,
+  "features": ["Giant Ancestry", "Large Form", "Powerful Build"],
+  "choices": [
+    {
+      "id": "goliath-ancestry",
+      "title": "Giant Ancestry",
+      "source": "species",
+      "choose": 1,
+      "options": [
+        {
+          "id": "cloud",
+          "name": "Cloud Giant (Cloud's Jaunt)",
+          "grants": {
+            "features": ["Giant Ancestry: Cloud"]
+          }
+        },
+        {
+          "id": "fire",
+          "name": "Fire Giant (Fire's Burn)",
+          "grants": {
+            "features": ["Giant Ancestry: Fire"]
+          }
+        },
+        {
+          "id": "frost",
+          "name": "Frost Giant (Frost's Chill)",
+          "grants": {
+            "features": ["Giant Ancestry: Frost"]
+          }
+        },
+        {
+          "id": "hill",
+          "name": "Hill Giant (Hill's Tumble)",
+          "grants": {
+            "features": ["Giant Ancestry: Hill"]
+          }
+        },
+        {
+          "id": "stone",
+          "name": "Stone Giant (Stone's Endurance)",
+          "grants": {
+            "features": ["Giant Ancestry: Stone"]
+          }
+        },
+        {
+          "id": "storm",
+          "name": "Storm Giant (Storm's Thunder)",
+          "grants": {
+            "features": ["Giant Ancestry: Storm"]
+          }
+        }
+      ]
+    }
+  ]
+}

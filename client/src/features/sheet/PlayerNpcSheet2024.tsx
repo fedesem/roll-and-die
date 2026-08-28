@@ -13,10 +13,7 @@ import { useGuidedSheetFlow } from "./hooks/useGuidedSheetFlow";
 import { usePlayerNpcSheetController } from "./hooks/usePlayerNpcSheetController";
 import { usePlayerNpcSheetDerived } from "./hooks/usePlayerNpcSheetDerived";
 import type { PlayerNpcSheet2024Props, SpellSelectionConfig } from "./playerNpcSheet2024Types";
-import {
-  findSpellIdsByNames,
-  findSpellNamesByIds
-} from "./selectors/playerNpcSheet2024Selectors";
+import { findSpellIdsByNames, findSpellNamesByIds } from "./selectors/playerNpcSheet2024Selectors";
 import { RestDialog } from "./RestDialog";
 import { SpellSelectionModal } from "./SpellSelectionModal";
 import { abilityModifierTotal } from "./sheetUtils";
@@ -63,6 +60,9 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
         optionalFeatureEntries={compendium.optionalFeatures}
         languageEntries={compendium.languages}
         skillEntries={compendium.skills}
+        raceEntries={compendium.races}
+        backgroundEntries={compendium.backgrounds}
+        monsterEntries={[]}
       />
     ),
     [compendium]
@@ -131,7 +131,10 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
           selectedSpellIds: findSpellIdsByNames(state.draft.spellState.alwaysPrepared, compendium.spells),
           applyLabel: "Apply Always Prepared",
           onApply: (spellIds) =>
-            mutators.updateField("spellState", { ...state.draft.spellState, alwaysPrepared: findSpellNamesByIds(spellIds, compendium.spells) })
+            mutators.updateField("spellState", {
+              ...state.draft.spellState,
+              alwaysPrepared: findSpellNamesByIds(spellIds, compendium.spells)
+            })
         };
       case "editAtWill":
         return {
@@ -151,7 +154,10 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
           selectedSpellIds: findSpellIdsByNames(state.draft.spellState.perShortRest, compendium.spells),
           applyLabel: "Apply Short Rest Spells",
           onApply: (spellIds) =>
-            mutators.updateField("spellState", { ...state.draft.spellState, perShortRest: findSpellNamesByIds(spellIds, compendium.spells) })
+            mutators.updateField("spellState", {
+              ...state.draft.spellState,
+              perShortRest: findSpellNamesByIds(spellIds, compendium.spells)
+            })
         };
       case "editPerLongRest":
         return {
@@ -168,7 +174,9 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
           title: "Guide Cantrips",
           subtitle: "Choose the cantrips granted by this guide step.",
           spells: guided.guidedChoiceSpec.cantripOptions,
-          selectedSpellIds: guided.guidedSetup.cantripIds.filter((entry) => guided.guidedChoiceSpec.cantripOptions.some((spell) => spell.id === entry)),
+          selectedSpellIds: guided.guidedSetup.cantripIds.filter((entry) =>
+            guided.guidedChoiceSpec.cantripOptions.some((spell) => spell.id === entry)
+          ),
           maxSelections: guided.guidedChoiceSpec.cantripCount > 0 ? guided.guidedChoiceSpec.cantripCount : undefined,
           applyLabel: "Apply Cantrips",
           onApply: (spellIds) =>
@@ -182,7 +190,9 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
           title: "Guide Known Spells",
           subtitle: "Choose the spells learned from this guide step.",
           spells: guided.guidedChoiceSpec.knownSpellOptions,
-          selectedSpellIds: guided.guidedSetup.knownSpellIds.filter((entry) => guided.guidedChoiceSpec.knownSpellOptions.some((spell) => spell.id === entry)),
+          selectedSpellIds: guided.guidedSetup.knownSpellIds.filter((entry) =>
+            guided.guidedChoiceSpec.knownSpellOptions.some((spell) => spell.id === entry)
+          ),
           maxSelections: guided.guidedChoiceSpec.knownSpellCount > 0 ? guided.guidedChoiceSpec.knownSpellCount : undefined,
           applyLabel: "Apply Known Spells",
           onApply: (spellIds) =>
@@ -196,7 +206,9 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
           title: "Guide Spellbook",
           subtitle: "Choose the spellbook spells granted by this guide step.",
           spells: guided.guidedChoiceSpec.spellbookOptions,
-          selectedSpellIds: guided.guidedSetup.spellbookSpellIds.filter((entry) => guided.guidedChoiceSpec.spellbookOptions.some((spell) => spell.id === entry)),
+          selectedSpellIds: guided.guidedSetup.spellbookSpellIds.filter((entry) =>
+            guided.guidedChoiceSpec.spellbookOptions.some((spell) => spell.id === entry)
+          ),
           maxSelections: guided.guidedChoiceSpec.spellbookCount > 0 ? guided.guidedChoiceSpec.spellbookCount : undefined,
           applyLabel: "Apply Spellbook Spells",
           onApply: (spellIds) =>
@@ -205,8 +217,34 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
               spellbookSpellIds: spellIds.slice(0, guided.guidedChoiceSpec.spellbookCount)
             }))
         };
+      case "guidePrepared":
+        return {
+          title: "Prepared Spells",
+          subtitle: "Choose the spells you wish to prepare for this class.",
+          spells: guided.guidedChoiceSpec.preparedSpellOptions,
+          selectedSpellIds: guided.guidedSetup.preparedSpellIds.filter((entry) =>
+            guided.guidedChoiceSpec.preparedSpellOptions.some((spell) => spell.id === entry)
+          ),
+          maxSelections: guided.guidedChoiceSpec.preparedSpellCount > 0 ? guided.guidedChoiceSpec.preparedSpellCount : undefined,
+          applyLabel: "Apply Prepared Spells",
+          onApply: (spellIds) =>
+            guided.setGuidedSetup((current) => ({
+              ...current,
+              preparedSpellIds: spellIds.slice(0, guided.guidedChoiceSpec.preparedSpellCount)
+            }))
+        };
     }
-  }, [actions, compendium.spells, derived.preparableSpellEntries, derived.preparedSpellLimit, guided, mutators, state.draft, state.longRestPreparedSpells, state.spellSelectionTarget]);
+  }, [
+    actions,
+    compendium.spells,
+    derived.preparableSpellEntries,
+    derived.preparedSpellLimit,
+    guided,
+    mutators,
+    state.draft,
+    state.longRestPreparedSpells,
+    state.spellSelectionTarget
+  ]);
 
   useWorkspaceModalHeader(
     permissions.hasMainTab ? (
@@ -218,13 +256,27 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
           onClick={() => actions.setActiveTab(state.activeTab === "edit" ? "main" : "edit")}
           size="sm"
         />
-        <button type="button" className={headerRestButtonClass} onClick={() => actions.startShortRest()} disabled={!permissions.mainTabInteractive} title="Short Rest" aria-label="Short Rest">
+        <button
+          type="button"
+          className={headerRestButtonClass}
+          onClick={() => actions.startShortRest()}
+          disabled={!permissions.mainTabInteractive}
+          title="Short Rest"
+          aria-label="Short Rest"
+        >
           <span className={headerRestButtonInnerClass}>
             <Clock3 size={10} />
             <span>SR</span>
           </span>
         </button>
-        <button type="button" className={headerRestButtonClass} onClick={() => actions.startLongRest()} disabled={!permissions.mainTabInteractive} title="Long Rest" aria-label="Long Rest">
+        <button
+          type="button"
+          className={headerRestButtonClass}
+          onClick={() => actions.startLongRest()}
+          disabled={!permissions.mainTabInteractive}
+          title="Long Rest"
+          aria-label="Long Rest"
+        >
           <span className={headerRestButtonInnerClass}>
             <Moon size={10} />
             <span>LR</span>
@@ -238,7 +290,13 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
                 permissions.mainTabInteractive ? "cursor-pointer" : "cursor-default opacity-50"
               } ${state.rollMode === mode ? "bg-slate-100 text-slate-950" : "text-slate-200 hover:bg-slate-800 hover:text-white"}`}
             >
-              <input className="sr-only" type="radio" checked={state.rollMode === mode} disabled={!permissions.mainTabInteractive} onChange={() => actions.setRollMode(mode)} />
+              <input
+                className="sr-only"
+                type="radio"
+                checked={state.rollMode === mode}
+                disabled={!permissions.mainTabInteractive}
+                onChange={() => actions.setRollMode(mode)}
+              />
               {mode === "normal" ? "Normal" : mode === "advantage" ? "Adv" : "Dis"}
             </label>
           ))}
@@ -280,6 +338,9 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
           classes={state.draft.classes}
           constitutionModifier={abilityModifierTotal(derived.actorWithDerivedNumbers, "con")}
           selections={state.hitDiceSelections}
+          shortRestChoices={derived.shortRestChoices}
+          shortRestChoiceSelections={state.shortRestChoiceSelections}
+          onChangeChoice={actions.changeShortRestChoiceSelection}
           onChange={actions.changeHitDiceSelection}
           onCancel={actions.cancelShortRest}
           onConfirm={() => void actions.confirmShortRest()}
@@ -292,6 +353,9 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
           preparedSpellLimit={derived.preparedSpellLimit}
           preparableSpellCount={derived.spellCollections.preparable.length}
           longRestPreparedSpells={state.longRestPreparedSpells}
+          longRestChoices={derived.longRestChoices}
+          longRestChoiceSelections={state.longRestChoiceSelections}
+          onChangeChoice={actions.changeLongRestChoiceSelection}
           hitPointDisplay={derived.hitPointDisplay}
           longRestPreparedSpellRows={derived.longRestPreparedSpellRows}
           onChooseSpells={() => actions.setSpellSelectionTarget("longRestPrepared")}

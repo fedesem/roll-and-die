@@ -1,0 +1,111 @@
+{
+  "id": "fighter-champion-xphb",
+  "classId": "fighter-xphb",
+  "className": "Fighter",
+  "name": "Champion",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Improved Critical", "Remarkable Athlete"]
+    },
+    "7": {
+      "features": ["Additional Fighting Style"],
+      "choices": [
+        {
+          "id": "champion-fighting-style-7",
+          "title": "Additional Fighting Style Feat",
+          "source": "subclass",
+          "choose": 1,
+          "options": [
+            {
+              "id": "archery",
+              "name": "Archery",
+              "grants": {
+                "features": ["Fighting Style: Archery"]
+              }
+            },
+            {
+              "id": "blind-fighting",
+              "name": "Blind Fighting",
+              "grants": {
+                "features": ["Fighting Style: Blind Fighting"]
+              }
+            },
+            {
+              "id": "defense",
+              "name": "Defense",
+              "grants": {
+                "features": ["Fighting Style: Defense"]
+              }
+            },
+            {
+              "id": "dueling",
+              "name": "Dueling",
+              "grants": {
+                "features": ["Fighting Style: Dueling"]
+              }
+            },
+            {
+              "id": "great-weapon-fighting",
+              "name": "Great Weapon Fighting",
+              "grants": {
+                "features": ["Fighting Style: Great Weapon Fighting"]
+              }
+            },
+            {
+              "id": "interception",
+              "name": "Interception",
+              "grants": {
+                "features": ["Fighting Style: Interception"]
+              }
+            },
+            {
+              "id": "protection",
+              "name": "Protection",
+              "grants": {
+                "features": ["Fighting Style: Protection"]
+              }
+            },
+            {
+              "id": "superior-technique",
+              "name": "Superior Technique",
+              "grants": {
+                "features": ["Fighting Style: Superior Technique"]
+              }
+            },
+            {
+              "id": "thrown-weapon-fighting",
+              "name": "Thrown Weapon Fighting",
+              "grants": {
+                "features": ["Fighting Style: Thrown Weapon Fighting"]
+              }
+            },
+            {
+              "id": "two-weapon-fighting",
+              "name": "Two-Weapon Fighting",
+              "grants": {
+                "features": ["Fighting Style: Two-Weapon Fighting"]
+              }
+            },
+            {
+              "id": "unarmed-fighting",
+              "name": "Unarmed Fighting",
+              "grants": {
+                "features": ["Fighting Style: Unarmed Fighting"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "10": {
+      "features": ["Heroic Warrior"]
+    },
+    "15": {
+      "features": ["Superior Critical"]
+    },
+    "18": {
+      "features": ["Survivor"]
+    }
+  }
+}

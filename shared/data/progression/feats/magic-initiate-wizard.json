@@ -1,0 +1,25 @@
+{
+  "id": "magic-initiate-wizard",
+  "name": "Magic Initiate (Wizard)",
+  "source": "XPHB",
+  "category": "origin",
+  "features": ["Two Wizard Cantrips", "One 1st-Level Wizard Spell"],
+  "grants": {
+    "spellList": "Wizard",
+    "cantripsCount": 2,
+    "spellsCount": 1
+  },
+  "choices": [
+    {
+      "id": "magic-initiate-wizard-ability",
+      "title": "Spellcasting Ability",
+      "source": "feat",
+      "choose": 1,
+      "options": [
+        { "id": "int", "name": "Intelligence", "grants": { "features": ["Magic Initiate Spellcasting Ability: Intelligence"] } },
+        { "id": "wis", "name": "Wisdom", "grants": { "features": ["Magic Initiate Spellcasting Ability: Wisdom"] } },
+        { "id": "cha", "name": "Charisma", "grants": { "features": ["Magic Initiate Spellcasting Ability: Charisma"] } }
+      ]
+    }
+  ]
+}

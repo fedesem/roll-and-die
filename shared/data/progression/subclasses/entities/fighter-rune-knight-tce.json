@@ -1,0 +1,34 @@
+{
+  "id": "fighter-rune-knight-tce",
+  "classId": "fighter-xphb",
+  "className": "Fighter",
+  "name": "Rune Knight",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Bonus Proficiencies (Rune Knight)", "Rune Carver", "Giant's Might"],
+      "actions": [
+        {
+          "id": "action-giants-might",
+          "name": "Giant's Might",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "Self"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Runic Shield"]
+    },
+    "10": {
+      "features": ["Great Stature"]
+    },
+    "15": {
+      "features": ["Master of Runes"]
+    },
+    "18": {
+      "features": ["Runic Juggernaut"]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "alert",
+  "name": "Alert",
+  "source": "XPHB",
+  "category": "origin",
+  "features": ["Initiative Proficiency", "Initiative Swap"],
+  "actions": [
+    {
+      "id": "alert-initiative-swap",
+      "name": "Initiative Swap",
+      "source": "XPHB",
+      "category": "feat",
+      "actionCost": "free",
+      "range": "Self"
+    }
+  ],
+  "grants": {
+    "passiveBonuses": [
+      {
+        "target": "initiative",
+        "bonus": 2
+      }
+    ]
+  }
+}

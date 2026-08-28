@@ -1,0 +1,67 @@
+{
+  "id": "merchant-xphb",
+  "name": "Merchant",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["con", "int", "cha"],
+    "options": ["con", "int", "cha"]
+  },
+  "originFeatId": "lucky",
+  "originFeatName": "Lucky",
+  "skillProficiencies": ["Animal Handling", "Persuasion"],
+  "toolProficiencies": ["Navigator's Tools"],
+  "equipmentChoices": [
+    {
+      "id": "merchant-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Navigator's Tools, Abacus, Bedroll, Fine Clothes, Pouch, 22 GP",
+          "items": [
+            {
+              "name": "Navigator's Tools",
+              "quantity": 1
+            },
+            {
+              "name": "Abacus",
+              "quantity": 1
+            },
+            {
+              "name": "Bedroll",
+              "quantity": 1
+            },
+            {
+              "name": "Fine Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Pouch",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 22,
+              "currency": {
+                "gp": 22
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

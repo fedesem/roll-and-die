@@ -1,0 +1,63 @@
+{
+  "id": "noble-xphb",
+  "name": "Noble",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["str", "int", "cha"],
+    "options": ["str", "int", "cha"]
+  },
+  "originFeatId": "skilled",
+  "originFeatName": "Skilled",
+  "skillProficiencies": ["History", "Persuasion"],
+  "toolProficiencies": ["Gaming Set"],
+  "equipmentChoices": [
+    {
+      "id": "noble-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Gaming Set, Fine Clothes, Perfume, Signet Ring, 29 GP",
+          "items": [
+            {
+              "name": "Gaming Set",
+              "quantity": 1
+            },
+            {
+              "name": "Fine Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Perfume",
+              "quantity": 1
+            },
+            {
+              "name": "Signet Ring",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 29,
+              "currency": {
+                "gp": 29
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

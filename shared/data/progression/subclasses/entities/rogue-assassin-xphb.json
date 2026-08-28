@@ -1,0 +1,24 @@
+{
+  "id": "rogue-assassin-xphb",
+  "classId": "rogue-xphb",
+  "className": "Rogue",
+  "name": "Assassin",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Assassinate", "Bonus Proficiencies (Assassin)"],
+      "grants": {
+        "toolProficiencies": ["Disguise Kit", "Poisoner's Kit"]
+      }
+    },
+    "9": {
+      "features": ["Infiltration Expertise"]
+    },
+    "13": {
+      "features": ["Envenom Weapons"]
+    },
+    "17": {
+      "features": ["Death Strike"]
+    }
+  }
+}

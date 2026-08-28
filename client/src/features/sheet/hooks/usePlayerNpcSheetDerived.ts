@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 
+import type { ProgressionChoiceGroupDef } from "@shared/data/progression";
+import { evaluateActorRestChoices } from "@shared/rules/progressionEngine";
 import type { ActorSheet, CampaignSnapshot, MemberRole } from "@shared/types";
 
 import type { DerivedResourceDefinition, DetailRowEntry } from "../playerNpcSheet2024Types";
@@ -20,9 +22,9 @@ import {
   mergeDerivedResources
 } from "../selectors/playerNpcSheet2024Selectors";
 import {
+  bonusTotal,
   derivedArmorClass,
   derivedSpeed,
-  featMatchesClassFilter,
   findCompendiumClass,
   normalizeKey,
   proficiencyBonusForLevel,
@@ -60,6 +62,7 @@ export interface PlayerNpcSheetDerivedState {
   actorWithDerivedNumbers: ActorSheet;
   armorClass: number;
   speed: number;
+  initiativeBonus: number;
   spellAttack: number;
   spellSave: number;
   featureRows: DetailRowEntry[];
@@ -70,6 +73,8 @@ export interface PlayerNpcSheetDerivedState {
   canPrepareSpells: boolean;
   preparableSpellEntries: CampaignSnapshot["compendium"]["spells"];
   longRestPreparedSpellRows: DetailRowEntry[];
+  longRestChoices: ProgressionChoiceGroupDef[];
+  shortRestChoices: ProgressionChoiceGroupDef[];
 }
 
 interface UsePlayerNpcSheetDerivedParams {
@@ -131,19 +136,27 @@ export function usePlayerNpcSheetDerived({
     };
     const armorClass = derivedArmorClass(actorWithDerivedNumbers);
     const speed = derivedSpeed(actorWithDerivedNumbers);
+    const initiativeBonus = draft.initiative + bonusTotal(draft, "initiative");
     const spellAttack = spellAttackBonus(actorWithDerivedNumbers);
     const spellSave = spellSaveDc(actorWithDerivedNumbers);
     const featureRows = collectFeatureRows(draft, compendium, selectedSpecies, selectedBackground);
     const spellCollections = deriveActorSpellCollections(draft, compendium, derivedSpellSlots);
     const spellRows = collectSpellRows(spellCollections.all, draft.preparedSpells, compendium.spells, preparedSpellLimit);
     const featRows = collectFeatRows(draft.feats, compendium.feats);
-    const filteredFeats = compendium.feats.filter((entry) => featMatchesClassFilter(entry, draft.classes));
+    const filteredFeats = compendium.feats;
     const canPrepareSpells = draft.classes.some((actorClass) => {
       const entry = findCompendiumClass(actorClass, compendium.classes);
       return entry?.spellPreparation === "prepared" || entry?.spellPreparation === "spellbook";
     });
     const preparableSpellEntries = findSpellEntriesByNames(spellCollections.preparable, compendium.spells);
-    const longRestPreparedSpellRows = collectSpellRows(longRestPreparedSpells, longRestPreparedSpells, compendium.spells, preparedSpellLimit);
+    const longRestPreparedSpellRows = collectSpellRows(
+      longRestPreparedSpells,
+      longRestPreparedSpells,
+      compendium.spells,
+      preparedSpellLimit
+    );
+    const longRestChoices = evaluateActorRestChoices(draft, "long");
+    const shortRestChoices = evaluateActorRestChoices(draft, "short");
 
     return {
       totalActorLevel,
@@ -165,6 +178,7 @@ export function usePlayerNpcSheetDerived({
       actorWithDerivedNumbers,
       armorClass,
       speed,
+      initiativeBonus,
       spellAttack,
       spellSave,
       featureRows,
@@ -174,7 +188,9 @@ export function usePlayerNpcSheetDerived({
       filteredFeats,
       canPrepareSpells,
       preparableSpellEntries,
-      longRestPreparedSpellRows
+      longRestPreparedSpellRows,
+      longRestChoices,
+      shortRestChoices
     };
   }, [compendium, draft, longRestPreparedSpells]);
 

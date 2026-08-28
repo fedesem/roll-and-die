@@ -1,0 +1,45 @@
+{
+  "id": "druid-wildfire-tce",
+  "classId": "druid-xphb",
+  "className": "Druid",
+  "name": "Circle of Wildfire",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Circle Spells (Wildfire)", "Summon Wildfire Spirit"],
+      "alwaysPreparedSpells": ["Burning Hands", "Cure Wounds", "Flaming Sphere", "Scorching Ray"],
+      "actions": [
+        {
+          "id": "action-summon-wildfire-spirit",
+          "name": "Summon Wildfire Spirit",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "action",
+          "resourceCost": {
+            "resourceName": "Wild Shape",
+            "count": 1
+          },
+          "range": "30 feet"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Plant Growth", "Revivify"]
+    },
+    "6": {
+      "features": ["Enhanced Bond"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Aura of Life", "Fire Shield"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Flame Strike", "Mass Cure Wounds"]
+    },
+    "10": {
+      "features": ["Cauterizing Flames"]
+    },
+    "14": {
+      "features": ["Blazing Revival"]
+    }
+  }
+}

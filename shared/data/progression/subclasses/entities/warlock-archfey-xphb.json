@@ -1,0 +1,41 @@
+{
+  "id": "warlock-archfey-xphb",
+  "classId": "warlock-xphb",
+  "className": "Warlock",
+  "name": "Archfey Patron",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Archfey Spells", "Steps of the Fey"],
+      "alwaysPreparedSpells": ["Faerie Fire", "Sleep", "Calm Emotions", "Misty Step", "Phantasmal Force"],
+      "actions": [
+        {
+          "id": "action-steps-of-the-fey",
+          "name": "Steps of the Fey",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "Self"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Blink", "Plant Growth"]
+    },
+    "6": {
+      "features": ["Misty Escape"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Dominate Beast", "Greater Invisibility"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Dominate Person", "Seeming"]
+    },
+    "10": {
+      "features": ["Beguiling Defenses"]
+    },
+    "14": {
+      "features": ["Dark Delirium"]
+    }
+  }
+}

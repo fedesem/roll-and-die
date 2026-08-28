@@ -1,0 +1,48 @@
+{
+  "id": "ranger-fey-wanderer-xphb",
+  "classId": "ranger-xphb",
+  "className": "Ranger",
+  "name": "Fey Wanderer",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Dreadful Strikes", "Fey Wanderer Spells", "Otherworldly Glamour"],
+      "alwaysPreparedSpells": ["Charm Person"],
+      "actions": [
+        {
+          "id": "action-dreadful-strikes",
+          "name": "Dreadful Strikes",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "free",
+          "roll": {
+            "kind": "damage",
+            "diceFormula": "1d4",
+            "damageType": "Psychic"
+          }
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Misty Step"]
+    },
+    "7": {
+      "features": ["Beguiling Twist"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Dispel Magic"]
+    },
+    "11": {
+      "features": ["Fey Reinforcements"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Dimension Door"]
+    },
+    "15": {
+      "features": ["Misty Wanderer"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Mislead"]
+    }
+  }
+}

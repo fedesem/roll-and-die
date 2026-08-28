@@ -1,0 +1,46 @@
+{
+  "id": "cleric-twilight-tce",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Twilight Domain",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Domain Spells (Twilight)", "Eyes of Night", "Vigilant Blessing", "Twilight Sanctuary"],
+      "alwaysPreparedSpells": ["Faerie Fire", "Sleep", "Moonbeam", "See Invisibility"],
+      "grants": {
+        "armorProficiencies": ["Heavy Armor"],
+        "weaponProficiencies": ["Martial Weapons"]
+      },
+      "actions": [
+        {
+          "id": "action-twilight-sanctuary",
+          "name": "Channel Divinity: Twilight Sanctuary",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "action",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "Sphere (30 feet)"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Aura of Vitality", "Leomund's Tiny Hut"]
+    },
+    "6": {
+      "features": ["Steps of Night"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Aura of Life", "Greater Invisibility"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Circle of Power", "Mislead"]
+    },
+    "17": {
+      "features": ["Twilight Shroud"]
+    }
+  }
+}

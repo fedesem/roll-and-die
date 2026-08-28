@@ -1,0 +1,32 @@
+{
+  "id": "sentinel",
+  "name": "Sentinel",
+  "source": "XPHB",
+  "category": "general",
+  "prerequisites": {
+    "abilities": {
+      "str": 13,
+      "dex": 13
+    },
+    "minLevel": 4
+  },
+  "abilityIncrease": {
+    "choose": 1,
+    "options": ["str", "dex"],
+    "amount": 1
+  },
+  "features": ["Stop Speed on Opportunity Hit", "Disengage Doesn't Prevent Opportunity", "Guardian Reaction"],
+  "actions": [
+    {
+      "id": "sentinel-guardian",
+      "name": "Guardian Strike",
+      "source": "XPHB",
+      "category": "feat",
+      "actionCost": "reaction",
+      "range": "5 feet",
+      "roll": {
+        "kind": "attack"
+      }
+    }
+  ]
+}

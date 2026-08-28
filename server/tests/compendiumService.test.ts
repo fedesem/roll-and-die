@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { normalizeCompendiumImportEntries, sanitizeCompendiumEntry } from "../src/services/compendiumService.js";
+import {
+  importSubclassesIntoClasses,
+  isSubclassImport,
+  normalizeCompendiumImportEntries,
+  sanitizeCompendiumEntry
+} from "../src/services/compendiumService.js";
 
 vi.mock("node:crypto", () => ({
   randomUUID: () => "compendium-id"
@@ -312,11 +317,13 @@ describe("class compendium imports", () => {
     const classEntry = sanitizeCompendiumEntry("classes", entry);
 
     expect(classEntry.subclasses).toHaveLength(1);
-    expect(classEntry.subclasses[0]?.features.map((feature) => ({
-      level: feature.level,
-      name: feature.name,
-      description: feature.description
-    }))).toEqual([
+    expect(
+      classEntry.subclasses[0]?.features.map((feature) => ({
+        level: feature.level,
+        name: feature.name,
+        description: feature.description
+      }))
+    ).toEqual([
       {
         level: 3,
         name: "The Celestial",
@@ -581,5 +588,57 @@ describe("reference compendium imports", () => {
       spellNames: ["Minor Illusion"],
       alwaysPreparedSpellNames: ["Speak with Animals"]
     });
+  });
+
+  it("imports standalone 5etools subclass files directly into existing classes", () => {
+    const rawSubclassFile = {
+      subclass: [
+        {
+          name: "Oath of Conquest",
+          shortName: "Conquest",
+          source: "XGE",
+          className: "Paladin",
+          classSource: "XPHB",
+          subclassFeatures: ["Oath of Conquest|Paladin|XPHB|Conquest|XGE|3"]
+        }
+      ],
+      subclassFeature: [
+        {
+          name: "Oath of Conquest",
+          className: "Paladin",
+          classSource: "XPHB",
+          subclassShortName: "Conquest",
+          subclassSource: "XGE",
+          level: 3,
+          source: "XGE",
+          entries: ["Conquest oath spells and armor."]
+        }
+      ]
+    };
+
+    expect(isSubclassImport(rawSubclassFile)).toBe(true);
+
+    const classes = [
+      {
+        id: "paladin-1",
+        name: "Paladin",
+        source: "XPHB",
+        hitDieFaces: 10,
+        savingThrowProficiencies: ["wis", "cha"] as ("wis" | "cha")[],
+        spellcastingAbility: "cha" as const,
+        spellPreparation: "prepared" as const,
+        subclassLevel: 3,
+        subclasses: [],
+        features: [],
+        tables: []
+      }
+    ];
+
+    const result = importSubclassesIntoClasses(classes, rawSubclassFile);
+    expect(result.imported).toBe(1);
+    expect(classes[0]?.subclasses).toHaveLength(1);
+    expect(classes[0]?.subclasses[0]?.name).toBe("Oath of Conquest");
+    expect(classes[0]?.subclasses[0]?.source).toBe("XGE");
+    expect(classes[0]?.subclasses[0]?.features[0]?.name).toBe("Oath of Conquest");
   });
 });

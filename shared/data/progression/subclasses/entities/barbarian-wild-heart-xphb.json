@@ -1,0 +1,117 @@
+{
+  "id": "barbarian-wild-heart-xphb",
+  "classId": "barbarian-xphb",
+  "className": "Barbarian",
+  "name": "Path of the Wild Heart",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Rage of the Wilds", "Speak with Animals"],
+      "choices": [
+        {
+          "id": "wild-heart-rage-3",
+          "title": "Rage of the Wilds",
+          "source": "subclass",
+          "choose": 1,
+          "cadence": "onLongRest",
+          "options": [
+            {
+              "id": "bear",
+              "name": "Bear",
+              "grants": {
+                "features": ["Rage of the Wilds: Bear (Resistance to all damage except Force/Psychic)"]
+              }
+            },
+            {
+              "id": "eagle",
+              "name": "Eagle",
+              "grants": {
+                "features": ["Rage of the Wilds: Eagle (Bonus action Dash and Disengage)"]
+              }
+            },
+            {
+              "id": "wolf",
+              "name": "Wolf",
+              "grants": {
+                "features": ["Rage of the Wilds: Wolf (Advantage for allies on melee attacks)"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "6": {
+      "features": ["Aspect of the Wilds"],
+      "choices": [
+        {
+          "id": "wild-heart-aspect-6",
+          "title": "Aspect of the Wilds",
+          "source": "subclass",
+          "choose": 1,
+          "cadence": "onLongRest",
+          "options": [
+            {
+              "id": "elephant",
+              "name": "Elephant",
+              "grants": {
+                "features": ["Aspect of the Wilds: Elephant (Advantage on Athletics, carrying capacity)"]
+              }
+            },
+            {
+              "id": "owl",
+              "name": "Owl",
+              "grants": {
+                "features": ["Aspect of the Wilds: Owl (Darkvision 60 ft, advantage on Stealth)"]
+              }
+            },
+            {
+              "id": "spider",
+              "name": "Spider",
+              "grants": {
+                "features": ["Aspect of the Wilds: Spider (Climb speed equal to speed)"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "10": {
+      "features": ["Nature Speaker"]
+    },
+    "14": {
+      "features": ["Power of the Wilds"],
+      "choices": [
+        {
+          "id": "wild-heart-power-14",
+          "title": "Power of the Wilds",
+          "source": "subclass",
+          "choose": 1,
+          "cadence": "onLongRest",
+          "options": [
+            {
+              "id": "falcon",
+              "name": "Falcon",
+              "grants": {
+                "features": ["Power of the Wilds: Falcon (Fly speed while raging)"]
+              }
+            },
+            {
+              "id": "lion",
+              "name": "Lion",
+              "grants": {
+                "features": ["Power of the Wilds: Lion (Enemies have disadvantage to attack allies)"]
+              }
+            },
+            {
+              "id": "ram",
+              "name": "Ram",
+              "grants": {
+                "features": ["Power of the Wilds: Ram (Knock enemies prone on melee hit)"]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

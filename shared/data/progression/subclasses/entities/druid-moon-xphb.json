@@ -1,0 +1,47 @@
+{
+  "id": "druid-moon-xphb",
+  "classId": "druid-xphb",
+  "className": "Druid",
+  "name": "Circle of the Moon",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Circle Spells (Moon)", "Combat Wild Shape"],
+      "alwaysPreparedSpells": ["Moonbeam", "Starry Wisp"],
+      "actions": [
+        {
+          "id": "action-combat-wild-shape",
+          "name": "Combat Wild Shape",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "resourceCost": {
+            "resourceName": "Wild Shape",
+            "count": 1
+          },
+          "range": "Self"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Improved Circle Spells", "Moonlight Step"],
+      "alwaysPreparedSpells": ["Cure Wounds", "Moonlight Step"],
+      "actions": [
+        {
+          "id": "action-moonlight-step",
+          "name": "Moonlight Step",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "30 feet"
+        }
+      ]
+    },
+    "10": {
+      "features": ["Lunar Form"]
+    },
+    "14": {
+      "features": ["Shared Moonlight"]
+    }
+  }
+}

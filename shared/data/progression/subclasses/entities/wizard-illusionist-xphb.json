@@ -1,0 +1,22 @@
+{
+  "id": "wizard-illusionist-xphb",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "Illusionist",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Illusion Savant", "Improved Minor Illusion"],
+      "alwaysPreparedSpells": ["Minor Illusion"]
+    },
+    "6": {
+      "features": ["Malleable Illusions"]
+    },
+    "10": {
+      "features": ["Illusory Self"]
+    },
+    "14": {
+      "features": ["Illusory Reality"]
+    }
+  }
+}

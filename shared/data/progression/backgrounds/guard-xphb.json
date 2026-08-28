@@ -1,0 +1,75 @@
+{
+  "id": "guard-xphb",
+  "name": "Guard",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["str", "int", "wis"],
+    "options": ["str", "int", "wis"]
+  },
+  "originFeatId": "alert",
+  "originFeatName": "Alert",
+  "skillProficiencies": ["Athletics", "Perception"],
+  "toolProficiencies": ["Gaming Set"],
+  "equipmentChoices": [
+    {
+      "id": "guard-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Spear, Light Crossbow, Crossbow Bolts (20), Gaming Set, Manacles, Quiver, Traveler's Clothes, 12 GP",
+          "items": [
+            {
+              "name": "Spear",
+              "quantity": 1
+            },
+            {
+              "name": "Light Crossbow",
+              "quantity": 1
+            },
+            {
+              "name": "Crossbow Bolts",
+              "quantity": 20
+            },
+            {
+              "name": "Gaming Set",
+              "quantity": 1
+            },
+            {
+              "name": "Manacles",
+              "quantity": 1
+            },
+            {
+              "name": "Quiver",
+              "quantity": 1
+            },
+            {
+              "name": "Traveler's Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 12,
+              "currency": {
+                "gp": 12
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

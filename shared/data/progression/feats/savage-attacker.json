@@ -1,0 +1,16 @@
+{
+  "id": "savage-attacker",
+  "name": "Savage Attacker",
+  "source": "XPHB",
+  "category": "origin",
+  "features": ["Savage Damage Reroll"],
+  "actions": [
+    {
+      "id": "savage-attacker-reroll",
+      "name": "Savage Attacker Damage Reroll",
+      "source": "XPHB",
+      "category": "feat",
+      "actionCost": "free"
+    }
+  ]
+}

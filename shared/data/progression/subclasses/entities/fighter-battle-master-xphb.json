@@ -1,0 +1,179 @@
+{
+  "id": "fighter-battle-master-xphb",
+  "classId": "fighter-xphb",
+  "className": "Fighter",
+  "name": "Battle Master",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Combat Superiority", "Student of War"],
+      "resources": [
+        {
+          "name": "Superiority Dice",
+          "maxFormula": {
+            "type": "fixed",
+            "value": 4
+          },
+          "resetOn": "shortRest",
+          "shortRestRestore": "all",
+          "longRestRestore": "all",
+          "dice": "1d8"
+        }
+      ],
+      "choices": [
+        {
+          "id": "battle-master-maneuvers-lvl3",
+          "title": "Maneuvers Selection (Choose 3)",
+          "source": "subclass",
+          "choose": 3,
+          "options": [
+            {
+              "id": "commanders-strike",
+              "name": "Commander's Strike"
+            },
+            {
+              "id": "disarming-attack",
+              "name": "Disarming Attack"
+            },
+            {
+              "id": "distracting-strike",
+              "name": "Distracting Strike"
+            },
+            {
+              "id": "evasive-footwork",
+              "name": "Evasive Footwork"
+            },
+            {
+              "id": "feinting-attack",
+              "name": "Feinting Attack"
+            },
+            {
+              "id": "goading-attack",
+              "name": "Goading Attack"
+            },
+            {
+              "id": "maneuvering-attack",
+              "name": "Maneuvering Attack"
+            },
+            {
+              "id": "menacing-attack",
+              "name": "Menacing Attack"
+            },
+            {
+              "id": "parry",
+              "name": "Parry"
+            },
+            {
+              "id": "precision-attack",
+              "name": "Precision Attack"
+            },
+            {
+              "id": "pushing-attack",
+              "name": "Pushing Attack"
+            },
+            {
+              "id": "rally",
+              "name": "Rally"
+            },
+            {
+              "id": "riposte",
+              "name": "Riposte"
+            },
+            {
+              "id": "sweeping-attack",
+              "name": "Sweeping Attack"
+            },
+            {
+              "id": "trip-attack",
+              "name": "Trip Attack"
+            },
+            {
+              "id": "ambush",
+              "name": "Ambush"
+            },
+            {
+              "id": "bait-and-switch",
+              "name": "Bait and Switch"
+            },
+            {
+              "id": "brace",
+              "name": "Brace"
+            },
+            {
+              "id": "commanding-presence",
+              "name": "Commanding Presence"
+            },
+            {
+              "id": "tactical-assessment",
+              "name": "Tactical Assessment"
+            }
+          ]
+        }
+      ]
+    },
+    "7": {
+      "features": ["Know Your Enemy"],
+      "resources": [
+        {
+          "name": "Superiority Dice",
+          "maxFormula": {
+            "type": "fixed",
+            "value": 5
+          },
+          "resetOn": "shortRest",
+          "shortRestRestore": "all",
+          "longRestRestore": "all",
+          "dice": "1d8"
+        }
+      ]
+    },
+    "10": {
+      "features": ["Improved Combat Superiority (d10)"],
+      "resources": [
+        {
+          "name": "Superiority Dice",
+          "maxFormula": {
+            "type": "fixed",
+            "value": 5
+          },
+          "resetOn": "shortRest",
+          "shortRestRestore": "all",
+          "longRestRestore": "all",
+          "dice": "1d10"
+        }
+      ]
+    },
+    "15": {
+      "features": ["Relentless"],
+      "resources": [
+        {
+          "name": "Superiority Dice",
+          "maxFormula": {
+            "type": "fixed",
+            "value": 6
+          },
+          "resetOn": "shortRest",
+          "shortRestRestore": "all",
+          "longRestRestore": "all",
+          "dice": "1d10"
+        }
+      ]
+    },
+    "18": {
+      "features": ["Ultimate Combat Superiority (d12)"],
+      "resources": [
+        {
+          "name": "Superiority Dice",
+          "maxFormula": {
+            "type": "fixed",
+            "value": 6
+          },
+          "resetOn": "shortRest",
+          "shortRestRestore": "all",
+          "longRestRestore": "all",
+          "dice": "1d12"
+        }
+      ]
+    }
+  }
+}

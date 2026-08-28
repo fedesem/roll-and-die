@@ -1,0 +1,45 @@
+{
+  "id": "warlock-fiend-xphb",
+  "classId": "warlock-xphb",
+  "className": "Warlock",
+  "name": "Fiend Patron",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Fiend Spells", "Dark One's Blessing"],
+      "alwaysPreparedSpells": ["Burning Hands", "Command", "Blindness/Deafness", "Scorching Ray", "Suggestion"]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Fireball", "Stinking Cloud"]
+    },
+    "6": {
+      "features": ["Dark One's Own Luck"],
+      "actions": [
+        {
+          "id": "action-dark-ones-own-luck",
+          "name": "Dark One's Own Luck",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "free",
+          "range": "Self",
+          "roll": {
+            "kind": "check",
+            "diceFormula": "1d10"
+          }
+        }
+      ]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Fire Shield", "Wall of Fire"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Flame Strike", "Hallow"]
+    },
+    "10": {
+      "features": ["Fiendish Resilience"]
+    },
+    "14": {
+      "features": ["Hurl Through Hell"]
+    }
+  }
+}

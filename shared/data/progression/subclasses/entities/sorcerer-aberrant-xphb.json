@@ -1,0 +1,41 @@
+{
+  "id": "sorcerer-aberrant-xphb",
+  "classId": "sorcerer-xphb",
+  "className": "Sorcerer",
+  "name": "Aberrant Sorcery",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Aberrant Spells", "Psionic Sorcery", "Telepathic Speech"],
+      "alwaysPreparedSpells": ["Arms of Hadar", "Dissonant Whispers", "Mind Spike", "Calm Emotions", "Detect Thoughts"],
+      "actions": [
+        {
+          "id": "action-telepathic-speech",
+          "name": "Telepathic Speech",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "30 feet"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Hunger of Hadar", "Sending"]
+    },
+    "6": {
+      "features": ["Psychic Defenses", "Psionic Strike"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Evard's Black Tentacles", "Summon Aberration"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Rary's Telepathic Bond", "Synaptic Static"]
+    },
+    "14": {
+      "features": ["Revelation in Flesh"]
+    },
+    "18": {
+      "features": ["Warping Implosion"]
+    }
+  }
+}

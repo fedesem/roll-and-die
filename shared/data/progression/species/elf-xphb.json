@@ -1,0 +1,53 @@
+{
+  "id": "elf-xphb",
+  "name": "Elf",
+  "source": "XPHB",
+  "sizes": ["Medium"],
+  "speed": 30,
+  "darkvision": 60,
+  "creatureTypes": ["Humanoid"],
+  "languages": ["Common", "Elvish"],
+  "bonusLanguageCount": 1,
+  "features": ["Darkvision", "Fey Ancestry", "Keen Senses", "Trance"],
+  "choices": [
+    {
+      "id": "elf-lineage",
+      "title": "Elven Lineage",
+      "source": "species",
+      "choose": 1,
+      "options": [
+        {
+          "id": "drow",
+          "name": "Drow",
+          "grants": {
+            "visionRange": 120,
+            "spellOptions": ["Dancing Lights"],
+            "features": ["Elven Lineage: Drow (Superior Darkvision, Drow Magic)"]
+          }
+        },
+        {
+          "id": "high-elf",
+          "name": "High Elf",
+          "grants": {
+            "spellOptions": ["Prestidigitation"],
+            "features": ["Elven Lineage: High Elf (High Elf Magic, Prestidigitation)"]
+          }
+        },
+        {
+          "id": "wood-elf",
+          "name": "Wood Elf",
+          "grants": {
+            "spellOptions": ["Druidcraft"],
+            "features": ["Elven Lineage: Wood Elf (Wood Elf Magic, Fleet of Foot)"],
+            "passiveBonuses": [
+              {
+                "target": "speed",
+                "bonus": 5
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

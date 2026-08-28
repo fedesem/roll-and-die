@@ -1,0 +1,36 @@
+{
+  "id": "druid-stars-xphb",
+  "classId": "druid-xphb",
+  "className": "Druid",
+  "name": "Circle of the Stars",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Star Map", "Starry Form"],
+      "alwaysPreparedSpells": ["Guidance", "Guiding Bolt"],
+      "actions": [
+        {
+          "id": "action-starry-form",
+          "name": "Starry Form (Archer / Chalice / Dragon)",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "resourceCost": {
+            "resourceName": "Wild Shape",
+            "count": 1
+          },
+          "range": "Self"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Cosmic Omen"]
+    },
+    "10": {
+      "features": ["Twinkling Constellations"]
+    },
+    "14": {
+      "features": ["Full of Stars"]
+    }
+  }
+}

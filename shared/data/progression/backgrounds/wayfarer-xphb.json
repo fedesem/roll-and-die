@@ -1,0 +1,71 @@
+{
+  "id": "wayfarer-xphb",
+  "name": "Wayfarer",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["dex", "wis", "cha"],
+    "options": ["dex", "wis", "cha"]
+  },
+  "originFeatId": "lucky",
+  "originFeatName": "Lucky",
+  "skillProficiencies": ["Insight", "Stealth"],
+  "toolProficiencies": ["Thieves' Tools"],
+  "equipmentChoices": [
+    {
+      "id": "wayfarer-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Dagger (2), Thieves' Tools, Bedroll, Gaming Set, Pouch (2), Traveler's Clothes, 16 GP",
+          "items": [
+            {
+              "name": "Dagger",
+              "quantity": 2
+            },
+            {
+              "name": "Thieves' Tools",
+              "quantity": 1
+            },
+            {
+              "name": "Bedroll",
+              "quantity": 1
+            },
+            {
+              "name": "Gaming Set",
+              "quantity": 1
+            },
+            {
+              "name": "Pouch",
+              "quantity": 2
+            },
+            {
+              "name": "Traveler's Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 16,
+              "currency": {
+                "gp": 16
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

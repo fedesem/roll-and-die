@@ -1,0 +1,285 @@
+{
+  "id": "paladin-xphb",
+  "name": "Paladin",
+  "source": "XPHB",
+  "hitDieFaces": 10,
+  "primaryAbilities": ["str", "cha"],
+  "savingThrows": ["wis", "cha"],
+  "armorProficiencies": ["Light Armor", "Medium Armor", "Heavy Armor", "Shields"],
+  "weaponProficiencies": ["Simple Weapons", "Martial Weapons"],
+  "toolProficiencies": [],
+  "startingSkillChoices": { "choose": 2, "options": ["Athletics", "Insight", "Intimidation", "Medicine", "Persuasion", "Religion"] },
+  "equipmentChoices": [
+    {
+      "id": "paladin-equipment",
+      "label": "Class Equipment",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Chain Mail, Shield, Longsword, Javelins (6), Holy Symbol, Priest's Pack, 9 GP",
+          "items": [
+            { "referenceId": "Chain Mail|XPHB", "name": "Chain Mail", "quantity": 1 },
+            { "referenceId": "Shield|XPHB", "name": "Shield", "quantity": 1 },
+            { "referenceId": "Longsword|XPHB", "name": "Longsword", "quantity": 1 },
+            { "referenceId": "Javelin|XPHB", "name": "Javelin", "quantity": 6 },
+            { "referenceId": "Holy Symbol|XPHB", "name": "Holy Symbol", "quantity": 1 },
+            { "referenceId": "Priest's Pack|XPHB", "name": "Priest's Pack", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 9, "currency": { "gp": 9 } }
+          ]
+        },
+        { "id": "package-b", "label": "Option B: 150 GP", "items": [{ "name": "Gold Coins", "quantity": 150, "currency": { "gp": 150 } }] }
+      ]
+    }
+  ],
+  "spellListId": "paladin",
+  "multiclassing": {
+    "prerequisites": { "str": 13, "cha": 13 },
+    "proficienciesGranted": {
+      "armor": ["Light Armor", "Medium Armor", "Shields"],
+      "weapons": ["Simple Weapons", "Martial Weapons"]
+    },
+    "casterType": "half"
+  },
+  "levels": {
+    "1": {
+      "features": ["Lay on Hands", "Spellcasting", "Weapon Mastery"],
+      "weaponMasteriesCount": 2,
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 2 },
+        "changeCadence": "onLongRest",
+        "spellcastingAbility": "cha"
+      },
+      "resources": [
+        {
+          "name": "Lay on Hands",
+          "maxFormula": { "type": "levelMultiplier", "multiplier": 5 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "2": {
+      "features": ["Fighting Style", "Paladin's Smite"],
+      "choices": [
+        {
+          "id": "paladin-fighting-style",
+          "title": "Fighting Style Feat",
+          "source": "class",
+          "choose": 1,
+          "options": [
+            { "id": "defense", "name": "Defense", "grants": { "features": ["Fighting Style: Defense"] } },
+            { "id": "dueling", "name": "Dueling", "grants": { "features": ["Fighting Style: Dueling"] } },
+            {
+              "id": "great-weapon-fighting",
+              "name": "Great Weapon Fighting",
+              "grants": { "features": ["Fighting Style: Great Weapon Fighting"] }
+            },
+            { "id": "interception", "name": "Interception", "grants": { "features": ["Fighting Style: Interception"] } },
+            { "id": "protection", "name": "Protection", "grants": { "features": ["Fighting Style: Protection"] } },
+            { "id": "blind-fighting", "name": "Blind Fighting", "grants": { "features": ["Fighting Style: Blind Fighting"] } },
+            {
+              "id": "blessed-warrior",
+              "name": "Blessed Warrior",
+              "grants": { "features": ["Fighting Style: Blessed Warrior (Two Cleric Cantrips)"] }
+            }
+          ]
+        }
+      ],
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 3 }
+      }
+    },
+    "3": {
+      "features": ["Channel Divinity", "Sacred Oath"],
+      "subclassChoice": true,
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 4 }
+      },
+      "resources": [
+        {
+          "name": "Channel Divinity",
+          "maxFormula": { "type": "fixed", "value": 2 },
+          "resetOn": "shortRest",
+          "shortRestRestore": 1,
+          "longRestRestore": "all"
+        }
+      ]
+    },
+    "4": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 5 }
+      }
+    },
+    "5": {
+      "features": ["Extra Attack", "Faithful Steed"],
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 6 }
+      }
+    },
+    "6": {
+      "features": ["Aura of Protection"],
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 6 }
+      }
+    },
+    "7": {
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 7 }
+      }
+    },
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 7 }
+      }
+    },
+    "9": {
+      "features": ["Abjure Foes"],
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 9 }
+      }
+    },
+    "10": {
+      "features": ["Aura of Courage"],
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 9 }
+      }
+    },
+    "11": {
+      "features": ["Radiant Strikes"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 10 }
+      },
+      "resources": [
+        {
+          "name": "Channel Divinity",
+          "maxFormula": { "type": "fixed", "value": 3 },
+          "resetOn": "shortRest",
+          "shortRestRestore": 1,
+          "longRestRestore": "all"
+        }
+      ]
+    },
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 10 }
+      }
+    },
+    "13": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 11 }
+      }
+    },
+    "14": {
+      "features": ["Restoring Touch"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 11 }
+      }
+    },
+    "15": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 12 }
+      }
+    },
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 12 }
+      }
+    },
+    "17": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 14 }
+      }
+    },
+    "18": {
+      "features": ["Aura Expansion"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 14 }
+      }
+    },
+    "19": {
+      "features": ["Epic Boon"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 15 }
+      }
+    },
+    "20": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        "preparedSpellsFormula": { "type": "table", "count": 15 }
+      }
+    }
+  },
+  "subclasses": [
+    {
+      "id": "paladin-ancients",
+      "name": "Oath of the Ancients",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Nature's Wrath", "Oath Spells (Ancients)"] },
+        "7": { "features": ["Aura of Warding"] },
+        "15": { "features": ["Undying Sentinel"] },
+        "20": { "features": ["Elder Champion"] }
+      }
+    },
+    {
+      "id": "paladin-devotion",
+      "name": "Oath of Devotion",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Oath Spells (Devotion)", "Sacred Weapon"] },
+        "7": { "features": ["Aura of Devotion"] },
+        "15": { "features": ["Smite of Protection"] },
+        "20": { "features": ["Holy Nimbus"] }
+      }
+    },
+    {
+      "id": "paladin-glory",
+      "name": "Oath of Glory",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Oath Spells (Glory)", "Peerless Athlete"] },
+        "7": { "features": ["Aura of Alacrity"] },
+        "15": { "features": ["Glorious Defense"] },
+        "20": { "features": ["Living Legend"] }
+      }
+    },
+    {
+      "id": "paladin-vengeance",
+      "name": "Oath of Vengeance",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Oath Spells (Vengeance)", "Vow of Enmity"] },
+        "7": { "features": ["Relentless Avenger"] },
+        "15": { "features": ["Soul of Vengeance"] },
+        "20": { "features": ["Avenging Angel"] }
+      }
+    }
+  ]
+}

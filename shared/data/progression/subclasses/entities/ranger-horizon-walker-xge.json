@@ -1,0 +1,49 @@
+{
+  "id": "ranger-horizon-walker-xge",
+  "classId": "ranger-xphb",
+  "className": "Ranger",
+  "name": "Horizon Walker",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Detect Portal", "Planar Warrior", "Horizon Walker Spells"],
+      "alwaysPreparedSpells": ["Protection from Evil and Good"],
+      "actions": [
+        {
+          "id": "action-planar-warrior",
+          "name": "Planar Warrior",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "30 feet",
+          "roll": {
+            "kind": "damage",
+            "diceFormula": "1d8",
+            "damageType": "Force"
+          }
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Misty Step"]
+    },
+    "7": {
+      "features": ["Ethereal Step"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Haste"]
+    },
+    "11": {
+      "features": ["Distant Strike"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Banishment"]
+    },
+    "15": {
+      "features": ["Spectral Defense"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Teleportation Circle"]
+    }
+  }
+}

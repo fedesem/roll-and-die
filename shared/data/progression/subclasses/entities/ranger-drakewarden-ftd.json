@@ -1,0 +1,32 @@
+{
+  "id": "ranger-drakewarden-ftd",
+  "classId": "ranger-xphb",
+  "className": "Ranger",
+  "name": "Drakewarden",
+  "source": "FTD",
+  "levels": {
+    "3": {
+      "features": ["Draconic Gift", "Drake Companion"],
+      "alwaysPreparedSpells": ["Thaumaturgy"],
+      "actions": [
+        {
+          "id": "action-summon-drake",
+          "name": "Summon Drake Companion",
+          "source": "FTD",
+          "category": "feature",
+          "actionCost": "action",
+          "range": "30 feet"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Bond of Fang and Scale"]
+    },
+    "11": {
+      "features": ["Drake's Breath"]
+    },
+    "15": {
+      "features": ["Perfected Drake"]
+    }
+  }
+}

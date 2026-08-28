@@ -1,0 +1,334 @@
+{
+  "id": "fighter-xphb",
+  "name": "Fighter",
+  "source": "XPHB",
+  "hitDieFaces": 10,
+  "primaryAbilities": ["str", "dex"],
+  "savingThrows": ["str", "con"],
+  "armorProficiencies": ["Light Armor", "Medium Armor", "Heavy Armor", "Shields"],
+  "weaponProficiencies": ["Simple Weapons", "Martial Weapons"],
+  "toolProficiencies": [],
+  "startingSkillChoices": {
+    "choose": 2,
+    "options": ["Acrobatics", "Animal Handling", "Athletics", "History", "Insight", "Intimidation", "Perception", "Survival"]
+  },
+  "equipmentChoices": [
+    {
+      "id": "fighter-equipment",
+      "label": "Class Equipment",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Chain Mail, Greatsword, Flail, Javelins (8), Dungeoneer's Pack, 4 GP",
+          "items": [
+            { "referenceId": "Chain Mail|XPHB", "name": "Chain Mail", "quantity": 1 },
+            { "referenceId": "Greatsword|XPHB", "name": "Greatsword", "quantity": 1 },
+            { "referenceId": "Flail|XPHB", "name": "Flail", "quantity": 1 },
+            { "referenceId": "Javelin|XPHB", "name": "Javelin", "quantity": 8 },
+            { "referenceId": "Dungeoneer's Pack|XPHB", "name": "Dungeoneer's Pack", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 4, "currency": { "gp": 4 } }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: Studded Leather Armor, Scimitar, Shortsword, Longbow, Arrows, Quiver, Dungeoneer's Pack, 11 GP",
+          "items": [
+            { "referenceId": "Studded Leather Armor|XPHB", "name": "Studded Leather Armor", "quantity": 1 },
+            { "referenceId": "Scimitar|XPHB", "name": "Scimitar", "quantity": 1 },
+            { "referenceId": "Shortsword|XPHB", "name": "Shortsword", "quantity": 1 },
+            { "referenceId": "Longbow|XPHB", "name": "Longbow", "quantity": 1 },
+            { "referenceId": "Arrows (20)|XPHB", "name": "Arrows (20)", "quantity": 1 },
+            { "referenceId": "Quiver|XPHB", "name": "Quiver", "quantity": 1 },
+            { "referenceId": "Dungeoneer's Pack|XPHB", "name": "Dungeoneer's Pack", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 11, "currency": { "gp": 11 } }
+          ]
+        },
+        { "id": "package-c", "label": "Option C: 155 GP", "items": [{ "name": "Gold Coins", "quantity": 155, "currency": { "gp": 155 } }] }
+      ]
+    }
+  ],
+  "multiclassing": {
+    "prerequisites": { "str": 13, "dex": 13 },
+    "prerequisiteMode": "any",
+    "proficienciesGranted": {
+      "armor": ["Light Armor", "Medium Armor", "Shields"],
+      "weapons": ["Simple Weapons", "Martial Weapons"]
+    },
+    "casterType": "none"
+  },
+  "levels": {
+    "1": {
+      "features": ["Fighting Style", "Second Wind", "Weapon Mastery"],
+      "weaponMasteriesCount": 3,
+      "choices": [
+        {
+          "id": "fighter-fighting-style",
+          "title": "Fighting Style Feat",
+          "source": "class",
+          "choose": 1,
+          "options": [
+            { "id": "archery", "name": "Archery", "grants": { "features": ["Fighting Style: Archery"] } },
+            { "id": "blind-fighting", "name": "Blind Fighting", "grants": { "features": ["Fighting Style: Blind Fighting"] } },
+            { "id": "defense", "name": "Defense", "grants": { "features": ["Fighting Style: Defense"] } },
+            { "id": "dueling", "name": "Dueling", "grants": { "features": ["Fighting Style: Dueling"] } },
+            {
+              "id": "great-weapon-fighting",
+              "name": "Great Weapon Fighting",
+              "grants": { "features": ["Fighting Style: Great Weapon Fighting"] }
+            },
+            { "id": "interception", "name": "Interception", "grants": { "features": ["Fighting Style: Interception"] } },
+            { "id": "protection", "name": "Protection", "grants": { "features": ["Fighting Style: Protection"] } },
+            { "id": "superior-technique", "name": "Superior Technique", "grants": { "features": ["Fighting Style: Superior Technique"] } },
+            {
+              "id": "thrown-weapon-fighting",
+              "name": "Thrown Weapon Fighting",
+              "grants": { "features": ["Fighting Style: Thrown Weapon Fighting"] }
+            },
+            {
+              "id": "two-weapon-fighting",
+              "name": "Two-Weapon Fighting",
+              "grants": { "features": ["Fighting Style: Two-Weapon Fighting"] }
+            },
+            { "id": "unarmed-fighting", "name": "Unarmed Fighting", "grants": { "features": ["Fighting Style: Unarmed Fighting"] } }
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "name": "Second Wind",
+          "maxFormula": { "type": "fixed", "value": 2 },
+          "resetOn": "shortRest",
+          "shortRestRestore": 1,
+          "longRestRestore": "all",
+          "dice": "1d10"
+        }
+      ]
+    },
+    "2": {
+      "features": ["Action Surge", "Tactical Mind"],
+      "resources": [
+        {
+          "name": "Action Surge",
+          "maxFormula": { "type": "fixed", "value": 1 },
+          "resetOn": "shortRest"
+        }
+      ]
+    },
+    "3": {
+      "features": ["Martial Archetype"],
+      "subclassChoice": true
+    },
+    "4": {
+      "features": ["Ability Score Improvement"],
+      "weaponMasteriesCount": 4,
+      "asiChoice": true,
+      "resources": [
+        {
+          "name": "Second Wind",
+          "maxFormula": { "type": "fixed", "value": 3 },
+          "resetOn": "shortRest",
+          "shortRestRestore": 1,
+          "longRestRestore": "all",
+          "dice": "1d10"
+        }
+      ]
+    },
+    "5": {
+      "features": ["Extra Attack", "Tactical Shift"]
+    },
+    "6": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "7": {},
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "9": {
+      "features": ["Indomitable", "Tactical Master"],
+      "resources": [
+        {
+          "name": "Indomitable",
+          "maxFormula": { "type": "fixed", "value": 1 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "10": {
+      "weaponMasteriesCount": 5,
+      "resources": [
+        {
+          "name": "Second Wind",
+          "maxFormula": { "type": "fixed", "value": 4 },
+          "resetOn": "shortRest",
+          "shortRestRestore": 1,
+          "longRestRestore": "all",
+          "dice": "1d10"
+        }
+      ]
+    },
+    "11": {
+      "features": ["Two Extra Attacks"]
+    },
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "13": {
+      "features": ["Studied Attacks"],
+      "resources": [
+        {
+          "name": "Indomitable",
+          "maxFormula": { "type": "fixed", "value": 2 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "14": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true
+    },
+    "15": {},
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "weaponMasteriesCount": 6,
+      "asiChoice": true
+    },
+    "17": {
+      "resources": [
+        {
+          "name": "Action Surge",
+          "maxFormula": { "type": "fixed", "value": 2 },
+          "resetOn": "shortRest"
+        },
+        {
+          "name": "Indomitable",
+          "maxFormula": { "type": "fixed", "value": 3 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "18": {},
+    "19": {
+      "features": ["Epic Boon"],
+      "asiChoice": true
+    },
+    "20": {
+      "features": ["Three Extra Attacks"]
+    }
+  },
+  "subclasses": [
+    {
+      "id": "fighter-battle-master",
+      "name": "Battle Master",
+      "source": "XPHB",
+      "levels": {
+        "3": {
+          "features": ["Combat Superiority", "Student of War"],
+          "resources": [
+            {
+              "name": "Superiority Dice",
+              "maxFormula": { "type": "fixed", "value": 4 },
+              "resetOn": "shortRest",
+              "dice": "1d8"
+            }
+          ]
+        },
+        "7": {
+          "features": ["Know Your Enemy"],
+          "resources": [
+            {
+              "name": "Superiority Dice",
+              "maxFormula": { "type": "fixed", "value": 5 },
+              "resetOn": "shortRest",
+              "dice": "1d8"
+            }
+          ]
+        },
+        "10": {
+          "features": ["Improved Combat Superiority"],
+          "resources": [
+            {
+              "name": "Superiority Dice",
+              "maxFormula": { "type": "fixed", "value": 5 },
+              "resetOn": "shortRest",
+              "dice": "1d10"
+            }
+          ]
+        },
+        "15": {
+          "features": ["Relentless"],
+          "resources": [
+            {
+              "name": "Superiority Dice",
+              "maxFormula": { "type": "fixed", "value": 6 },
+              "resetOn": "shortRest",
+              "dice": "1d10"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fighter-champion",
+      "name": "Champion",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Improved Critical", "Remarkable Athlete"] },
+        "7": { "features": ["Additional Fighting Style"] },
+        "10": { "features": ["Heroic Warrior"] },
+        "15": { "features": ["Superior Critical"] }
+      }
+    },
+    {
+      "id": "fighter-eldritch-knight",
+      "name": "Eldritch Knight",
+      "source": "XPHB",
+      "levels": {
+        "3": {
+          "features": ["Spellcasting (Eldritch Knight)", "Weapon Bond"],
+          "spellcasting": {
+            "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+            "cantripsKnown": 2,
+            "spellsKnown": 3,
+            "spellcastingAbility": "int"
+          }
+        },
+        "7": {
+          "features": ["War Magic"],
+          "spellcasting": {
+            "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+            "spellsKnown": 5
+          }
+        },
+        "10": {
+          "features": ["Eldritch Strike"],
+          "spellcasting": {
+            "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+            "cantripsKnown": 3,
+            "spellsKnown": 7
+          }
+        },
+        "15": {
+          "features": ["Arcane Charge"],
+          "spellcasting": {
+            "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+            "spellsKnown": 10
+          }
+        }
+      }
+    },
+    {
+      "id": "fighter-psi-warrior",
+      "name": "Psi Warrior",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Psionic Power", "Protective Field", "Psionic Strike", "Telekinetic Movement"] },
+        "7": { "features": ["Psi-Powered Leap", "Telekinetic Thrust"] },
+        "10": { "features": ["Guarded Mind"] },
+        "15": { "features": ["Bulwark of Force"] }
+      }
+    }
+  ]
+}

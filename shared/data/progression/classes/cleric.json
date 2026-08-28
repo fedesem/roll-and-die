@@ -1,0 +1,299 @@
+{
+  "id": "cleric-xphb",
+  "name": "Cleric",
+  "source": "XPHB",
+  "hitDieFaces": 8,
+  "primaryAbilities": ["wis"],
+  "savingThrows": ["wis", "cha"],
+  "armorProficiencies": ["Light Armor", "Medium Armor", "Shields"],
+  "weaponProficiencies": ["Simple Weapons"],
+  "toolProficiencies": [],
+  "startingSkillChoices": { "choose": 2, "options": ["History", "Insight", "Medicine", "Persuasion", "Religion"] },
+  "equipmentChoices": [
+    {
+      "id": "cleric-equipment",
+      "label": "Class Equipment",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Chain Shirt, Shield, Mace, Holy Symbol, Priest's Pack, 70 GP",
+          "items": [
+            { "referenceId": "Chain Shirt|XPHB", "name": "Chain Shirt", "quantity": 1 },
+            { "referenceId": "Shield|XPHB", "name": "Shield", "quantity": 1 },
+            { "referenceId": "Mace|XPHB", "name": "Mace", "quantity": 1 },
+            { "referenceId": "Holy Symbol|XPHB", "name": "Holy Symbol", "quantity": 1 },
+            { "referenceId": "Priest's Pack|XPHB", "name": "Priest's Pack", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 70, "currency": { "gp": 70 } }
+          ]
+        },
+        { "id": "package-b", "label": "Option B: 110 GP", "items": [{ "name": "Gold Coins", "quantity": 110, "currency": { "gp": 110 } }] }
+      ]
+    }
+  ],
+  "spellListId": "cleric",
+  "multiclassing": {
+    "prerequisites": { "wis": 13 },
+    "proficienciesGranted": {
+      "armor": ["Light Armor", "Medium Armor", "Shields"]
+    },
+    "casterType": "full"
+  },
+  "levels": {
+    "1": {
+      "features": ["Spellcasting", "Holy Order"],
+      "choices": [
+        {
+          "id": "cleric-holy-order",
+          "title": "Holy Order",
+          "source": "class",
+          "choose": 1,
+          "options": [
+            {
+              "id": "protector",
+              "name": "Protector",
+              "grants": {
+                "armorProficiencies": ["Heavy Armor"],
+                "weaponProficiencies": ["Martial Weapons"]
+              }
+            },
+            {
+              "id": "scholar",
+              "name": "Scholar",
+              "grants": {
+                "skills": ["Arcana", "History", "Insight", "Medicine", "Nature", "Persuasion", "Religion"],
+                "expertise": ["Arcana", "History", "Insight", "Medicine", "Nature", "Persuasion", "Religion"]
+              }
+            },
+            {
+              "id": "thaumaturge",
+              "name": "Thaumaturge",
+              "grants": {
+                "cantripsCount": 1,
+                "passiveBonuses": [
+                  {
+                    "target": "skill",
+                    "skillName": "Religion",
+                    "statBonus": "wis",
+                    "minBonus": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 3,
+        "preparedSpellsFormula": { "type": "abilityPlusLevel", "ability": "wis" },
+        "changeCadence": "onLongRest",
+        "ritualCasting": true,
+        "spellcastingAbility": "wis"
+      }
+    },
+    "2": {
+      "features": ["Channel Divinity", "Divine Spark", "Turn Undead"],
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      "resources": [
+        {
+          "name": "Channel Divinity",
+          "maxFormula": { "type": "fixed", "value": 2 },
+          "resetOn": "shortRest",
+          "shortRestRestore": 1,
+          "longRestRestore": "all"
+        }
+      ]
+    },
+    "3": {
+      "features": ["Cleric Subclass"],
+      "subclassChoice": true,
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0]
+      }
+    },
+    "4": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 4
+      }
+    },
+    "5": {
+      "features": ["Sear Undead", "Smite Undead"],
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0]
+      }
+    },
+    "6": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0]
+      },
+      "resources": [
+        {
+          "name": "Channel Divinity",
+          "maxFormula": { "type": "fixed", "value": 3 },
+          "resetOn": "shortRest",
+          "shortRestRestore": 1,
+          "longRestRestore": "all"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Blessed Strikes"],
+      "choices": [
+        {
+          "id": "cleric-blessed-strikes",
+          "title": "Blessed Strikes",
+          "source": "class",
+          "choose": 1,
+          "options": [
+            {
+              "id": "divine-strike",
+              "name": "Divine Strike",
+              "grants": { "features": ["Blessed Strikes: Divine Strike"] }
+            },
+            {
+              "id": "potent-spellcasting",
+              "name": "Potent Spellcasting",
+              "grants": { "features": ["Blessed Strikes: Potent Spellcasting"] }
+            }
+          ]
+        }
+      ],
+      "spellcasting": {
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0]
+      }
+    },
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0]
+      }
+    },
+    "9": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0]
+      }
+    },
+    "10": {
+      "features": ["Divine Intervention"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        "cantripsKnown": 5
+      }
+    },
+    "11": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 0, 0, 0]
+      }
+    },
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 0, 0, 0]
+      }
+    },
+    "13": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 0, 0]
+      }
+    },
+    "14": {
+      "features": ["Improved Blessed Strikes"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 0, 0]
+      }
+    },
+    "15": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 0]
+      }
+    },
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 0]
+      }
+    },
+    "17": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 1]
+      }
+    },
+    "18": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 1, 1, 1, 1]
+      },
+      "resources": [
+        {
+          "name": "Channel Divinity",
+          "maxFormula": { "type": "fixed", "value": 4 },
+          "resetOn": "shortRest",
+          "shortRestRestore": 1,
+          "longRestRestore": "all"
+        }
+      ]
+    },
+    "19": {
+      "features": ["Epic Boon"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 2, 1, 1, 1]
+      }
+    },
+    "20": {
+      "features": ["Greater Divine Intervention"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 2, 2, 1, 1]
+      }
+    }
+  },
+  "subclasses": [
+    {
+      "id": "cleric-life",
+      "name": "Life Domain",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Disciple of Life", "Domain Spells (Life)", "Preserve Life"] },
+        "6": { "features": ["Blessed Healer"] },
+        "17": { "features": ["Supreme Healing"] }
+      }
+    },
+    {
+      "id": "cleric-light",
+      "name": "Light Domain",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Domain Spells (Light)", "Radiance of the Dawn", "Warding Flare"] },
+        "6": { "features": ["Improved Warding Flare"] },
+        "17": { "features": ["Corona of Light"] }
+      }
+    },
+    {
+      "id": "cleric-trickery",
+      "name": "Trickery Domain",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Blessing of the Trickster", "Domain Spells (Trickery)", "Invoke Duplicity"] },
+        "6": { "features": ["Trickster's Transposition"] },
+        "17": { "features": ["Improved Duplicity"] }
+      }
+    },
+    {
+      "id": "cleric-war",
+      "name": "War Domain",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Domain Spells (War)", "Guided Strike", "War Priest"] },
+        "6": { "features": ["War God's Blessing"] },
+        "17": { "features": ["Avatar of Battle"] }
+      }
+    }
+  ]
+}

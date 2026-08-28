@@ -1,0 +1,55 @@
+{
+  "id": "cleric-light-xphb",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Light Domain",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Domain Spells (Light)", "Radiance of the Dawn", "Warding Flare"],
+      "alwaysPreparedSpells": ["Burning Hands", "Faerie Fire", "Flaming Sphere", "Scorching Ray"],
+      "actions": [
+        {
+          "id": "action-radiance-of-the-dawn",
+          "name": "Channel Divinity: Radiance of the Dawn",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "action",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "30 feet",
+          "roll": {
+            "kind": "damage",
+            "diceFormula": "2d10 + level",
+            "damageType": "Radiant"
+          }
+        },
+        {
+          "id": "action-warding-flare",
+          "name": "Warding Flare",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "reaction",
+          "range": "30 feet"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Daylight", "Fireball"]
+    },
+    "6": {
+      "features": ["Improved Warding Flare"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Guardian of Faith", "Wall of Fire"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Flame Strike", "Scrying"]
+    },
+    "17": {
+      "features": ["Corona of Light"]
+    }
+  }
+}

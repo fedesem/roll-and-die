@@ -1,0 +1,21 @@
+{
+  "id": "monk-ascendant-dragon-ftd",
+  "classId": "monk-xphb",
+  "className": "Monk",
+  "name": "Way of the Ascendant Dragon",
+  "source": "FTD",
+  "levels": {
+    "3": {
+      "features": ["Draconic Disciple", "Breath of the Dragon"]
+    },
+    "6": {
+      "features": ["Wings Unfurled"]
+    },
+    "11": {
+      "features": ["Aspect of the Wyrm"]
+    },
+    "17": {
+      "features": ["Ascendant Aspect"]
+    }
+  }
+}

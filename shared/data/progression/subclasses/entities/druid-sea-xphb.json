@@ -1,0 +1,50 @@
+{
+  "id": "druid-sea-xphb",
+  "classId": "druid-xphb",
+  "className": "Druid",
+  "name": "Circle of the Sea",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Circle Spells (Sea)", "Wrath of the Sea"],
+      "alwaysPreparedSpells": ["Fog Cloud", "Gust of Wind", "Ray of Frost"],
+      "actions": [
+        {
+          "id": "action-wrath-of-the-sea",
+          "name": "Wrath of the Sea",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "resourceCost": {
+            "resourceName": "Wild Shape",
+            "count": 1
+          },
+          "range": "Emanation (10 feet)",
+          "roll": {
+            "kind": "damage",
+            "diceFormula": "wis d6",
+            "damageType": "Cold or Lightning"
+          }
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Shatter", "Water Breathing"]
+    },
+    "6": {
+      "features": ["Aquatic Affinity"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Control Water", "Ice Storm"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Cone of Cold", "Hold Monster"]
+    },
+    "10": {
+      "features": ["Stormborn"]
+    },
+    "14": {
+      "features": ["Oceanic Gift"]
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "id": "ranger-hunter-xphb",
+  "classId": "ranger-xphb",
+  "className": "Ranger",
+  "name": "Hunter",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Hunter's Lore", "Hunter's Prey"],
+      "choices": [
+        {
+          "id": "hunters-prey-choice",
+          "title": "Hunter's Prey",
+          "source": "subclass",
+          "choose": 1,
+          "options": [
+            {
+              "id": "colossus-slayer",
+              "name": "Colossus Slayer",
+              "grants": {
+                "actions": [
+                  {
+                    "id": "action-colossus-slayer",
+                    "name": "Colossus Slayer",
+                    "source": "XPHB",
+                    "category": "feature",
+                    "actionCost": "free",
+                    "roll": {
+                      "kind": "damage",
+                      "diceFormula": "1d8"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": "horde-breaker",
+              "name": "Horde Breaker",
+              "grants": {
+                "features": ["Horde Breaker Extra Attack"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "7": {
+      "features": ["Defensive Tactics"],
+      "choices": [
+        {
+          "id": "hunter-defensive-tactics",
+          "title": "Defensive Tactics",
+          "source": "subclass",
+          "choose": 1,
+          "options": [
+            {
+              "id": "escape-the-horde",
+              "name": "Escape the Horde",
+              "grants": {
+                "features": ["Defensive Tactics: Escape the Horde (Disadvantage on Opportunity Attacks against you)"]
+              }
+            },
+            {
+              "id": "multiattack-defense",
+              "name": "Multiattack Defense",
+              "grants": {
+                "features": ["Defensive Tactics: Multiattack Defense (+4 AC against follow-up attacks)"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "11": {
+      "features": ["Superior Hunter's Prey"]
+    },
+    "15": {
+      "features": ["Superior Hunter's Defense"]
+    }
+  }
+}

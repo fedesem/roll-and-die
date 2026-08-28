@@ -1,0 +1,71 @@
+{
+  "id": "hermit-xphb",
+  "name": "Hermit",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["con", "wis", "cha"],
+    "options": ["con", "wis", "cha"]
+  },
+  "originFeatId": "healer",
+  "originFeatName": "Healer",
+  "skillProficiencies": ["Medicine", "Religion"],
+  "toolProficiencies": ["Herbalism Kit"],
+  "equipmentChoices": [
+    {
+      "id": "hermit-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Herbalism Kit, Bedroll, Book, Fishing Tackle, Healer's Kit, Traveler's Clothes, 16 GP",
+          "items": [
+            {
+              "name": "Herbalism Kit",
+              "quantity": 1
+            },
+            {
+              "name": "Bedroll",
+              "quantity": 1
+            },
+            {
+              "name": "Book (Philosophy)",
+              "quantity": 1
+            },
+            {
+              "name": "Fishing Tackle",
+              "quantity": 1
+            },
+            {
+              "name": "Healer's Kit",
+              "quantity": 1
+            },
+            {
+              "name": "Traveler's Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 16,
+              "currency": {
+                "gp": 16
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

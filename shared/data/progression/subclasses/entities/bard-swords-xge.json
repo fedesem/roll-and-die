@@ -1,0 +1,18 @@
+{
+  "id": "bard-swords-xge",
+  "classId": "bard-xphb",
+  "className": "Bard",
+  "name": "College of Swords",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Bonus Proficiencies (Swords)", "Fighting Style (Swords)", "Blade Flourish"]
+    },
+    "6": {
+      "features": ["Extra Attack (Swords)"]
+    },
+    "14": {
+      "features": ["Master's Flourish"]
+    }
+  }
+}

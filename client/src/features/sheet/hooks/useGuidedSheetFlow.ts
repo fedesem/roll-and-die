@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { AbilityKey, ActorSheet } from "@shared/types";
+import { createProgressionAwardFromActorDelta } from "@shared/rules/progressionEngine";
 
 import type {
   GuidedAbilityChoiceConfig,
@@ -68,24 +69,92 @@ const emptyGuidedSetup: GuidedSetupState = {
     cha: 10
   },
   backgroundAbilityModeId: "",
+  hpMode: "average",
+  rolledHp: null,
   classFeatIds: [],
   optionalFeatureIds: [],
+  classChoiceIds: {},
+  featChoiceMap: {},
   cantripIds: [],
   knownSpellIds: [],
   spellbookSpellIds: [],
+  preparedSpellIds: [],
   expertiseSkillChoices: [],
+  weaponMasteryChoices: [],
   asiMode: "feat",
+  asiAbilityMode: "+2",
   asiFeatId: "",
   asiAbilityChoices: [],
   speciesSkillChoices: [],
   backgroundSkillChoices: [],
   classSkillChoices: [],
+  languageChoices: ["Common"],
+  speciesSizeChoice: "Medium",
   speciesOriginFeatId: "",
   speciesChoiceIds: {},
   originFeatId: "",
   equipmentChoiceIds: {},
   abilityChoices: []
 };
+
+function collectAwardChoices(setup: GuidedSetupState, spec: GuidedChoiceSpec) {
+  const activeClassGroupIds = new Set(
+    spec.classChoiceGroups
+      .filter(
+        (group) => !group.parentOption || (setup.classChoiceIds[group.parentOption.groupId] ?? []).includes(group.parentOption.optionId)
+      )
+      .map((group) => group.id)
+  );
+  const choices = Object.entries(setup.classChoiceIds)
+    .filter(([groupId]) => activeClassGroupIds.has(groupId))
+    .map(([groupId, optionIds]) => ({ groupId, optionIds }));
+  Object.values(setup.featChoiceMap).forEach((groups) => {
+    Object.entries(groups).forEach(([groupId, optionIds]) => choices.push({ groupId, optionIds }));
+  });
+  Object.entries(setup.speciesChoiceIds).forEach(([groupId, optionId]) => choices.push({ groupId, optionIds: [optionId] }));
+  Object.entries(setup.equipmentChoiceIds).forEach(([groupId, optionId]) => choices.push({ groupId, optionIds: [optionId] }));
+  const append = (groupId: string, optionIds: string[]) => {
+    const normalized = optionIds.filter(Boolean);
+    if (normalized.length > 0) choices.push({ groupId, optionIds: normalized });
+  };
+  append("setup:species", [setup.speciesId]);
+  append("setup:background", [setup.backgroundId]);
+  append("setup:class", [setup.classId]);
+  append("setup:subclass", [setup.subclassId]);
+  append("setup:species-skills", setup.speciesSkillChoices);
+  append("setup:background-skills", setup.backgroundSkillChoices);
+  append("setup:background-ability-mode", [setup.backgroundAbilityModeId]);
+  append("setup:background-abilities", setup.abilityChoices);
+  append(
+    "setup:base-abilities",
+    (Object.entries(setup.baseAbilities) as Array<[AbilityKey, number]>).map(([ability, score]) => `${ability}:${score}`)
+  );
+  append("setup:class-skills", setup.classSkillChoices);
+  append("setup:expertise", setup.expertiseSkillChoices);
+  append("setup:languages", setup.languageChoices);
+  append("setup:weapon-masteries", setup.weaponMasteryChoices);
+  append("setup:class-feats", setup.classFeatIds);
+  append("setup:optional-features", setup.optionalFeatureIds);
+  append("setup:cantrips", setup.cantripIds);
+  append("setup:known-spells", setup.knownSpellIds);
+  append("setup:spellbook", setup.spellbookSpellIds);
+  append("setup:prepared-spells", setup.preparedSpellIds);
+  append("setup:origin-feat", [setup.originFeatId]);
+  append("setup:species-origin-feat", [setup.speciesOriginFeatId]);
+  append("setup:asi-feat", setup.asiMode === "feat" ? [setup.asiFeatId] : []);
+  append("setup:asi-abilities", setup.asiMode === "ability" ? setup.asiAbilityChoices : []);
+  return choices;
+}
+
+function collectAwardReferences(compendium: PlayerNpcSheet2024Props["compendium"]) {
+  return [
+    ...compendium.feats,
+    ...compendium.spells,
+    ...compendium.optionalFeatures,
+    ...compendium.items,
+    ...compendium.classes.flatMap((entry) => [...entry.features, ...entry.subclasses.flatMap((subclass) => subclass.features)])
+  ].map((entry) => ({ name: entry.name, source: entry.source }));
+}
 
 const defaultGuideAbilityCycle: AbilityKey[] = ["str", "dex", "con", "int", "wis", "cha"];
 
@@ -128,14 +197,11 @@ function normalizeGuideAbilityChoices(current: AbilityKey[], slots: GuidedAbilit
   return next;
 }
 
-function normalizeGuideEquipmentChoiceIds(
-  current: Record<string, string>,
-  groups: GuidedEquipmentGroup[]
-) {
+function normalizeGuideEquipmentChoiceIds(current: Record<string, string>, groups: GuidedEquipmentGroup[]) {
   return Object.fromEntries(
     groups.map((group) => {
       const currentChoice = current[group.id];
-      const selectedChoice = group.options.some((option) => option.id === currentChoice) ? currentChoice : group.options[0]?.id ?? "";
+      const selectedChoice = group.options.some((option) => option.id === currentChoice) ? currentChoice : (group.options[0]?.id ?? "");
       return [group.id, selectedChoice];
     })
   );
@@ -145,7 +211,7 @@ function normalizeGuideSpeciesChoiceIds(current: Record<string, string>, groups:
   return Object.fromEntries(
     groups.map((group) => {
       const currentChoice = current[group.id];
-      const selectedChoice = group.options.some((option) => option.id === currentChoice) ? currentChoice : group.options[0]?.id ?? "";
+      const selectedChoice = group.options.some((option) => option.id === currentChoice) ? currentChoice : (group.options[0]?.id ?? "");
       return [group.id, selectedChoice];
     })
   );
@@ -267,30 +333,18 @@ export function useGuidedSheetFlow({
     () => deriveSpeciesOriginFeatOptions(guidedSelectedSpecies, compendium.feats),
     [compendium.feats, guidedSelectedSpecies]
   );
-  const guidedSpeciesChoiceGroups = useMemo(
-    () => deriveSpeciesChoiceGroups(guidedSelectedSpecies),
-    [guidedSelectedSpecies]
-  );
-  const guidedAbilityChoiceConfig = useMemo(
-    () => deriveBackgroundAbilityConfig(guidedSelectedBackground),
-    [guidedSelectedBackground]
-  );
+  const guidedSpeciesChoiceGroups = useMemo(() => deriveSpeciesChoiceGroups(guidedSelectedSpecies), [guidedSelectedSpecies]);
+  const guidedAbilityChoiceConfig = useMemo(() => deriveBackgroundAbilityConfig(guidedSelectedBackground), [guidedSelectedBackground]);
   const guidedAbilityChoiceMode = useMemo(
     () => selectGuidedAbilityChoiceMode(guidedAbilityChoiceConfig, guidedSetup.backgroundAbilityModeId),
     [guidedAbilityChoiceConfig, guidedSetup.backgroundAbilityModeId]
   );
-  const guidedAbilityChoiceSlots = useMemo(
-    () => deriveGuidedAbilityChoiceSlots(guidedAbilityChoiceMode),
-    [guidedAbilityChoiceMode]
-  );
+  const guidedAbilityChoiceSlots = useMemo(() => deriveGuidedAbilityChoiceSlots(guidedAbilityChoiceMode), [guidedAbilityChoiceMode]);
   const guidedOriginFeatOptions = useMemo(
     () => deriveOriginFeatOptions(guidedSelectedBackground, compendium.feats),
     [compendium.feats, guidedSelectedBackground]
   );
-  const guidedClassEquipmentGroups = useMemo(
-    () => deriveClassEquipmentGroups(guidedSelectedClass),
-    [guidedSelectedClass]
-  );
+  const guidedClassEquipmentGroups = useMemo(() => deriveClassEquipmentGroups(guidedSelectedClass), [guidedSelectedClass]);
   const guidedEquipmentGroups = useMemo(
     () => [...deriveBackgroundEquipmentGroups(guidedSelectedBackground), ...guidedClassEquipmentGroups],
     [guidedClassEquipmentGroups, guidedSelectedBackground]
@@ -304,7 +358,13 @@ export function useGuidedSheetFlow({
 
     if (guidedSelectedSpecies) {
       next = applySpeciesToActor(next, guidedSelectedSpecies);
-      next = applySpeciesChoiceSelections(next, guidedSelectedSpecies, compendium.feats, guidedSetup.speciesSkillChoices, guidedSetup.speciesOriginFeatId);
+      next = applySpeciesChoiceSelections(
+        next,
+        guidedSelectedSpecies,
+        compendium.feats,
+        guidedSetup.speciesSkillChoices,
+        guidedSetup.speciesOriginFeatId
+      );
     }
 
     return next;
@@ -357,7 +417,10 @@ export function useGuidedSheetFlow({
     return applyClassToActor(guidedBackgroundPreviewActor, guidedSelectedClass, compendium.classes);
   }, [compendium.classes, guidedBackgroundPreviewActor, guidedFlowMode, guidedSelectedClass]);
   const guidedClassSkillChoiceConfig = useMemo(
-    () => (guidedFlowMode === "setup" ? deriveClassSkillChoiceConfig(guidedSelectedClass, compendium.skills, guidedClassPreviewActor) : { count: 0, options: [] }),
+    () =>
+      guidedFlowMode === "setup"
+        ? deriveClassSkillChoiceConfig(guidedSelectedClass, compendium.skills, guidedClassPreviewActor)
+        : { count: 0, options: [] },
     [compendium.skills, guidedClassPreviewActor, guidedFlowMode, guidedSelectedClass]
   );
   const guidedSetupActorForGuideChoices = useMemo(() => {
@@ -449,7 +512,9 @@ export function useGuidedSheetFlow({
         guidedChoiceSpec.expertiseCount,
         guidedChoiceSpec.expertiseSkillOptions.map((entry) => entry.name)
       );
-      const nextAsiFeatId = filteredFeats.some((entry) => entry.id === current.asiFeatId) ? current.asiFeatId : filteredFeats[0]?.id ?? "";
+      const nextAsiFeatId = filteredFeats.some((entry) => entry.id === current.asiFeatId)
+        ? current.asiFeatId
+        : (filteredFeats[0]?.id ?? "");
       const nextAsiAbilityChoices = padGuideSelections(
         current.asiAbilityChoices.filter((entry) => defaultGuideAbilityCycle.includes(entry)),
         guidedChoiceSpec.abilityImprovementCount * 2,
@@ -457,10 +522,10 @@ export function useGuidedSheetFlow({
       );
       const nextSpeciesOriginFeatId = guidedSpeciesOriginFeatOptions.some((entry) => entry.id === current.speciesOriginFeatId)
         ? current.speciesOriginFeatId
-        : guidedSpeciesOriginFeatOptions[0]?.id ?? "";
+        : (guidedSpeciesOriginFeatOptions[0]?.id ?? "");
       const nextOriginFeatId = guidedOriginFeatOptions.some((entry) => entry.id === current.originFeatId)
         ? current.originFeatId
-        : guidedOriginFeatOptions[0]?.id ?? "";
+        : (guidedOriginFeatOptions[0]?.id ?? "");
 
       if (
         shallowEqualAbilities(current.baseAbilities, nextBaseAbilities) &&
@@ -523,10 +588,13 @@ export function useGuidedSheetFlow({
 
   const selectedGuideFeats = useMemo(
     () =>
-      mergeTextValues([], [
-        ...guidedSetup.classFeatIds,
-        guidedChoiceSpec.abilityImprovementCount > 0 && guidedSetup.asiMode === "feat" ? guidedSetup.asiFeatId : ""
-      ])
+      mergeTextValues(
+        [],
+        [
+          ...guidedSetup.classFeatIds,
+          guidedChoiceSpec.abilityImprovementCount > 0 && guidedSetup.asiMode === "feat" ? guidedSetup.asiFeatId : ""
+        ]
+      )
         .map((entry) => compendium.feats.find((feat) => feat.id === entry) ?? null)
         .filter((entry): entry is (typeof compendium.feats)[number] => Boolean(entry)),
     [compendium, guidedChoiceSpec.abilityImprovementCount, guidedSetup.asiFeatId, guidedSetup.asiMode, guidedSetup.classFeatIds]
@@ -538,31 +606,39 @@ export function useGuidedSheetFlow({
         .filter((entry): entry is (typeof compendium.optionalFeatures)[number] => Boolean(entry)),
     [compendium, guidedSetup.optionalFeatureIds]
   );
-  const selectedGuideSpells = useMemo(
-    () => {
-      const selectedSpeciesSpellNames = guidedSpeciesChoiceGroups.flatMap((group) => {
-        const selectedOption = group.options.find((option) => option.id === guidedSetup.speciesChoiceIds[group.id]);
-        return [...(selectedOption?.spellNames ?? []), ...(selectedOption?.alwaysPreparedSpellNames ?? [])];
-      });
+  const selectedGuideSpells = useMemo(() => {
+    const selectedSpeciesSpellNames = guidedSpeciesChoiceGroups.flatMap((group) => {
+      const selectedOption = group.options.find((option) => option.id === guidedSetup.speciesChoiceIds[group.id]);
+      return [...(selectedOption?.spellNames ?? []), ...(selectedOption?.alwaysPreparedSpellNames ?? [])];
+    });
 
-      return mergeTextValues([], [
+    return mergeTextValues(
+      [],
+      [
         ...guidedSetup.cantripIds,
         ...guidedSetup.knownSpellIds,
         ...guidedSetup.spellbookSpellIds,
         ...(guidedSelectedSpecies?.spellNames ?? []),
         ...(guidedSelectedSpecies?.alwaysPreparedSpellNames ?? []),
         ...selectedSpeciesSpellNames
-      ])
-        .map(
-          (entry) =>
-            compendium.spells.find((spell) => spell.id === entry) ??
-            compendium.spells.find((spell) => normalizeKey(spell.name) === normalizeKey(entry)) ??
-            null
-        )
-        .filter((entry): entry is (typeof compendium.spells)[number] => Boolean(entry));
-    },
-    [compendium, guidedSelectedSpecies, guidedSetup.cantripIds, guidedSetup.knownSpellIds, guidedSetup.speciesChoiceIds, guidedSetup.spellbookSpellIds, guidedSpeciesChoiceGroups]
-  );
+      ]
+    )
+      .map(
+        (entry) =>
+          compendium.spells.find((spell) => spell.id === entry) ??
+          compendium.spells.find((spell) => normalizeKey(spell.name) === normalizeKey(entry)) ??
+          null
+      )
+      .filter((entry): entry is (typeof compendium.spells)[number] => Boolean(entry));
+  }, [
+    compendium,
+    guidedSelectedSpecies,
+    guidedSetup.cantripIds,
+    guidedSetup.knownSpellIds,
+    guidedSetup.speciesChoiceIds,
+    guidedSetup.spellbookSpellIds,
+    guidedSpeciesChoiceGroups
+  ]);
 
   function closeGuidedFlow() {
     setGuidedFlowOpen(false);
@@ -574,7 +650,7 @@ export function useGuidedSheetFlow({
     }
 
     setGuidedFlowMode(mode);
-    setGuidedClassId(mode === "levelup" ? draft.classes[0]?.id ?? NEW_GUIDED_CLASS_ID : "");
+    setGuidedClassId(mode === "levelup" ? (draft.classes[0]?.id ?? NEW_GUIDED_CLASS_ID) : "");
     setGuideError(null);
 
     const nextSpeciesId = draft.build?.speciesId ?? compendium.races[0]?.id ?? "";
@@ -597,18 +673,27 @@ export function useGuidedSheetFlow({
       subclassId: "",
       baseAbilities: normalizeGuideBaseAbilities(draft.abilities),
       backgroundAbilityModeId: abilityConfig.defaultModeId,
+      hpMode: "average",
+      rolledHp: null,
       classFeatIds: [],
       optionalFeatureIds: [],
+      classChoiceIds: {},
+      featChoiceMap: {},
       cantripIds: [],
       knownSpellIds: [],
       spellbookSpellIds: [],
+      preparedSpellIds: [],
       expertiseSkillChoices: [],
+      weaponMasteryChoices: [],
       asiMode: "feat",
+      asiAbilityMode: "+2",
       asiFeatId: "",
       asiAbilityChoices: [],
       speciesSkillChoices: [],
       backgroundSkillChoices: [],
       classSkillChoices: [],
+      languageChoices: ["Common"],
+      speciesSizeChoice: (speciesEntry?.sizes[0] as "Medium" | "Small") || "Medium",
       speciesOriginFeatId: speciesFeatOptions[0]?.id ?? "",
       speciesChoiceIds: Object.fromEntries(speciesChoiceGroups.map((group) => [group.id, group.options[0]?.id ?? ""])),
       originFeatId: originFeatOptions[0]?.id ?? "",
@@ -693,14 +778,18 @@ export function useGuidedSheetFlow({
     }
 
     updateDraft((current) => {
+      const before = cloneActor(current);
       let next = cloneActor(current);
       next.classes = [];
       next.className = "";
       next.build = {
         ruleset: "dnd-2024",
+        schemaVersion: 2,
         mode: current.build?.mode ?? "guided",
         classes: [],
-        selections: current.build?.selections ?? []
+        selections: current.build?.selections ?? [],
+        awards: current.build?.awards ?? [],
+        overrides: current.build?.overrides ?? []
       };
       next.features = [];
       next.feats = [];
@@ -715,8 +804,20 @@ export function useGuidedSheetFlow({
 
       next = applyGuideBaseAbilities(next, guidedSetup.baseAbilities);
       next = applySpeciesToActor(next, compendium.races.find((entry) => entry.id === guidedSetup.speciesId) ?? null);
-      next = applySpeciesChoiceSelections(next, guidedSelectedSpecies, compendium.feats, guidedSetup.speciesSkillChoices, guidedSetup.speciesOriginFeatId);
-      next = applySpeciesChoiceGroupSelections(next, guidedSelectedSpecies, guidedSpeciesChoiceGroups, guidedSetup.speciesChoiceIds, compendium.spells);
+      next = applySpeciesChoiceSelections(
+        next,
+        guidedSelectedSpecies,
+        compendium.feats,
+        guidedSetup.speciesSkillChoices,
+        guidedSetup.speciesOriginFeatId
+      );
+      next = applySpeciesChoiceGroupSelections(
+        next,
+        guidedSelectedSpecies,
+        guidedSpeciesChoiceGroups,
+        guidedSetup.speciesChoiceIds,
+        compendium.spells
+      );
       next = applyBackgroundToActor(next, backgroundForId(compendium.backgrounds, guidedSetup.backgroundId), compendium.feats, {
         featId: guidedSetup.originFeatId,
         abilityChoices: guidedSetup.abilityChoices,
@@ -740,6 +841,29 @@ export function useGuidedSheetFlow({
         targetActorClassId: next.classes.find((entry) => entry.compendiumId === classEntry.id)?.id ?? null,
         mode: "setup"
       });
+      const actorClass = next.classes.find((entry) => entry.compendiumId === classEntry.id) ?? next.classes[0];
+      const award = createProgressionAwardFromActorDelta(before, next, {
+        id: crypto.randomUUID(),
+        characterLevel: 1,
+        classLevel: actorClass?.level ?? 1,
+        className: classEntry.name,
+        classSource: classEntry.source,
+        subclassName: classEntry.subclasses.find((entry) => entry.id === guidedSetup.subclassId)?.name,
+        subclassSource: classEntry.subclasses.find((entry) => entry.id === guidedSetup.subclassId)?.source,
+        speciesName: guidedSelectedSpecies?.name,
+        speciesSource: guidedSelectedSpecies?.source,
+        backgroundName: guidedSelectedBackground?.name,
+        backgroundSource: guidedSelectedBackground?.source,
+        choices: collectAwardChoices(guidedSetup, guidedChoiceSpec),
+        references: collectAwardReferences(compendium),
+        committedAt: new Date().toISOString()
+      });
+      next.build = {
+        ...(next.build ?? { ruleset: "dnd-2024", mode: "guided", classes: [], selections: [] }),
+        schemaVersion: 2,
+        awards: [...(next.build?.awards ?? []), award],
+        overrides: next.build?.overrides ?? []
+      };
       return next;
     });
 
@@ -750,11 +874,11 @@ export function useGuidedSheetFlow({
 
   function confirmGuidedLevelUp() {
     const addingNewClass = guidedClassId === NEW_GUIDED_CLASS_ID;
-    const targetActorClass = addingNewClass ? null : draft.classes.find((entry) => entry.id === guidedClassId) ?? draft.classes[0];
+    const targetActorClass = addingNewClass ? null : (draft.classes.find((entry) => entry.id === guidedClassId) ?? draft.classes[0]);
     const classEntry = addingNewClass
-      ? compendium.classes.find((entry) => entry.id === guidedSetup.classId) ?? null
+      ? (compendium.classes.find((entry) => entry.id === guidedSetup.classId) ?? null)
       : targetActorClass
-        ? findCompendiumClass(targetActorClass, compendium.classes) ?? null
+        ? (findCompendiumClass(targetActorClass, compendium.classes) ?? null)
         : null;
 
     if (!classEntry) {
@@ -762,7 +886,9 @@ export function useGuidedSheetFlow({
       return;
     }
 
-    const currentSubclassId = targetActorClass ? targetActorClass.subclassId ?? draft.build?.classes.find((entry) => entry.id === targetActorClass.id)?.subclassId ?? "" : "";
+    const currentSubclassId = targetActorClass
+      ? (targetActorClass.subclassId ?? draft.build?.classes.find((entry) => entry.id === targetActorClass.id)?.subclassId ?? "")
+      : "";
     const guideValidation = validateGuideSelections({
       actor: draft,
       spec: guidedChoiceSpec,
@@ -778,9 +904,16 @@ export function useGuidedSheetFlow({
     }
 
     const constitutionModifier = abilityModifierTotal(draft, "con");
-    const hpGain = Math.max(1, rollDie(classEntry.hitDieFaces) + constitutionModifier);
+    const rolledValue =
+      guidedSetup.hpMode === "roll" && typeof guidedSetup.rolledHp === "number" && guidedSetup.rolledHp > 0
+        ? guidedSetup.rolledHp
+        : guidedSetup.hpMode === "roll"
+          ? rollDie(classEntry.hitDieFaces || 8)
+          : Math.floor((classEntry.hitDieFaces || 8) / 2) + 1;
+    const hpGain = Math.max(1, rolledValue + constitutionModifier);
 
     updateDraft((current) => {
+      const before = cloneActor(current);
       let next = cloneActor(current);
       if (addingNewClass) {
         next = applyClassToActor(next, classEntry, compendium.classes);
@@ -795,7 +928,9 @@ export function useGuidedSheetFlow({
         );
       }
       if (guidedSetup.subclassId) {
-        const targetClassId = addingNewClass ? next.classes.find((entry) => entry.compendiumId === classEntry.id)?.id ?? "" : targetActorClass?.id ?? "";
+        const targetClassId = addingNewClass
+          ? (next.classes.find((entry) => entry.compendiumId === classEntry.id)?.id ?? "")
+          : (targetActorClass?.id ?? "");
         next = assignSubclassToActor(next, compendium.classes, targetClassId, guidedSetup.subclassId);
       }
       next.level = totalLevel(next);
@@ -811,6 +946,7 @@ export function useGuidedSheetFlow({
       next.hitDice = next.classes.map((entry) => `${entry.level}d${entry.hitDieFaces}`).join(" + ");
       next.build = {
         ruleset: "dnd-2024",
+        schemaVersion: 2,
         mode: current.build?.mode ?? "guided",
         speciesId: current.build?.speciesId,
         speciesName: current.build?.speciesName,
@@ -829,6 +965,8 @@ export function useGuidedSheetFlow({
             notes: `+${hpGain} HP`
           }
         ],
+        awards: current.build?.awards ?? [],
+        overrides: current.build?.overrides ?? [],
         classes: syncBuildClasses(next.classes, current.build?.classes ?? [])
       };
       next = applyGuideSelectionsToActor(next, {
@@ -837,9 +975,33 @@ export function useGuidedSheetFlow({
         spec: guidedChoiceSpec,
         level: totalLevel(next),
         targetClass: classEntry,
-        targetActorClassId: addingNewClass ? next.classes.find((entry) => entry.compendiumId === classEntry.id)?.id ?? null : targetActorClass?.id ?? null,
+        targetActorClassId: addingNewClass
+          ? (next.classes.find((entry) => entry.compendiumId === classEntry.id)?.id ?? null)
+          : (targetActorClass?.id ?? null),
         mode: "levelup"
       });
+      const awardedClass = next.classes.find((entry) =>
+        addingNewClass ? entry.compendiumId === classEntry.id : entry.id === targetActorClass?.id
+      );
+      const awardedSubclass = classEntry.subclasses.find((entry) => entry.id === awardedClass?.subclassId);
+      const award = createProgressionAwardFromActorDelta(before, next, {
+        id: crypto.randomUUID(),
+        characterLevel: totalLevel(next),
+        classLevel: awardedClass?.level ?? 1,
+        className: classEntry.name,
+        classSource: classEntry.source,
+        subclassName: awardedSubclass?.name,
+        subclassSource: awardedSubclass?.source,
+        choices: collectAwardChoices(guidedSetup, guidedChoiceSpec),
+        references: collectAwardReferences(compendium),
+        committedAt: new Date().toISOString()
+      });
+      next.build = {
+        ...(next.build ?? { ruleset: "dnd-2024", mode: "guided", classes: [], selections: [] }),
+        schemaVersion: 2,
+        awards: [...(next.build?.awards ?? []), award],
+        overrides: next.build?.overrides ?? []
+      };
       return next;
     });
 

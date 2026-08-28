@@ -1,0 +1,71 @@
+{
+  "id": "sage-xphb",
+  "name": "Sage",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["con", "int", "wis"],
+    "options": ["con", "int", "wis"]
+  },
+  "originFeatId": "magic-initiate-wizard",
+  "originFeatName": "Magic Initiate (Wizard)",
+  "skillProficiencies": ["Arcana", "History"],
+  "toolProficiencies": ["Calligrapher's Supplies"],
+  "equipmentChoices": [
+    {
+      "id": "sage-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Quarterstaff, Calligrapher's Supplies, Book, Ink, Parchment (8), Robe, 11 GP",
+          "items": [
+            {
+              "name": "Quarterstaff",
+              "quantity": 1
+            },
+            {
+              "name": "Calligrapher's Supplies",
+              "quantity": 1
+            },
+            {
+              "name": "Book (History)",
+              "quantity": 1
+            },
+            {
+              "name": "Ink",
+              "quantity": 1
+            },
+            {
+              "name": "Parchment (sheet)",
+              "quantity": 8
+            },
+            {
+              "name": "Robe",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 11,
+              "currency": {
+                "gp": 11
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

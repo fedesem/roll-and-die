@@ -87,6 +87,8 @@ export function createClientActorDraft(kind: ActorKind, currentUserId?: string):
     ],
     classes: [],
     savingThrowProficiencies: [],
+    armorProficiencies: [],
+    weaponProficiencies: [],
     toolProficiencies: [],
     languageProficiencies: [],
     spellSlots: Array.from({ length: 9 }, (_, index) => ({ level: index + 1, total: 0, used: 0 })),
@@ -137,9 +139,12 @@ export function createClientActorDraft(kind: ActorKind, currentUserId?: string):
       kind === "character" || kind === "npc"
         ? {
             ruleset: "dnd-2024",
+            schemaVersion: 2,
             mode: "guided",
             classes: [],
-            selections: []
+            selections: [],
+            awards: [],
+            overrides: []
           }
         : undefined
   };

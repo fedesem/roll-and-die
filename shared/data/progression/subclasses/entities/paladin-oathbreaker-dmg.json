@@ -1,0 +1,45 @@
+{
+  "id": "paladin-oathbreaker-dmg",
+  "classId": "paladin-xphb",
+  "className": "Paladin",
+  "name": "Oathbreaker",
+  "source": "DMG",
+  "levels": {
+    "3": {
+      "features": ["Oath Spells (Oathbreaker)", "Control Undead", "Dreadful Aspect"],
+      "alwaysPreparedSpells": ["Hellish Rebuke", "Inflict Wounds", "Crown of Madness", "Darkness"],
+      "actions": [
+        {
+          "id": "action-control-undead",
+          "name": "Channel Divinity: Control Undead",
+          "source": "DMG",
+          "category": "feature",
+          "actionCost": "action",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "30 feet"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Aura of Hate"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Animate Dead", "Bestow Curse"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Blight", "Confusion"]
+    },
+    "15": {
+      "features": ["Supernatural Resistance"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Contagion", "Dominate Person"]
+    },
+    "20": {
+      "features": ["Dread Lord"]
+    }
+  }
+}

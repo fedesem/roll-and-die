@@ -1,0 +1,31 @@
+{
+  "id": "druid-shepherd-xge",
+  "classId": "druid-xphb",
+  "className": "Druid",
+  "name": "Circle of the Shepherd",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Speech of the Woods", "Spirit Totem"],
+      "actions": [
+        {
+          "id": "action-spirit-totem",
+          "name": "Spirit Totem (Bear / Hawk / Unicorn)",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "60 feet"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Mighty Summoner"]
+    },
+    "10": {
+      "features": ["Guardian Spirit"]
+    },
+    "14": {
+      "features": ["Faithful Summons"]
+    }
+  }
+}

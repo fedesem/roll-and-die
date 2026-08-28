@@ -1,0 +1,70 @@
+{
+  "id": "cleric-knowledge-phb",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Knowledge Domain",
+  "source": "PHB",
+  "levels": {
+    "3": {
+      "features": ["Blessings of Knowledge", "Domain Spells (Knowledge)", "Knowledge of the Ages"],
+      "alwaysPreparedSpells": ["Command", "Identify", "Augury", "Suggestion"],
+      "choices": [
+        {
+          "id": "knowledge-skills",
+          "title": "Blessings of Knowledge Skills",
+          "source": "subclass",
+          "choose": 2,
+          "options": [
+            {
+              "id": "arcana",
+              "name": "Arcana",
+              "grants": {
+                "skills": ["Arcana"],
+                "expertise": ["Arcana"]
+              }
+            },
+            {
+              "id": "history",
+              "name": "History",
+              "grants": {
+                "skills": ["History"],
+                "expertise": ["History"]
+              }
+            },
+            {
+              "id": "nature",
+              "name": "Nature",
+              "grants": {
+                "skills": ["Nature"],
+                "expertise": ["Nature"]
+              }
+            },
+            {
+              "id": "religion",
+              "name": "Religion",
+              "grants": {
+                "skills": ["Religion"],
+                "expertise": ["Religion"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Nondetection", "Speak with Dead"]
+    },
+    "6": {
+      "features": ["Read Thoughts"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Arcane Eye", "Confusion"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Legend Lore", "Scrying"]
+    },
+    "17": {
+      "features": ["Visions of the Past"]
+    }
+  }
+}

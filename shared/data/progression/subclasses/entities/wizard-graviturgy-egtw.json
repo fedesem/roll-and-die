@@ -1,0 +1,31 @@
+{
+  "id": "wizard-graviturgy-egtw",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "School of Graviturgy",
+  "source": "EGtW",
+  "levels": {
+    "3": {
+      "features": ["Adjust Density", "Gravity Well"],
+      "actions": [
+        {
+          "id": "action-adjust-density",
+          "name": "Adjust Density",
+          "source": "EGtW",
+          "category": "feature",
+          "actionCost": "action",
+          "range": "30 feet"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Gravity Well (Enhanced)"]
+    },
+    "10": {
+      "features": ["Violent Attraction"]
+    },
+    "14": {
+      "features": ["Event Horizon"]
+    }
+  }
+}

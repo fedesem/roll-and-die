@@ -50,6 +50,8 @@ import {
   snapPointToGridIntersection
 } from "../../../shared/vision.js";
 import { isActorAssignedToMap } from "../../../shared/campaignActors.js";
+import { playerNpcBuildSchema } from "../../../shared/contracts/domain.js";
+import { hasProgressionFieldOverride, validateProgressionAwardAgainstCurrentRules } from "../../../shared/rules/progressionEngine.js";
 import type { Database } from "../store.js";
 import { HttpError } from "../http/errors.js";
 import { createId, now } from "./authService.js";
@@ -80,7 +82,18 @@ export function buildCampaignSnapshot(
   user: UserProfile,
   compendium: Pick<
     CompendiumData,
-    "spells" | "feats" | "classes" | "variantRules" | "conditions" | "optionalFeatures" | "backgrounds" | "items" | "languages" | "races" | "skills" | "monsters"
+    | "spells"
+    | "feats"
+    | "classes"
+    | "variantRules"
+    | "conditions"
+    | "optionalFeatures"
+    | "backgrounds"
+    | "items"
+    | "languages"
+    | "races"
+    | "skills"
+    | "monsters"
   >
 ): CampaignSnapshot {
   const member = campaign.members.find((entry) => entry.userId === user.id);
@@ -287,7 +300,18 @@ function filterCampaignCompendium(
   campaign: Campaign,
   compendium: Pick<
     CompendiumData,
-    "spells" | "feats" | "classes" | "variantRules" | "conditions" | "optionalFeatures" | "backgrounds" | "items" | "languages" | "races" | "skills" | "monsters"
+    | "spells"
+    | "feats"
+    | "classes"
+    | "variantRules"
+    | "conditions"
+    | "optionalFeatures"
+    | "backgrounds"
+    | "items"
+    | "languages"
+    | "races"
+    | "skills"
+    | "monsters"
   >
 ) {
   const allowedBooks = new Set(campaign.allowedSourceBooks.map((entry) => entry.trim()).filter(Boolean));
@@ -377,6 +401,8 @@ export function createDefaultActor(campaignId: string, userId: string, name: str
     skills: defaultSkills(),
     classes: [],
     savingThrowProficiencies: [],
+    armorProficiencies: [],
+    weaponProficiencies: [],
     toolProficiencies: [],
     languageProficiencies: [],
     spellSlots: defaultSpellSlots(),
@@ -451,6 +477,8 @@ export function createMonsterActor(campaignId: string, userId: string, template:
     skills: defaultSkills(),
     classes: [],
     savingThrowProficiencies: [],
+    armorProficiencies: [],
+    weaponProficiencies: [],
     toolProficiencies: [],
     languageProficiencies: template.languages,
     spellSlots: defaultSpellSlots(),
@@ -782,10 +810,43 @@ function defaultSpellSlots(): SpellSlotTrack[] {
 function createDefaultPlayerNpcBuild(): PlayerNpcBuild {
   return {
     ruleset: "dnd-2024",
+    schemaVersion: 2,
     mode: "guided",
     classes: [],
-    selections: []
+    selections: [],
+    awards: [],
+    overrides: []
   };
+}
+
+function sanitizePlayerNpcBuild(
+  value: unknown,
+  fallback: PlayerNpcBuild | undefined,
+  actorBeforePatch?: ActorSheet
+): PlayerNpcBuild | undefined {
+  if (value === undefined) {
+    return fallback;
+  }
+  const parsed = playerNpcBuildSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new HttpError(400, "The character progression state is invalid.");
+  }
+
+  const previousAwards = fallback?.awards ?? [];
+  const nextAwards = parsed.data.awards ?? [];
+  if (nextAwards.length < previousAwards.length) {
+    throw new HttpError(409, "Completed level awards cannot be removed.");
+  }
+  previousAwards.forEach((award, index) => {
+    if (JSON.stringify(award) !== JSON.stringify(nextAwards[index])) {
+      throw new HttpError(409, "Completed level awards cannot be changed. Use sheet overrides instead.");
+    }
+  });
+  nextAwards.slice(previousAwards.length).forEach((award) => {
+    const errors = validateProgressionAwardAgainstCurrentRules(award, actorBeforePatch);
+    if (errors.length > 0) throw new HttpError(409, errors[0]);
+  });
+  return parsed.data;
 }
 
 function snapMeasurePreviewPoint(map: CampaignMap, point: Point, snapMode: MeasureSnapMode) {
@@ -854,11 +915,7 @@ function normalizeAbilityKeyArray(value: unknown, fallback: AbilityKey[]) {
   }
 
   return Array.from(
-    new Set(
-      value
-        .map((entry) => parseAbilityKey(entry, null))
-        .filter((entry): entry is AbilityKey => entry !== null)
-    )
+    new Set(value.map((entry) => parseAbilityKey(entry, null)).filter((entry): entry is AbilityKey => entry !== null))
   ).slice(0, 6);
 }
 
@@ -903,7 +960,7 @@ function sanitizeDeathSaves(value: unknown, fallback: ActorSheet["deathSaves"]):
     failures: getOptionalNumber(input.failures, fallback.failures, 0, 3),
     history: Array.isArray(input.history)
       ? input.history.filter((entry): entry is "success" | "failure" => entry === "success" || entry === "failure").slice(-3)
-      : fallback.history ?? []
+      : (fallback.history ?? [])
   };
 }
 
@@ -1158,12 +1215,15 @@ function sanitizeActorBonuses(value: unknown, fallback: ActorBonusEntry[]) {
       }
 
       const bonus = entry as Partial<ActorBonusEntry>;
+      const statBonus = parseAbilityKey(bonus.statBonus, null);
+      const minimum = typeof bonus.minimum === "number" ? getOptionalNumber(bonus.minimum, 0, -20, 20) : null;
       return {
         id: typeof bonus.id === "string" ? bonus.id : createId("bon"),
         name: getOptionalString(bonus.name, "Bonus"),
         sourceType: bonus.sourceType === "gear" ? "gear" : "buff",
         targetType:
           bonus.targetType === "speed" ||
+          bonus.targetType === "initiative" ||
           bonus.targetType === "ability" ||
           bonus.targetType === "skill" ||
           bonus.targetType === "savingThrow" ||
@@ -1172,6 +1232,8 @@ function sanitizeActorBonuses(value: unknown, fallback: ActorBonusEntry[]) {
             : "armorClass",
         targetKey: getOptionalString(bonus.targetKey, ""),
         value: getOptionalNumber(bonus.value, 0, -20, 20),
+        ...(statBonus ? { statBonus } : {}),
+        ...(minimum !== null ? { minimum } : {}),
         enabled: typeof bonus.enabled === "boolean" ? bonus.enabled : true
       };
     })
@@ -1213,11 +1275,9 @@ function getBonusTotal(actor: ActorSheet, targetType: ActorBonusEntry["targetTyp
       return total;
     }
 
-    if (!normalizedKey) {
-      return total + entry.value;
-    }
-
-    return entry.targetKey.trim().toLowerCase() === normalizedKey ? total + entry.value : total;
+    if (normalizedKey && entry.targetKey.trim().toLowerCase() !== normalizedKey) return total;
+    const statValue = entry.statBonus ? getAbilityModifier(actor.abilities[entry.statBonus]) : 0;
+    return total + entry.value + (entry.statBonus ? Math.max(entry.minimum ?? Number.NEGATIVE_INFINITY, statValue) : 0);
   }, 0);
 }
 
@@ -1264,18 +1324,20 @@ function finalizeDerivedActor(actor: ActorSheet) {
 
     if (totalLevel > 0) {
       actor.level = totalLevel;
-      actor.proficiencyBonus = Math.min(6, 2 + Math.floor((Math.max(totalLevel, 1) - 1) / 4));
+      if (!hasProgressionFieldOverride(actor, "proficiencyBonus")) {
+        actor.proficiencyBonus = Math.min(6, 2 + Math.floor((Math.max(totalLevel, 1) - 1) / 4));
+      }
       actor.className = actor.classes.map((entry) => entry.name).join(" / ");
 
       const firstSpellcastingClass = actor.classes.find((entry) => entry.spellcastingAbility);
-      if (firstSpellcastingClass?.spellcastingAbility) {
+      if (firstSpellcastingClass?.spellcastingAbility && !hasProgressionFieldOverride(actor, "spellcastingAbility")) {
         actor.spellcastingAbility = firstSpellcastingClass.spellcastingAbility;
       }
     }
   }
 
   actor.hitDice = formatHitDice(actor);
-  actor.armorClass = deriveArmorClass(actor);
+  if (!hasProgressionFieldOverride(actor, "armorClass")) actor.armorClass = deriveArmorClass(actor);
   actor.hitPoints.reducedMax = Math.max(0, actor.hitPoints.reducedMax);
   actor.hitPoints.current = Math.min(actor.hitPoints.current, Math.max(0, actor.hitPoints.max - actor.hitPoints.reducedMax));
   actor.hitPoints.temp = Math.max(0, actor.hitPoints.temp);
@@ -1429,6 +1491,7 @@ export function sanitizeDrawings(value: unknown, fallback: DrawingStroke[]) {
 }
 
 export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown> | ActorSheet) {
+  const actorBeforePatch = structuredClone(actor);
   actor.name = getOptionalString(patch.name, actor.name);
   actor.imageUrl = getOptionalString(patch.imageUrl, actor.imageUrl);
   actor.className = getOptionalString(patch.className, actor.className);
@@ -1456,6 +1519,8 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   actor.skills = sanitizeSkills(patch.skills, actor.skills);
   actor.classes = sanitizeActorClasses(patch.classes, actor.classes);
   actor.savingThrowProficiencies = normalizeAbilityKeyArray(patch.savingThrowProficiencies, actor.savingThrowProficiencies);
+  actor.armorProficiencies = normalizeStringArray(patch.armorProficiencies, actor.armorProficiencies);
+  actor.weaponProficiencies = normalizeStringArray(patch.weaponProficiencies, actor.weaponProficiencies);
   actor.toolProficiencies = normalizeStringArray(patch.toolProficiencies, actor.toolProficiencies);
   actor.languageProficiencies = normalizeStringArray(patch.languageProficiencies, actor.languageProficiencies);
   actor.spellSlots = sanitizeSpellSlots(patch.spellSlots, actor.spellSlots);
@@ -1478,6 +1543,7 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   actor.currency = sanitizeCurrency(patch.currency, actor.currency);
   actor.notes = getOptionalString(patch.notes, actor.notes);
   actor.color = getOptionalString(patch.color, actor.color);
+  actor.build = sanitizePlayerNpcBuild(patch.build, actor.build, actorBeforePatch);
   finalizeDerivedActor(actor);
 }
 
@@ -1487,12 +1553,7 @@ function stripTaggedSpellName(value: string) {
 }
 
 export function syncActorTokens(campaign: Campaign, actor: ActorSheet) {
-  const syncedStatusMarkers = Array.from(
-    new Set([
-      ...actor.conditions,
-      ...(actor.exhaustionLevel > 0 ? (["exhaustion"] as const) : [])
-    ])
-  );
+  const syncedStatusMarkers = Array.from(new Set([...actor.conditions, ...(actor.exhaustionLevel > 0 ? (["exhaustion"] as const) : [])]));
 
   for (const token of campaign.tokens) {
     if (token.actorId !== actor.id) {

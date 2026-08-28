@@ -1,0 +1,31 @@
+{
+  "id": "warlock-genie-tce",
+  "classId": "warlock-xphb",
+  "className": "Warlock",
+  "name": "The Genie",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Genie's Vessel", "Elemental Gift", "Expanded Spell List (Genie)"],
+      "alwaysPreparedSpells": ["Detect Evil and Good", "Phantasmal Force"]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Create Food and Water", "Tongues"]
+    },
+    "6": {
+      "features": ["Elemental Gift (Improved)"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Phantasmal Killer"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Creation", "Wish"]
+    },
+    "10": {
+      "features": ["Sanctuary Vessel"]
+    },
+    "14": {
+      "features": ["Limited Wish"]
+    }
+  }
+}

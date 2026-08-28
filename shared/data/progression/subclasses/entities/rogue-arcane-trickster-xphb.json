@@ -1,0 +1,61 @@
+{
+  "id": "rogue-arcane-trickster-xphb",
+  "classId": "rogue-xphb",
+  "className": "Rogue",
+  "name": "Arcane Trickster",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Spellcasting (Arcane Trickster)", "Mage Hand Legerdemain"],
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 3,
+        "spellsKnown": 3,
+        "spellcastingAbility": "int"
+      },
+      "alwaysPreparedSpells": ["Mage Hand"],
+      "actions": [
+        {
+          "id": "action-mage-hand-legerdemain",
+          "name": "Mage Hand Legerdemain",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "30 feet"
+        }
+      ]
+    },
+    "4": {
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 4
+      }
+    },
+    "7": {
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 5
+      }
+    },
+    "9": {
+      "features": ["Magical Ambush"]
+    },
+    "10": {
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 4,
+        "spellsKnown": 7
+      }
+    },
+    "13": {
+      "features": ["Versatile Trickster"],
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 9
+      }
+    },
+    "17": {
+      "features": ["Spell Thief"]
+    }
+  }
+}

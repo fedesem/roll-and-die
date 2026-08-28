@@ -1,0 +1,38 @@
+{
+  "id": "artificer-alchemist-tce",
+  "classId": "artificer-tce",
+  "className": "Artificer",
+  "name": "Alchemist",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Tool Proficiency (Alchemist)", "Alchemist Spells", "Experimental Elixir"],
+      "alwaysPreparedSpells": ["Healing Word", "Ray of Sickness"],
+      "actions": [
+        {
+          "id": "action-experimental-elixir",
+          "name": "Create Experimental Elixir",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "action",
+          "range": "Touch"
+        }
+      ]
+    },
+    "5": {
+      "features": ["Alchemical Savant"],
+      "alwaysPreparedSpells": ["Flaming Sphere", "Melf's Acid Arrow"]
+    },
+    "9": {
+      "features": ["Restorative Reagents"],
+      "alwaysPreparedSpells": ["Gaseous Form", "Mass Healing Word"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Blight", "Death Ward"]
+    },
+    "15": {
+      "features": ["Chemical Mastery"],
+      "alwaysPreparedSpells": ["Cloudkill", "Raise Dead"]
+    }
+  }
+}

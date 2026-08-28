@@ -1,0 +1,45 @@
+{
+  "id": "druid-spores-tce",
+  "classId": "druid-xphb",
+  "className": "Druid",
+  "name": "Circle of Spores",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Circle Spells (Spores)", "Halo of Spores", "Symbiotic Entity"],
+      "alwaysPreparedSpells": ["Chill Touch", "Blindness/Deafness", "Gentle Repose"],
+      "actions": [
+        {
+          "id": "action-symbiotic-entity",
+          "name": "Symbiotic Entity",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "action",
+          "resourceCost": {
+            "resourceName": "Wild Shape",
+            "count": 1
+          },
+          "range": "Self"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Animate Dead", "Gaseous Form"]
+    },
+    "6": {
+      "features": ["Fungal Infestation"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Blight", "Confusion"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Cloudkill", "Contagion"]
+    },
+    "10": {
+      "features": ["Spreading Spores"]
+    },
+    "14": {
+      "features": ["Fungal Body"]
+    }
+  }
+}

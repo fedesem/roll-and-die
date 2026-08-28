@@ -1,0 +1,21 @@
+{
+  "id": "monk-drunken-master-xge",
+  "classId": "monk-xphb",
+  "className": "Monk",
+  "name": "Way of the Drunken Master",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Bonus Proficiencies (Drunken Master)", "Drunken Technique"]
+    },
+    "6": {
+      "features": ["Tipsy Sway", "Leap to Your Feet", "Redirect Attack"]
+    },
+    "11": {
+      "features": ["Drunkard's Luck"]
+    },
+    "17": {
+      "features": ["Intoxicated Frenzy"]
+    }
+  }
+}

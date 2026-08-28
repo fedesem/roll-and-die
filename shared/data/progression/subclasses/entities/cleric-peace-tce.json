@@ -1,0 +1,38 @@
+{
+  "id": "cleric-peace-tce",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Peace Domain",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Domain Spells (Peace)", "Emboldening Bond", "Balm of Peace"],
+      "alwaysPreparedSpells": ["Heroism", "Sanctuary", "Aid", "Warding Bond"],
+      "actions": [
+        {
+          "id": "action-emboldening-bond",
+          "name": "Emboldening Bond",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "action",
+          "range": "30 feet"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Beacon of Hope", "Sending"]
+    },
+    "6": {
+      "features": ["Protective Bond"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Aura of Purity", "Otiluke's Resilient Sphere"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Greater Restoration", "Rary's Telepathic Bond"]
+    },
+    "17": {
+      "features": ["Expansive Bond"]
+    }
+  }
+}

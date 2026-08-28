@@ -1,0 +1,31 @@
+{
+  "id": "sorcerer-wild-magic-xphb",
+  "classId": "sorcerer-xphb",
+  "className": "Sorcerer",
+  "name": "Wild Magic Sorcery",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Tides of Chaos", "Wild Magic Surge"],
+      "actions": [
+        {
+          "id": "action-tides-of-chaos",
+          "name": "Tides of Chaos",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "free",
+          "range": "Self"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Bend Luck"]
+    },
+    "14": {
+      "features": ["Controlled Chaos"]
+    },
+    "18": {
+      "features": ["Wild Bombardment"]
+    }
+  }
+}

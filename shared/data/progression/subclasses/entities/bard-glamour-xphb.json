@@ -1,0 +1,18 @@
+{
+  "id": "bard-glamour-xphb",
+  "classId": "bard-xphb",
+  "className": "Bard",
+  "name": "College of Glamour",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Beguiling Magic", "Mantle of Inspiration"]
+    },
+    "6": {
+      "features": ["Mantle of Majesty"]
+    },
+    "14": {
+      "features": ["Unbreakable Majesty"]
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "wizard-chronurgy-egtw",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "School of Chronurgy",
+  "source": "EGtW",
+  "levels": {
+    "3": {
+      "features": ["Chronal Shift", "Temporal Awareness"],
+      "grants": {
+        "passiveBonuses": [
+          {
+            "target": "initiative",
+            "statBonus": "int"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "id": "action-chronal-shift",
+          "name": "Chronal Shift",
+          "source": "EGtW",
+          "category": "feature",
+          "actionCost": "reaction",
+          "range": "30 feet"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Momentary Stasis"]
+    },
+    "10": {
+      "features": ["Arcane Abeyance"]
+    },
+    "14": {
+      "features": ["Convergent Future"]
+    }
+  }
+}

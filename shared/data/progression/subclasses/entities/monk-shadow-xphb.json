@@ -1,0 +1,21 @@
+{
+  "id": "monk-shadow-xphb",
+  "classId": "monk-xphb",
+  "className": "Monk",
+  "name": "Warrior of Shadow",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Shadow Arts", "Darkness"]
+    },
+    "6": {
+      "features": ["Shadow Step"]
+    },
+    "11": {
+      "features": ["Improved Shadow Step"]
+    },
+    "17": {
+      "features": ["Cloak of Shadows"]
+    }
+  }
+}

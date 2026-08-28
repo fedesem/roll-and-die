@@ -33,6 +33,8 @@ import { actorSheetStateExpansionMigration } from "./133_actor_sheet_state_expan
 import { actorHitPointReductionMigration } from "./134_actor_hit_point_reduction.js";
 import { classSubclassStructureMigration } from "./135_class_subclass_structure.js";
 import { compendiumGuideChoicesMigration } from "./136_compendium_guide_choices.js";
+import { actorProgressionLedgerMigration } from "./137_actor_progression_ledger.js";
+import { actorDynamicBonusesMigration } from "./138_actor_dynamic_bonuses.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -69,5 +71,7 @@ export const migrations = [
   actorSheetStateExpansionMigration,
   actorHitPointReductionMigration,
   classSubclassStructureMigration,
-  compendiumGuideChoicesMigration
+  compendiumGuideChoicesMigration,
+  actorProgressionLedgerMigration,
+  actorDynamicBonusesMigration
 ];

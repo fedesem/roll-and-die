@@ -1,0 +1,45 @@
+{
+  "id": "paladin-ancients-xphb",
+  "classId": "paladin-xphb",
+  "className": "Paladin",
+  "name": "Oath of the Ancients",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Oath Spells (Ancients)", "Nature's Wrath"],
+      "alwaysPreparedSpells": ["Ensnaring Strike", "Speak with Animals", "Misty Step", "Moonbeam"],
+      "actions": [
+        {
+          "id": "action-natures-wrath",
+          "name": "Channel Divinity: Nature's Wrath",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "action",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "30 feet"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Aura of Warding"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Plant Growth", "Protection from Energy"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Ice Storm", "Stoneskin"]
+    },
+    "15": {
+      "features": ["Undying Sentinel"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Commune with Nature", "Tree Stride"]
+    },
+    "20": {
+      "features": ["Elder Champion"]
+    }
+  }
+}

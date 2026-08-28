@@ -1,0 +1,21 @@
+{
+  "id": "monk-astral-self-tce",
+  "classId": "monk-xphb",
+  "className": "Monk",
+  "name": "Way of the Astral Self",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Arms of the Astral Self"]
+    },
+    "6": {
+      "features": ["Visage of the Astral Self"]
+    },
+    "11": {
+      "features": ["Body of the Astral Self"]
+    },
+    "17": {
+      "features": ["Awakened Astral Self"]
+    }
+  }
+}

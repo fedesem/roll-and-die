@@ -1,0 +1,43 @@
+{
+  "id": "rogue-scout-xge",
+  "classId": "rogue-xphb",
+  "className": "Rogue",
+  "name": "Scout",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Skirmisher", "Survivalist"],
+      "grants": {
+        "skills": ["Nature", "Survival"],
+        "expertise": ["Nature", "Survival"]
+      },
+      "actions": [
+        {
+          "id": "action-skirmisher",
+          "name": "Skirmisher Movement",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "reaction",
+          "range": "Self"
+        }
+      ]
+    },
+    "9": {
+      "features": ["Superior Mobility"],
+      "grants": {
+        "passiveBonuses": [
+          {
+            "target": "speed",
+            "bonus": 10
+          }
+        ]
+      }
+    },
+    "13": {
+      "features": ["Ambush Master"]
+    },
+    "17": {
+      "features": ["Sudden Strike"]
+    }
+  }
+}

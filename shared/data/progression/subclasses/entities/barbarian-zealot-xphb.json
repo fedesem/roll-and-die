@@ -1,0 +1,21 @@
+{
+  "id": "barbarian-zealot-xphb",
+  "classId": "barbarian-xphb",
+  "className": "Barbarian",
+  "name": "Path of the Zealot",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Divine Fury", "Warrior of the Gods"]
+    },
+    "6": {
+      "features": ["Fanatical Focus"]
+    },
+    "10": {
+      "features": ["Zealous Presence"]
+    },
+    "14": {
+      "features": ["Rage of the Gods"]
+    }
+  }
+}

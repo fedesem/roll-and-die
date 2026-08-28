@@ -1,0 +1,21 @@
+{
+  "id": "barbarian-world-tree-xphb",
+  "classId": "barbarian-xphb",
+  "className": "Barbarian",
+  "name": "Path of the World Tree",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Vitality of the Tree"]
+    },
+    "6": {
+      "features": ["Branches of the Tree"]
+    },
+    "10": {
+      "features": ["Battering Roots"]
+    },
+    "14": {
+      "features": ["Travel Along the Tree"]
+    }
+  }
+}

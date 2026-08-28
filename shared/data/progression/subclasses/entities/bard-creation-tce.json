@@ -1,0 +1,18 @@
+{
+  "id": "bard-creation-tce",
+  "classId": "bard-xphb",
+  "className": "Bard",
+  "name": "College of Creation",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Mote of Potential", "Performance of Creation"]
+    },
+    "6": {
+      "features": ["Animating Performance"]
+    },
+    "14": {
+      "features": ["Creative Crescendo"]
+    }
+  }
+}

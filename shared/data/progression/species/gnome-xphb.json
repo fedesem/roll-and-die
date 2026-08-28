@@ -1,0 +1,36 @@
+{
+  "id": "gnome-xphb",
+  "name": "Gnome",
+  "source": "XPHB",
+  "sizes": ["Small"],
+  "speed": 30,
+  "darkvision": 60,
+  "creatureTypes": ["Humanoid"],
+  "languages": ["Common", "Gnomish"],
+  "bonusLanguageCount": 1,
+  "features": ["Darkvision", "Gnomish Cunning"],
+  "choices": [
+    {
+      "id": "gnome-lineage",
+      "title": "Gnomish Lineage",
+      "source": "species",
+      "choose": 1,
+      "options": [
+        {
+          "id": "forest-gnome",
+          "name": "Forest Gnome",
+          "grants": {
+            "features": ["Gnomish Lineage: Forest Gnome (Minor Illusion, Speak with Small Beasts)"]
+          }
+        },
+        {
+          "id": "rock-gnome",
+          "name": "Rock Gnome",
+          "grants": {
+            "features": ["Gnomish Lineage: Rock Gnome (Tinker, Mending)"]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,255 @@
+{
+  "id": "sorcerer-xphb",
+  "name": "Sorcerer",
+  "source": "XPHB",
+  "hitDieFaces": 6,
+  "primaryAbilities": ["cha"],
+  "savingThrows": ["con", "cha"],
+  "armorProficiencies": [],
+  "weaponProficiencies": ["Simple Weapons"],
+  "toolProficiencies": [],
+  "startingSkillChoices": { "choose": 2, "options": ["Arcana", "Deception", "Insight", "Intimidation", "Persuasion", "Religion"] },
+  "equipmentChoices": [
+    {
+      "id": "sorcerer-equipment",
+      "label": "Class Equipment",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Spear, Daggers (2), Arcane Focus, Dungeoneer's Pack, 28 GP",
+          "items": [
+            { "referenceId": "Spear|XPHB", "name": "Spear", "quantity": 1 },
+            { "referenceId": "Dagger|XPHB", "name": "Dagger", "quantity": 2 },
+            { "referenceId": "Crystal|XPHB", "name": "Crystal", "quantity": 1 },
+            { "referenceId": "Dungeoneer's Pack|XPHB", "name": "Dungeoneer's Pack", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 28, "currency": { "gp": 28 } }
+          ]
+        },
+        { "id": "package-b", "label": "Option B: 50 GP", "items": [{ "name": "Gold Coins", "quantity": 50, "currency": { "gp": 50 } }] }
+      ]
+    }
+  ],
+  "spellListId": "sorcerer",
+  "multiclassing": {
+    "prerequisites": { "cha": 13 },
+    "proficienciesGranted": {},
+    "casterType": "full"
+  },
+  "levels": {
+    "1": {
+      "features": ["Innate Sorcery", "Spellcasting"],
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 4,
+        "spellsKnown": 2,
+        "changeCadence": "onLevelUp",
+        "spellcastingAbility": "cha"
+      }
+    },
+    "2": {
+      "features": ["Font of Magic", "Metamagic"],
+      "choices": [
+        {
+          "id": "sorcerer-metamagic",
+          "title": "Metamagic",
+          "source": "class",
+          "choose": 2,
+          "options": [
+            { "id": "careful-spell", "name": "Careful Spell", "grants": { "features": ["Metamagic: Careful Spell"] } },
+            { "id": "distant-spell", "name": "Distant Spell", "grants": { "features": ["Metamagic: Distant Spell"] } },
+            { "id": "empowered-spell", "name": "Empowered Spell", "grants": { "features": ["Metamagic: Empowered Spell"] } },
+            { "id": "extended-spell", "name": "Extended Spell", "grants": { "features": ["Metamagic: Extended Spell"] } },
+            { "id": "heightened-spell", "name": "Heightened Spell", "grants": { "features": ["Metamagic: Heightened Spell"] } },
+            { "id": "quickened-spell", "name": "Quickened Spell", "grants": { "features": ["Metamagic: Quickened Spell"] } },
+            { "id": "seeking-spell", "name": "Seeking Spell", "grants": { "features": ["Metamagic: Seeking Spell"] } },
+            { "id": "subtle-spell", "name": "Subtle Spell", "grants": { "features": ["Metamagic: Subtle Spell"] } },
+            { "id": "transmuted-spell", "name": "Transmuted Spell", "grants": { "features": ["Metamagic: Transmuted Spell"] } },
+            { "id": "twinned-spell", "name": "Twinned Spell", "grants": { "features": ["Metamagic: Twinned Spell"] } }
+          ]
+        }
+      ],
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 4
+      },
+      "resources": [
+        {
+          "name": "Sorcery Points",
+          "maxFormula": { "type": "level" },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "3": {
+      "features": ["Sorcerous Origin"],
+      "subclassChoice": true,
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 6
+      }
+    },
+    "4": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 5,
+        "spellsKnown": 7
+      }
+    },
+    "5": {
+      "features": ["Sorcerous Restoration"],
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 9
+      }
+    },
+    "6": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 10
+      }
+    },
+    "7": {
+      "features": ["Sorcery Incarnate"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0],
+        "spellsKnown": 11
+      }
+    },
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0],
+        "spellsKnown": 12
+      }
+    },
+    "9": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0],
+        "spellsKnown": 14
+      }
+    },
+    "10": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        "cantripsKnown": 6,
+        "spellsKnown": 15
+      }
+    },
+    "11": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 0, 0, 0],
+        "spellsKnown": 16
+      }
+    },
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 0, 0, 0],
+        "spellsKnown": 16
+      }
+    },
+    "13": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 0, 0],
+        "spellsKnown": 17
+      }
+    },
+    "14": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 0, 0],
+        "spellsKnown": 17
+      }
+    },
+    "15": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 0],
+        "spellsKnown": 18
+      }
+    },
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 0],
+        "spellsKnown": 18
+      }
+    },
+    "17": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 1],
+        "spellsKnown": 19
+      }
+    },
+    "18": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 1, 1, 1, 1],
+        "spellsKnown": 20
+      }
+    },
+    "19": {
+      "features": ["Epic Boon"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 2, 1, 1, 1],
+        "spellsKnown": 21
+      }
+    },
+    "20": {
+      "features": ["Arcane Apotheosis"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 2, 2, 1, 1],
+        "spellsKnown": 22
+      }
+    }
+  },
+  "subclasses": [
+    {
+      "id": "sorcerer-aberrant",
+      "name": "Aberrant Sorcery",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Psionic Spells", "Telepathic Speech"] },
+        "6": { "features": ["Psionic Sorcery", "Psychic Defenses"] },
+        "14": { "features": ["Revelation in Flesh"] },
+        "18": { "features": ["Warping Implosion"] }
+      }
+    },
+    {
+      "id": "sorcerer-clockwork",
+      "name": "Clockwork Sorcery",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Clockwork Spells", "Restore Balance"] },
+        "6": { "features": ["Bastion of Law"] },
+        "14": { "features": ["Trance of Order"] },
+        "18": { "features": ["Clockwork Cavalcade"] }
+      }
+    },
+    {
+      "id": "sorcerer-draconic",
+      "name": "Draconic Sorcery",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Draconic Resilience", "Draconic Spells"] },
+        "6": { "features": ["Elemental Affinity"] },
+        "14": { "features": ["Dragon Wings"] },
+        "18": { "features": ["Dragon Companion"] }
+      }
+    },
+    {
+      "id": "sorcerer-wild-magic",
+      "name": "Wild Magic Sorcery",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Tides of Chaos", "Wild Magic Surge", "Wild Magic Spells"] },
+        "6": { "features": ["Bend Luck"] },
+        "14": { "features": ["Controlled Chaos"] },
+        "18": { "features": ["Spell Bombardment"] }
+      }
+    }
+  ]
+}

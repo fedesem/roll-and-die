@@ -1,0 +1,31 @@
+{
+  "id": "paladin-crown-scag",
+  "classId": "paladin-xphb",
+  "className": "Paladin",
+  "name": "Oath of the Crown",
+  "source": "SCAG",
+  "levels": {
+    "3": {
+      "features": ["Oath Spells (Crown)", "Champion Challenge", "Turn the Tide"],
+      "alwaysPreparedSpells": ["Command", "Compelled Duel", "Warding Bond", "Zone of Truth"]
+    },
+    "7": {
+      "features": ["Divine Allegiance"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Aura of Vitality", "Spirit Guardians"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Banishment", "Guardian of Faith"]
+    },
+    "15": {
+      "features": ["Unyielding Spirit"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Circle of Power", "Geas"]
+    },
+    "20": {
+      "features": ["Exalted Champion"]
+    }
+  }
+}

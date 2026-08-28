@@ -1,0 +1,29 @@
+{
+  "id": "sorcerer-draconic-xphb",
+  "classId": "sorcerer-xphb",
+  "className": "Sorcerer",
+  "name": "Draconic Sorcery",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Draconic Resilience", "Dragon Speech"],
+      "grants": {
+        "passiveBonuses": [
+          {
+            "target": "armorClass",
+            "bonus": 3
+          }
+        ]
+      }
+    },
+    "6": {
+      "features": ["Elemental Affinity"]
+    },
+    "14": {
+      "features": ["Dragon Wings"]
+    },
+    "18": {
+      "features": ["Dragon Companion"]
+    }
+  }
+}

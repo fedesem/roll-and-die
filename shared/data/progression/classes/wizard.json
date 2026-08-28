@@ -1,0 +1,230 @@
+{
+  "id": "wizard-xphb",
+  "name": "Wizard",
+  "source": "XPHB",
+  "hitDieFaces": 6,
+  "primaryAbilities": ["int"],
+  "savingThrows": ["int", "wis"],
+  "armorProficiencies": [],
+  "weaponProficiencies": ["Simple Weapons (Daggers, Darts, Slings, Quarterstaffs, Light Crossbows)"],
+  "toolProficiencies": [],
+  "startingSkillChoices": { "choose": 2, "options": ["Arcana", "History", "Insight", "Investigation", "Medicine", "Nature", "Religion"] },
+  "equipmentChoices": [
+    {
+      "id": "wizard-equipment",
+      "label": "Class Equipment",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Daggers (2), Quarterstaff, Robe, Spellbook, Scholar's Pack, 5 GP",
+          "items": [
+            { "referenceId": "Dagger|XPHB", "name": "Dagger", "quantity": 2 },
+            { "referenceId": "Quarterstaff|XPHB", "name": "Quarterstaff", "quantity": 1 },
+            { "referenceId": "Robe|XPHB", "name": "Robe", "quantity": 1 },
+            { "name": "Spellbook", "quantity": 1 },
+            { "referenceId": "Scholar's Pack|XPHB", "name": "Scholar's Pack", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 5, "currency": { "gp": 5 } }
+          ]
+        },
+        { "id": "package-b", "label": "Option B: 55 GP", "items": [{ "name": "Gold Coins", "quantity": 55, "currency": { "gp": 55 } }] }
+      ]
+    }
+  ],
+  "spellListId": "wizard",
+  "multiclassing": {
+    "prerequisites": { "int": 13 },
+    "proficienciesGranted": {},
+    "casterType": "full"
+  },
+  "levels": {
+    "1": {
+      "features": ["Arcane Recovery", "Ritual Adept", "Spellcasting", "Spellbook"],
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 3,
+        "spellbookAdditions": 6,
+        "preparedSpellsFormula": { "type": "abilityPlusLevel", "ability": "int" },
+        "changeCadence": "onLongRest",
+        "ritualCasting": true,
+        "spellcastingAbility": "int"
+      }
+    },
+    "2": {
+      "features": ["Scholar"],
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "3": {
+      "features": ["Wizard Subclass"],
+      "subclassChoice": true,
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "4": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 4,
+        "spellbookAdditions": 2
+      }
+    },
+    "5": {
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "6": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "7": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "9": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "10": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        "cantripsKnown": 5,
+        "spellbookAdditions": 2
+      }
+    },
+    "11": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 0, 0, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 0, 0, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "13": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 0, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "14": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 0, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "15": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 0],
+        "spellbookAdditions": 2
+      }
+    },
+    "17": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 1],
+        "spellbookAdditions": 2
+      }
+    },
+    "18": {
+      "features": ["Spell Mastery"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 1, 1, 1, 1],
+        "spellbookAdditions": 2
+      }
+    },
+    "19": {
+      "features": ["Epic Boon"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 2, 1, 1, 1],
+        "spellbookAdditions": 2
+      }
+    },
+    "20": {
+      "features": ["Signature Spells"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 2, 2, 1, 1],
+        "spellbookAdditions": 2
+      }
+    }
+  },
+  "subclasses": [
+    {
+      "id": "wizard-abjurer",
+      "name": "Abjurer",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Abjuration Savant", "Arcane Ward"] },
+        "6": { "features": ["Projected Ward"] },
+        "10": { "features": ["Spell Breaker"] },
+        "14": { "features": ["Spell Resistance"] }
+      }
+    },
+    {
+      "id": "wizard-diviner",
+      "name": "Diviner",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Divination Savant", "Portent"] },
+        "6": { "features": ["Expert Divination"] },
+        "10": { "features": ["The Third Eye"] },
+        "14": { "features": ["Greater Portent"] }
+      }
+    },
+    {
+      "id": "wizard-evoker",
+      "name": "Evoker",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Evocation Savant", "Sculpt Spells"] },
+        "6": { "features": ["Potent Cantrip"] },
+        "10": { "features": ["Empowered Evocation"] },
+        "14": { "features": ["Overchannel"] }
+      }
+    },
+    {
+      "id": "wizard-illusionist",
+      "name": "Illusionist",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Illusion Savant", "Improved Minor Illusion"] },
+        "6": { "features": ["Malleable Illusions"] },
+        "10": { "features": ["Illusory Self"] },
+        "14": { "features": ["Illusory Reality"] }
+      }
+    }
+  ]
+}

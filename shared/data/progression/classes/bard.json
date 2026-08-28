@@ -1,0 +1,285 @@
+{
+  "id": "bard-xphb",
+  "name": "Bard",
+  "source": "XPHB",
+  "hitDieFaces": 8,
+  "primaryAbilities": ["cha"],
+  "savingThrows": ["dex", "cha"],
+  "armorProficiencies": ["Light Armor"],
+  "weaponProficiencies": ["Simple Weapons"],
+  "toolProficiencies": ["Three Musical Instruments"],
+  "startingSkillChoices": {
+    "choose": 3,
+    "options": [
+      "Acrobatics",
+      "Animal Handling",
+      "Arcana",
+      "Athletics",
+      "Deception",
+      "History",
+      "Insight",
+      "Intimidation",
+      "Investigation",
+      "Medicine",
+      "Nature",
+      "Perception",
+      "Performance",
+      "Persuasion",
+      "Religion",
+      "Sleight of Hand",
+      "Stealth",
+      "Survival"
+    ]
+  },
+  "equipmentChoices": [
+    {
+      "id": "bard-equipment",
+      "label": "Class Equipment",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Leather Armor, Daggers (2), Musical Instrument, Entertainer's Pack, 19 GP",
+          "items": [
+            { "referenceId": "Leather Armor|XPHB", "name": "Leather Armor", "quantity": 1 },
+            { "referenceId": "Dagger|XPHB", "name": "Dagger", "quantity": 2 },
+            { "name": "Musical Instrument", "quantity": 1 },
+            { "referenceId": "Entertainer's Pack|XPHB", "name": "Entertainer's Pack", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 19, "currency": { "gp": 19 } }
+          ]
+        },
+        { "id": "package-b", "label": "Option B: 90 GP", "items": [{ "name": "Gold Coins", "quantity": 90, "currency": { "gp": 90 } }] }
+      ]
+    }
+  ],
+  "spellListId": "bard",
+  "multiclassing": {
+    "prerequisites": { "cha": 13 },
+    "proficienciesGranted": {
+      "armor": ["Light Armor"],
+      "skills": { "count": 1, "chooseFrom": [] }
+    },
+    "casterType": "full"
+  },
+  "levels": {
+    "1": {
+      "features": ["Bardic Inspiration", "Spellcasting"],
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 2,
+        "spellsKnown": 4,
+        "changeCadence": "onLevelUp",
+        "ritualCasting": true,
+        "spellcastingAbility": "cha"
+      },
+      "resources": [
+        {
+          "name": "Bardic Inspiration",
+          "maxFormula": { "type": "statModifier", "stat": "cha", "min": 1 },
+          "resetOn": "longRest",
+          "dice": "1d6"
+        }
+      ]
+    },
+    "2": {
+      "features": ["Expertise", "Jack of All Trades"],
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 5
+      }
+    },
+    "3": {
+      "features": ["Bard College"],
+      "subclassChoice": true,
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 6
+      }
+    },
+    "4": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 3,
+        "spellsKnown": 7
+      }
+    },
+    "5": {
+      "features": ["Font of Inspiration"],
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 9
+      },
+      "resources": [
+        {
+          "name": "Bardic Inspiration",
+          "maxFormula": { "type": "statModifier", "stat": "cha", "min": 1 },
+          "resetOn": "shortRest",
+          "dice": "1d8"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Countercharm"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 10
+      }
+    },
+    "7": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0],
+        "spellsKnown": 11
+      }
+    },
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0],
+        "spellsKnown": 12
+      }
+    },
+    "9": {
+      "features": ["Song of Rest"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0],
+        "spellsKnown": 14
+      }
+    },
+    "10": {
+      "features": ["Magical Secrets"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        "cantripsKnown": 4,
+        "spellsKnown": 16
+      },
+      "resources": [
+        {
+          "name": "Bardic Inspiration",
+          "maxFormula": { "type": "statModifier", "stat": "cha", "min": 1 },
+          "resetOn": "shortRest",
+          "dice": "1d10"
+        }
+      ]
+    },
+    "11": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 0, 0, 0],
+        "spellsKnown": 17
+      }
+    },
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 0, 0, 0],
+        "spellsKnown": 17
+      }
+    },
+    "13": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 0, 0],
+        "spellsKnown": 18
+      }
+    },
+    "14": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 0, 0],
+        "spellsKnown": 18
+      }
+    },
+    "15": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 0],
+        "spellsKnown": 19
+      },
+      "resources": [
+        {
+          "name": "Bardic Inspiration",
+          "maxFormula": { "type": "statModifier", "stat": "cha", "min": 1 },
+          "resetOn": "shortRest",
+          "dice": "1d12"
+        }
+      ]
+    },
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 0],
+        "spellsKnown": 19
+      }
+    },
+    "17": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 1, 1, 1, 1],
+        "spellsKnown": 20
+      }
+    },
+    "18": {
+      "features": ["Superior Inspiration"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 1, 1, 1, 1],
+        "spellsKnown": 22
+      }
+    },
+    "19": {
+      "features": ["Epic Boon"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 2, 1, 1, 1],
+        "spellsKnown": 22
+      }
+    },
+    "20": {
+      "features": ["Words of Creation"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 3, 2, 2, 1, 1],
+        "spellsKnown": 22
+      }
+    }
+  },
+  "subclasses": [
+    {
+      "id": "bard-dance",
+      "name": "College of Dance",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Dazzling Footwork", "Inspiring Movement"] },
+        "6": { "features": ["Tandem Footwork"] },
+        "14": { "features": ["Leading Escape"] }
+      }
+    },
+    {
+      "id": "bard-glamour",
+      "name": "College of Glamour",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Beguiling Magic", "Mantle of Inspiration"] },
+        "6": { "features": ["Mantle of Majesty"] },
+        "14": { "features": ["Unbreakable Majesty"] }
+      }
+    },
+    {
+      "id": "bard-lore",
+      "name": "College of Lore",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Bonus Proficiencies", "Cutting Words"] },
+        "6": { "features": ["Additional Magical Secrets"] },
+        "14": { "features": ["Peerless Skill"] }
+      }
+    },
+    {
+      "id": "bard-valor",
+      "name": "College of Valor",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Combat Inspiration", "Martial Training"] },
+        "6": { "features": ["Extra Attack"] },
+        "14": { "features": ["Battle Magic"] }
+      }
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "id": "paladin-vengeance-xphb",
+  "classId": "paladin-xphb",
+  "className": "Paladin",
+  "name": "Oath of Vengeance",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Oath Spells (Vengeance)", "Vow of Enmity"],
+      "alwaysPreparedSpells": ["Bane", "Hunter's Mark", "Hold Person", "Misty Step"],
+      "actions": [
+        {
+          "id": "action-vow-of-enmity",
+          "name": "Channel Divinity: Vow of Enmity",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "30 feet"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Relentless Avenger"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Haste", "Protection from Energy"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Banishment", "Dimension Door"]
+    },
+    "15": {
+      "features": ["Soul of Vengeance"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Hold Monster", "Scrying"]
+    },
+    "20": {
+      "features": ["Avenging Angel"]
+    }
+  }
+}

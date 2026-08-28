@@ -1,0 +1,263 @@
+{
+  "id": "artificer-tce",
+  "name": "Artificer",
+  "source": "TCE",
+  "hitDieFaces": 8,
+  "primaryAbilities": ["int"],
+  "savingThrows": ["con", "int"],
+  "armorProficiencies": ["Light Armor", "Medium Armor", "Shields"],
+  "weaponProficiencies": ["Simple Weapons"],
+  "toolProficiencies": ["Thieves' Tools", "Tinker's Tools", "One Artisan's Tools"],
+  "startingSkillChoices": {
+    "choose": 2,
+    "options": ["Arcana", "History", "Investigation", "Medicine", "Nature", "Perception", "Sleight of Hand"]
+  },
+  "equipmentChoices": [],
+  "spellListId": "artificer",
+  "multiclassing": {
+    "prerequisites": { "int": 13 },
+    "proficienciesGranted": {
+      "armor": ["Light Armor", "Medium Armor", "Shields"],
+      "tools": ["Thieves' Tools", "Tinker's Tools"]
+    },
+    "casterType": "half"
+  },
+  "subclasses": [],
+  "levels": {
+    "1": {
+      "features": ["Magical Tinkering", "Spellcasting"],
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 2,
+        "preparedSpellsFormula": { "type": "abilityPlusLevel", "ability": "int" },
+        "changeCadence": "onLongRest",
+        "ritualCasting": true,
+        "spellcastingAbility": "int"
+      }
+    },
+    "2": {
+      "features": ["Infuse Item"],
+      "choices": [
+        {
+          "id": "artificer-infusions-2",
+          "title": "Artificer Infusions",
+          "source": "class",
+          "choose": 4,
+          "options": [
+            { "id": "enhanced-defense", "name": "Enhanced Defense", "grants": { "features": ["Infusion: Enhanced Defense (+1 AC)"] } },
+            {
+              "id": "enhanced-arcane-focus",
+              "name": "Enhanced Arcane Focus",
+              "grants": { "features": ["Infusion: Enhanced Arcane Focus (+1 spell attack & ignores half cover)"] }
+            },
+            {
+              "id": "enhanced-weapon",
+              "name": "Enhanced Weapon",
+              "grants": { "features": ["Infusion: Enhanced Weapon (+1 attack and damage)"] }
+            },
+            { "id": "homunculus-servant", "name": "Homunculus Servant", "grants": { "features": ["Infusion: Homunculus Servant"] } },
+            {
+              "id": "mind-sharpener",
+              "name": "Mind Sharpener",
+              "grants": { "features": ["Infusion: Mind Sharpener (Succeed on failed concentration save)"] }
+            },
+            {
+              "id": "repeating-shot",
+              "name": "Repeating Shot",
+              "grants": { "features": ["Infusion: Repeating Shot (+1 ranged attack/damage, ignores loading)"] }
+            },
+            { "id": "replicate-magic-item", "name": "Replicate Magic Item", "grants": { "features": ["Infusion: Replicate Magic Item"] } },
+            {
+              "id": "returning-weapon",
+              "name": "Returning Weapon",
+              "grants": { "features": ["Infusion: Returning Weapon (+1 thrown weapon, returns instantly)"] }
+            }
+          ]
+        }
+      ],
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0]
+      },
+      "resources": [
+        {
+          "name": "Infused Items",
+          "maxFormula": { "type": "fixed", "value": 2 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "3": {
+      "features": ["Artificer Specialist", "The Right Tool for the Job"],
+      "subclassChoice": true,
+      "choices": [
+        {
+          "id": "artificer-tool-job",
+          "title": "The Right Tool for the Job",
+          "source": "class",
+          "choose": 1,
+          "cadence": "onShortRest",
+          "options": [
+            { "id": "thieves-tools", "name": "Thieves' Tools", "grants": { "toolProficiencies": ["Thieves' Tools"] } },
+            { "id": "tinkers-tools", "name": "Tinker's Tools", "grants": { "toolProficiencies": ["Tinker's Tools"] } },
+            { "id": "smiths-tools", "name": "Smith's Tools", "grants": { "toolProficiencies": ["Smith's Tools"] } },
+            { "id": "alchemists-supplies", "name": "Alchemist's Supplies", "grants": { "toolProficiencies": ["Alchemist's Supplies"] } },
+            { "id": "brewers-supplies", "name": "Brewer's Supplies", "grants": { "toolProficiencies": ["Brewer's Supplies"] } },
+            {
+              "id": "calligraphers-supplies",
+              "name": "Calligrapher's Supplies",
+              "grants": { "toolProficiencies": ["Calligrapher's Supplies"] }
+            },
+            { "id": "carpenters-tools", "name": "Carpenter's Tools", "grants": { "toolProficiencies": ["Carpenter's Tools"] } },
+            { "id": "cartographers-tools", "name": "Cartographer's Tools", "grants": { "toolProficiencies": ["Cartographer's Tools"] } },
+            { "id": "cooks-utensils", "name": "Cook's Utensils", "grants": { "toolProficiencies": ["Cook's Utensils"] } },
+            { "id": "leatherworkers-tools", "name": "Leatherworker's Tools", "grants": { "toolProficiencies": ["Leatherworker's Tools"] } },
+            { "id": "woodcarvers-tools", "name": "Woodcarver's Tools", "grants": { "toolProficiencies": ["Woodcarver's Tools"] } }
+          ]
+        }
+      ],
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    },
+    "4": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0]
+      }
+    },
+    "5": {
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0]
+      }
+    },
+    "6": {
+      "features": ["Tool Expertise"],
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 2
+      },
+      "resources": [
+        {
+          "name": "Infused Items",
+          "maxFormula": { "type": "fixed", "value": 3 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Flash of Genius"],
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0]
+      },
+      "resources": [
+        {
+          "name": "Flash of Genius",
+          "maxFormula": { "type": "statModifier", "ability": "int", "min": 1 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0]
+      }
+    },
+    "9": {
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0]
+      }
+    },
+    "10": {
+      "features": ["Magic Item Adept"],
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 3
+      },
+      "resources": [
+        {
+          "name": "Infused Items",
+          "maxFormula": { "type": "fixed", "value": 4 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "11": {
+      "features": ["Spell-Storing Item"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0]
+      }
+    },
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0]
+      }
+    },
+    "13": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0]
+      }
+    },
+    "14": {
+      "features": ["Magic Item Savant"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0],
+        "cantripsKnown": 4
+      },
+      "resources": [
+        {
+          "name": "Infused Items",
+          "maxFormula": { "type": "fixed", "value": 5 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "15": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0]
+      }
+    },
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0]
+      }
+    },
+    "17": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0]
+      }
+    },
+    "18": {
+      "features": ["Magic Item Master"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0]
+      },
+      "resources": [
+        {
+          "name": "Infused Items",
+          "maxFormula": { "type": "fixed", "value": 6 },
+          "resetOn": "longRest"
+        }
+      ]
+    },
+    "19": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0]
+      }
+    },
+    "20": {
+      "features": ["Soul of Artifice"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0]
+      }
+    }
+  }
+}

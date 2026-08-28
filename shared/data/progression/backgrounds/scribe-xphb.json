@@ -1,0 +1,67 @@
+{
+  "id": "scribe-xphb",
+  "name": "Scribe",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["dex", "int", "wis"],
+    "options": ["dex", "int", "wis"]
+  },
+  "originFeatId": "skilled",
+  "originFeatName": "Skilled",
+  "skillProficiencies": ["Investigation", "Perception"],
+  "toolProficiencies": ["Calligrapher's Supplies"],
+  "equipmentChoices": [
+    {
+      "id": "scribe-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Calligrapher's Supplies, Book, Ink, Parchment (10), Fine Clothes, 23 GP",
+          "items": [
+            {
+              "name": "Calligrapher's Supplies",
+              "quantity": 1
+            },
+            {
+              "name": "Book",
+              "quantity": 1
+            },
+            {
+              "name": "Ink",
+              "quantity": 1
+            },
+            {
+              "name": "Parchment (sheet)",
+              "quantity": 10
+            },
+            {
+              "name": "Fine Clothes",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 23,
+              "currency": {
+                "gp": 23
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1458,11 +1458,14 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
       targetType: ActorBonusEntry["targetType"];
       targetKey: string;
       value: number;
+      statBonus: ActorBonusEntry["statBonus"];
+      minimum: number | null;
       enabled: number;
     }>(
       database,
       `
-      SELECT id, name, source_type as sourceType, target_type as targetType, target_key as targetKey, value, enabled
+      SELECT id, name, source_type as sourceType, target_type as targetType, target_key as targetKey,
+        value, stat_bonus as statBonus, minimum, enabled
       FROM actor_bonuses
       WHERE actor_id = ?
       ORDER BY sort_order, id
@@ -1476,6 +1479,8 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
     targetType: entry.targetType,
     targetKey: entry.targetKey,
     value: entry.value,
+    statBonus: entry.statBonus ?? undefined,
+    minimum: entry.minimum ?? undefined,
     enabled: toBoolean(entry.enabled)
   }));
   actor.resources = (
@@ -1983,8 +1988,10 @@ function prepareCampaignWriteStatements(database: DatabaseSync): CampaignWriteSt
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     insertActorBonus: database.prepare(`
-      INSERT INTO actor_bonuses (actor_id, id, sort_order, name, source_type, target_type, target_key, value, enabled)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO actor_bonuses (
+        actor_id, id, sort_order, name, source_type, target_type, target_key, value, stat_bonus, minimum, enabled
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     insertActorResource: database.prepare(`
       INSERT INTO actor_resources (actor_id, id, sort_order, name, current_value, max_value, reset_on, restore_amount)
@@ -2123,6 +2130,8 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
       JSON.stringify(actor.build ?? null),
       JSON.stringify({
         savingThrowProficiencies: actor.savingThrowProficiencies,
+        armorProficiencies: actor.armorProficiencies,
+        weaponProficiencies: actor.weaponProficiencies,
         toolProficiencies: actor.toolProficiencies,
         languageProficiencies: actor.languageProficiencies
       }),
@@ -2205,6 +2214,8 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
         bonus.targetType,
         bonus.targetKey,
         bonus.value,
+        bonus.statBonus ?? null,
+        bonus.minimum ?? null,
         toIntegerBoolean(bonus.enabled)
       );
     });
@@ -2574,14 +2585,14 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
     currencyEp: number;
     currencySp: number;
     currencyCp: number;
-        notes: string;
-        color: string;
-        preparedSpellsJson: string;
-        layoutJson: string;
-        buildJson: string;
-        proficienciesJson: string;
-        spellStateJson: string;
-        statusJson: string;
+    notes: string;
+    color: string;
+    preparedSpellsJson: string;
+    layoutJson: string;
+    buildJson: string;
+    proficienciesJson: string;
+    spellStateJson: string;
+    statusJson: string;
   }>(
     database,
     `
@@ -2901,6 +2912,8 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
     targetType: ActorBonusEntry["targetType"];
     targetKey: string;
     value: number;
+    statBonus: ActorBonusEntry["statBonus"];
+    minimum: number | null;
     enabled: number;
   }>(
     database,
@@ -2913,6 +2926,8 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         target_type as targetType,
         target_key as targetKey,
         value,
+        stat_bonus as statBonus,
+        minimum,
         enabled
       FROM actor_bonuses
       WHERE actor_id IN (SELECT id FROM actors WHERE campaign_id = ?)
@@ -2927,6 +2942,8 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
       targetType: row.targetType,
       targetKey: row.targetKey,
       value: row.value,
+      statBonus: row.statBonus ?? undefined,
+      minimum: row.minimum ?? undefined,
       enabled: toBoolean(row.enabled)
     } satisfies ActorBonusEntry);
   }
@@ -3667,6 +3684,8 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
       JSON.stringify(actor.build ?? null),
       JSON.stringify({
         savingThrowProficiencies: actor.savingThrowProficiencies,
+        armorProficiencies: actor.armorProficiencies,
+        weaponProficiencies: actor.weaponProficiencies,
         toolProficiencies: actor.toolProficiencies,
         languageProficiencies: actor.languageProficiencies
       }),
@@ -3678,6 +3697,22 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
         deathSaves: actor.deathSaves
       })
     );
+  const insertAward = database.prepare(`
+    INSERT INTO actor_progression_awards (actor_id, award_id, sort_order, payload_json, committed_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(actor_id, award_id) DO NOTHING
+  `);
+  (actor.build?.awards ?? []).forEach((award, index) => {
+    insertAward.run(actor.id, award.id, index, JSON.stringify(award), award.committedAt);
+  });
+  database.prepare("DELETE FROM actor_manual_overrides WHERE actor_id = ?").run(actor.id);
+  const insertOverride = database.prepare(`
+    INSERT INTO actor_manual_overrides (actor_id, override_id, sort_order, payload_json)
+    VALUES (?, ?, ?, ?)
+  `);
+  (actor.build?.overrides ?? []).forEach((override, index) => {
+    insertOverride.run(actor.id, override.id, index, JSON.stringify(override));
+  });
   database.prepare("DELETE FROM actor_classes WHERE actor_id = ?").run(actor.id);
   database.prepare("DELETE FROM actor_skills WHERE actor_id = ?").run(actor.id);
   database.prepare("DELETE FROM actor_spell_slots WHERE actor_id = ?").run(actor.id);
@@ -3781,8 +3816,10 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
     database
       .prepare(
         `
-          INSERT INTO actor_bonuses (actor_id, id, sort_order, name, source_type, target_type, target_key, value, enabled)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO actor_bonuses (
+            actor_id, id, sort_order, name, source_type, target_type, target_key, value, stat_bonus, minimum, enabled
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       )
       .run(
@@ -3794,6 +3831,8 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
         bonus.targetType,
         bonus.targetKey,
         bonus.value,
+        bonus.statBonus ?? null,
+        bonus.minimum ?? null,
         toIntegerBoolean(bonus.enabled)
       );
   });
@@ -4287,6 +4326,8 @@ function createRealtimeActorShell(
     skills: [],
     classes: [],
     savingThrowProficiencies: [],
+    armorProficiencies: [],
+    weaponProficiencies: [],
     toolProficiencies: [],
     languageProficiencies: [],
     spellSlots: [],
@@ -4349,12 +4390,16 @@ function parseStoredActorProficiencies(raw: string) {
   const parsed =
     parseJsonObject<{
       savingThrowProficiencies?: unknown;
+      armorProficiencies?: unknown;
+      weaponProficiencies?: unknown;
       toolProficiencies?: unknown;
       languageProficiencies?: unknown;
     }>(raw) ?? {};
 
   return {
     savingThrowProficiencies: normalizeStoredAbilityKeys(parsed.savingThrowProficiencies),
+    armorProficiencies: normalizeStoredStringArray(parsed.armorProficiencies),
+    weaponProficiencies: normalizeStoredStringArray(parsed.weaponProficiencies),
     toolProficiencies: normalizeStoredStringArray(parsed.toolProficiencies),
     languageProficiencies: normalizeStoredStringArray(parsed.languageProficiencies)
   };
@@ -4388,9 +4433,7 @@ function parseStoredActorStatus(raw: string) {
       deathSaves?: unknown;
     }>(raw) ?? {};
   const deathSaves =
-    parsed.deathSaves && typeof parsed.deathSaves === "object"
-      ? (parsed.deathSaves as Partial<ActorSheet["deathSaves"]>)
-      : {};
+    parsed.deathSaves && typeof parsed.deathSaves === "object" ? (parsed.deathSaves as Partial<ActorSheet["deathSaves"]>) : {};
 
   return {
     conditions: normalizeStoredTokenStatusArray(parsed.conditions),
@@ -4445,8 +4488,6 @@ function normalizeStoredTokenStatusArray(value: unknown): ActorSheet["conditions
 
   const allowed = new Set<string>(TOKEN_STATUS_MARKERS);
   return Array.from(
-    new Set(
-      value.filter((entry): entry is ActorSheet["conditions"][number] => typeof entry === "string" && allowed.has(entry))
-    )
+    new Set(value.filter((entry): entry is ActorSheet["conditions"][number] => typeof entry === "string" && allowed.has(entry)))
   );
 }

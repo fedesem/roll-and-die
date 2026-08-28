@@ -1,0 +1,51 @@
+{
+  "id": "fighter-eldritch-knight-xphb",
+  "classId": "fighter-xphb",
+  "className": "Fighter",
+  "name": "Eldritch Knight",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Spellcasting (Eldritch Knight)", "Weapon Bond"],
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 2,
+        "spellsKnown": 3,
+        "spellcastingAbility": "int"
+      }
+    },
+    "4": {
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 4
+      }
+    },
+    "7": {
+      "features": ["War Magic"],
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 5
+      }
+    },
+    "10": {
+      "features": ["Eldritch Strike"],
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        "cantripsKnown": 3,
+        "spellsKnown": 7
+      }
+    },
+    "13": {
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 9
+      }
+    },
+    "15": {
+      "features": ["Arcane Charge"]
+    },
+    "18": {
+      "features": ["Improved War Magic"]
+    }
+  }
+}

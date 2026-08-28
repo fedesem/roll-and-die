@@ -1,0 +1,12 @@
+{
+  "id": "dwarf-xphb",
+  "name": "Dwarf",
+  "source": "XPHB",
+  "sizes": ["Medium"],
+  "speed": 30,
+  "darkvision": 120,
+  "creatureTypes": ["Humanoid"],
+  "languages": ["Common", "Dwarvish"],
+  "bonusLanguageCount": 1,
+  "features": ["Darkvision", "Dwarven Resilience", "Dwarven Toughness", "Stonecunning"]
+}

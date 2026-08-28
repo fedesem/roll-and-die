@@ -1,0 +1,270 @@
+{
+  "id": "ranger-xphb",
+  "name": "Ranger",
+  "source": "XPHB",
+  "hitDieFaces": 10,
+  "primaryAbilities": ["dex", "wis"],
+  "savingThrows": ["str", "dex"],
+  "armorProficiencies": ["Light Armor", "Medium Armor", "Shields"],
+  "weaponProficiencies": ["Simple Weapons", "Martial Weapons"],
+  "toolProficiencies": [],
+  "startingSkillChoices": {
+    "choose": 3,
+    "options": ["Animal Handling", "Athletics", "Insight", "Investigation", "Nature", "Perception", "Stealth", "Survival"]
+  },
+  "equipmentChoices": [
+    {
+      "id": "ranger-equipment",
+      "label": "Class Equipment",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Studded Leather Armor, Scimitar, Shortsword, Longbow, Arrows, Quiver, Druidic Focus, Explorer's Pack, 7 GP",
+          "items": [
+            { "referenceId": "Studded Leather Armor|XPHB", "name": "Studded Leather Armor", "quantity": 1 },
+            { "referenceId": "Scimitar|XPHB", "name": "Scimitar", "quantity": 1 },
+            { "referenceId": "Shortsword|XPHB", "name": "Shortsword", "quantity": 1 },
+            { "referenceId": "Longbow|XPHB", "name": "Longbow", "quantity": 1 },
+            { "referenceId": "Arrows (20)|XPHB", "name": "Arrows (20)", "quantity": 1 },
+            { "referenceId": "Quiver|XPHB", "name": "Quiver", "quantity": 1 },
+            { "referenceId": "Druidic Focus|XPHB", "name": "Druidic Focus", "quantity": 1 },
+            { "referenceId": "Explorer's Pack|XPHB", "name": "Explorer's Pack", "quantity": 1 },
+            { "name": "Gold Coins", "quantity": 7, "currency": { "gp": 7 } }
+          ]
+        },
+        { "id": "package-b", "label": "Option B: 150 GP", "items": [{ "name": "Gold Coins", "quantity": 150, "currency": { "gp": 150 } }] }
+      ]
+    }
+  ],
+  "spellListId": "ranger",
+  "multiclassing": {
+    "prerequisites": { "dex": 13, "wis": 13 },
+    "proficienciesGranted": {
+      "armor": ["Light Armor", "Medium Armor", "Shields"],
+      "weapons": ["Simple Weapons", "Martial Weapons"],
+      "skills": { "count": 1, "chooseFrom": [] }
+    },
+    "casterType": "half"
+  },
+  "levels": {
+    "1": {
+      "features": ["Favored Enemy", "Spellcasting", "Weapon Mastery"],
+      "weaponMasteriesCount": 2,
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 2,
+        "changeCadence": "onLevelUp",
+        "spellcastingAbility": "wis"
+      }
+    },
+    "2": {
+      "features": ["Deft Explorer", "Fighting Style"],
+      "choices": [
+        {
+          "id": "ranger-fighting-style",
+          "title": "Fighting Style Feat",
+          "source": "class",
+          "choose": 1,
+          "options": [
+            { "id": "archery", "name": "Archery", "grants": { "features": ["Fighting Style: Archery"] } },
+            { "id": "defense", "name": "Defense", "grants": { "features": ["Fighting Style: Defense"] } },
+            { "id": "dueling", "name": "Dueling", "grants": { "features": ["Fighting Style: Dueling"] } },
+            {
+              "id": "two-weapon-fighting",
+              "name": "Two-Weapon Fighting",
+              "grants": { "features": ["Fighting Style: Two-Weapon Fighting"] }
+            },
+            { "id": "blind-fighting", "name": "Blind Fighting", "grants": { "features": ["Fighting Style: Blind Fighting"] } },
+            {
+              "id": "druidic-warrior",
+              "name": "Druidic Warrior",
+              "grants": { "features": ["Fighting Style: Druidic Warrior (Two Druid Cantrips)"] }
+            },
+            {
+              "id": "thrown-weapon-fighting",
+              "name": "Thrown Weapon Fighting",
+              "grants": { "features": ["Fighting Style: Thrown Weapon Fighting"] }
+            }
+          ]
+        }
+      ],
+      "spellcasting": {
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 3
+      }
+    },
+    "3": {
+      "features": ["Ranger Subclass"],
+      "subclassChoice": true,
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 4
+      }
+    },
+    "4": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 5
+      }
+    },
+    "5": {
+      "features": ["Extra Attack"],
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 6
+      }
+    },
+    "6": {
+      "features": ["Roving", "Favored Enemy Enhancement"],
+      "spellcasting": {
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 6
+      }
+    },
+    "7": {
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 7
+      }
+    },
+    "8": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 7
+      }
+    },
+    "9": {
+      "features": ["Expertise"],
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 9
+      }
+    },
+    "10": {
+      "features": ["Tireless"],
+      "spellcasting": {
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 9
+      }
+    },
+    "11": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 10
+      }
+    },
+    "12": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0],
+        "spellsKnown": 10
+      }
+    },
+    "13": {
+      "features": ["Nature's Veil"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0],
+        "spellsKnown": 11
+      }
+    },
+    "14": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0],
+        "spellsKnown": 11
+      }
+    },
+    "15": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0],
+        "spellsKnown": 12
+      }
+    },
+    "16": {
+      "features": ["Ability Score Improvement"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0],
+        "spellsKnown": 12
+      }
+    },
+    "17": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0],
+        "spellsKnown": 14
+      }
+    },
+    "18": {
+      "features": ["Feral Senses"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0],
+        "spellsKnown": 14
+      }
+    },
+    "19": {
+      "features": ["Epic Boon"],
+      "asiChoice": true,
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        "spellsKnown": 15
+      }
+    },
+    "20": {
+      "features": ["Foe Slayer"],
+      "spellcasting": {
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        "spellsKnown": 15
+      }
+    }
+  },
+  "subclasses": [
+    {
+      "id": "ranger-beast-master",
+      "name": "Beast Master",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Primal Companion"] },
+        "7": { "features": ["Exceptional Training"] },
+        "11": { "features": ["Bestial Fury"] },
+        "15": { "features": ["Share Spells"] }
+      }
+    },
+    {
+      "id": "ranger-fey-wanderer",
+      "name": "Fey Wanderer",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Dreadful Strikes", "Fey Wanderer Spells", "Otherworldly Glamour"] },
+        "7": { "features": ["Beguiling Twist"] },
+        "11": { "features": ["Fey Reinforcements"] },
+        "15": { "features": ["Mist Wanderer"] }
+      }
+    },
+    {
+      "id": "ranger-gloom-stalker",
+      "name": "Gloom Stalker",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Dread Ambusher", "Gloom Stalker Spells", "Umbral Sight"] },
+        "7": { "features": ["Iron Mind"] },
+        "11": { "features": ["Stalker's Flurry"] },
+        "15": { "features": ["Shadowy Dodge"] }
+      }
+    },
+    {
+      "id": "ranger-hunter",
+      "name": "Hunter",
+      "source": "XPHB",
+      "levels": {
+        "3": { "features": ["Hunter's Prey", "Hunter's Lore"] },
+        "7": { "features": ["Defensive Tactics"] },
+        "11": { "features": ["Superior Hunter's Prey"] },
+        "15": { "features": ["Superior Hunter's Defense"] }
+      }
+    }
+  ]
+}

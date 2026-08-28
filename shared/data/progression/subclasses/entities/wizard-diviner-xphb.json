@@ -1,0 +1,31 @@
+{
+  "id": "wizard-diviner-xphb",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "Diviner",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Divination Savant", "Portent"],
+      "actions": [
+        {
+          "id": "action-portent",
+          "name": "Portent Foretelling",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "free",
+          "range": "60 feet"
+        }
+      ]
+    },
+    "6": {
+      "features": ["Expert Divination"]
+    },
+    "10": {
+      "features": ["The Third Eye"]
+    },
+    "14": {
+      "features": ["Greater Portent"]
+    }
+  }
+}

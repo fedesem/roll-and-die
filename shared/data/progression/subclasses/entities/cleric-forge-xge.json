@@ -1,0 +1,31 @@
+{
+  "id": "cleric-forge-xge",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Forge Domain",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Domain Spells (Forge)", "Blessing of the Forge", "Artisan's Blessing"],
+      "alwaysPreparedSpells": ["Identify", "Searing Smite", "Heat Metal", "Magic Weapon"],
+      "grants": {
+        "armorProficiencies": ["Heavy Armor"]
+      }
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Elemental Weapon", "Protection from Energy"]
+    },
+    "6": {
+      "features": ["Soul of the Forge"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Fabricate", "Wall of Fire"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Animate Objects", "Creation"]
+    },
+    "17": {
+      "features": ["Saint of Forge and Fire"]
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "id": "cleric-trickery-xphb",
+  "classId": "cleric-xphb",
+  "className": "Cleric",
+  "name": "Trickery Domain",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Domain Spells (Trickery)", "Invoke Duplicity", "Blessing of the Trickster"],
+      "alwaysPreparedSpells": ["Charm Person", "Disguise Self", "Invisibility", "Pass without Trace"],
+      "actions": [
+        {
+          "id": "action-invoke-duplicity",
+          "name": "Channel Divinity: Invoke Duplicity",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "resourceCost": {
+            "resourceName": "Channel Divinity",
+            "count": 1
+          },
+          "range": "30 feet"
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Hypnotic Pattern", "Nondetection"]
+    },
+    "6": {
+      "features": ["Trickster's Magic"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Dimension Door", "Polymorph"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Dominate Person", "Modify Memory"]
+    },
+    "17": {
+      "features": ["Improved Duplicity"]
+    }
+  }
+}

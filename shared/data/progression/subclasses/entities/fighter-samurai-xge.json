@@ -1,0 +1,48 @@
+{
+  "id": "fighter-samurai-xge",
+  "classId": "fighter-xphb",
+  "className": "Fighter",
+  "name": "Samurai",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Bonus Proficiency (Samurai)", "Fighting Spirit"],
+      "resources": [
+        {
+          "name": "Fighting Spirit",
+          "maxFormula": {
+            "type": "fixed",
+            "value": 3
+          },
+          "resetOn": "longRest"
+        }
+      ],
+      "actions": [
+        {
+          "id": "action-fighting-spirit",
+          "name": "Fighting Spirit",
+          "source": "XGE",
+          "category": "feature",
+          "actionCost": "bonus",
+          "resourceCost": {
+            "resourceName": "Fighting Spirit",
+            "count": 1
+          },
+          "range": "Self"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Elegant Courtier"]
+    },
+    "10": {
+      "features": ["Tireless Spirit"]
+    },
+    "15": {
+      "features": ["Rapid Strike"]
+    },
+    "18": {
+      "features": ["Strength Before Death"]
+    }
+  }
+}

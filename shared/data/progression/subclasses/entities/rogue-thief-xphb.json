@@ -1,0 +1,31 @@
+{
+  "id": "rogue-thief-xphb",
+  "classId": "rogue-xphb",
+  "className": "Rogue",
+  "name": "Thief",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Fast Hands", "Second-Story Work"],
+      "actions": [
+        {
+          "id": "action-fast-hands",
+          "name": "Fast Hands",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "Self"
+        }
+      ]
+    },
+    "9": {
+      "features": ["Supreme Sneak"]
+    },
+    "13": {
+      "features": ["Use Magic Device"]
+    },
+    "17": {
+      "features": ["Thief's Reflexes"]
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "id": "acolyte-xphb",
+  "name": "Acolyte",
+  "source": "XPHB",
+  "abilityScores": {
+    "recommended": ["int", "wis", "cha"],
+    "options": ["int", "wis", "cha"]
+  },
+  "originFeatId": "magic-initiate-cleric",
+  "originFeatName": "Magic Initiate (Cleric)",
+  "skillProficiencies": ["Insight", "Religion"],
+  "toolProficiencies": ["Calligrapher's Supplies"],
+  "equipmentChoices": [
+    {
+      "id": "acolyte-equipment",
+      "label": "Equipment Package",
+      "options": [
+        {
+          "id": "package-a",
+          "label": "Option A: Calligrapher's Supplies, Holy Symbol, Book, Parchment (10), Robe, 8 GP",
+          "items": [
+            {
+              "name": "Calligrapher's Supplies",
+              "quantity": 1
+            },
+            {
+              "name": "Holy Symbol",
+              "quantity": 1
+            },
+            {
+              "name": "Book (Prayers)",
+              "quantity": 1
+            },
+            {
+              "name": "Parchment (sheet)",
+              "quantity": 10
+            },
+            {
+              "name": "Robe",
+              "quantity": 1
+            },
+            {
+              "name": "Gold Coins",
+              "quantity": 8,
+              "currency": {
+                "gp": 8
+              }
+            }
+          ]
+        },
+        {
+          "id": "package-b",
+          "label": "Option B: 50 GP",
+          "items": [
+            {
+              "name": "Gold Coins",
+              "quantity": 50,
+              "currency": {
+                "gp": 50
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

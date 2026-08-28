@@ -1,0 +1,48 @@
+{
+  "id": "ranger-swarmkeeper-tce",
+  "classId": "ranger-xphb",
+  "className": "Ranger",
+  "name": "Swarmkeeper",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Gathered Swarm", "Swarmkeeper Spells"],
+      "alwaysPreparedSpells": ["Faerie Fire", "Mage Hand"],
+      "actions": [
+        {
+          "id": "action-gathered-swarm",
+          "name": "Gathered Swarm",
+          "source": "TCE",
+          "category": "feature",
+          "actionCost": "free",
+          "roll": {
+            "kind": "damage",
+            "diceFormula": "1d6",
+            "damageType": "Piercing"
+          }
+        }
+      ]
+    },
+    "5": {
+      "alwaysPreparedSpells": ["Web"]
+    },
+    "7": {
+      "features": ["Writhing Tide"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Gaseous Form"]
+    },
+    "11": {
+      "features": ["Mighty Swarm"]
+    },
+    "13": {
+      "alwaysPreparedSpells": ["Arcane Eye"]
+    },
+    "15": {
+      "features": ["Swarming Dispersal"]
+    },
+    "17": {
+      "alwaysPreparedSpells": ["Insect Plague"]
+    }
+  }
+}

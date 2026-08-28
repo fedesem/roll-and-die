@@ -1,0 +1,113 @@
+[
+  {
+    "id": "skills",
+    "options": [
+      { "id": "acrobatics", "name": "Acrobatics", "grants": { "skills": ["Acrobatics"] } },
+      { "id": "animal-handling", "name": "Animal Handling", "grants": { "skills": ["Animal Handling"] } },
+      { "id": "arcana", "name": "Arcana", "grants": { "skills": ["Arcana"] } },
+      { "id": "athletics", "name": "Athletics", "grants": { "skills": ["Athletics"] } },
+      { "id": "deception", "name": "Deception", "grants": { "skills": ["Deception"] } },
+      { "id": "history", "name": "History", "grants": { "skills": ["History"] } },
+      { "id": "insight", "name": "Insight", "grants": { "skills": ["Insight"] } },
+      { "id": "intimidation", "name": "Intimidation", "grants": { "skills": ["Intimidation"] } },
+      { "id": "investigation", "name": "Investigation", "grants": { "skills": ["Investigation"] } },
+      { "id": "medicine", "name": "Medicine", "grants": { "skills": ["Medicine"] } },
+      { "id": "nature", "name": "Nature", "grants": { "skills": ["Nature"] } },
+      { "id": "perception", "name": "Perception", "grants": { "skills": ["Perception"] } },
+      { "id": "performance", "name": "Performance", "grants": { "skills": ["Performance"] } },
+      { "id": "persuasion", "name": "Persuasion", "grants": { "skills": ["Persuasion"] } },
+      { "id": "religion", "name": "Religion", "grants": { "skills": ["Religion"] } },
+      { "id": "sleight-of-hand", "name": "Sleight of Hand", "grants": { "skills": ["Sleight of Hand"] } },
+      { "id": "stealth", "name": "Stealth", "grants": { "skills": ["Stealth"] } },
+      { "id": "survival", "name": "Survival", "grants": { "skills": ["Survival"] } }
+    ]
+  },
+  {
+    "id": "artisan-tools",
+    "options": [
+      { "id": "alchemists-supplies", "name": "Alchemist's Supplies", "grants": { "toolProficiencies": ["Alchemist's Supplies"] } },
+      { "id": "brewers-supplies", "name": "Brewer's Supplies", "grants": { "toolProficiencies": ["Brewer's Supplies"] } },
+      { "id": "calligraphers-supplies", "name": "Calligrapher's Supplies", "grants": { "toolProficiencies": ["Calligrapher's Supplies"] } },
+      { "id": "carpenters-tools", "name": "Carpenter's Tools", "grants": { "toolProficiencies": ["Carpenter's Tools"] } },
+      { "id": "cartographers-tools", "name": "Cartographer's Tools", "grants": { "toolProficiencies": ["Cartographer's Tools"] } },
+      { "id": "cobblers-tools", "name": "Cobbler's Tools", "grants": { "toolProficiencies": ["Cobbler's Tools"] } },
+      { "id": "cooks-utensils", "name": "Cook's Utensils", "grants": { "toolProficiencies": ["Cook's Utensils"] } },
+      { "id": "glassblowers-tools", "name": "Glassblower's Tools", "grants": { "toolProficiencies": ["Glassblower's Tools"] } },
+      { "id": "jewelers-tools", "name": "Jeweler's Tools", "grants": { "toolProficiencies": ["Jeweler's Tools"] } },
+      { "id": "leatherworkers-tools", "name": "Leatherworker's Tools", "grants": { "toolProficiencies": ["Leatherworker's Tools"] } },
+      { "id": "masons-tools", "name": "Mason's Tools", "grants": { "toolProficiencies": ["Mason's Tools"] } },
+      { "id": "painters-supplies", "name": "Painter's Supplies", "grants": { "toolProficiencies": ["Painter's Supplies"] } },
+      { "id": "potters-tools", "name": "Potter's Tools", "grants": { "toolProficiencies": ["Potter's Tools"] } },
+      { "id": "smiths-tools", "name": "Smith's Tools", "grants": { "toolProficiencies": ["Smith's Tools"] } },
+      { "id": "tinkers-tools", "name": "Tinker's Tools", "grants": { "toolProficiencies": ["Tinker's Tools"] } },
+      { "id": "weavers-tools", "name": "Weaver's Tools", "grants": { "toolProficiencies": ["Weaver's Tools"] } },
+      { "id": "woodcarvers-tools", "name": "Woodcarver's Tools", "grants": { "toolProficiencies": ["Woodcarver's Tools"] } }
+    ]
+  },
+  {
+    "id": "other-tools",
+    "options": [
+      { "id": "disguise-kit", "name": "Disguise Kit", "grants": { "toolProficiencies": ["Disguise Kit"] } },
+      { "id": "forgery-kit", "name": "Forgery Kit", "grants": { "toolProficiencies": ["Forgery Kit"] } },
+      { "id": "gaming-set", "name": "Gaming Set", "grants": { "toolProficiencies": ["Gaming Set"] } },
+      { "id": "herbalism-kit", "name": "Herbalism Kit", "grants": { "toolProficiencies": ["Herbalism Kit"] } },
+      { "id": "musical-instrument", "name": "Musical Instrument", "grants": { "toolProficiencies": ["Musical Instrument"] } },
+      { "id": "navigators-tools", "name": "Navigator's Tools", "grants": { "toolProficiencies": ["Navigator's Tools"] } },
+      { "id": "poisoners-kit", "name": "Poisoner's Kit", "grants": { "toolProficiencies": ["Poisoner's Kit"] } },
+      { "id": "thieves-tools", "name": "Thieves' Tools", "grants": { "toolProficiencies": ["Thieves' Tools"] } }
+    ]
+  },
+  {
+    "id": "standard-languages",
+    "options": [
+      { "id": "common", "name": "Common", "grants": { "languages": ["Common"] } },
+      { "id": "dwarvish", "name": "Dwarvish", "grants": { "languages": ["Dwarvish"] } },
+      { "id": "elvish", "name": "Elvish", "grants": { "languages": ["Elvish"] } },
+      { "id": "giant", "name": "Giant", "grants": { "languages": ["Giant"] } },
+      { "id": "gnomish", "name": "Gnomish", "grants": { "languages": ["Gnomish"] } },
+      { "id": "goblin", "name": "Goblin", "grants": { "languages": ["Goblin"] } },
+      { "id": "halfling", "name": "Halfling", "grants": { "languages": ["Halfling"] } },
+      { "id": "orc", "name": "Orc", "grants": { "languages": ["Orc"] } },
+      { "id": "abyssal", "name": "Abyssal", "grants": { "languages": ["Abyssal"] } },
+      { "id": "celestial", "name": "Celestial", "grants": { "languages": ["Celestial"] } },
+      { "id": "deep-speech", "name": "Deep Speech", "grants": { "languages": ["Deep Speech"] } },
+      { "id": "draconic", "name": "Draconic", "grants": { "languages": ["Draconic"] } },
+      { "id": "infernal", "name": "Infernal", "grants": { "languages": ["Infernal"] } },
+      { "id": "primordial", "name": "Primordial", "grants": { "languages": ["Primordial"] } },
+      { "id": "sylvan", "name": "Sylvan", "grants": { "languages": ["Sylvan"] } },
+      { "id": "undercommon", "name": "Undercommon", "grants": { "languages": ["Undercommon"] } }
+    ]
+  },
+  {
+    "id": "weapon-masteries",
+    "options": [
+      { "id": "dagger-nick", "name": "Dagger (Nick)" },
+      { "id": "shortsword-vex", "name": "Shortsword (Vex)" },
+      { "id": "scimitar-nick", "name": "Scimitar (Nick)" },
+      { "id": "handaxe-vex", "name": "Handaxe (Vex)" },
+      { "id": "light-hammer-nick", "name": "Light Hammer (Nick)" },
+      { "id": "mace-sap", "name": "Mace (Sap)" },
+      { "id": "quarterstaff-topple", "name": "Quarterstaff (Topple)" },
+      { "id": "spear-sap", "name": "Spear (Sap)" },
+      { "id": "greatsword-graze", "name": "Greatsword (Graze)" },
+      { "id": "greataxe-cleave", "name": "Greataxe (Cleave)" },
+      { "id": "halberd-cleave", "name": "Halberd (Cleave)" },
+      { "id": "longsword-sap", "name": "Longsword (Sap)" },
+      { "id": "battleaxe-topple", "name": "Battleaxe (Topple)" },
+      { "id": "warhammer-push", "name": "Warhammer (Push)" },
+      { "id": "maul-topple", "name": "Maul (Topple)" },
+      { "id": "glaive-graze", "name": "Glaive (Graze)" },
+      { "id": "pike-push", "name": "Pike (Push)" },
+      { "id": "rapier-vex", "name": "Rapier (Vex)" },
+      { "id": "shortbow-vex", "name": "Shortbow (Vex)" },
+      { "id": "longbow-slow", "name": "Longbow (Slow)" },
+      { "id": "heavy-crossbow-push", "name": "Heavy Crossbow (Push)" },
+      { "id": "hand-crossbow-vex", "name": "Hand Crossbow (Vex)" },
+      { "id": "light-crossbow-slow", "name": "Light Crossbow (Slow)" },
+      { "id": "musket-slow", "name": "Musket (Slow)" },
+      { "id": "pistol-vex", "name": "Pistol (Vex)" },
+      { "id": "trident-topple", "name": "Trident (Topple)" },
+      { "id": "whip-slow", "name": "Whip (Slow)" }
+    ]
+  }
+]

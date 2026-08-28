@@ -1,0 +1,21 @@
+{
+  "id": "barbarian-wild-magic-tce",
+  "classId": "barbarian-xphb",
+  "className": "Barbarian",
+  "name": "Path of Wild Magic",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Magic Awareness", "Wild Surge"]
+    },
+    "6": {
+      "features": ["Bolstering Presence"]
+    },
+    "10": {
+      "features": ["Unstable Backlash"]
+    },
+    "14": {
+      "features": ["Controlled Surge"]
+    }
+  }
+}

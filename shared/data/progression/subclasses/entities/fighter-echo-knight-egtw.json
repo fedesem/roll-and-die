@@ -1,0 +1,34 @@
+{
+  "id": "fighter-echo-knight-egtw",
+  "classId": "fighter-xphb",
+  "className": "Fighter",
+  "name": "Echo Knight",
+  "source": "EGtW",
+  "levels": {
+    "3": {
+      "features": ["Manifest Echo", "Unleash Incarnation"],
+      "actions": [
+        {
+          "id": "action-manifest-echo",
+          "name": "Manifest Echo",
+          "source": "EGtW",
+          "category": "feature",
+          "actionCost": "bonus",
+          "range": "15 feet"
+        }
+      ]
+    },
+    "7": {
+      "features": ["Echo Avatar"]
+    },
+    "10": {
+      "features": ["Shadow Martyr"]
+    },
+    "15": {
+      "features": ["Reclaim Potential"]
+    },
+    "18": {
+      "features": ["Legion of One"]
+    }
+  }
+}

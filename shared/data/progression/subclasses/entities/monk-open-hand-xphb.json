@@ -1,0 +1,21 @@
+{
+  "id": "monk-open-hand-xphb",
+  "classId": "monk-xphb",
+  "className": "Monk",
+  "name": "Warrior of the Open Hand",
+  "source": "XPHB",
+  "levels": {
+    "3": {
+      "features": ["Open Hand Technique"]
+    },
+    "6": {
+      "features": ["Wholeness of Body"]
+    },
+    "11": {
+      "features": ["Fleet Step"]
+    },
+    "17": {
+      "features": ["Quivering Palm"]
+    }
+  }
+}

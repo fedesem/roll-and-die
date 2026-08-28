@@ -1,0 +1,18 @@
+{
+  "id": "bard-spirits-vrgr",
+  "classId": "bard-xphb",
+  "className": "Bard",
+  "name": "College of Spirits",
+  "source": "VRGR",
+  "levels": {
+    "3": {
+      "features": ["Guiding Whispers", "Spiritual Focus", "Tales from Beyond"]
+    },
+    "6": {
+      "features": ["Spirit Session"]
+    },
+    "14": {
+      "features": ["Mystical Connection"]
+    }
+  }
+}

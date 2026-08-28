@@ -1,0 +1,24 @@
+{
+  "id": "wizard-scribes-tce",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "Order of Scribes",
+  "source": "TCE",
+  "levels": {
+    "3": {
+      "features": ["Wizardly Quill", "Awakened Spellbook"],
+      "grants": {
+        "toolProficiencies": ["Calligrapher's Supplies"]
+      }
+    },
+    "6": {
+      "features": ["Manifest Mind"]
+    },
+    "10": {
+      "features": ["Master Scrivener"]
+    },
+    "14": {
+      "features": ["One with the Word"]
+    }
+  }
+}

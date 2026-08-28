@@ -1,0 +1,29 @@
+{
+  "id": "rogue-swashbuckler-xge",
+  "classId": "rogue-xphb",
+  "className": "Rogue",
+  "name": "Swashbuckler",
+  "source": "XGE",
+  "levels": {
+    "3": {
+      "features": ["Fancy Footwork", "Rakish Audacity"],
+      "grants": {
+        "passiveBonuses": [
+          {
+            "target": "initiative",
+            "statBonus": "cha"
+          }
+        ]
+      }
+    },
+    "9": {
+      "features": ["Panache"]
+    },
+    "13": {
+      "features": ["Elegant Maneuver"]
+    },
+    "17": {
+      "features": ["Master Duelist"]
+    }
+  }
+}

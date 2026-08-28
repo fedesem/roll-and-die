@@ -20,6 +20,7 @@ import type {
   SpellSlotTrack
 } from "@shared/types";
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
+import { hasProgressionFieldOverride } from "@shared/rules/progressionEngine";
 
 import { ModalFrame } from "../../components/ModalFrame";
 import { NumericInput } from "../../components/NumericInput";
@@ -1671,7 +1672,11 @@ export function PlayerNpcSheet({ token, actor, compendium, role, currentUserId, 
     }
 
     return (
-      <ModalFrame onClose={() => setPicker(null)} backdropClassName="bg-black/70" panelClassName="max-w-3xl border-amber-700/60 bg-zinc-950">
+      <ModalFrame
+        onClose={() => setPicker(null)}
+        backdropClassName="bg-black/70"
+        panelClassName="max-w-3xl border-amber-700/60 bg-zinc-950"
+      >
         <>
           <div className="flex items-center justify-between border-b border-amber-800/30 px-5 py-4">
             <div>
@@ -1811,9 +1816,9 @@ function guessSpellcastingAbility(entry: ClassEntry): AbilityKey | null {
 function finalizeDraftForSave(actor: ActorSheet, proficiencyBonus: number) {
   const next = cloneActor(actor);
   next.level = totalLevel(next);
-  next.proficiencyBonus = proficiencyBonus;
+  if (!hasProgressionFieldOverride(next, "proficiencyBonus")) next.proficiencyBonus = proficiencyBonus;
   next.className = next.classes.map((entry) => entry.name).join(" / ") || next.className;
-  next.armorClass = derivedArmorClass(next);
+  if (!hasProgressionFieldOverride(next, "armorClass")) next.armorClass = derivedArmorClass(next);
   next.speed = next.speed;
   next.hitPoints.current = Math.min(next.hitPoints.current, next.hitPoints.max);
   next.preparedSpells = next.preparedSpells.filter((entry) => next.spells.includes(entry));
@@ -1874,8 +1879,15 @@ function DotTrack({
   }
 
   if (total > 12) {
-      return (
-      <NumericInput className={inputClass} min="0" max={total} value={active} disabled={disabled} onValueChange={(value) => onChange(value ?? 0)} />
+    return (
+      <NumericInput
+        className={inputClass}
+        min="0"
+        max={total}
+        value={active}
+        disabled={disabled}
+        onValueChange={(value) => onChange(value ?? 0)}
+      />
     );
   }
 

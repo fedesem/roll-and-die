@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 
+import { applyRestChoiceSelections, hasProgressionFieldOverride } from "@shared/rules/progressionEngine";
 import type {
   AbilityKey,
   ActorClassEntry,
@@ -14,12 +15,7 @@ import type {
 
 import { uploadImageAsset } from "../../../services/assetService";
 import type { PlayerNpcSheet2024Props, RollMode, SheetTab, SpellSelectionTarget } from "../playerNpcSheet2024Types";
-import {
-  buildD20Notation,
-  buildStaticRollNotation,
-  finalizeDraftForSave,
-  rollDie
-} from "../selectors/playerNpcSheet2024Mutations";
+import { buildD20Notation, buildStaticRollNotation, finalizeDraftForSave, rollDie } from "../selectors/playerNpcSheet2024Mutations";
 import {
   deriveActorSpellCollections,
   deriveClassResources,
@@ -37,6 +33,7 @@ import {
 } from "../selectors/playerNpcSheet2024Selectors";
 import {
   abilityModifierTotal,
+  bonusTotal,
   cloneActor,
   derivedArmorClass,
   derivedSpeed,
@@ -57,12 +54,15 @@ export interface PlayerNpcSheetControllerState {
   hitDiceSelections: Record<string, number>;
   spellSelectionTarget: SpellSelectionTarget | null;
   longRestPreparedSpells: string[];
+  longRestChoiceSelections: Record<string, string[]>;
+  shortRestChoiceSelections: Record<string, string[]>;
   autosavePaused: boolean;
 }
 
 export interface PlayerNpcSheetMutators {
   updateDraft: (recipe: (current: ActorSheet) => ActorSheet) => void;
   updateField: <K extends keyof ActorSheet>(key: K, value: ActorSheet[K]) => void;
+  updateHitPointMax: (value: number) => void;
   updateAbility: (key: AbilityKey, value: number) => void;
   updateClass: (index: number, patch: Partial<ActorClassEntry>) => void;
   updateSkill: (index: number, patch: Partial<SkillEntry>) => void;
@@ -72,9 +72,7 @@ export interface PlayerNpcSheetMutators {
   removeFromArray: (key: "attacks" | "armorItems" | "resources" | "inventory" | "classes", index: number) => void;
   updateSpellSlotLevel: (level: number, patch: Partial<SpellSlotTrack>) => void;
   updateResourceById: (resourceId: string, patch: Partial<ResourceEntry>) => void;
-  updateDeathSaves: (
-    next: ActorSheet["deathSaves"] | ((current: ActorSheet["deathSaves"]) => ActorSheet["deathSaves"])
-  ) => void;
+  updateDeathSaves: (next: ActorSheet["deathSaves"] | ((current: ActorSheet["deathSaves"]) => ActorSheet["deathSaves"])) => void;
   recordDeathSave: (result: "success" | "failure") => void;
   resetDeathSaves: () => void;
 }
@@ -84,6 +82,8 @@ export interface PlayerNpcSheetActions {
   setRollMode: (mode: RollMode) => void;
   setSpellSelectionTarget: (target: SpellSelectionTarget | null) => void;
   setLongRestPreparedSpells: (spells: string[]) => void;
+  changeLongRestChoiceSelection: (groupId: string, optionIds: string[]) => void;
+  changeShortRestChoiceSelection: (groupId: string, optionIds: string[]) => void;
   setAutosavePaused: (paused: boolean) => void;
   saveCurrent: (nextDraft?: ActorSheet) => Promise<void>;
   handleImageUpload: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
@@ -123,6 +123,8 @@ export function usePlayerNpcSheetController({
   const [hitDiceSelections, setHitDiceSelections] = useState<Record<string, number>>({});
   const [spellSelectionTarget, setSpellSelectionTarget] = useState<SpellSelectionTarget | null>(null);
   const [longRestPreparedSpells, setLongRestPreparedSpells] = useState<string[]>([]);
+  const [longRestChoiceSelections, setLongRestChoiceSelections] = useState<Record<string, string[]>>({});
+  const [shortRestChoiceSelections, setShortRestChoiceSelections] = useState<Record<string, string[]>>({});
   const [autosavePaused, setAutosavePaused] = useState(false);
 
   const canEdit = role === "dm" || draft.ownerId === currentUserId;
@@ -140,6 +142,8 @@ export function usePlayerNpcSheetController({
     setHitDiceSelections({});
     setSpellSelectionTarget(null);
     setLongRestPreparedSpells([]);
+    setLongRestChoiceSelections({});
+    setShortRestChoiceSelections({});
     setAutosavePaused(false);
   }, []);
 
@@ -243,140 +247,238 @@ export function usePlayerNpcSheetController({
     setDraft((current) => recipe(current));
   }, []);
 
-  const updateField = useCallback(<K extends keyof ActorSheet>(key: K, value: ActorSheet[K]) => {
-    updateDraft((current) => ({ ...current, [key]: value }));
-  }, [updateDraft]);
-
-  const updateAbility = useCallback((key: AbilityKey, value: number) => {
-    updateDraft((current) => ({
-      ...current,
-      abilities: {
-        ...current.abilities,
-        [key]: value
-      }
-    }));
-  }, [updateDraft]);
-
-  const updateClass = useCallback((index: number, patch: Partial<ActorClassEntry>) => {
-    updateDraft((current) => ({
-      ...current,
-      classes: current.classes.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
-    }));
-  }, [updateDraft]);
-
-  const updateSkill = useCallback((index: number, patch: Partial<SkillEntry>) => {
-    updateDraft((current) => ({
-      ...current,
-      skills: current.skills.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
-    }));
-  }, [updateDraft]);
-
-  const updateAttack = useCallback((index: number, patch: Partial<AttackEntry>) => {
-    updateDraft((current) => ({
-      ...current,
-      attacks: current.attacks.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
-    }));
-  }, [updateDraft]);
-
-  const updateArmor = useCallback((index: number, patch: Partial<ArmorEntry>) => {
-    updateDraft((current) => ({
-      ...current,
-      armorItems: current.armorItems.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
-    }));
-  }, [updateDraft]);
-
-  const updateInventory = useCallback((index: number, patch: Partial<InventoryEntry>) => {
-    updateDraft((current) => ({
-      ...current,
-      inventory: current.inventory.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
-    }));
-  }, [updateDraft]);
-
-  const removeFromArray = useCallback((key: "attacks" | "armorItems" | "resources" | "inventory" | "classes", index: number) => {
-    updateDraft((current) => ({
-      ...current,
-      [key]: current[key].filter((_, currentIndex) => currentIndex !== index)
-    }));
-  }, [updateDraft]);
-
-  const updateSpellSlotLevel = useCallback((level: number, patch: Partial<SpellSlotTrack>) => {
-    updateDraft((current) => {
-      const slotIndex = current.spellSlots.findIndex((entry) => entry.level === level);
-
-      if (slotIndex >= 0) {
+  const updateField = useCallback(
+    <K extends keyof ActorSheet>(key: K, value: ActorSheet[K]) => {
+      updateDraft((current) => {
+        const manualField = ["armorClass", "proficiencyBonus", "speed", "spellcastingAbility"].includes(String(key))
+          ? (key as "armorClass" | "proficiencyBonus" | "speed" | "spellcastingAbility")
+          : null;
+        if (!manualField || (typeof value !== "number" && typeof value !== "string")) return { ...current, [key]: value };
+        const build = current.build ?? {
+          ruleset: "dnd-2024" as const,
+          schemaVersion: 2 as const,
+          mode: "manual" as const,
+          classes: [],
+          selections: []
+        };
         return {
           ...current,
-          spellSlots: current.spellSlots.map((entry, currentIndex) => (currentIndex === slotIndex ? { ...entry, ...patch } : entry))
+          [key]: value,
+          build: {
+            ...build,
+            schemaVersion: 2,
+            overrides: [
+              ...(build.overrides ?? []).filter((entry) => !(entry.operation === "field" && entry.targetField === manualField)),
+              {
+                id: crypto.randomUUID(),
+                operation: "field",
+                targetField: manualField,
+                value,
+                notes: `Manual ${manualField} override from the sheet editor.`
+              }
+            ]
+          }
         };
-      }
+      });
+    },
+    [updateDraft]
+  );
 
-      const derivedSlot = deriveSpellSlots(current, compendium.classes).find((entry) => entry.level === level);
-
-      if (!derivedSlot) {
-        return current;
-      }
-
-      return {
-        ...current,
-        spellSlots: [...current.spellSlots, { ...derivedSlot, ...patch }]
-      };
-    });
-  }, [compendium.classes, updateDraft]);
-
-  const updateResourceById = useCallback((resourceId: string, patch: Partial<ResourceEntry>) => {
-    updateDraft((current) => {
-      const resourceIndex = current.resources.findIndex((entry) => entry.id === resourceId);
-
-      if (resourceIndex >= 0) {
+  const updateHitPointMax = useCallback(
+    (value: number) => {
+      updateDraft((current) => {
+        const build = current.build ?? {
+          ruleset: "dnd-2024" as const,
+          schemaVersion: 2 as const,
+          mode: "manual" as const,
+          classes: [],
+          selections: []
+        };
+        const nextMax = Math.max(0, value);
         return {
           ...current,
-          resources: current.resources.map((entry, currentIndex) => (currentIndex === resourceIndex ? { ...entry, ...patch } : entry))
+          hitPoints: { ...current.hitPoints, max: nextMax, current: Math.min(current.hitPoints.current, nextMax) },
+          build: {
+            ...build,
+            schemaVersion: 2,
+            overrides: [
+              ...(build.overrides ?? []).filter((entry) => !(entry.operation === "field" && entry.targetField === "hitPointMax")),
+              {
+                id: crypto.randomUUID(),
+                operation: "field",
+                targetField: "hitPointMax",
+                value: nextMax,
+                notes: "Manual hitPointMax override from the sheet editor."
+              }
+            ]
+          }
         };
-      }
+      });
+    },
+    [updateDraft]
+  );
 
-      const derivedResource = mergeDerivedResources(current.resources, deriveClassResources(current, compendium.classes)).find(
-        (entry) => entry.id === resourceId
-      );
-
-      if (!derivedResource) {
-        return current;
-      }
-
-      return {
+  const updateAbility = useCallback(
+    (key: AbilityKey, value: number) => {
+      updateDraft((current) => ({
         ...current,
-        resources: [...current.resources, { ...derivedResource, ...patch }]
-      };
-    });
-  }, [compendium.classes, updateDraft]);
-
-  const updateDeathSaves = useCallback((
-    next: ActorSheet["deathSaves"] | ((current: ActorSheet["deathSaves"]) => ActorSheet["deathSaves"])
-  ) => {
-    updateDraft((current) => {
-      const resolved = typeof next === "function" ? next(current.deathSaves) : next;
-
-      return {
-        ...current,
-        deathSaves: {
-          successes: Math.max(0, Math.min(3, resolved.successes)),
-          failures: Math.max(0, Math.min(3, resolved.failures)),
-          history: (resolved.history ?? []).slice(-3)
+        abilities: {
+          ...current.abilities,
+          [key]: value
         }
-      };
-    });
-  }, [updateDraft]);
+      }));
+    },
+    [updateDraft]
+  );
 
-  const recordDeathSave = useCallback((result: "success" | "failure") => {
-    updateDeathSaves((current) => {
-      const history = [...(current.history ?? []), result].slice(-3);
+  const updateClass = useCallback(
+    (index: number, patch: Partial<ActorClassEntry>) => {
+      updateDraft((current) => ({
+        ...current,
+        classes: current.classes.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
+      }));
+    },
+    [updateDraft]
+  );
 
-      return {
-        successes: history.filter((entry) => entry === "success").length,
-        failures: history.filter((entry) => entry === "failure").length,
-        history
-      };
-    });
-  }, [updateDeathSaves]);
+  const updateSkill = useCallback(
+    (index: number, patch: Partial<SkillEntry>) => {
+      updateDraft((current) => ({
+        ...current,
+        skills: current.skills.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
+      }));
+    },
+    [updateDraft]
+  );
+
+  const updateAttack = useCallback(
+    (index: number, patch: Partial<AttackEntry>) => {
+      updateDraft((current) => ({
+        ...current,
+        attacks: current.attacks.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
+      }));
+    },
+    [updateDraft]
+  );
+
+  const updateArmor = useCallback(
+    (index: number, patch: Partial<ArmorEntry>) => {
+      updateDraft((current) => ({
+        ...current,
+        armorItems: current.armorItems.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
+      }));
+    },
+    [updateDraft]
+  );
+
+  const updateInventory = useCallback(
+    (index: number, patch: Partial<InventoryEntry>) => {
+      updateDraft((current) => ({
+        ...current,
+        inventory: current.inventory.map((entry, currentIndex) => (currentIndex === index ? { ...entry, ...patch } : entry))
+      }));
+    },
+    [updateDraft]
+  );
+
+  const removeFromArray = useCallback(
+    (key: "attacks" | "armorItems" | "resources" | "inventory" | "classes", index: number) => {
+      updateDraft((current) => ({
+        ...current,
+        [key]: current[key].filter((_, currentIndex) => currentIndex !== index)
+      }));
+    },
+    [updateDraft]
+  );
+
+  const updateSpellSlotLevel = useCallback(
+    (level: number, patch: Partial<SpellSlotTrack>) => {
+      updateDraft((current) => {
+        const slotIndex = current.spellSlots.findIndex((entry) => entry.level === level);
+
+        if (slotIndex >= 0) {
+          return {
+            ...current,
+            spellSlots: current.spellSlots.map((entry, currentIndex) => (currentIndex === slotIndex ? { ...entry, ...patch } : entry))
+          };
+        }
+
+        const derivedSlot = deriveSpellSlots(current, compendium.classes).find((entry) => entry.level === level);
+
+        if (!derivedSlot) {
+          return current;
+        }
+
+        return {
+          ...current,
+          spellSlots: [...current.spellSlots, { ...derivedSlot, ...patch }]
+        };
+      });
+    },
+    [compendium.classes, updateDraft]
+  );
+
+  const updateResourceById = useCallback(
+    (resourceId: string, patch: Partial<ResourceEntry>) => {
+      updateDraft((current) => {
+        const resourceIndex = current.resources.findIndex((entry) => entry.id === resourceId);
+
+        if (resourceIndex >= 0) {
+          return {
+            ...current,
+            resources: current.resources.map((entry, currentIndex) => (currentIndex === resourceIndex ? { ...entry, ...patch } : entry))
+          };
+        }
+
+        const derivedResource = mergeDerivedResources(current.resources, deriveClassResources(current, compendium.classes)).find(
+          (entry) => entry.id === resourceId
+        );
+
+        if (!derivedResource) {
+          return current;
+        }
+
+        return {
+          ...current,
+          resources: [...current.resources, { ...derivedResource, ...patch }]
+        };
+      });
+    },
+    [compendium.classes, updateDraft]
+  );
+
+  const updateDeathSaves = useCallback(
+    (next: ActorSheet["deathSaves"] | ((current: ActorSheet["deathSaves"]) => ActorSheet["deathSaves"])) => {
+      updateDraft((current) => {
+        const resolved = typeof next === "function" ? next(current.deathSaves) : next;
+
+        return {
+          ...current,
+          deathSaves: {
+            successes: Math.max(0, Math.min(3, resolved.successes)),
+            failures: Math.max(0, Math.min(3, resolved.failures)),
+            history: (resolved.history ?? []).slice(-3)
+          }
+        };
+      });
+    },
+    [updateDraft]
+  );
+
+  const recordDeathSave = useCallback(
+    (result: "success" | "failure") => {
+      updateDeathSaves((current) => {
+        const history = [...(current.history ?? []), result].slice(-3);
+
+        return {
+          successes: history.filter((entry) => entry === "success").length,
+          failures: history.filter((entry) => entry === "failure").length,
+          history
+        };
+      });
+    },
+    [updateDeathSaves]
+  );
 
   const resetDeathSaves = useCallback(() => {
     updateDeathSaves({
@@ -386,55 +488,64 @@ export function usePlayerNpcSheetController({
     });
   }, [updateDeathSaves]);
 
-  const handleImageUpload = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+  const handleImageUpload = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
 
-    if (!file) {
-      return;
-    }
+      if (!file) {
+        return;
+      }
 
-    try {
-      const { url } = await uploadImageAsset(token, "actors", file);
-      setImageError(null);
-      updateField("imageUrl", url);
-    } catch (error) {
-      console.error(error);
-      setImageError("Unable to upload that image.");
-    }
-  }, [token, updateField]);
+      try {
+        const { url } = await uploadImageAsset(token, "actors", file);
+        setImageError(null);
+        updateField("imageUrl", url);
+      } catch (error) {
+        console.error(error);
+        setImageError("Unable to upload that image.");
+      }
+    },
+    [token, updateField]
+  );
 
-  const handleRoll = useCallback(async (modifier: number, label: string) => {
-    if (!canRoll || sheetContext !== "board") {
-      return;
-    }
+  const handleRoll = useCallback(
+    async (modifier: number, label: string) => {
+      if (!canRoll || sheetContext !== "board") {
+        return;
+      }
 
-    const notation = buildD20Notation(modifier, rollMode);
-    setRollMode("normal");
-    await onRoll(notation, `${draft.name} ${label}`);
-  }, [canRoll, draft.name, onRoll, rollMode, sheetContext]);
-
-  const handleNotationRoll = useCallback(async (notation: string, label: string, resetsRollMode = false) => {
-    if (!canRoll || sheetContext !== "board") {
-      return;
-    }
-
-    if (resetsRollMode) {
+      const notation = buildD20Notation(modifier, rollMode);
       setRollMode("normal");
-    }
+      await onRoll(notation, `${draft.name} ${label}`);
+    },
+    [canRoll, draft.name, onRoll, rollMode, sheetContext]
+  );
 
-    await onRoll(notation.replace(/\s+/g, ""), `${draft.name} ${label}`);
-  }, [canRoll, draft.name, onRoll, sheetContext]);
+  const handleNotationRoll = useCallback(
+    async (notation: string, label: string, resetsRollMode = false) => {
+      if (!canRoll || sheetContext !== "board") {
+        return;
+      }
+
+      if (resetsRollMode) {
+        setRollMode("normal");
+      }
+
+      await onRoll(notation.replace(/\s+/g, ""), `${draft.name} ${label}`);
+    },
+    [canRoll, draft.name, onRoll, sheetContext]
+  );
 
   const handleInitiativeRoll = useCallback(async () => {
     if (!canRoll || sheetContext !== "board") {
       return;
     }
 
-    const notation = buildD20Notation(draft.initiative, rollMode);
+    const notation = buildD20Notation(draft.initiative + bonusTotal(draft, "initiative"), rollMode);
     setRollMode("normal");
     await onRoll(notation, `${draft.name} initiative`);
-  }, [canRoll, draft.initiative, draft.name, onRoll, rollMode, sheetContext]);
+  }, [canRoll, draft, onRoll, rollMode, sheetContext]);
 
   const handleAutomaticDeathSave = useCallback(async () => {
     if (!canRoll || sheetContext !== "board") {
@@ -489,11 +600,14 @@ export function usePlayerNpcSheetController({
         : resource
     );
 
-    setDraft(nextDraft);
+    const finalizedDraft = applyRestChoiceSelections(nextDraft, shortRestChoiceSelections);
+
+    setDraft(finalizedDraft);
     setShortRestOpen(false);
     setHitDiceSelections({});
-    await saveCurrent(nextDraft);
-  }, [compendium.classes, draft, hitDiceSelections, saveCurrent]);
+    setShortRestChoiceSelections({});
+    await saveCurrent(finalizedDraft);
+  }, [compendium.classes, draft, hitDiceSelections, saveCurrent, shortRestChoiceSelections]);
 
   const startLongRest = useCallback(() => {
     setLongRestPreparedSpells([...draft.preparedSpells]);
@@ -503,6 +617,15 @@ export function usePlayerNpcSheetController({
   const cancelLongRest = useCallback(() => {
     setLongRestOpen(false);
     setLongRestPreparedSpells([]);
+    setLongRestChoiceSelections({});
+  }, []);
+
+  const changeLongRestChoiceSelection = useCallback((groupId: string, optionIds: string[]) => {
+    setLongRestChoiceSelections((current) => ({ ...current, [groupId]: optionIds }));
+  }, []);
+
+  const changeShortRestChoiceSelection = useCallback((groupId: string, optionIds: string[]) => {
+    setShortRestChoiceSelections((current) => ({ ...current, [groupId]: optionIds }));
   }, []);
 
   const confirmLongRest = useCallback(async () => {
@@ -513,7 +636,9 @@ export function usePlayerNpcSheetController({
       return classEntry?.spellPreparation === "prepared" || classEntry?.spellPreparation === "spellbook";
     });
 
-    nextDraft.hitPoints.max = derivedHitPointMax || nextDraft.hitPoints.max;
+    if (!hasProgressionFieldOverride(nextDraft, "hitPointMax")) {
+      nextDraft.hitPoints.max = derivedHitPointMax || nextDraft.hitPoints.max;
+    }
     nextDraft.hitPoints.temp = 0;
     nextDraft.hitPoints = normalizeHitPoints(nextDraft.hitPoints, nextDraft.hitPoints.max);
     nextDraft.hitPoints.current = effectiveHitPointMax(nextDraft.hitPoints.max, nextDraft.hitPoints.reducedMax);
@@ -528,92 +653,131 @@ export function usePlayerNpcSheetController({
     }));
     nextDraft.preparedSpells = canPrepareSpells ? [...longRestPreparedSpells] : nextDraft.preparedSpells;
 
-    setDraft(nextDraft);
+    const finalizedDraft = applyRestChoiceSelections(nextDraft, longRestChoiceSelections);
+
+    setDraft(finalizedDraft);
     setLongRestOpen(false);
     setLongRestPreparedSpells([]);
-    await saveCurrent(nextDraft);
-  }, [compendium.classes, draft, longRestPreparedSpells, saveCurrent]);
+    setLongRestChoiceSelections({});
+    await saveCurrent(finalizedDraft);
+  }, [compendium.classes, draft, longRestChoiceSelections, longRestPreparedSpells, saveCurrent]);
 
-  const state = useMemo<PlayerNpcSheetControllerState>(() => ({
-    draft,
-    activeTab,
-    saving,
-    imageError,
-    rollMode,
-    shortRestOpen,
-    longRestOpen,
-    hitDiceSelections,
-    spellSelectionTarget,
-    longRestPreparedSpells,
-    autosavePaused
-  }), [activeTab, autosavePaused, draft, hitDiceSelections, imageError, longRestOpen, longRestPreparedSpells, rollMode, saving, shortRestOpen, spellSelectionTarget]);
+  const state = useMemo<PlayerNpcSheetControllerState>(
+    () => ({
+      draft,
+      activeTab,
+      saving,
+      imageError,
+      rollMode,
+      shortRestOpen,
+      longRestOpen,
+      hitDiceSelections,
+      spellSelectionTarget,
+      longRestPreparedSpells,
+      longRestChoiceSelections,
+      shortRestChoiceSelections,
+      autosavePaused
+    }),
+    [
+      activeTab,
+      autosavePaused,
+      draft,
+      hitDiceSelections,
+      imageError,
+      longRestChoiceSelections,
+      longRestOpen,
+      longRestPreparedSpells,
+      rollMode,
+      saving,
+      shortRestChoiceSelections,
+      shortRestOpen,
+      spellSelectionTarget
+    ]
+  );
 
-  const mutators = useMemo<PlayerNpcSheetMutators>(() => ({
-    updateDraft,
-    updateField,
-    updateAbility,
-    updateClass,
-    updateSkill,
-    updateAttack,
-    updateArmor,
-    updateInventory,
-    removeFromArray,
-    updateSpellSlotLevel,
-    updateResourceById,
-    updateDeathSaves,
-    recordDeathSave,
-    resetDeathSaves
-  }), [
-    recordDeathSave,
-    removeFromArray,
-    resetDeathSaves,
-    updateAbility,
-    updateArmor,
-    updateAttack,
-    updateClass,
-    updateDeathSaves,
-    updateDraft,
-    updateField,
-    updateInventory,
-    updateResourceById,
-    updateSkill,
-    updateSpellSlotLevel
-  ]);
+  const mutators = useMemo<PlayerNpcSheetMutators>(
+    () => ({
+      updateDraft,
+      updateField,
+      updateHitPointMax,
+      updateAbility,
+      updateClass,
+      updateSkill,
+      updateAttack,
+      updateArmor,
+      updateInventory,
+      removeFromArray,
+      updateSpellSlotLevel,
+      updateResourceById,
+      updateDeathSaves,
+      recordDeathSave,
+      resetDeathSaves
+    }),
+    [
+      recordDeathSave,
+      removeFromArray,
+      resetDeathSaves,
+      updateAbility,
+      updateArmor,
+      updateAttack,
+      updateClass,
+      updateDeathSaves,
+      updateDraft,
+      updateField,
+      updateHitPointMax,
+      updateInventory,
+      updateResourceById,
+      updateSkill,
+      updateSpellSlotLevel
+    ]
+  );
 
-  const actions = useMemo<PlayerNpcSheetActions>(() => ({
-    setActiveTab,
-    setRollMode,
-    setSpellSelectionTarget,
-    setLongRestPreparedSpells,
-    setAutosavePaused,
-    saveCurrent,
-    handleImageUpload,
-    handleRoll,
-    handleNotationRoll,
-    handleInitiativeRoll,
-    handleAutomaticDeathSave,
-    startShortRest,
-    cancelShortRest,
-    confirmShortRest,
-    changeHitDiceSelection,
-    startLongRest,
-    cancelLongRest,
-    confirmLongRest
-  }), [
-    cancelLongRest,
-    cancelShortRest,
-    changeHitDiceSelection,
-    confirmLongRest,
-    confirmShortRest,
-    handleAutomaticDeathSave,
-    handleImageUpload,
-    handleInitiativeRoll,
-    handleNotationRoll,
-    handleRoll,
-    saveCurrent,
-    startLongRest,
-    startShortRest
-  ]);
+  const actions = useMemo<PlayerNpcSheetActions>(
+    () => ({
+      setActiveTab,
+      setRollMode,
+      setSpellSelectionTarget,
+      setLongRestPreparedSpells,
+      changeLongRestChoiceSelection,
+      changeShortRestChoiceSelection,
+      setAutosavePaused,
+      saveCurrent,
+      handleImageUpload,
+      handleRoll,
+      handleNotationRoll,
+      handleInitiativeRoll,
+      handleAutomaticDeathSave,
+      startShortRest,
+      cancelShortRest,
+      confirmShortRest,
+      changeHitDiceSelection,
+      startLongRest,
+      cancelLongRest,
+      confirmLongRest
+    }),
+    [
+      cancelLongRest,
+      cancelShortRest,
+      changeHitDiceSelection,
+      changeLongRestChoiceSelection,
+      changeShortRestChoiceSelection,
+      confirmLongRest,
+      confirmShortRest,
+      handleAutomaticDeathSave,
+      handleImageUpload,
+      handleInitiativeRoll,
+      handleNotationRoll,
+      handleRoll,
+      saveCurrent,
+      setActiveTab,
+      setAutosavePaused,
+      setLongRestPreparedSpells,
+      setRollMode,
+      setSpellSelectionTarget,
+      startLongRest,
+      startShortRest
+    ]
+  );
 
   return {
     state,
