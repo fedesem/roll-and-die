@@ -32,7 +32,18 @@ export async function readCampaignCompendium(
 ): Promise<
   Pick<
     CompendiumData,
-    "spells" | "monsters" | "feats" | "classes" | "variantRules" | "conditions" | "optionalFeatures" | "backgrounds" | "items" | "languages" | "races" | "skills"
+    | "spells"
+    | "monsters"
+    | "feats"
+    | "classes"
+    | "variantRules"
+    | "conditions"
+    | "optionalFeatures"
+    | "backgrounds"
+    | "items"
+    | "languages"
+    | "races"
+    | "skills"
   >
 > {
   return {
@@ -1289,11 +1300,11 @@ function upsertFeatEntry(database: DatabaseSync, feat: FeatEntry, sortOrder: num
     .run(feat.id, sortOrder, feat.name, feat.source, feat.category, feat.abilityScoreIncrease, feat.prerequisites, feat.description);
 }
 async function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortOrder: number) {
-  const existingClassRow = await database.prepare(
-    "SELECT id FROM compendium_classes WHERE lower(name) = lower(?) AND lower(source) = lower(?) LIMIT 1"
-  ).get<{
-    id: string;
-  }>(entry.name, entry.source);
+  const existingClassRow = await database
+    .prepare("SELECT id FROM compendium_classes WHERE lower(name) = lower(?) AND lower(source) = lower(?) LIMIT 1")
+    .get<{
+      id: string;
+    }>(entry.name, entry.source);
   const classId = existingClassRow?.id ?? entry.id;
   const existingSubclassRows = await readAll<{
     id: string;
@@ -1415,16 +1426,7 @@ async function upsertClassEntry(database: DatabaseSync, entry: ClassEntry, sortO
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           `
         )
-        .run(
-          classId,
-          subclass.id,
-          featureIndex,
-          feature.level,
-          feature.name,
-          feature.description,
-          feature.source,
-          feature.reference
-        );
+        .run(classId, subclass.id, featureIndex, feature.level, feature.name, feature.description, feature.source, feature.reference);
     });
   });
   entry.tables.forEach((table, tableIndex) => {
@@ -1599,9 +1601,7 @@ function createClassSubclassKey(classId: string, subclassId: string) {
   return `${classId}:${subclassId}`;
 }
 function createClassSubclassNaturalKey(name: string, source: string, shortName: string) {
-  return [name, source, shortName]
-    .map((value) => value.trim().toLowerCase())
-    .join(":");
+  return [name, source, shortName].map((value) => value.trim().toLowerCase()).join(":");
 }
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));

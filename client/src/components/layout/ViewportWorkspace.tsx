@@ -78,16 +78,12 @@ export function WorkspacePane({ as, children, className, ...rest }: WorkspacePan
   );
 }
 
-export function WorkspacePaneBody({
-  children,
-  className,
-  contentClassName,
-  fill = false,
-  scroll = "y",
-  ...rest
-}: WorkspacePaneBodyProps) {
+export function WorkspacePaneBody({ children, className, contentClassName, fill = false, scroll = "y", ...rest }: WorkspacePaneBodyProps) {
   return (
-    <div className={cx("workspace-pane-body", `workspace-pane-body--scroll-${scroll}`, fill && "workspace-pane-body--fill", className)} {...rest}>
+    <div
+      className={cx("workspace-pane-body", `workspace-pane-body--scroll-${scroll}`, fill && "workspace-pane-body--fill", className)}
+      {...rest}
+    >
       <div className={cx("workspace-pane-body__content", contentClassName)}>{children}</div>
     </div>
   );

@@ -135,7 +135,10 @@ function normalizeCampaign(campaign: Campaign): Campaign {
           ...actor,
           imageUrl: actor.imageUrl ?? "",
           visionRange: actor.visionRange ?? 6,
-          initiativeRoll: typeof (actor as { initiativeRoll?: unknown }).initiativeRoll === "number" ? (actor as { initiativeRoll?: number }).initiativeRoll ?? null : null,
+          initiativeRoll:
+            typeof (actor as { initiativeRoll?: unknown }).initiativeRoll === "number"
+              ? ((actor as { initiativeRoll?: number }).initiativeRoll ?? null)
+              : null,
           creatureSize: normalizeCreatureSize(actor.creatureSize),
           tokenWidthSquares: actor.kind === "static" ? clampStaticTokenDimension(actor.tokenWidthSquares ?? 2) : 1,
           tokenLengthSquares: actor.kind === "static" ? clampStaticTokenDimension(actor.tokenLengthSquares ?? 4) : 1,
@@ -160,13 +163,17 @@ function normalizeCampaign(campaign: Campaign): Campaign {
                     ? (actor as Partial<typeof actor>).spellState!.spellbook.filter((entry): entry is string => typeof entry === "string")
                     : [],
                   alwaysPrepared: Array.isArray((actor as Partial<typeof actor>).spellState?.alwaysPrepared)
-                    ? (actor as Partial<typeof actor>).spellState!.alwaysPrepared.filter((entry): entry is string => typeof entry === "string")
+                    ? (actor as Partial<typeof actor>).spellState!.alwaysPrepared.filter(
+                        (entry): entry is string => typeof entry === "string"
+                      )
                     : [],
                   atWill: Array.isArray((actor as Partial<typeof actor>).spellState?.atWill)
                     ? (actor as Partial<typeof actor>).spellState!.atWill.filter((entry): entry is string => typeof entry === "string")
                     : [],
                   perShortRest: Array.isArray((actor as Partial<typeof actor>).spellState?.perShortRest)
-                    ? (actor as Partial<typeof actor>).spellState!.perShortRest.filter((entry): entry is string => typeof entry === "string")
+                    ? (actor as Partial<typeof actor>).spellState!.perShortRest.filter(
+                        (entry): entry is string => typeof entry === "string"
+                      )
                     : [],
                   perLongRest: Array.isArray((actor as Partial<typeof actor>).spellState?.perLongRest)
                     ? (actor as Partial<typeof actor>).spellState!.perLongRest.filter((entry): entry is string => typeof entry === "string")

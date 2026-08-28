@@ -1102,138 +1102,126 @@ export function MapConfigurator({
 
         <WorkspacePane as="div" className="map-form-pane">
           <WorkspacePaneBody className="map-form-scroll" contentClassName="map-form-stack">
-          <div className="map-form-section">
-            <div className="panel-head">
-              <div>
-                <p className="panel-label">Image</p>
-                <h3>
-                  {map.width}x{map.height}
-                </h3>
+            <div className="map-form-section">
+              <div className="panel-head">
+                <div>
+                  <p className="panel-label">Image</p>
+                  <h3>
+                    {map.width}x{map.height}
+                  </h3>
+                </div>
+              </div>
+              <div className="map-form-grid">
+                <label>
+                  Name
+                  <input value={map.name} disabled={disabled} onChange={(event) => onChange({ ...map, name: event.target.value })} />
+                </label>
+                <label>
+                  Background Image
+                  <input type="file" accept="image/*" disabled={disabled} onChange={handleImageUpload} />
+                </label>
+                <label className="span-two">
+                  Background URL
+                  <input
+                    value={map.backgroundUrl}
+                    disabled={disabled}
+                    onChange={(event) => onChange({ ...map, backgroundUrl: event.target.value })}
+                  />
+                </label>
+                <label>
+                  Image Width
+                  <NumericInput value={map.width} disabled={disabled} onValueChange={(value) => onChange({ ...map, width: value ?? 0 })} />
+                </label>
+                <label>
+                  Image Height
+                  <NumericInput
+                    value={map.height}
+                    disabled={disabled}
+                    onValueChange={(value) => onChange({ ...map, height: value ?? 0 })}
+                  />
+                </label>
+                <label>
+                  Image Offset X
+                  <NumericInput
+                    value={map.backgroundOffsetX}
+                    disabled={disabled}
+                    onValueChange={(value) => onChange({ ...map, backgroundOffsetX: value ?? 0 })}
+                  />
+                </label>
+                <label>
+                  Image Offset Y
+                  <NumericInput
+                    value={map.backgroundOffsetY}
+                    disabled={disabled}
+                    onValueChange={(value) => onChange({ ...map, backgroundOffsetY: value ?? 0 })}
+                  />
+                </label>
+                <label>
+                  Image Scale
+                  <NumericInput
+                    step="0.01"
+                    value={map.backgroundScale}
+                    disabled={disabled}
+                    onValueChange={(value) => onChange({ ...map, backgroundScale: value ?? 0 })}
+                  />
+                </label>
+                <label>
+                  Grid Cell
+                  <NumericInput
+                    value={map.grid.cellSize}
+                    disabled={disabled}
+                    onValueChange={(value) => updateGrid("cellSize", value ?? 0)}
+                  />
+                </label>
+                <label>
+                  Board Scale
+                  <NumericInput
+                    step="0.1"
+                    value={map.grid.scale}
+                    disabled={disabled}
+                    onValueChange={(value) => updateGrid("scale", value ?? 0)}
+                  />
+                </label>
+                <label>
+                  Grid Offset X
+                  <NumericInput value={map.grid.offsetX} disabled={disabled} onValueChange={(value) => updateGrid("offsetX", value ?? 0)} />
+                </label>
+                <label>
+                  Grid Offset Y
+                  <NumericInput value={map.grid.offsetY} disabled={disabled} onValueChange={(value) => updateGrid("offsetY", value ?? 0)} />
+                </label>
+                <label>
+                  Grid Color
+                  <div className="color-input-row">
+                    <input
+                      type="color"
+                      value={toColorInputValue(map.grid.color)}
+                      disabled={disabled}
+                      onChange={(event) => updateGrid("color", event.target.value)}
+                    />
+                    <input value={map.grid.color} disabled={disabled} onChange={(event) => updateGrid("color", event.target.value)} />
+                  </div>
+                </label>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={map.grid.show}
+                    disabled={disabled}
+                    onChange={(event) => updateGrid("show", event.target.checked)}
+                  />
+                  Show grid
+                </label>
+                <label className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    checked={map.fogEnabled}
+                    disabled={disabled}
+                    onChange={(event) => onChange({ ...map, fogEnabled: event.target.checked })}
+                  />
+                  Enable fog
+                </label>
               </div>
             </div>
-            <div className="map-form-grid">
-              <label>
-                Name
-                <input value={map.name} disabled={disabled} onChange={(event) => onChange({ ...map, name: event.target.value })} />
-              </label>
-              <label>
-                Background Image
-                <input type="file" accept="image/*" disabled={disabled} onChange={handleImageUpload} />
-              </label>
-              <label className="span-two">
-                Background URL
-                <input
-                  value={map.backgroundUrl}
-                  disabled={disabled}
-                  onChange={(event) => onChange({ ...map, backgroundUrl: event.target.value })}
-                />
-              </label>
-              <label>
-                Image Width
-                <NumericInput
-                  value={map.width}
-                  disabled={disabled}
-                  onValueChange={(value) => onChange({ ...map, width: value ?? 0 })}
-                />
-              </label>
-              <label>
-                Image Height
-                <NumericInput
-                  value={map.height}
-                  disabled={disabled}
-                  onValueChange={(value) => onChange({ ...map, height: value ?? 0 })}
-                />
-              </label>
-              <label>
-                Image Offset X
-                <NumericInput
-                  value={map.backgroundOffsetX}
-                  disabled={disabled}
-                  onValueChange={(value) => onChange({ ...map, backgroundOffsetX: value ?? 0 })}
-                />
-              </label>
-              <label>
-                Image Offset Y
-                <NumericInput
-                  value={map.backgroundOffsetY}
-                  disabled={disabled}
-                  onValueChange={(value) => onChange({ ...map, backgroundOffsetY: value ?? 0 })}
-                />
-              </label>
-              <label>
-                Image Scale
-                <NumericInput
-                  step="0.01"
-                  value={map.backgroundScale}
-                  disabled={disabled}
-                  onValueChange={(value) => onChange({ ...map, backgroundScale: value ?? 0 })}
-                />
-              </label>
-              <label>
-                Grid Cell
-                <NumericInput
-                  value={map.grid.cellSize}
-                  disabled={disabled}
-                  onValueChange={(value) => updateGrid("cellSize", value ?? 0)}
-                />
-              </label>
-              <label>
-                Board Scale
-                <NumericInput
-                  step="0.1"
-                  value={map.grid.scale}
-                  disabled={disabled}
-                  onValueChange={(value) => updateGrid("scale", value ?? 0)}
-                />
-              </label>
-              <label>
-                Grid Offset X
-                <NumericInput
-                  value={map.grid.offsetX}
-                  disabled={disabled}
-                  onValueChange={(value) => updateGrid("offsetX", value ?? 0)}
-                />
-              </label>
-              <label>
-                Grid Offset Y
-                <NumericInput
-                  value={map.grid.offsetY}
-                  disabled={disabled}
-                  onValueChange={(value) => updateGrid("offsetY", value ?? 0)}
-                />
-              </label>
-              <label>
-                Grid Color
-                <div className="color-input-row">
-                  <input
-                    type="color"
-                    value={toColorInputValue(map.grid.color)}
-                    disabled={disabled}
-                    onChange={(event) => updateGrid("color", event.target.value)}
-                  />
-                  <input value={map.grid.color} disabled={disabled} onChange={(event) => updateGrid("color", event.target.value)} />
-                </div>
-              </label>
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={map.grid.show}
-                  disabled={disabled}
-                  onChange={(event) => updateGrid("show", event.target.checked)}
-                />
-                Show grid
-              </label>
-              <label className="checkbox-row">
-                <input
-                  type="checkbox"
-                  checked={map.fogEnabled}
-                  disabled={disabled}
-                  onChange={(event) => onChange({ ...map, fogEnabled: event.target.checked })}
-                />
-                Enable fog
-              </label>
-            </div>
-          </div>
           </WorkspacePaneBody>
         </WorkspacePane>
       </ViewportWorkspace>

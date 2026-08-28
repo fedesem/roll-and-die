@@ -37,16 +37,7 @@ function toDraftString(value: number | null | undefined) {
   return value === null || value === undefined ? "" : String(value);
 }
 
-export function NumericInput({
-  value,
-  onValueChange,
-  emptyValue = 0,
-  min,
-  max,
-  onBlur,
-  onFocus,
-  ...props
-}: NumericInputProps) {
+export function NumericInput({ value, onValueChange, emptyValue = 0, min, max, onBlur, onFocus, ...props }: NumericInputProps) {
   const [draft, setDraft] = useState(() => toDraftString(value));
   const [focused, setFocused] = useState(false);
 
@@ -91,5 +82,7 @@ export function NumericInput({
     onBlur?.(event);
   }
 
-  return <input {...props} type="number" min={min} max={max} value={draft} onChange={handleChange} onFocus={handleFocus} onBlur={handleBlur} />;
+  return (
+    <input {...props} type="number" min={min} max={max} value={draft} onChange={handleChange} onFocus={handleFocus} onBlur={handleBlur} />
+  );
 }

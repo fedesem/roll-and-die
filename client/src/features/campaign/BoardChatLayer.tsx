@@ -23,9 +23,7 @@ export function BoardChatLayer({ messages, currentUserId, onSend, sheetOpen }: B
   }
 
   return createPortal(
-    <div className="fixed right-4 top-20 bottom-4 z-[80] w-[min(290px,calc(100vw-2rem))] min-h-0 pointer-events-auto">
-      {content}
-    </div>,
+    <div className="fixed right-4 top-20 bottom-4 z-[80] w-[min(290px,calc(100vw-2rem))] min-h-0 pointer-events-auto">{content}</div>,
     document.body
   );
 }

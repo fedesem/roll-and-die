@@ -1095,6 +1095,10 @@ function formatSpellClassReferenceDisplay(reference: SpellClassReference) {
     return reference.className ? `${reference.name} (${reference.className})` : reference.name;
   }
 
+  if (reference.source) {
+    return `${reference.name} (${reference.source})`;
+  }
+
   return reference.name;
 }
 

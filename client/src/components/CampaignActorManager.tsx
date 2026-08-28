@@ -208,12 +208,14 @@ export function CampaignActorManager({
         <WorkspacePaneBody scroll="none">
           {role === "dm" ? (
             <p className="empty-state">
-              Create DM-owned actors from the Maps tab after selecting the map you want to edit. Player-owned actors still appear here in the
-              general roster.
+              Create DM-owned actors from the Maps tab after selecting the map you want to edit. Player-owned actors still appear here in
+              the general roster.
             </p>
           ) : (
             <div className="space-y-4">
-              <p className="empty-state">Open the popup to create a new actor. Character and summon creation now use the same modal flow as the board sheet.</p>
+              <p className="empty-state">
+                Open the popup to create a new actor. Character and summon creation now use the same modal flow as the board sheet.
+              </p>
               {!actorCreatorOpen ? null : (
                 <div className="rounded-none border border-amber-200/15 bg-amber-300/8 px-4 py-3 text-sm text-amber-100">
                   The actor creation popup is already open.

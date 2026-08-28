@@ -634,13 +634,94 @@ export function deriveActorSpellCollections(actor: ActorSheet, compendium: Campa
   };
 }
 
-export function spellMatchesSingleClassFilter(spell: SpellEntry, className: string) {
-  return (
-    spell.classes.some((entry) => normalizeKey(entry) === normalizeKey(className)) ||
-    spell.classReferences.some(
-      (entry) => normalizeKey(entry.className) === normalizeKey(className) || normalizeKey(entry.name) === normalizeKey(className)
-    )
-  );
+export function parseTargetClassAndSource(target: string | { name: string; source?: string }): {
+  name: string;
+  source: string;
+  normalizedFull: string;
+} {
+  if (typeof target === "object" && target !== null) {
+    const name = target.name || "";
+    const source = target.source || "";
+    const full = source ? `${name} (${source})` : name;
+    return { name, source, normalizedFull: normalizeKey(full) };
+  }
+
+  const trimmed = (target || "").trim();
+  if (!trimmed) {
+    return { name: "", source: "", normalizedFull: "" };
+  }
+
+  const match = trimmed.match(/^(.*?)\s*\((.*?)\)$/);
+  if (match) {
+    return {
+      name: match[1].trim(),
+      source: match[2].trim(),
+      normalizedFull: normalizeKey(trimmed)
+    };
+  }
+
+  return {
+    name: trimmed,
+    source: "",
+    normalizedFull: normalizeKey(trimmed)
+  };
+}
+
+export function spellMatchesSingleClassFilter(spell: SpellEntry, target: string | { name: string; source?: string }): boolean {
+  const { name: targetName, source: targetSource, normalizedFull } = parseTargetClassAndSource(target);
+  if (!normalizedFull) return true;
+
+  const normTargetName = normalizeKey(targetName);
+  const normTargetSource = normalizeKey(targetSource);
+
+  // 1. Direct match against spell.classes strings
+  for (const cls of spell.classes || []) {
+    const normCls = normalizeKey(cls);
+    if (normCls === normalizedFull) {
+      return true;
+    }
+    // If spell class is simply "Wizard" or "Druid" (no source tag), it matches any Wizard or Druid
+    if (normCls === normTargetName) {
+      return true;
+    }
+    // If target has no source tag (e.g. "Wizard"), it matches "Wizard (XPHB)" or "Wizard (PHB)"
+    if (!normTargetSource && normCls.startsWith(normTargetName)) {
+      return true;
+    }
+  }
+
+  // 2. Match against structured classReferences
+  if (spell.classReferences && spell.classReferences.length > 0) {
+    const hasMatch = spell.classReferences.some((ref) => {
+      const isBaseClass = !ref.kind || ref.kind === "class" || ref.kind === "classVariant";
+      if (!isBaseClass) {
+        const fullSubclass = `${ref.name} (${ref.className || ""})`;
+        return normalizeKey(fullSubclass) === normalizedFull || normalizeKey(ref.name) === normalizedFull;
+      }
+
+      const refName = normalizeKey(ref.name);
+      const refSource = normalizeKey(ref.source);
+      const refFull = normalizeKey(ref.source ? `${ref.name} (${ref.source})` : ref.name);
+
+      if (refFull === normalizedFull) {
+        return true;
+      }
+
+      if (refName === normTargetName) {
+        if (!normTargetSource || !refSource || refSource === normTargetSource) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    if (hasMatch) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function deriveGrantedSpellState(actor: ActorSheet, compendium: CampaignSnapshot["compendium"]) {
@@ -1063,8 +1144,8 @@ export function deriveGuidedChoiceSpec(params: {
       ...params.actor.spellState.perLongRest
     ].map((entry) => normalizeKey(entry))
   );
-  const spellListId = classDef?.spellListId;
-  const classSpellOptions = spellListId ? params.spells.filter((entry) => spellMatchesSingleClassFilter(entry, spellListId)) : [];
+  const targetClassFilter = { name: classEntry.name, source: classEntry.source || classDef?.source };
+  const classSpellOptions = params.spells.filter((entry) => spellMatchesSingleClassFilter(entry, targetClassFilter));
   const cantripOptions = classSpellOptions.filter(
     (entry) => entry.level === "cantrip" && !existingSpellNames.has(normalizeKey(entry.name))
   );

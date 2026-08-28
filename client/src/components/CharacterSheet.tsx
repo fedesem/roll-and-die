@@ -23,7 +23,18 @@ interface CharacterSheetProps {
   onRoll: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
 }
 
-function CharacterSheetComponent({ token, actor, compendium, allowedSourceBooks, role, currentUserId, sheetContext, onSave, onRealtimeSave, onRoll }: CharacterSheetProps) {
+function CharacterSheetComponent({
+  token,
+  actor,
+  compendium,
+  allowedSourceBooks,
+  role,
+  currentUserId,
+  sheetContext,
+  onSave,
+  onRealtimeSave,
+  onRoll
+}: CharacterSheetProps) {
   const [draft, setDraft] = useState<ActorSheet | null>(actor ? cloneActor(actor) : null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -50,10 +61,7 @@ function CharacterSheetComponent({ token, actor, compendium, allowedSourceBooks,
     return role === "dm" || actor.ownerId === currentUserId;
   }, [actor, currentUserId, role]);
 
-  const handlePlayerNpcRoll = useCallback(
-    (notation: string, label: string) => onRoll(notation, label, actor),
-    [actor, onRoll]
-  );
+  const handlePlayerNpcRoll = useCallback((notation: string, label: string) => onRoll(notation, label, actor), [actor, onRoll]);
 
   if (!actor || !draft) {
     return (

@@ -42,7 +42,13 @@ function parseCssColor(value: string): RgbaColor | null {
 
   if (hexMatch) {
     const hex = hexMatch[1];
-    const expanded = hex.length === 3 ? hex.split("").map((entry) => `${entry}${entry}`).join("") : hex;
+    const expanded =
+      hex.length === 3
+        ? hex
+            .split("")
+            .map((entry) => `${entry}${entry}`)
+            .join("")
+        : hex;
 
     return {
       r: Number.parseInt(expanded.slice(0, 2), 16),
@@ -52,9 +58,7 @@ function parseCssColor(value: string): RgbaColor | null {
     };
   }
 
-  const rgbaMatch = normalized.match(
-    /^rgba?\(\s*(\d{1,3})\s*[, ]\s*(\d{1,3})\s*[, ]\s*(\d{1,3})(?:\s*(?:[,/])\s*(\d*\.?\d+))?\s*\)$/i
-  );
+  const rgbaMatch = normalized.match(/^rgba?\(\s*(\d{1,3})\s*[, ]\s*(\d{1,3})\s*[, ]\s*(\d{1,3})(?:\s*(?:[,/])\s*(\d*\.?\d+))?\s*\)$/i);
 
   if (rgbaMatch) {
     return {

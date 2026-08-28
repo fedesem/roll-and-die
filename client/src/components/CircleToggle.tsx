@@ -9,14 +9,7 @@ interface CircleToggleProps {
   className?: string;
 }
 
-export function CircleToggle({
-  checked,
-  label,
-  onClick,
-  disabled = false,
-  size = "sm",
-  className = ""
-}: CircleToggleProps) {
+export function CircleToggle({ checked, label, onClick, disabled = false, size = "sm", className = "" }: CircleToggleProps) {
   return (
     <button
       type="button"

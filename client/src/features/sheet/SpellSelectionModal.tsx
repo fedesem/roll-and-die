@@ -7,6 +7,7 @@ import { FloatingLayer, type FloatingAnchor } from "../../components/FloatingLay
 import { ModalFrame } from "../../components/ModalFrame";
 import { SpellPreviewCard } from "../../components/admin/AdminPreview";
 import { normalizeKey } from "./sheetUtils";
+import { spellMatchesSingleClassFilter } from "./selectors/playerNpcSheet2024Selectors";
 
 interface SpellSelectionModalProps {
   title: string;
@@ -94,22 +95,6 @@ export function SpellSelectionModal({
       }),
     [spells]
   );
-  const normalizedClassNames = useMemo(
-    () =>
-      new Set([
-        ...compendium.classes.map((entry) => normalizeKey(entry.name)),
-        "artificer",
-        "bard",
-        "cleric",
-        "druid",
-        "paladin",
-        "ranger",
-        "sorcerer",
-        "warlock",
-        "wizard"
-      ]),
-    [compendium.classes]
-  );
   const normalizedAllowedBooks = useMemo(() => new Set(allowedSourceBooks.map((entry) => normalizeKey(entry))), [allowedSourceBooks]);
   const classOptions = useMemo(() => {
     const byKey = new Map<string, SpellAccessFilterOption>();
@@ -131,8 +116,7 @@ export function SpellSelectionModal({
     sortedSpells.forEach((spell) => {
       spell.classes.forEach((entry) => {
         const normalized = normalizeKey(entry);
-
-        if (!normalized || !normalizedClassNames.has(normalized) || byKey.has(`class:${normalized}`)) {
+        if (!normalized || byKey.has(`class:${normalized}`)) {
           return;
         }
 
@@ -145,18 +129,13 @@ export function SpellSelectionModal({
 
       spell.classReferences.forEach((entry) => {
         const referenceKind = entry.kind === "subclass" || entry.kind === "subclassVariant" ? "subclass" : "class";
-        const label = referenceKind === "subclass" ? entry.name : entry.className || entry.name;
+        const label = referenceKind === "subclass" ? entry.name : entry.source ? `${entry.name} (${entry.source})` : entry.name;
         const normalized = normalizeKey(label);
         const normalizedClassName = normalizeKey(entry.className || "");
         const subclassKey = `${normalizedClassName}:${normalized}`;
         const optionKey = referenceKind === "subclass" ? `subclass:${subclassKey}` : `${referenceKind}:${normalized}`;
 
-        if (
-          !normalized ||
-          (referenceKind === "subclass" && !availableSubclasses.has(subclassKey)) ||
-          (referenceKind === "class" && !normalizedClassNames.has(normalizeKey(entry.className || label))) ||
-          byKey.has(optionKey)
-        ) {
+        if (!normalized || (referenceKind === "subclass" && !availableSubclasses.has(subclassKey)) || byKey.has(optionKey)) {
           return;
         }
 
@@ -171,7 +150,7 @@ export function SpellSelectionModal({
     });
 
     return Array.from(byKey.values()).sort((left, right) => left.label.localeCompare(right.label));
-  }, [compendium.classes, normalizedAllowedBooks, normalizedClassNames, sortedSpells]);
+  }, [compendium.classes, normalizedAllowedBooks, sortedSpells]);
   const baseClassOptions = useMemo(() => classOptions.filter((entry) => entry.kind === "class"), [classOptions]);
   const subclassOptionsByClass = useMemo(() => {
     const groups = new Map<string, SpellAccessFilterOption[]>();
@@ -205,21 +184,11 @@ export function SpellSelectionModal({
         }
 
         if (classFilter !== "all") {
-          const [filterKind, ...filterValueParts] = classFilter.split(":");
-          const normalizedClassFilter = normalizeKey(filterValueParts.join(":"));
+          const [, ...filterValueParts] = classFilter.split(":");
+          const filterTarget = filterValueParts.join(":");
+          const normalizedClassFilter = normalizeKey(filterTarget);
           const matchesClass =
-            filterKind === "subclass"
-              ? spell.classReferences.some(
-                  (entry) =>
-                    (entry.kind === "subclass" || entry.kind === "subclassVariant") &&
-                    `${normalizeKey(entry.className || "")}:${normalizeKey(entry.name)}` === normalizedClassFilter
-                )
-              : spell.classes.some((entry) => normalizeKey(entry) === normalizedClassFilter) ||
-                spell.classReferences.some(
-                  (entry) =>
-                    (entry.kind === "class" || entry.kind === "classVariant") &&
-                    (normalizeKey(entry.className) === normalizedClassFilter || normalizeKey(entry.name) === normalizedClassFilter)
-                );
+            spell.classes.some((cls) => normalizeKey(cls) === normalizedClassFilter) || spellMatchesSingleClassFilter(spell, filterTarget);
 
           if (!matchesClass) {
             return false;

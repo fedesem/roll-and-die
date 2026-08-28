@@ -78,16 +78,22 @@ describe("shared dice helpers", () => {
   });
 
   it("supports keep-highest and keep-lowest dice notation", () => {
-    const high = evaluateRollNotation("2d20kh1+5", (() => {
-      const values = [4, 17];
-      let index = 0;
-      return () => values[index++] ?? 1;
-    })());
-    const low = evaluateRollNotation("2d20kl1+2", (() => {
-      const values = [19, 3];
-      let index = 0;
-      return () => values[index++] ?? 1;
-    })());
+    const high = evaluateRollNotation(
+      "2d20kh1+5",
+      (() => {
+        const values = [4, 17];
+        let index = 0;
+        return () => values[index++] ?? 1;
+      })()
+    );
+    const low = evaluateRollNotation(
+      "2d20kl1+2",
+      (() => {
+        const values = [19, 3];
+        let index = 0;
+        return () => values[index++] ?? 1;
+      })()
+    );
 
     expect(high).toMatchObject({
       notation: "2d20kh1+5",

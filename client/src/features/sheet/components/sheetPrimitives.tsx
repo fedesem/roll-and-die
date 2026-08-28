@@ -143,7 +143,9 @@ const DetailCollectionItem = memo(function DetailCollectionItem({
           </div>
         ) : null}
         {entry.description ? (
-          <div className="text-sm leading-6 text-zinc-300">{renderText ? renderText(entry.description) : <p className="whitespace-pre-wrap">{entry.description}</p>}</div>
+          <div className="text-sm leading-6 text-zinc-300">
+            {renderText ? renderText(entry.description) : <p className="whitespace-pre-wrap">{entry.description}</p>}
+          </div>
         ) : null}
         {entry.tags?.length ? <TagRow tags={entry.tags} /> : null}
         {entry.onRemove ? (
@@ -316,7 +318,10 @@ export function HoverPreviewTrigger({
 
 export function CompactStatChip({ label, value, onClick }: { label: string; value: string; onClick?: () => void }) {
   return (
-    <div className={`border border-white/8 bg-black/20 px-2 py-2 ${onClick ? "cursor-pointer transition hover:border-amber-500/60" : ""}`} onClick={onClick}>
+    <div
+      className={`border border-white/8 bg-black/20 px-2 py-2 ${onClick ? "cursor-pointer transition hover:border-amber-500/60" : ""}`}
+      onClick={onClick}
+    >
       <p className="text-[9px] uppercase tracking-[0.18em] text-amber-400/80">{label}</p>
       <p className="mt-1 text-lg font-semibold text-amber-50">{value}</p>
     </div>
@@ -399,7 +404,11 @@ export function ExhaustionTrack({
   const [anchor, setAnchor] = useState<FloatingAnchor | null>(null);
 
   return (
-    <div className="space-y-1" onMouseEnter={(event) => setAnchor(anchorFromRect(event.currentTarget.getBoundingClientRect()))} onMouseLeave={() => setAnchor(null)}>
+    <div
+      className="space-y-1"
+      onMouseEnter={(event) => setAnchor(anchorFromRect(event.currentTarget.getBoundingClientRect()))}
+      onMouseLeave={() => setAnchor(null)}
+    >
       <div className="flex items-center justify-between text-[9px] uppercase tracking-[0.16em] text-zinc-300">
         <span>Exhaustion</span>
         <span>{level}/6</span>
@@ -423,7 +432,11 @@ export function ExhaustionTrack({
         ))}
       </div>
       {condition ? (
-        <FloatingLayer anchor={anchor} placement="right-start" className="max-w-sm border border-white/10 bg-slate-950/98 p-3 text-zinc-100 shadow-[0_18px_70px_rgba(0,0,0,0.45)]">
+        <FloatingLayer
+          anchor={anchor}
+          placement="right-start"
+          className="max-w-sm border border-white/10 bg-slate-950/98 p-3 text-zinc-100 shadow-[0_18px_70px_rgba(0,0,0,0.45)]"
+        >
           <div className="space-y-2">
             <p className="text-[10px] uppercase tracking-[0.18em] text-amber-400/80">Condition</p>
             <div>
@@ -438,15 +451,7 @@ export function ExhaustionTrack({
   );
 }
 
-export function UsableTrack({
-  total,
-  available,
-  onChange
-}: {
-  total: number;
-  available: number;
-  onChange: (available: number) => void;
-}) {
+export function UsableTrack({ total, available, onChange }: { total: number; available: number; onChange: (available: number) => void }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {Array.from({ length: Math.max(total, 0) }, (_, index) => {
@@ -492,7 +497,10 @@ export function AbilityMiniCard({
           <p className="cursor-pointer text-xs font-medium text-zinc-100 transition hover:text-amber-50" onClick={onCheck}>
             {formatModifier(modifier)}
           </p>
-          <p className="cursor-pointer text-[10px] uppercase tracking-[0.14em] text-zinc-500 transition hover:text-amber-50" onClick={onSave}>
+          <p
+            className="cursor-pointer text-[10px] uppercase tracking-[0.14em] text-zinc-500 transition hover:text-amber-50"
+            onClick={onSave}
+          >
             Save {formatModifier(save)}
           </p>
         </div>
@@ -536,7 +544,11 @@ export function DeathSaveTracker({
             <span
               key={`death:${index}`}
               className={`flex h-7 w-7 items-center justify-center rounded-full border ${
-                success ? "border-emerald-400 bg-emerald-400 text-zinc-950" : failure ? "border-rose-500 bg-rose-500 text-zinc-950" : "border-white/15 bg-transparent text-transparent"
+                success
+                  ? "border-emerald-400 bg-emerald-400 text-zinc-950"
+                  : failure
+                    ? "border-rose-500 bg-rose-500 text-zinc-950"
+                    : "border-white/15 bg-transparent text-transparent"
               }`}
             >
               {success ? <Plus size={12} /> : failure ? <Skull size={12} /> : <span className="h-3 w-3" />}

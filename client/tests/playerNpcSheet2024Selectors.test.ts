@@ -45,6 +45,7 @@ import {
   deriveSpeciesOriginFeatOptions,
   deriveSpeciesSkillChoiceConfig,
   deriveSpellSlots,
+  spellMatchesSingleClassFilter,
   healHitPoints,
   mergeDerivedResources,
   normalizeHitPoints,
@@ -1640,5 +1641,52 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     const maneuverGroup = battleMasterLvl3Groups.find((g) => g.id === "battle-master-maneuvers-lvl3");
     expect(maneuverGroup).toBeDefined();
     expect(maneuverGroup?.count).toBe(3);
+  });
+
+  it("filters spells by class including source book and subclass annotations", () => {
+    const druidSpellWithSource = createSpell({
+      id: "druidcraft-xphb",
+      name: "Druidcraft",
+      level: "cantrip",
+      classes: ["Druid (XPHB)"]
+    });
+    const wizardSpell = createSpell({
+      id: "fire-bolt-xphb",
+      name: "Fire Bolt",
+      level: "cantrip",
+      classes: ["Wizard (XPHB)"]
+    });
+    const subclassSpell = createSpell({
+      id: "call-lightning-xphb",
+      name: "Call Lightning",
+      level: 3,
+      classes: ["Circle of the Land (Druid)"],
+      classReferences: [{ name: "Circle of the Land", className: "Druid (XPHB)", source: "XPHB", kind: "subclass" }]
+    });
+
+    expect(spellMatchesSingleClassFilter(druidSpellWithSource, "druid")).toBe(true);
+    expect(spellMatchesSingleClassFilter(druidSpellWithSource, "Druid")).toBe(true);
+    expect(spellMatchesSingleClassFilter(druidSpellWithSource, "Druid (XPHB)")).toBe(true);
+    expect(spellMatchesSingleClassFilter(druidSpellWithSource, "Druid (PHB)")).toBe(false);
+    expect(spellMatchesSingleClassFilter(wizardSpell, "druid")).toBe(false);
+    expect(spellMatchesSingleClassFilter(wizardSpell, "Druid (XPHB)")).toBe(false);
+    expect(spellMatchesSingleClassFilter(subclassSpell, "Druid (XPHB)")).toBe(false);
+    expect(spellMatchesSingleClassFilter(subclassSpell, "Circle of the Land (Druid)")).toBe(true);
+
+    const druidClass = createClass({ id: "druid-xphb", name: "Druid", source: "XPHB" });
+    const spec = deriveGuidedChoiceSpec({
+      actor: createActor(),
+      classes: [druidClass],
+      spells: [druidSpellWithSource, wizardSpell, subclassSpell],
+      feats: [],
+      optionalFeatures: [],
+      targetClassId: "druid-xphb",
+      targetActorClassId: "",
+      targetSubclassId: "",
+      mode: "setup"
+    });
+
+    expect(spec.cantripOptions.map((s) => s.name)).toEqual(["Druidcraft"]);
+    expect(spec.cantripCount).toBe(2);
   });
 });

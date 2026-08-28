@@ -64,12 +64,7 @@ export function CampaignRoomManager({
   }
 
   return (
-    <ViewportWorkspace
-      columns="minmax(320px, 0.82fr) minmax(0, 1.18fr)"
-      stackBreakpoint="1100"
-      heightMode="fill"
-      className="h-full"
-    >
+    <ViewportWorkspace columns="minmax(320px, 0.82fr) minmax(0, 1.18fr)" stackBreakpoint="1100" heightMode="fill" className="h-full">
       <WorkspacePane as="section" className="admin-pane">
         <div className="panel-head">
           <div>

@@ -175,7 +175,11 @@ export function PlayerActorCreatorModal({
                     />
                   )}
                   action={
-                    <CampaignActionButton onClick={() => onCreateMonsterActor(visibleSelectedMonsterTemplate)} icon={FilePlus2} tone="accent">
+                    <CampaignActionButton
+                      onClick={() => onCreateMonsterActor(visibleSelectedMonsterTemplate)}
+                      icon={FilePlus2}
+                      tone="accent"
+                    >
                       {role === "dm" ? "Add to roster" : "Create summon / familiar"}
                     </CampaignActionButton>
                   }
@@ -253,7 +257,12 @@ function parseChallengeRating(value: string) {
 
 function uniqueMonsterSourceOptions(entries: MonsterTemplate[]) {
   return Array.from(
-    new Map(entries.map((entry) => [normalizeMonsterSourceId(entry.source), { value: normalizeMonsterSourceId(entry.source), label: entry.source }])).values()
+    new Map(
+      entries.map((entry) => [
+        normalizeMonsterSourceId(entry.source),
+        { value: normalizeMonsterSourceId(entry.source), label: entry.source }
+      ])
+    ).values()
   ).sort((left, right) => left.label.localeCompare(right.label));
 }
 

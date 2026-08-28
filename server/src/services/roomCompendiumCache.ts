@@ -3,7 +3,18 @@ import { runStoreQuery } from "../store.js";
 import { readCampaignCompendium } from "../store/models/compendium.js";
 type RoomCompendium = Pick<
   CompendiumData,
-  "spells" | "monsters" | "feats" | "classes" | "variantRules" | "conditions" | "optionalFeatures" | "backgrounds" | "items" | "languages" | "races" | "skills"
+  | "spells"
+  | "monsters"
+  | "feats"
+  | "classes"
+  | "variantRules"
+  | "conditions"
+  | "optionalFeatures"
+  | "backgrounds"
+  | "items"
+  | "languages"
+  | "races"
+  | "skills"
 >;
 let cachedCompendium: RoomCompendium | null = null;
 let pendingCompendiumRead: Promise<RoomCompendium> | null = null;
