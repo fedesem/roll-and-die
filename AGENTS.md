@@ -50,6 +50,37 @@ Use this root file for cross-cutting rules, then follow the nearest child `AGENT
 8. Keep TypeScript contracts strict and consistent.
    Do not mix nullable conventions casually, do not redefine child handler signatures in parent pages, and do not rely on `vite build` alone to validate client types.
 
+## Reuse Before Creating
+
+1. Search before writing new code.
+   Before adding a helper, hook, selector, service, schema, component, or abstraction, search the repository for an existing implementation with the same or adjacent responsibility. Inspect the relevant package manifests and imports as well as filenames. Reuse or extend the existing owner instead of creating a parallel implementation.
+
+2. Use installed libraries before hand-rolling equivalents.
+   Check the dependencies already installed in the relevant workspace before implementing common behavior. Prefer an appropriate installed, maintained library over custom code for capabilities it already provides. Newly installed libraries should be treated as the default implementation path when they cover the requirement and fit the repository's architecture.
+
+3. Reuse UI primitives and UI libraries.
+   Before creating a UI component, inspect existing shared and feature-owned components plus the installed UI libraries. Reuse or extend established buttons, fields, dialogs, selectors, popovers, tooltips, menus, tables, icons, layout primitives, and interaction patterns. Do not hand-roll a duplicate control when an existing component or installed library already satisfies the need.
+
+4. Extend the closest owner when the existing implementation is almost sufficient.
+   Add a focused option, variant, or shared capability to the established implementation rather than copying it into a new file. Preserve its current API where practical and keep the extension at the feature or shared boundary that already owns the behavior.
+
+5. Create something new only when reuse is not suitable.
+   New code or a new dependency is appropriate when existing repository code and installed libraries cannot meet the requirement cleanly. In that case, keep the new surface minimal and state the concrete limitation that prevented reuse in the implementation notes or handoff.
+
+## Project Command Entry Point
+
+1. Use `./app.sh` for every operation it supports.
+   Before running project, Docker, npm, npx, quality, test, build, lint, format, Knip, shell, log, or lifecycle commands directly, inspect `./app.sh` and use its matching command. The script owns the repository's container, environment, user-ID, Compose-file, and network conventions.
+
+2. Install and manage Node modules through `./app.sh npm`.
+   Do not run `npm install`, `npm add`, `npm uninstall`, or equivalent package-manager installation commands directly on the host. Use commands such as `./app.sh npm install <package>` or `./app.sh npm install --workspace <workspace> <package>` so `package.json`, the lockfile, and container-mounted modules are updated through the supported environment. Use `./app.sh npx` for supported one-off package executables.
+
+3. Prefer the dedicated wrapper command when one exists.
+   Use `./app.sh test`, `./app.sh test:e2e`, `./app.sh build`, `./app.sh lint`, `./app.sh format`, `./app.sh quality`, and `./app.sh knip` instead of reconstructing their underlying npm or Docker commands. Use `./app.sh up`, `down`, `restart`, `ps`, and `logs` for application lifecycle work.
+
+4. Fall back only when `./app.sh` does not cover the operation.
+   If a required operation has no wrapper, keep the fallback narrowly scoped and explain why the wrapper was insufficient. When the operation is expected to recur, prefer adding a focused `app.sh` command instead of establishing a second workflow.
+
 ## Client Structure
 
 ### Pages

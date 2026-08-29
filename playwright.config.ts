@@ -16,5 +16,12 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] }
     }
-  ]
+  ],
+  webServer: {
+    command: "npm run dev",
+    url: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://localhost:5174",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000
+  }
 });
+

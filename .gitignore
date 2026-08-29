@@ -1,6 +1,8 @@
 .env
 node_modules
 dist
+storybook-static
+coverage
 .DS_Store
 .idea
 data/app.sqlite

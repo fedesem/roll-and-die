@@ -13,6 +13,8 @@
     "test:client": "vitest run --dir client/tests",
     "test:server": "vitest run --dir server/tests",
     "test:e2e": "playwright test",
+    "storybook": "npm run storybook --workspace client",
+    "build-storybook": "npm run build-storybook --workspace client",
     "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace client",
     "lint": "biome lint .",
     "format": "biome format --write .",

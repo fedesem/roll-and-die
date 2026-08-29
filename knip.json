@@ -2,9 +2,17 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     "client": {
-      "entry": ["src/main.tsx", "tests/**/*.test.{ts,tsx}", "e2e/**/*.spec.ts"],
-      "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
-      "ignoreDependencies": ["tailwindcss"]
+      "entry": [
+        "src/main.tsx",
+        "src/components/ui/index.ts",
+        "tests/**/*.test.{ts,tsx}",
+        "e2e/**/*.spec.ts",
+        ".storybook/main.ts",
+        ".storybook/preview.ts",
+        "src/**/*.stories.{ts,tsx}"
+      ],
+      "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}", ".storybook/**/*.{ts,tsx}"],
+      "ignoreDependencies": ["tailwindcss", "@storybook/blocks"]
     },
     "server": {
       "entry": ["src/index.ts", "tests/**/*.test.ts"],
