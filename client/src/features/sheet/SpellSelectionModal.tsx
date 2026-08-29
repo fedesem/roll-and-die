@@ -1,9 +1,10 @@
 import type { CampaignSnapshot, SpellEntry, SpellLevel, SpellSchool } from "@shared/types";
-import { Eye } from "lucide-react";
+import { Eye, Sparkles, X } from "lucide-react";
 import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { SpellPreviewCard } from "../../components/admin/AdminPreview";
-import { type FloatingAnchor, FloatingLayer } from "../../components/FloatingLayer";
+import { anchorFromRect, type FloatingAnchor, FloatingLayer } from "../../components/FloatingLayer";
 import { ModalFrame } from "../../components/ModalFrame";
+import { inputClass, SheetButton } from "./components/sheetPrimitives";
 import { spellMatchesSingleClassFilter } from "./selectors/playerNpcSheet2024Selectors";
 import { normalizeKey } from "./sheetUtils";
 
@@ -30,11 +31,6 @@ interface SpellAccessFilterOption {
   kind: "class" | "subclass";
   classLabel?: string;
 }
-
-const inputClass =
-  "w-full border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-500 focus:border-amber-500/70";
-const buttonClass =
-  "inline-flex items-center justify-center border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-zinc-200 transition hover:border-amber-500/70 hover:text-amber-50";
 
 export function SpellSelectionModal({
   title,
@@ -149,82 +145,58 @@ export function SpellSelectionModal({
 
     return Array.from(byKey.values()).sort((left, right) => left.label.localeCompare(right.label));
   }, [compendium.classes, normalizedAllowedBooks, sortedSpells]);
+
   const baseClassOptions = useMemo(() => classOptions.filter((entry) => entry.kind === "class"), [classOptions]);
   const subclassOptionsByClass = useMemo(() => {
-    const groups = new Map<string, SpellAccessFilterOption[]>();
+    const grouped = new Map<string, SpellAccessFilterOption[]>();
 
     classOptions
-      .filter((entry) => entry.kind === "subclass" && entry.classLabel)
+      .filter((entry) => entry.kind === "subclass")
       .forEach((entry) => {
         const classLabel = entry.classLabel ?? "Other";
-        const current = groups.get(classLabel) ?? [];
-        current.push(entry);
-        groups.set(classLabel, current);
+        const existing = grouped.get(classLabel) ?? [];
+        existing.push(entry);
+        grouped.set(classLabel, existing);
       });
 
-    return Array.from(groups.entries())
-      .sort((left, right) => left[0].localeCompare(right[0]))
-      .map(([classLabel, entries]) => [classLabel, [...entries].sort((left, right) => left.label.localeCompare(right.label))] as const);
+    return Array.from(grouped.entries()).sort(([left], [right]) => left.localeCompare(right));
   }, [classOptions]);
-  const filteredSpells = useMemo(
-    () =>
-      sortedSpells.filter((spell) => {
-        if (nameFilter.trim() && !normalizeKey(spell.name).includes(normalizeKey(nameFilter))) {
+
+  const filteredSpells = useMemo(() => {
+    const normalizedQuery = normalizeKey(nameFilter);
+
+    return sortedSpells.filter((spell) => {
+      if (normalizedQuery && !normalizeKey(spell.name).includes(normalizedQuery)) {
+        return false;
+      }
+
+      if (levelFilter !== "all" && String(spell.level) !== levelFilter) {
+        return false;
+      }
+
+      if (schoolFilter !== "all" && spell.school !== schoolFilter) {
+        return false;
+      }
+
+      if (classFilter !== "all") {
+        const option = classOptions.find((entry) => entry.key === classFilter);
+
+        if (!option) {
           return false;
         }
 
-        if (levelFilter !== "all" && `${spell.level}` !== levelFilter) {
+        const matchesClassFilter = spellMatchesSingleClassFilter(spell, option.label);
+
+        if (!matchesClassFilter) {
           return false;
         }
+      }
 
-        if (schoolFilter !== "all" && spell.school !== schoolFilter) {
-          return false;
-        }
-
-        if (classFilter !== "all") {
-          const [, ...filterValueParts] = classFilter.split(":");
-          const filterTarget = filterValueParts.join(":");
-          const normalizedClassFilter = normalizeKey(filterTarget);
-          const matchesClass =
-            spell.classes.some((cls) => normalizeKey(cls) === normalizedClassFilter) || spellMatchesSingleClassFilter(spell, filterTarget);
-
-          if (!matchesClass) {
-            return false;
-          }
-        }
-
-        return true;
-      }),
-    [classFilter, levelFilter, nameFilter, schoolFilter, sortedSpells]
-  );
-  const selectionLimitReached = typeof maxSelections === "number" && maxSelections > 0 && localSelectedIds.length >= maxSelections;
-
-  function queuePreviewClose() {
-    if (closePreviewTimerRef.current !== null) {
-      window.clearTimeout(closePreviewTimerRef.current);
-    }
-
-    closePreviewTimerRef.current = window.setTimeout(() => {
-      setPreviewAnchor(null);
-      setPreviewSpell(null);
-      closePreviewTimerRef.current = null;
-    }, 110);
-  }
-
-  function showPreview(spell: SpellEntry, event: ReactPointerEvent<HTMLElement>) {
-    if (closePreviewTimerRef.current !== null) {
-      window.clearTimeout(closePreviewTimerRef.current);
-      closePreviewTimerRef.current = null;
-    }
-
-    setPreviewAnchor({
-      left: event.clientX,
-      top: event.clientY,
-      width: 0,
-      height: 0
+      return true;
     });
-    setPreviewSpell(spell);
-  }
+  }, [classFilter, classOptions, levelFilter, nameFilter, schoolFilter, sortedSpells]);
+
+  const selectionLimitReached = typeof maxSelections === "number" && maxSelections > 0 && localSelectedIds.length >= maxSelections;
 
   function toggleSpell(spellId: string) {
     setLocalSelectedIds((current) => {
@@ -240,211 +212,233 @@ export function SpellSelectionModal({
     });
   }
 
+  function queuePreviewClose() {
+    if (closePreviewTimerRef.current !== null) {
+      window.clearTimeout(closePreviewTimerRef.current);
+    }
+
+    closePreviewTimerRef.current = window.setTimeout(() => {
+      setPreviewAnchor(null);
+      setPreviewSpell(null);
+    }, 120);
+  }
+
+  function showPreview(spell: SpellEntry, event: ReactPointerEvent<HTMLDivElement>) {
+    if (closePreviewTimerRef.current !== null) {
+      window.clearTimeout(closePreviewTimerRef.current);
+      closePreviewTimerRef.current = null;
+    }
+
+    setPreviewSpell(spell);
+    setPreviewAnchor(anchorFromRect(event.currentTarget.getBoundingClientRect()));
+  }
+
   return (
-    <ModalFrame onClose={onClose} backdropClassName="bg-black/70" panelClassName="max-w-7xl border-white/10 bg-slate-950 text-zinc-100">
-      <>
-        <div className="flex items-start justify-between gap-4 px-5 py-4">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.3em] text-amber-400/80">Spell Selection</p>
-            <h3 className="mt-2 font-serif text-2xl text-amber-50">{title}</h3>
-            <p className="mt-2 text-sm text-zinc-400">{subtitle}</p>
+    <ModalFrame
+      onClose={onClose}
+      backdropClassName="bg-black/70 backdrop-blur-sm"
+      panelClassName="max-w-6xl rounded-xl border border-amber-500/30 bg-slate-950/98 text-zinc-100 shadow-[0_24px_80px_rgba(0,0,0,0.8)]"
+    >
+      <div className="flex items-start justify-between gap-4 border-b border-white/8 px-6 py-5 bg-gradient-to-r from-amber-500/[0.08] to-transparent">
+        <div>
+          <div className="flex items-center gap-2">
+            <Sparkles size={16} className="text-amber-400" />
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-400">Compendium</p>
           </div>
-          <button type="button" className={buttonClass} onClick={onClose}>
-            Close
-          </button>
+          <h3 className="mt-1 font-serif text-2xl font-bold text-amber-50">{title}</h3>
+          <p className="mt-1 text-xs text-zinc-400">{subtitle}</p>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5">
-          <div
-            className={`grid gap-3 border border-white/8 bg-black/20 p-4 ${lockEligibilityFilters ? "md:grid-cols-[minmax(0,1fr)_auto]" : "md:grid-cols-4"}`}
-          >
-            <label className="space-y-1.5 text-sm text-zinc-300">
-              <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">Name</span>
-              <input
-                className={inputClass}
-                value={nameFilter}
-                onChange={(event) => setNameFilter(event.target.value)}
-                placeholder="Search spell name"
-              />
-            </label>
-            {lockEligibilityFilters ? (
-              <p className="self-end border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-sm text-amber-100/80">
-                Class, spell type, and spell level are fixed by this wizard step.
-              </p>
-            ) : (
-              <>
-                <label className="space-y-1.5 text-sm text-zinc-300">
-                  <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">Level</span>
-                  <select
-                    className={inputClass}
-                    value={levelFilter}
-                    onChange={(event) => setLevelFilter(event.target.value as SpellLevelFilter)}
-                  >
-                    <option value="all">All Levels</option>
-                    <option value="cantrip">Cantrip</option>
-                    {Array.from({ length: 9 }, (_, index) => index + 1).map((level) => (
-                      <option key={level} value={String(level)}>
-                        Level {level}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="space-y-1.5 text-sm text-zinc-300">
-                  <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">School</span>
-                  <select
-                    className={inputClass}
-                    value={schoolFilter}
-                    onChange={(event) => setSchoolFilter(event.target.value as SpellSchool | "all")}
-                  >
-                    <option value="all">All Schools</option>
-                    {SPELL_SCHOOLS.map((school) => (
-                      <option key={school} value={school}>
-                        {school}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="space-y-1.5 text-sm text-zinc-300">
-                  <span className="block text-[11px] uppercase tracking-[0.22em] text-amber-400/80">Class</span>
-                  <select className={inputClass} value={classFilter} onChange={(event) => setClassFilter(event.target.value)}>
-                    <option value="all">All Class Access</option>
-                    {baseClassOptions.length > 0 ? (
-                      <optgroup label="Classes">
-                        {baseClassOptions.map((entry) => (
-                          <option key={entry.key} value={entry.key}>
-                            {entry.label}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ) : null}
-                    {subclassOptionsByClass.map(([classLabel, entries]) => (
-                      <optgroup key={classLabel} label={`Subclasses · ${classLabel}`}>
-                        {entries.map((entry) => (
-                          <option key={entry.key} value={entry.key}>
-                            {entry.label}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </label>
-              </>
-            )}
-          </div>
+        <SheetButton variant="ghost" size="sm" icon={<X size={16} />} onClick={onClose}>
+          Close
+        </SheetButton>
+      </div>
 
-          <div className="mt-4 flex items-center justify-between gap-3 border border-white/8 bg-black/20 px-4 py-3 text-sm">
-            <p className="text-zinc-300">
-              Showing <span className="text-amber-100">{filteredSpells.length}</span> of{" "}
-              <span className="text-amber-100">{spells.length}</span> spells
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-4">
+        <div
+          className={`grid gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-4 ${
+            lockEligibilityFilters ? "md:grid-cols-[minmax(0,1fr)_auto]" : "md:grid-cols-4"
+          }`}
+        >
+          <label className="space-y-1 text-xs text-zinc-300">
+            <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-400/90">Search Spell</span>
+            <input
+              className={inputClass}
+              value={nameFilter}
+              onChange={(event) => setNameFilter(event.target.value)}
+              placeholder="Search spell name..."
+            />
+          </label>
+          {lockEligibilityFilters ? (
+            <p className="self-end rounded border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+              Class, spell type, and spell level are fixed by this step.
             </p>
-            <p className="text-zinc-400">
-              Selected <span className="text-amber-100">{localSelectedIds.length}</span>
-              {typeof maxSelections === "number" && maxSelections > 0 ? ` / ${maxSelections}` : ""}
-            </p>
-          </div>
+          ) : (
+            <>
+              <label className="space-y-1 text-xs text-zinc-300">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-400/90">Level</span>
+                <select
+                  className={inputClass}
+                  value={levelFilter}
+                  onChange={(event) => setLevelFilter(event.target.value as SpellLevelFilter)}
+                >
+                  <option value="all">All Levels</option>
+                  <option value="cantrip">Cantrip</option>
+                  {Array.from({ length: 9 }, (_, index) => index + 1).map((level) => (
+                    <option key={level} value={String(level)}>
+                      Level {level}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-xs text-zinc-300">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-400/90">School</span>
+                <select
+                  className={inputClass}
+                  value={schoolFilter}
+                  onChange={(event) => setSchoolFilter(event.target.value as SpellSchool | "all")}
+                >
+                  <option value="all">All Schools</option>
+                  {SPELL_SCHOOLS.map((school) => (
+                    <option key={school} value={school}>
+                      {school}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-xs text-zinc-300">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-400/90">Class</span>
+                <select className={inputClass} value={classFilter} onChange={(event) => setClassFilter(event.target.value)}>
+                  <option value="all">All Class Access</option>
+                  {baseClassOptions.length > 0 ? (
+                    <optgroup label="Classes">
+                      {baseClassOptions.map((entry) => (
+                        <option key={entry.key} value={entry.key}>
+                          {entry.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  {subclassOptionsByClass.map(([classLabel, entries]) => (
+                    <optgroup key={classLabel} label={`Subclasses · ${classLabel}`}>
+                      {entries.map((entry) => (
+                        <option key={entry.key} value={entry.key}>
+                          {entry.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+        </div>
 
-          <div className="mt-4 overflow-x-auto border border-white/8 bg-black/20">
-            <div className="min-w-[880px]">
-              <div className="grid grid-cols-[minmax(0,1.7fr)_6.5rem_8rem_8rem_6rem_8rem_4rem_4rem] gap-3 border-b border-white/8 px-4 py-3 text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-                <span>Name</span>
-                <span>Level</span>
-                <span>Time</span>
-                <span>School</span>
-                <span>Conc.</span>
-                <span>Range</span>
-                <span className="text-center">View</span>
-                <span className="text-right">Pick</span>
-              </div>
-              {filteredSpells.length === 0 ? <p className="px-4 py-5 text-sm text-zinc-500">{emptyMessage}</p> : null}
-              {filteredSpells.map((spell) => {
-                const selected = selectedSpellIdSet.has(spell.id);
-                const actionDisabled = !selected && selectionLimitReached;
+        <div className="flex items-center justify-between gap-3 rounded-md border border-white/8 bg-slate-900/60 px-4 py-2.5 text-xs">
+          <p className="text-zinc-300">
+            Showing <span className="font-semibold text-amber-300">{filteredSpells.length}</span> of{" "}
+            <span className="font-semibold text-zinc-200">{spells.length}</span> spells
+          </p>
+          <p className="text-zinc-300">
+            Selected: <span className="font-semibold text-amber-300">{localSelectedIds.length}</span>
+            {typeof maxSelections === "number" && maxSelections > 0 ? ` / ${maxSelections}` : ""}
+          </p>
+        </div>
 
-                return (
-                  <div
-                    key={spell.id}
-                    className="grid grid-cols-[minmax(0,1.7fr)_6.5rem_8rem_8rem_6rem_8rem_4rem_4rem] gap-3 border-b border-white/8 px-4 py-3 text-sm text-zinc-200 last:border-b-0 hover:bg-white/[0.03]"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-zinc-100">{spell.name}</p>
-                      <p className="truncate text-xs text-zinc-500">{spell.source}</p>
-                    </div>
-                    <span>{formatSpellLevel(spell.level)}</span>
-                    <span>{formatSpellTime(spell)}</span>
-                    <span>{spell.school}</span>
-                    <span>{spell.concentration ? "Yes" : "No"}</span>
-                    <span>{formatSpellRange(spell)}</span>
-                    <div
-                      className="flex items-center justify-center text-zinc-400"
-                      onPointerEnter={(event) => showPreview(spell, event)}
-                      onPointerMove={(event) => showPreview(spell, event)}
-                      onPointerLeave={queuePreviewClose}
-                    >
-                      <Eye size={18} strokeWidth={2.1} />
-                    </div>
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        className={`inline-flex h-10 w-10 items-center justify-center border p-0 text-xl font-semibold leading-none transition ${
-                          selected
-                            ? "border-red-500/70 bg-red-500/15 text-red-100 hover:bg-red-500/20"
-                            : actionDisabled
-                              ? "cursor-not-allowed border-white/10 bg-white/[0.03] text-zinc-600"
-                              : "border-amber-500/70 bg-amber-500/15 text-amber-100 hover:bg-amber-500/20"
-                        }`}
-                        disabled={actionDisabled}
-                        onClick={() => toggleSpell(spell.id)}
-                      >
-                        {selected ? "X" : "+"}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+        <div className="overflow-x-auto rounded-lg border border-white/10 bg-slate-900/40">
+          <div className="min-w-[800px]">
+            <div className="grid grid-cols-[minmax(0,1.8fr)_6.5rem_7rem_7.5rem_5rem_7rem_3.5rem_4rem] gap-2 border-b border-white/8 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-400 bg-slate-950/80">
+              <span>Name</span>
+              <span>Level</span>
+              <span>Time</span>
+              <span>School</span>
+              <span>Conc.</span>
+              <span>Range</span>
+              <span className="text-center">View</span>
+              <span className="text-right">Select</span>
             </div>
-          </div>
+            {filteredSpells.length === 0 ? <p className="px-4 py-6 text-xs text-zinc-500 italic">{emptyMessage}</p> : null}
+            {filteredSpells.map((spell) => {
+              const selected = selectedSpellIdSet.has(spell.id);
+              const actionDisabled = !selected && selectionLimitReached;
 
-          {previewSpell && previewAnchor ? (
-            <FloatingLayer
-              anchor={previewAnchor}
-              placement="left-start"
-              offset={14}
-              className="pointer-events-auto z-[2147483000] w-[min(68rem,calc(100vw-3rem))] max-w-[68rem]"
-              onPointerEnter={() => {
-                if (closePreviewTimerRef.current !== null) {
-                  window.clearTimeout(closePreviewTimerRef.current);
-                  closePreviewTimerRef.current = null;
-                }
-              }}
-              onPointerLeave={() => {
-                setPreviewAnchor(null);
-                setPreviewSpell(null);
-              }}
-            >
-              <div className="max-h-[calc(100vh-3rem)] overflow-y-auto overscroll-contain border border-white/10 bg-slate-950 shadow-[0_28px_90px_rgba(0,0,0,0.5)]">
-                <SpellPreviewCard
-                  spell={previewSpell}
-                  featEntries={compendium.feats}
-                  classEntries={compendium.classes}
-                  variantRuleEntries={compendium.variantRules}
-                  conditionEntries={compendium.conditions}
-                />
-              </div>
-            </FloatingLayer>
-          ) : null}
+              return (
+                <div
+                  key={spell.id}
+                  className={`grid grid-cols-[minmax(0,1.8fr)_6.5rem_7rem_7.5rem_5rem_7rem_3.5rem_4rem] items-center gap-2 border-b border-white/5 px-4 py-2 text-xs text-zinc-200 transition last:border-b-0 ${
+                    selected ? "bg-amber-500/[0.08]" : "hover:bg-white/[0.03]"
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-zinc-100">{spell.name}</p>
+                    <p className="truncate text-[10px] text-zinc-500">{spell.source}</p>
+                  </div>
+                  <span>{formatSpellLevel(spell.level)}</span>
+                  <span>{formatSpellTime(spell)}</span>
+                  <span>{spell.school}</span>
+                  <span>{spell.concentration ? "Yes" : "No"}</span>
+                  <span>{formatSpellRange(spell)}</span>
+                  <div
+                    className="flex items-center justify-center text-zinc-400 hover:text-amber-300 cursor-pointer"
+                    onPointerEnter={(event) => showPreview(spell, event)}
+                    onPointerMove={(event) => showPreview(spell, event)}
+                    onPointerLeave={queuePreviewClose}
+                  >
+                    <Eye size={16} strokeWidth={2} />
+                  </div>
+                  <div className="flex justify-end">
+                    <SheetButton
+                      variant={selected ? "danger" : "secondary"}
+                      size="sm"
+                      disabled={actionDisabled}
+                      onClick={() => toggleSpell(spell.id)}
+                    >
+                      {selected ? "Remove" : "Pick"}
+                    </SheetButton>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="flex justify-end gap-3 border-t border-white/8 px-5 py-4">
-          <button type="button" className={buttonClass} onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="border border-amber-500 bg-amber-500 px-4 py-2 text-sm font-medium text-zinc-950 transition hover:bg-amber-400"
-            onClick={() => onApply(localSelectedIds.filter((entry) => spellLookup.has(entry)))}
+
+        {previewSpell && previewAnchor ? (
+          <FloatingLayer
+            anchor={previewAnchor}
+            placement="left-start"
+            offset={14}
+            className="pointer-events-auto z-[2147483000] w-[min(54rem,calc(100vw-3rem))] max-w-[54rem]"
+            onPointerEnter={() => {
+              if (closePreviewTimerRef.current !== null) {
+                window.clearTimeout(closePreviewTimerRef.current);
+                closePreviewTimerRef.current = null;
+              }
+            }}
+            onPointerLeave={() => {
+              setPreviewAnchor(null);
+              setPreviewSpell(null);
+            }}
           >
-            {applyLabel}
-          </button>
-        </div>
-      </>
+            <div className="max-h-[calc(100vh-3rem)] overflow-y-auto overscroll-contain rounded-lg border border-amber-500/40 bg-slate-950 p-4 shadow-[0_28px_90px_rgba(0,0,0,0.8)]">
+              <SpellPreviewCard
+                spell={previewSpell}
+                featEntries={compendium.feats}
+                classEntries={compendium.classes}
+                variantRuleEntries={compendium.variantRules}
+                conditionEntries={compendium.conditions}
+              />
+            </div>
+          </FloatingLayer>
+        ) : null}
+      </div>
+
+      <div className="flex justify-end gap-3 border-t border-white/8 px-6 py-4">
+        <SheetButton variant="secondary" size="md" onClick={onClose}>
+          Cancel
+        </SheetButton>
+        <SheetButton variant="primary" size="md" onClick={() => onApply(localSelectedIds.filter((entry) => spellLookup.has(entry)))}>
+          {applyLabel}
+        </SheetButton>
+      </div>
     </ModalFrame>
   );
 }
