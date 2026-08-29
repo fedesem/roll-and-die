@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    "client": {
+      "entry": ["src/main.tsx", "tests/**/*.test.{ts,tsx}", "e2e/**/*.spec.ts"],
+      "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
+      "ignoreDependencies": ["tailwindcss"]
+    },
+    "server": {
+      "entry": ["src/index.ts", "tests/**/*.test.ts"],
+      "project": ["src/**/*.ts", "tests/**/*.ts"],
+      "ignoreDependencies": ["pino-http"]
+    }
+  },
+  "ignoreDependencies": ["globals"],
+  "rules": {
+    "exports": "off",
+    "types": "off",
+    "nsExports": "off",
+    "nsTypes": "off"
+  },
+  "ignore": ["shared/contracts/**", "shared/data/**", "shared/types.ts", "shared/vision.ts"]
+}
