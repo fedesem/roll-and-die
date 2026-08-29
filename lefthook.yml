@@ -7,4 +7,4 @@ pre-commit:
 pre-push:
   commands:
     quality:
-      run: npm run check
+      run: ./app.sh quality
