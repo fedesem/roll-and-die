@@ -1,5 +1,3 @@
-import type { DatabaseSync } from "../types.js";
-import { TOKEN_STATUS_MARKERS } from "../../../../shared/types.js";
 import type {
   AbilityKey,
   ActorBonusEntry,
@@ -13,7 +11,6 @@ import type {
   Campaign,
   CampaignInvite,
   CampaignMap,
-  MapActorAssignment,
   CampaignMember,
   CampaignSummary,
   ChatActorContext,
@@ -23,17 +20,21 @@ import type {
   DrawingStroke,
   DrawingTextFont,
   InventoryEntry,
+  MapActorAssignment,
   MapTeleporter,
   MapWall,
-  Point,
   PlayerNpcBuild,
+  Point,
   ResourceEntry,
   SkillEntry,
   SpellSlotTrack,
   TokenStatusMarker
 } from "../../../../shared/types.js";
-import { normalizeStoreState } from "../normalization.js";
+import { TOKEN_STATUS_MARKERS } from "../../../../shared/types.js";
 import { parseCellKey, readAll, toBoolean, toIntegerBoolean } from "../helpers.js";
+import { normalizeStoreState } from "../normalization.js";
+import type { DatabaseSync } from "../types.js";
+
 const tokenStatusMarkerSet = new Set<string>(TOKEN_STATUS_MARKERS);
 function parseTokenStatusMarkers(value: string | null | undefined): TokenStatusMarker[] {
   if (typeof value !== "string" || value.length === 0) {

@@ -1,3 +1,5 @@
+import { getActorAssignedMaps, isActorAssignedToMap, isPlayerOwnedActor } from "@shared/campaignActors";
+import { getTokenOccupiedCellKeys } from "@shared/tokenGeometry";
 import type {
   ActorSheet,
   Campaign,
@@ -7,8 +9,6 @@ import type {
   MapActorAssignment,
   MonsterTemplate
 } from "@shared/types";
-import { getActorAssignedMaps, isActorAssignedToMap, isPlayerOwnedActor } from "@shared/campaignActors";
-import { getTokenOccupiedCellKeys } from "@shared/tokenGeometry";
 import { allMapCells, computeVisibleCellsForUser } from "@shared/vision";
 
 import type { ActorTypeFilter, AvailableActorEntry, CurrentMapRosterEntry } from "./types";

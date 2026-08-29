@@ -1,0 +1,70 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.3/schema.json",
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "files": {
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/coverage",
+      "!**/node_modules",
+      "!**/.idea",
+      "!**/*.config.ts",
+      "!**/*.config.js",
+      "!**/scripts/**/*.mjs",
+      "!**/package-lock.json",
+      "!**/data"
+    ]
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noShadowRestrictedNames": "off",
+        "noArrayIndexKey": "off",
+        "noAssignInExpressions": "off",
+        "useIterableCallbackReturn": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off",
+        "noDescendingSpecificity": "off",
+        "noParameterAssign": "off"
+      },
+      "a11y": {
+        "noLabelWithoutControl": "off",
+        "useKeyWithClickEvents": "off",
+        "useButtonType": "off",
+        "noSvgWithoutTitle": "off",
+        "noStaticElementInteractions": "off",
+        "useAriaPropsSupportedByRole": "off",
+        "noAriaHiddenOnFocusable": "off",
+        "useSemanticElements": "off",
+        "noNoninteractiveTabindex": "off",
+        "noNoninteractiveElementInteractions": "off",
+        "useFocusableInteractive": "off",
+        "noAutofocus": "off"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "useOptionalChain": "off"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 140
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "trailingCommas": "none"
+    }
+  }
+}

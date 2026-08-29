@@ -1,6 +1,5 @@
-import type { DatabaseSync } from "../types.js";
-import type { Database } from "../types.js";
 import { readAll } from "../helpers.js";
+import type { Database, DatabaseSync } from "../types.js";
 
 export async function countUsers(database: DatabaseSync) {
   const row = await database.prepare("SELECT COUNT(*) as count FROM users").get<{

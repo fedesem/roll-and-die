@@ -5,9 +5,9 @@ import { dirname } from "node:path";
 import { open, type Database as SqliteDatabase } from "sqlite";
 import sqlite3 from "sqlite3";
 
-import { runInTransaction, readAll } from "./helpers.js";
+import { readAll, runInTransaction } from "./helpers.js";
 import { migrations } from "./migrations/index.js";
-import { sqlitePath, type DatabaseSync, type StatementSync, type SQLInputValue } from "./types.js";
+import { type DatabaseSync, type SQLInputValue, type StatementSync, sqlitePath } from "./types.js";
 
 const defaultPoolSize = Number(process.env.SQLITE_POOL_SIZE ?? 4);
 const defaultBusyTimeoutMs = Number(process.env.SQLITE_BUSY_TIMEOUT_MS ?? 5_000);

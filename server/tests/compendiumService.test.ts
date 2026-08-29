@@ -452,7 +452,6 @@ describe("class compendium imports", () => {
 });
 
 describe("reference compendium imports", () => {
-
   it("normalizes backgrounds and skips PHB backgrounds when source is PHB", () => {
     const entries = normalizeCompendiumImportEntries("backgrounds", {
       background: [
@@ -477,7 +476,10 @@ describe("reference compendium imports", () => {
       ]
     });
 
-    expect((entries as { name: string; source: string }[]).map((entry) => `${String(entry.name)}|${String(entry.source)}`)).toEqual(["Acolyte|XPHB", "Rewarded|XGE"]);
+    expect((entries as { name: string; source: string }[]).map((entry) => `${String(entry.name)}|${String(entry.source)}`)).toEqual([
+      "Acolyte|XPHB",
+      "Rewarded|XGE"
+    ]);
   });
 
   it("skips PHB backgrounds when source is PHB", () => {
@@ -505,7 +507,10 @@ describe("reference compendium imports", () => {
       ]
     });
 
-    expect((entries as { name: string; source: string }[]).map((entry) => `${String(entry.name)}|${String(entry.source)}`)).toEqual(["Acolyte|XPHB", "Rewarded|XGE"]);
+    expect((entries as { name: string; source: string }[]).map((entry) => `${String(entry.name)}|${String(entry.source)}`)).toEqual([
+      "Acolyte|XPHB",
+      "Rewarded|XGE"
+    ]);
   });
 
   it("skips PHB books based on book id", () => {
@@ -522,7 +527,9 @@ describe("reference compendium imports", () => {
       ]
     });
 
-    expect((entries as { id: string; name: string }[]).map((entry) => `${String(entry.id)}|${String(entry.name)}`)).toEqual(["XPHB|Player's Handbook (2024)"]);
+    expect((entries as { id: string; name: string }[]).map((entry) => `${String(entry.id)}|${String(entry.name)}`)).toEqual([
+      "XPHB|Player's Handbook (2024)"
+    ]);
   });
 
   it("derives table-based species choice groups and base species spells from raw race entries", () => {

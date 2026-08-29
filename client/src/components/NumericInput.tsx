@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type ComponentPropsWithoutRef, type FocusEvent } from "react";
+import { type ChangeEvent, type ComponentPropsWithoutRef, type FocusEvent, useEffect, useState } from "react";
 
 interface NumericInputProps extends Omit<ComponentPropsWithoutRef<"input">, "type" | "value" | "onChange"> {
   value: number | null | undefined;

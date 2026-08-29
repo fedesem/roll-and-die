@@ -1,6 +1,6 @@
-import { useEffect, useRef } from "react";
-import { cellKey } from "@shared/vision";
 import type { CampaignMap } from "@shared/types";
+import { cellKey } from "@shared/vision";
+import { useEffect, useRef } from "react";
 
 interface BoardFogOverlayProps {
   map?: CampaignMap;

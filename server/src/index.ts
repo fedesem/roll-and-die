@@ -1,5 +1,5 @@
-import { createServer } from "node:http";
 import { existsSync } from "node:fs";
+import { createServer } from "node:http";
 import { resolve } from "node:path";
 
 import cors from "cors";
@@ -10,12 +10,12 @@ import { wrap } from "./http/wrap.js";
 import { logger, requestLogger } from "./logger.js";
 import { createRoomGateway } from "./realtime/roomGateway.js";
 import { createAdminRouter } from "./routes/adminRoutes.js";
+import { createAssetRouter } from "./routes/assetRoutes.js";
 import { createAuthRouter } from "./routes/authRoutes.js";
 import { createCampaignRouter, createInviteRouter } from "./routes/campaignRoutes.js";
 import { createChatRouter } from "./routes/chatRoutes.js";
 import { createMapRouter } from "./routes/mapRoutes.js";
 import { createTokenRouter } from "./routes/tokenRoutes.js";
-import { createAssetRouter } from "./routes/assetRoutes.js";
 import { uploadsRootPath } from "./services/assetStorage.js";
 import { createAuthMiddleware } from "./services/authService.js";
 

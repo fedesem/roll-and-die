@@ -1,4 +1,4 @@
-import type { DrawingTextFont, DrawingStroke, Point } from "@shared/types";
+import type { DrawingStroke, DrawingTextFont, Point } from "@shared/types";
 
 export const drawingTextFontOptions: Array<{ value: DrawingTextFont; label: string }> = [
   { value: "sans", label: "Arial" },

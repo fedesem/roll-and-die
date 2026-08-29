@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-
-import type { AbilityKey, ActorSheet } from "@shared/types";
 import { findBaseClassProgression } from "@shared/data/progression";
 import { createProgressionAwardFromActorDelta } from "@shared/rules/progressionEngine";
+import type { AbilityKey, ActorSheet } from "@shared/types";
+import { useEffect, useMemo, useState } from "react";
 
 import type {
   GuidedAbilityChoiceConfig,
@@ -11,19 +10,19 @@ import type {
   GuidedChoiceSpec,
   GuidedEquipmentGroup,
   GuidedFlowMode,
+  GuidedSetupState,
   GuidedSkillChoiceConfig,
   GuidedSpeciesChoiceGroup,
-  GuidedSetupState,
   PlayerNpcSheet2024Props
 } from "../playerNpcSheet2024Types";
 import { NEW_GUIDED_CLASS_ID } from "../playerNpcSheet2024Types";
 import {
-  applyGuideBaseAbilities,
   applyBackgroundToActor,
   applyClassSkillChoicesToActor,
   applyClassToActor,
-  applyGuideSelectionsToActor,
   applyEquipmentSelectionsToActor,
+  applyGuideBaseAbilities,
+  applyGuideSelectionsToActor,
   applySpeciesChoiceGroupSelections,
   applySpeciesChoiceSelections,
   applySpeciesToActor,
@@ -33,19 +32,19 @@ import {
 import {
   backgroundForId,
   collectGuidedFeatures,
-  deriveBackgroundSkillChoiceConfig,
-  deriveClassResources,
-  deriveClassSkillChoiceConfig,
   deriveBackgroundAbilityConfig,
   deriveBackgroundEquipmentGroups,
-  deriveGuidedChoiceSpec,
-  deriveGuidedAbilityChoiceSlots,
+  deriveBackgroundSkillChoiceConfig,
   deriveClassEquipmentGroups,
+  deriveClassResources,
+  deriveClassSkillChoiceConfig,
+  deriveGuidedAbilityChoiceSlots,
+  deriveGuidedChoiceSpec,
   deriveOriginFeatOptions,
   deriveSpeciesChoiceGroups,
-  deriveSpellSlots,
   deriveSpeciesOriginFeatOptions,
   deriveSpeciesSkillChoiceConfig,
+  deriveSpellSlots,
   effectiveHitPointMax,
   featMeetsProgressionPrerequisites,
   mergeDerivedResources,

@@ -1,4 +1,5 @@
 import { CampaignRouteProvider } from "./CampaignRouteContext";
+import type { AppRouteContentProps } from "./routeContentTypes";
 import { AdminRouteContent } from "./routes/AdminRouteContent";
 import { CampaignBoardRouteContent } from "./routes/CampaignBoardRouteContent";
 import { CampaignCreateRouteContent } from "./routes/CampaignCreateRouteContent";
@@ -6,7 +7,6 @@ import { CampaignHubRouteContent } from "./routes/CampaignHubRouteContent";
 import { CampaignJoinRouteContent } from "./routes/CampaignJoinRouteContent";
 import { CampaignLoadingRouteContent } from "./routes/CampaignLoadingRouteContent";
 import { CampaignsRouteContent } from "./routes/CampaignsRouteContent";
-import type { AppRouteContentProps } from "./routeContentTypes";
 
 export function AppRouteContent({
   route,

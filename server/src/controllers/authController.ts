@@ -1,6 +1,5 @@
 import type { Request, Response } from "express";
 import { loginBodySchema, registerBodySchema } from "../../../shared/contracts/auth.js";
-import { runStoreTransaction, type StoredUser } from "../store.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema } from "../http/validation.js";
 import {
@@ -14,6 +13,7 @@ import {
   toUserProfile
 } from "../services/authService.js";
 import { countUsers, insertSession, insertUser, readUserByEmail } from "../store/models/users.js";
+import { runStoreTransaction, type StoredUser } from "../store.js";
 export const authController = {
   async register(request: Request, response: Response) {
     const body = parseWithSchema(registerBodySchema, request.body);

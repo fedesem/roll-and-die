@@ -1,6 +1,5 @@
-import type { AuthMode } from "./types";
-
 import { toErrorMessage } from "../../lib/errors";
+import type { AuthMode } from "./types";
 
 export function toAuthErrorMessage(authMode: AuthMode, error: unknown) {
   const message = toErrorMessage(error);

@@ -1,14 +1,12 @@
 import { z } from "zod";
-
-import { TOKEN_STATUS_MARKERS } from "../types.js";
 import type {
   AbilityKey,
   AbilityScores,
   ActorBonusEntry,
   ActorBonusSourceType,
   ActorBonusTargetType,
-  ActorCreatureSize,
   ActorClassEntry,
+  ActorCreatureSize,
   ActorDeathSaveState,
   ActorKind,
   ActorLayoutEntry,
@@ -32,11 +30,12 @@ import type {
   ChatMessageKind,
   ClassEntry,
   ClassFeatureEntry,
-  ClassSubclassEntry,
   ClassStartingProficiencies,
+  ClassSubclassEntry,
   ClassTableEntry,
   CompendiumAbilityChoice,
   CompendiumBackgroundEntry,
+  CompendiumData,
   CompendiumEquipmentGroup,
   CompendiumEquipmentOption,
   CompendiumItemEntry,
@@ -46,12 +45,11 @@ import type {
   CompendiumSpeciesChoiceGroup,
   CompendiumSpeciesChoiceOption,
   CompendiumSpeciesEntry,
-  CompendiumData,
   CurrencyPouch,
   DiceRoll,
   DrawingKind,
-  DrawingTextFont,
   DrawingStroke,
+  DrawingTextFont,
   FeatEntry,
   FogRect,
   GridConfig,
@@ -72,14 +70,14 @@ import type {
   MonsterAttackType,
   MonsterSense,
   MonsterSkillBonus,
-  MonsterSpellcastingEntry,
   MonsterSpeedModes,
+  MonsterSpellcastingEntry,
   MonsterTemplate,
-  Point,
   PlayerNpcBuild,
   PlayerNpcBuildClassEntry,
   PlayerNpcBuildMode,
   PlayerNpcBuildSelection,
+  Point,
   ProgressionAward,
   ProgressionAwardChoice,
   ProgressionEffect,
@@ -99,6 +97,7 @@ import type {
   TokenRotation,
   UserProfile
 } from "../types.js";
+import { TOKEN_STATUS_MARKERS } from "../types.js";
 
 const finiteNumber = z.number().finite();
 const trimmedString = z.string();

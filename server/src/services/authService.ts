@@ -1,9 +1,9 @@
 import { randomBytes, randomUUID, scryptSync } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import type { UserProfile } from "../../../shared/types.js";
-import { runStoreQuery, type StoredUser } from "../store.js";
 import { HttpError } from "../http/errors.js";
 import { readSession, readUserById } from "../store/models/users.js";
+import { runStoreQuery, type StoredUser } from "../store.js";
 export function createId(prefix: string) {
   return `${prefix}_${randomUUID().slice(0, 8)}`;
 }

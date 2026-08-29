@@ -1,23 +1,22 @@
+import type { CampaignMap, MapTeleporter, MapWall, MapWallKind, Point } from "@shared/types";
+import { snapPointToGrid, snapPointToGridIntersection } from "@shared/vision";
+import { DoorOpen, EyeOff, MousePointer2, Move, Radio, RotateCcw, Square, Trash2, Waves, ZoomIn, ZoomOut } from "lucide-react";
 import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
   type ChangeEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
-  type WheelEvent as ReactWheelEvent
+  type WheelEvent as ReactWheelEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
 } from "react";
-import { DoorOpen, EyeOff, MousePointer2, Move, Radio, RotateCcw, Square, Trash2, Waves, ZoomIn, ZoomOut } from "lucide-react";
-
-import type { CampaignMap, MapTeleporter, MapWall, MapWallKind, Point } from "@shared/types";
-import { snapPointToGrid, snapPointToGridIntersection } from "@shared/vision";
-import { NumericInput } from "./NumericInput";
-import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
 import { resolveAssetUrl } from "../lib/assets";
 import { createGridStyle } from "../lib/gridStyle";
 import { readImageDimensionsFromFile } from "../lib/media";
 import { uploadImageAsset } from "../services/assetService";
+import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
+import { NumericInput } from "./NumericInput";
 
 interface MapConfiguratorProps {
   token: string;

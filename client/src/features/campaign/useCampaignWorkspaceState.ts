@@ -1,9 +1,7 @@
-import { useState } from "react";
-
 import type { ActorKind, ActorSheet, MemberRole } from "@shared/types";
-
-import type { ActorTypeFilter } from "./types";
+import { useState } from "react";
 import { createClientActorDraft } from "../../lib/drafts";
+import type { ActorTypeFilter } from "./types";
 
 interface UseCampaignWorkspaceStateOptions {
   currentUserId?: string;

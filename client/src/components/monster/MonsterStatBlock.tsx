@@ -1,6 +1,5 @@
-import type { ReactNode } from "react";
-
 import type { MonsterActionEntry, MonsterTemplate } from "@shared/types";
+import type { ReactNode } from "react";
 
 import { resolveAssetUrl } from "../../lib/assets";
 

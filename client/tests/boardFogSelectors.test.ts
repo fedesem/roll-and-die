@@ -1,14 +1,13 @@
-import { describe, expect, it } from "vitest";
 import type { ActorSheet, BoardToken, Campaign, CampaignMap, CampaignSnapshot } from "@shared/types";
-
-import { createClientActorDraft, createClientMapDraft } from "../src/lib/drafts";
+import { describe, expect, it } from "vitest";
 import {
+  selectAvailableActors,
   selectBoardSeenCells,
   selectBoardVisibleCells,
   selectMapAssignments,
-  selectAvailableActors,
   selectVisibleMapTokens
 } from "../src/features/campaign/selectors";
+import { createClientActorDraft, createClientMapDraft } from "../src/lib/drafts";
 
 function createBoardMap(): CampaignMap {
   const map = createClientMapDraft("Fog Test");

@@ -1,11 +1,11 @@
-import { TOKEN_STATUS_MARKERS, type Campaign, type CampaignMap, type MapTeleporter } from "../../../shared/types.js";
 import {
   clampCreatureTokenSize,
   clampStaticTokenDimension,
   normalizeCreatureSize,
   normalizeTokenRotation
 } from "../../../shared/tokenGeometry.js";
-import { defaultDatabase, type Database } from "./types.js";
+import { type Campaign, type CampaignMap, type MapTeleporter, TOKEN_STATUS_MARKERS } from "../../../shared/types.js";
+import { type Database, defaultDatabase } from "./types.js";
 
 export function normalizeStoreState(database: Database): Database {
   return {

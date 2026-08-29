@@ -1,7 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { CampaignMap, DrawingStroke, MapWall, MeasurePreview } from "@shared/types";
-
-import { createClientMapDraft } from "../src/lib/drafts";
+import { describe, expect, it } from "vitest";
 import {
   buildMeasurePreview,
   drawingHasRenderableSpan,
@@ -11,6 +9,7 @@ import {
   serializeMeasurePreview,
   shouldFillDrawing
 } from "../src/features/board/boardUtils";
+import { createClientMapDraft } from "../src/lib/drafts";
 
 function createBoardMap(): CampaignMap {
   const map = createClientMapDraft("Board Test");

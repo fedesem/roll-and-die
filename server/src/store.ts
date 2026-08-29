@@ -1,6 +1,8 @@
 import { SqlitePersistenceAdapter } from "./store/sqliteAdapter.js";
 import type { DatabaseSync } from "./store/types.js";
-export type { Database, StoredUser, SessionRecord } from "./store/types.js";
+
+export type { Database, SessionRecord, StoredUser } from "./store/types.js";
+
 const adapter = new SqlitePersistenceAdapter();
 const writeQueues = new Map<string, Promise<unknown>>();
 interface StoreExecutionOptions {

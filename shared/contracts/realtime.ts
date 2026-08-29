@@ -1,22 +1,21 @@
 import { z } from "zod";
-
+import { drawingUpdateEntrySchema } from "./campaigns.js";
 import {
   actorSheetSchema,
   boardTokenSchema,
-  campaignSnapshotSchema,
   campaignInviteSchema,
   campaignMapSchema,
   campaignMemberSchema,
+  campaignSnapshotSchema,
+  chatMessageSchema,
   drawingStrokeSchema,
-  mapPingSchema,
   mapActorAssignmentSchema,
+  mapPingSchema,
   mapViewportRecallSchema,
   measurePreviewSchema,
   pointSchema,
-  chatMessageSchema,
   tokenMovementPreviewSchema
 } from "./domain.js";
-import { drawingUpdateEntrySchema } from "./campaigns.js";
 
 export const clientRoomMessageSchema = z.discriminatedUnion("type", [
   z.object({

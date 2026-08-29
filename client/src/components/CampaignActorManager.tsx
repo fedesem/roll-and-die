@@ -1,7 +1,6 @@
-import { useMemo, useState } from "react";
-import { Map, MapPinned, ScrollText, Skull, Square, Trash2, User, Users } from "lucide-react";
-
 import type { ActorKind, ActorSheet, CampaignMap, CampaignMember, MemberRole } from "@shared/types";
+import { Map, MapPinned, ScrollText, Skull, Square, Trash2, User, Users } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import type { ActorTypeFilter, AvailableActorEntry } from "../features/campaign/types";
 import { CampaignActionButton } from "./CampaignActionButton";

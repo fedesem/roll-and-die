@@ -1,7 +1,14 @@
 import { randomBytes } from "node:crypto";
-
+import { isActorAssignedToMap } from "../../../shared/campaignActors.js";
+import { playerNpcBuildSchema } from "../../../shared/contracts/domain.js";
+import { hasProgressionFieldOverride, validateProgressionAwardAgainstCurrentRules } from "../../../shared/rules/progressionEngine.js";
 import {
-  TOKEN_STATUS_MARKERS,
+  clampStaticTokenDimension,
+  getActorTokenFootprint,
+  getFootprintSamplePoints,
+  normalizeCreatureSize
+} from "../../../shared/tokenGeometry.js";
+import {
   type AbilityKey,
   type AbilityScores,
   type ActorBonusEntry,
@@ -30,30 +37,22 @@ import {
   type MeasureSnapMode,
   type MemberRole,
   type MonsterTemplate,
-  type Point,
   type PlayerNpcBuild,
+  type Point,
   type ResourceEntry,
   type SkillEntry,
   type SpellSlotTrack,
+  TOKEN_STATUS_MARKERS,
   type UserProfile
 } from "../../../shared/types.js";
-import {
-  clampStaticTokenDimension,
-  getActorTokenFootprint,
-  getFootprintSamplePoints,
-  normalizeCreatureSize
-} from "../../../shared/tokenGeometry.js";
 import {
   computeVisibleCellsForActorToken,
   computeVisibleCellsForUser,
   snapPointToGrid,
   snapPointToGridIntersection
 } from "../../../shared/vision.js";
-import { isActorAssignedToMap } from "../../../shared/campaignActors.js";
-import { playerNpcBuildSchema } from "../../../shared/contracts/domain.js";
-import { hasProgressionFieldOverride, validateProgressionAwardAgainstCurrentRules } from "../../../shared/rules/progressionEngine.js";
-import type { Database } from "../store.js";
 import { HttpError } from "../http/errors.js";
+import type { Database } from "../store.js";
 import { createId, now } from "./authService.js";
 
 const skillTemplates: Array<{ name: string; ability: AbilityKey }> = [

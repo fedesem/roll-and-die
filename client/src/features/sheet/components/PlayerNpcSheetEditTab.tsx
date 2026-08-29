@@ -1,13 +1,13 @@
-import { BookOpen, Brain, Heart, ImagePlus, Plus, Sparkles, Swords } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
-
-import { TOKEN_STATUS_MARKERS, type AbilityKey, type ActorBonusEntry, type ActorSheet, type ArmorEntry } from "@shared/types";
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
+import { type AbilityKey, type ActorBonusEntry, type ActorSheet, type ArmorEntry, TOKEN_STATUS_MARKERS } from "@shared/types";
+import { BookOpen, Brain, Heart, ImagePlus, Plus, Sparkles, Swords } from "lucide-react";
+import { type ReactNode, useMemo, useState } from "react";
 
 import { NumericInput } from "../../../components/NumericInput";
 import type { GuidedSheetFlowState } from "../hooks/useGuidedSheetFlow";
 import type { PlayerNpcSheetActions, PlayerNpcSheetMutators } from "../hooks/usePlayerNpcSheetController";
 import type { PlayerNpcSheetDerivedState, PlayerNpcSheetPermissions } from "../hooks/usePlayerNpcSheetDerived";
+import type { SheetCompendium } from "../playerNpcSheet2024Types";
 import {
   createArmorEntry,
   createAttackEntry,
@@ -17,17 +17,16 @@ import {
 } from "../selectors/playerNpcSheet2024Mutations";
 import { collectSpellRows, createReferenceRow, splitCommaValues } from "../selectors/playerNpcSheet2024Selectors";
 import { abilityOrder, findCompendiumClass, formatModifier, normalizeKey, skillTotal } from "../sheetUtils";
-import type { SheetCompendium } from "../playerNpcSheet2024Types";
 import {
   actionButtonClass,
+  DetailCollection,
   Field,
   inputClass,
   LazyDetails,
-  secondaryButtonClass,
   SectionCard,
+  secondaryButtonClass,
   TagRow,
-  textareaClass,
-  DetailCollection
+  textareaClass
 } from "./sheetPrimitives";
 
 interface PlayerNpcSheetEditTabProps {

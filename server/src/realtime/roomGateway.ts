@@ -1,6 +1,8 @@
 import type { Server } from "node:http";
-import { WebSocket, WebSocketServer, type RawData } from "ws";
+import { type RawData, WebSocket, WebSocketServer } from "ws";
+import { isPlayerOwnedActor } from "../../../shared/campaignActors.js";
 import { clientRoomMessageSchema, serverRoomMessageSchema } from "../../../shared/contracts/realtime.js";
+import { getActorTokenFootprint, snapTokenToGrid } from "../../../shared/tokenGeometry.js";
 import type {
   ActorSheet,
   BoardToken,
@@ -8,9 +10,9 @@ import type {
   CampaignMap,
   CampaignMember,
   ChatMessage,
+  MapActorAssignment,
   MapPing,
   MapViewportRecall,
-  MapActorAssignment,
   MemberRole,
   RoomCampaignPatch,
   RoomDoorToggled,
@@ -20,22 +22,9 @@ import type {
   TokenMovementPreview,
   UserProfile
 } from "../../../shared/types.js";
-import { getActorTokenFootprint, snapTokenToGrid } from "../../../shared/tokenGeometry.js";
 import { traceMovementPath } from "../../../shared/vision.js";
-import { isPlayerOwnedActor } from "../../../shared/campaignActors.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema } from "../http/validation.js";
-import { runStoreQuery, runStoreTransaction } from "../store.js";
-import {
-  insertCampaignExplorationCells,
-  readActiveBoardCampaign,
-  readCampaignActiveMapId,
-  readCampaignSnapshotById,
-  readMapEditorMap,
-  updateCampaignDoorState,
-  upsertCampaignToken
-} from "../store/models/campaigns.js";
-import { readSession, readUserById } from "../store/models/users.js";
 import { createId, now, toUserProfile } from "../services/authService.js";
 import {
   appendChatMessageCommand,
@@ -63,6 +52,18 @@ import {
   updateExplorationForMap
 } from "../services/campaignDomain.js";
 import { readRoomCompendiumCache } from "../services/roomCompendiumCache.js";
+import {
+  insertCampaignExplorationCells,
+  readActiveBoardCampaign,
+  readCampaignActiveMapId,
+  readCampaignSnapshotById,
+  readMapEditorMap,
+  updateCampaignDoorState,
+  upsertCampaignToken
+} from "../store/models/campaigns.js";
+import { readSession, readUserById } from "../store/models/users.js";
+import { runStoreQuery, runStoreTransaction } from "../store.js";
+
 interface RoomConnection {
   socket: WebSocket;
   user?: UserProfile;

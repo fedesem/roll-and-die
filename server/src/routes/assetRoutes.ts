@@ -1,4 +1,4 @@
-import { raw, Router } from "express";
+import { Router, raw } from "express";
 
 import { assetController } from "../controllers/assetController.js";
 import { wrap } from "../http/wrap.js";

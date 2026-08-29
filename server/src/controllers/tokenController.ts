@@ -2,11 +2,11 @@ import type { Request, Response } from "express";
 import { createTokenBodySchema, updateTokenBodySchema } from "../../../shared/contracts/campaigns.js";
 import { parseWithSchema, requireRouteParam } from "../http/validation.js";
 import { broadcastTokenPatchToRoom } from "../realtime/roomGateway.js";
-import { runStoreQuery } from "../store.js";
 import { requireUser } from "../services/authService.js";
-import { normalizeExplorationMemoryForMap } from "../services/campaignDomain.js";
 import { createTokenCommand, removeTokenCommand, updateTokenCommand } from "../services/campaignCommandService.js";
+import { normalizeExplorationMemoryForMap } from "../services/campaignDomain.js";
 import { readActiveBoardCampaign } from "../store/models/campaigns.js";
+import { runStoreQuery } from "../store.js";
 export const tokenController = {
   async create(request: Request, response: Response) {
     const user = requireUser(request);

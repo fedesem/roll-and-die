@@ -1,6 +1,5 @@
-import type { ReactNode } from "react";
-
 import type { CompendiumChoiceGroup, CompendiumChoiceOption } from "@shared/types";
+import type { ReactNode } from "react";
 
 import { HoverPreviewTrigger, secondaryButtonClass } from "./sheetPrimitives";
 

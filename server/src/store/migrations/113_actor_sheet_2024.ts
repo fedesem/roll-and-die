@@ -1,5 +1,6 @@
 import { addColumnIfMissing, tableExists } from "../helpers.js";
 import type { Migration } from "../types.js";
+
 const defaultLayoutJson = JSON.stringify([
   { sectionId: "info", column: 1, order: 0 },
   { sectionId: "abilities", column: 1, order: 1 },

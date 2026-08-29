@@ -1,4 +1,3 @@
-import type { DatabaseSync } from "../types.js";
 import type {
   AbilityKey,
   CampaignSourceBook,
@@ -22,6 +21,7 @@ import type {
   SpellLevel
 } from "../../../../shared/types.js";
 import { readAll, toIntegerBoolean } from "../helpers.js";
+import type { DatabaseSync } from "../types.js";
 export type CompendiumCollectionKind = keyof CompendiumData;
 type ReferenceCompendiumKind = Extract<
   CompendiumCollectionKind,

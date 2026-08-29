@@ -1,3 +1,4 @@
+import { TOKEN_STATUS_MARKERS, type TokenStatusMarker } from "@shared/types";
 import type { LucideIcon } from "lucide-react";
 import {
   Ban,
@@ -6,10 +7,11 @@ import {
   Droplets,
   EarOff,
   EyeOff,
-  Ghost,
   Gem,
+  Ghost,
   HandGrab,
   HeartHandshake,
+  Link2,
   Moon,
   MoveDown,
   Pill,
@@ -18,10 +20,8 @@ import {
   Timer,
   TriangleAlert,
   X,
-  ZapOff,
-  Link2
+  ZapOff
 } from "lucide-react";
-import { TOKEN_STATUS_MARKERS, type TokenStatusMarker } from "@shared/types";
 
 export type TokenStatusTone = "danger" | "warning" | "arcane" | "neutral" | "stealth" | "success";
 

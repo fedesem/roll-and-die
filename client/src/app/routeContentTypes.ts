@@ -1,8 +1,8 @@
+import type { CampaignSnapshot, CampaignSourceBook, CampaignSummary } from "@shared/types";
 import type { AppRoute } from "../appRouteState";
 import type { CampaignHubPageProps } from "../pages/CampaignHubPage";
 import type { CampaignPageProps } from "../pages/CampaignPage";
 import type { RoomStatus } from "../services/roomConnection";
-import type { CampaignSnapshot, CampaignSourceBook, CampaignSummary } from "@shared/types";
 
 export interface AppSession {
   token: string;

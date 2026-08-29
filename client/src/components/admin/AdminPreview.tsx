@@ -1,5 +1,3 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
-
 import type {
   CampaignSourceBook,
   ClassEntry,
@@ -14,7 +12,8 @@ import type {
   SpellEntry,
   UserProfile
 } from "@shared/types";
-import { FloatingLayer, anchorFromRect } from "../FloatingLayer";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { anchorFromRect, FloatingLayer } from "../FloatingLayer";
 import { MonsterStatBlock } from "../monster/MonsterStatBlock";
 
 interface RulesLookupData {

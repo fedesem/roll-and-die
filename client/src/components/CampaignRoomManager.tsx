@@ -1,8 +1,7 @@
-import { useState } from "react";
+import type { CampaignSnapshot, MemberRole } from "@shared/types";
 
 import { Copy, Trash2 } from "lucide-react";
-
-import type { CampaignSnapshot, MemberRole } from "@shared/types";
+import { useState } from "react";
 
 import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
 

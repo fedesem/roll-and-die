@@ -1,7 +1,3 @@
-import { useMemo, useState } from "react";
-
-import { Home, Map as MapIcon, ScrollText } from "lucide-react";
-
 import type {
   ActorKind,
   ActorSheet,
@@ -17,6 +13,9 @@ import type {
   Point,
   TokenMovementPreview
 } from "@shared/types";
+
+import { Home, Map as MapIcon, ScrollText } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { BoardCanvas } from "../components/BoardCanvas";
 import { CampaignMapActorCreator } from "../components/CampaignMapActorCreator";

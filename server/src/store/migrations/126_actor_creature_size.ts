@@ -1,5 +1,5 @@
-import type { ActorKind, ActorSheet } from "../../../../shared/types.js";
 import { deriveCreatureSizeFromTokenSize } from "../../../../shared/tokenGeometry.js";
+import type { ActorKind, ActorSheet } from "../../../../shared/types.js";
 import { addColumnIfMissing, readAll } from "../helpers.js";
 import type { Migration } from "../types.js";
 

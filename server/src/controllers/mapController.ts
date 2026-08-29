@@ -3,16 +3,16 @@ import { assignActorToMapBodySchema, createMapBodySchema, saveMapBodySchema } fr
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema, requireRouteParam } from "../http/validation.js";
 import { broadcastMapAssignmentsToRoom, broadcastMapUpsertToRoom } from "../realtime/roomGateway.js";
-import { runStoreQuery } from "../store.js";
 import { requireUser } from "../services/authService.js";
-import { normalizeExplorationMemoryForMap } from "../services/campaignDomain.js";
-import { readActiveBoardCampaign, readMapEditorMap } from "../store/models/campaigns.js";
 import {
   assignActorToMapCommand,
   createMapCommand,
   removeActorFromMapCommand,
   updateMapCommand
 } from "../services/campaignCommandService.js";
+import { normalizeExplorationMemoryForMap } from "../services/campaignDomain.js";
+import { readActiveBoardCampaign, readMapEditorMap } from "../store/models/campaigns.js";
+import { runStoreQuery } from "../store.js";
 export const mapController = {
   async create(request: Request, response: Response) {
     const user = requireUser(request);

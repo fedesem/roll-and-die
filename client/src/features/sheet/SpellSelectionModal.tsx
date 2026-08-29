@@ -1,13 +1,11 @@
-import { Eye } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-
 import type { CampaignSnapshot, SpellEntry, SpellLevel, SpellSchool } from "@shared/types";
-
-import { FloatingLayer, type FloatingAnchor } from "../../components/FloatingLayer";
-import { ModalFrame } from "../../components/ModalFrame";
+import { Eye } from "lucide-react";
+import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
 import { SpellPreviewCard } from "../../components/admin/AdminPreview";
-import { normalizeKey } from "./sheetUtils";
+import { type FloatingAnchor, FloatingLayer } from "../../components/FloatingLayer";
+import { ModalFrame } from "../../components/ModalFrame";
 import { spellMatchesSingleClassFilter } from "./selectors/playerNpcSheet2024Selectors";
+import { normalizeKey } from "./sheetUtils";
 
 interface SpellSelectionModalProps {
   title: string;

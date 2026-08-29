@@ -1,9 +1,7 @@
-import { useCallback, useEffect } from "react";
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-
-import { queryKeys } from "../../lib/queryKeys";
+import { useCallback, useEffect } from "react";
 import { toErrorMessage } from "../../lib/errors";
+import { queryKeys } from "../../lib/queryKeys";
 import { fetchAdminOverview } from "./adminService";
 
 interface UseAdminOverviewQueryOptions {

@@ -1,7 +1,6 @@
-import { useCallback } from "react";
-
 import type { CompendiumData } from "@shared/types";
-
+import { useCallback } from "react";
+import { uploadImageAsset } from "../../services/assetService";
 import {
   clearCompendiumItems,
   createCompendiumItem,
@@ -12,7 +11,6 @@ import {
   importMonsterTokenArchive,
   promoteAdminUser
 } from "./adminService";
-import { uploadImageAsset } from "../../services/assetService";
 
 type CompendiumTab = keyof CompendiumData;
 

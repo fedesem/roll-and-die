@@ -3,6 +3,7 @@ import { mkdir, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, extname, resolve, sep } from "node:path";
 import sharp from "sharp";
 import type { DatabaseSync } from "../store/types.js";
+
 type AssetCategory = "actors" | "chat" | "maps" | "tokens";
 const assetProfiles: Record<
   AssetCategory,

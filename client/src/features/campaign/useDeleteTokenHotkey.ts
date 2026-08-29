@@ -1,6 +1,5 @@
-import { useEffect } from "react";
-
 import type { ActorSheet, BoardToken, CampaignMap } from "@shared/types";
+import { useEffect } from "react";
 
 interface UseDeleteTokenHotkeyOptions {
   role: "dm" | "player";

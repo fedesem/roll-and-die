@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { findClassProgression } from "@shared/data/progression";
 
 import { applyRestChoiceSelections, hasProgressionFieldOverride } from "@shared/rules/progressionEngine";
-import { findClassProgression } from "@shared/data/progression";
 import type {
   AbilityKey,
   ActorClassEntry,
@@ -13,11 +12,13 @@ import type {
   SkillEntry,
   SpellSlotTrack
 } from "@shared/types";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { uploadImageAsset } from "../../../services/assetService";
 import type { PlayerNpcSheet2024Props, RollMode, SheetTab, SpellSelectionTarget } from "../playerNpcSheet2024Types";
 import { buildD20Notation, buildStaticRollNotation, finalizeDraftForSave, rollDie } from "../selectors/playerNpcSheet2024Mutations";
 import {
+  collectFeatureRows,
   deriveActorSpellCollections,
   deriveClassResources,
   deriveGuidedHitPointMax,
@@ -26,7 +27,6 @@ import {
   deriveSpellSlots,
   effectiveHitPointMax,
   healHitPoints,
-  collectFeatureRows,
   mergeDerivedArmorItems,
   mergeDerivedAttacks,
   mergeDerivedResources,

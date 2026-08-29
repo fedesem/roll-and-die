@@ -4,11 +4,11 @@ import type {
   BoardToken,
   CampaignMap,
   MapActorAssignment,
-  MemberRole,
   MeasurePreview,
+  MemberRole,
+  TokenMovementPreview,
   TokenRotation,
-  TokenStatusMarker,
-  TokenMovementPreview
+  TokenStatusMarker
 } from "@shared/types";
 
 export type ActorTypeFilter = "all" | ActorKind;

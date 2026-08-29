@@ -5,9 +5,9 @@ import {
   actorSheetSchema,
   boardTokenSchema,
   campaignInviteSchema,
-  campaignSourceBookSchema,
   campaignMapSchema,
   campaignSnapshotSchema,
+  campaignSourceBookSchema,
   campaignSummarySchema,
   chatMessageSchema,
   drawingStrokeSchema,
@@ -17,9 +17,9 @@ import {
   memberRoleSchema,
   monsterTemplateSchema,
   pointSchema,
-  tokenStatusMarkerSchema,
+  tokenMovementPreviewSchema,
   tokenRotationSchema,
-  tokenMovementPreviewSchema
+  tokenStatusMarkerSchema
 } from "./domain.js";
 
 export const emptyResponseSchema = z.null();

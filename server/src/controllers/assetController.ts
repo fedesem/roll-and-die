@@ -3,8 +3,8 @@ import type { Request, Response } from "express";
 import { assetUploadCategorySchema, uploadedAssetResponseSchema } from "../../../shared/contracts/assets.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema } from "../http/validation.js";
-import { requireUser } from "../services/authService.js";
 import { storeUploadedImageBuffer } from "../services/assetStorage.js";
+import { requireUser } from "../services/authService.js";
 
 export const assetController = {
   async uploadImage(request: Request, response: Response) {

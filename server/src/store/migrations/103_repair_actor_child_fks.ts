@@ -1,5 +1,5 @@
-import type { Migration } from "../types.js";
 import { rebuildActorChildTables, tableExists } from "../helpers.js";
+import type { Migration } from "../types.js";
 export const repairActorChildForeignKeysMigration: Migration = {
   version: 103,
   name: "repair_actor_child_foreign_keys",

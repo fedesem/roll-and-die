@@ -1,6 +1,5 @@
-import { Redo2, Undo2 } from "lucide-react";
-
 import type { CampaignMap, MemberRole } from "@shared/types";
+import { Redo2, Undo2 } from "lucide-react";
 
 import { CampaignActionButton } from "./CampaignActionButton";
 import { MapConfigurator } from "./MapConfigurator";

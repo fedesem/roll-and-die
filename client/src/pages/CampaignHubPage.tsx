@@ -1,8 +1,7 @@
-import { useState } from "react";
+import type { ActorKind, ActorSheet, CampaignMap, CampaignSnapshot, MemberRole, MonsterTemplate } from "@shared/types";
 
 import { ArrowRight, Castle, Map as MapIcon, Swords, Users } from "lucide-react";
-
-import type { ActorKind, ActorSheet, CampaignMap, CampaignSnapshot, MemberRole, MonsterTemplate } from "@shared/types";
+import { useState } from "react";
 
 import { CampaignActorManager } from "../components/CampaignActorManager";
 import { CampaignMapActorCreator } from "../components/CampaignMapActorCreator";

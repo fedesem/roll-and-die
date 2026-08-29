@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
-
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { createMemoryHistory } from "@tanstack/history";
+import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createMemoryHistory } from "@tanstack/history";
-import { RouterProvider, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useAppRoute } from "../src/appRouteState";
 

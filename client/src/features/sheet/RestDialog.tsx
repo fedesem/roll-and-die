@@ -1,7 +1,6 @@
-import { Check, Heart, Minus, Plus, X } from "lucide-react";
-
 import type { ProgressionChoiceGroupDef } from "@shared/data/progression";
 import type { ActorClassEntry } from "@shared/types";
+import { Check, Heart, Minus, Plus, X } from "lucide-react";
 
 import { ModalFrame } from "../../components/ModalFrame";
 import { hitDiceAvailable } from "./sheetUtils";

@@ -1,5 +1,5 @@
-import type { Migration } from "../types.js";
 import { externalizeTableImageColumn } from "../../services/assetStorage.js";
+import type { Migration } from "../types.js";
 export const externalizeInlineImagesMigration: Migration = {
   version: 118,
   name: "externalize_inline_images",

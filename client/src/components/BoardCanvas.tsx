@@ -1,16 +1,4 @@
-import {
-  type CSSProperties,
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type DragEvent as ReactDragEvent,
-  type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
-  type WheelEvent as ReactWheelEvent
-} from "react";
+import { getActorTokenFootprint, getTokenFootprint, getTokenOccupiedCellKeys, snapTokenToGrid } from "@shared/tokenGeometry";
 import type {
   ActorSheet,
   BoardToken,
@@ -22,12 +10,23 @@ import type {
   Point,
   TokenMovementPreview
 } from "@shared/types";
-import { getActorTokenFootprint, getTokenFootprint, getTokenOccupiedCellKeys, snapTokenToGrid } from "@shared/tokenGeometry";
-import { allMapCells, computeVisibleCellsForUser, traceMovementPath, type MovementTrace } from "@shared/vision";
-import { BoardToolbar } from "../features/board/BoardToolbar";
-import { BoardTextEditor } from "../features/board/BoardTextEditor";
+import { allMapCells, computeVisibleCellsForUser, type MovementTrace, traceMovementPath } from "@shared/vision";
+import {
+  type CSSProperties,
+  memo,
+  type DragEvent as ReactDragEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 import { BoardFogOverlay } from "../features/board/BoardFogOverlay";
-import { FloatingLayer } from "./FloatingLayer";
+import { BoardTextEditor } from "../features/board/BoardTextEditor";
+import { BoardToolbar } from "../features/board/BoardToolbar";
 import {
   clamp,
   drawingHasRenderableSpan,
@@ -44,13 +43,9 @@ import {
   pointsToSvgPath,
   shouldFillDrawing
 } from "../features/board/boardUtils";
-import { getDrawingTextFontStack, getDrawingTextMetrics, getTextDrawingBounds } from "../features/board/drawingText";
 import { boardGridPreferenceStorageKey, maxViewZoom, minViewZoom } from "../features/board/constants";
+import { getDrawingTextFontStack, getDrawingTextMetrics, getTextDrawingBounds } from "../features/board/drawingText";
 import { getTokenStatusOption, TOKEN_STATUS_OPTIONS } from "../features/board/tokenStatus";
-import { useBoardDrawing } from "../features/board/useBoardDrawing";
-import { useBoardMeasure } from "../features/board/useBoardMeasure";
-import { useBoardSelection } from "../features/board/useBoardSelection";
-import { useBoardViewport } from "../features/board/useBoardViewport";
 import type {
   BoardFogPlayer,
   BoardMeasurePreviewEntry,
@@ -62,9 +57,14 @@ import type {
   RenderableDrawing,
   Tool
 } from "../features/board/types";
+import { useBoardDrawing } from "../features/board/useBoardDrawing";
+import { useBoardMeasure } from "../features/board/useBoardMeasure";
+import { useBoardSelection } from "../features/board/useBoardSelection";
+import { useBoardViewport } from "../features/board/useBoardViewport";
 import type { TokenUpdatePatch } from "../features/campaign/types";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { resolveAssetUrl } from "../lib/assets";
+import { FloatingLayer } from "./FloatingLayer";
 
 interface BoardCanvasProps {
   map?: CampaignMap;

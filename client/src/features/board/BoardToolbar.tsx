@@ -1,3 +1,4 @@
+import type { DrawingKind, DrawingTextFont, MeasureKind, MeasureSnapMode, Point } from "@shared/types";
 import {
   Bold,
   Circle,
@@ -17,8 +18,6 @@ import {
   Triangle,
   Type
 } from "lucide-react";
-
-import type { DrawingKind, DrawingTextFont, MeasureKind, MeasureSnapMode, Point } from "@shared/types";
 import { drawingTextFontOptions, drawingTextSizeOptions } from "./drawingText";
 
 interface BoardToolbarProps {

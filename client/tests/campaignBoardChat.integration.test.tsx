@@ -1,7 +1,6 @@
+import type { ActorSheet, CampaignMap, ChatMessage } from "@shared/types";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
-import type { ActorSheet, CampaignMap, ChatMessage } from "@shared/types";
 
 import { CampaignRouteProvider } from "../src/app/CampaignRouteContext";
 import type { CampaignRouteContextValue } from "../src/app/routeContentTypes";

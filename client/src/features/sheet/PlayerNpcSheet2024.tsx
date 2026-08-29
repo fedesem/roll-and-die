@@ -13,9 +13,9 @@ import { useGuidedSheetFlow } from "./hooks/useGuidedSheetFlow";
 import { usePlayerNpcSheetController } from "./hooks/usePlayerNpcSheetController";
 import { usePlayerNpcSheetDerived } from "./hooks/usePlayerNpcSheetDerived";
 import type { PlayerNpcSheet2024Props, SpellSelectionConfig } from "./playerNpcSheet2024Types";
-import { findSpellIdsByNames, findSpellNamesByIds } from "./selectors/playerNpcSheet2024Selectors";
 import { RestDialog } from "./RestDialog";
 import { SpellSelectionModal } from "./SpellSelectionModal";
+import { findSpellIdsByNames, findSpellNamesByIds } from "./selectors/playerNpcSheet2024Selectors";
 import { abilityModifierTotal } from "./sheetUtils";
 
 function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {

@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-
 import type { CampaignMap, DrawingStroke, Point } from "@shared/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { getDrawingRenderPoints, normalizeSelectionRect, pathBoundsIntersectsRect } from "./boardUtils";
 import { selectionDragThreshold } from "./constants";

@@ -1,6 +1,5 @@
+import { BookText, CircleAlert, GraduationCap, type LucideIcon, ShieldPlus, Skull, Sparkles, Swords, Users } from "lucide-react";
 import type { ReactNode } from "react";
-
-import { BookText, CircleAlert, GraduationCap, ShieldPlus, Skull, Sparkles, Swords, Users, type LucideIcon } from "lucide-react";
 
 import { toErrorMessage } from "../../lib/errors";
 

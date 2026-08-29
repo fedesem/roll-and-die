@@ -1,4 +1,3 @@
-import type { ActorKind, ActorSheet, BoardToken, CampaignMap, CampaignSourceBook, CampaignSummary, MemberRole } from "@shared/types";
 import {
   acceptInviteBodySchema,
   actorResponseSchema,
@@ -19,6 +18,7 @@ import {
   tokenResponseSchema,
   updateTokenBodySchema
 } from "@shared/contracts/campaigns";
+import type { ActorKind, ActorSheet, BoardToken, CampaignMap, CampaignSourceBook, CampaignSummary, MemberRole } from "@shared/types";
 
 import { apiRequest } from "../../api";
 import type { TokenUpdatePatch } from "./types";

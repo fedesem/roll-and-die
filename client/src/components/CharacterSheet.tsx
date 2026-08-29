@@ -1,14 +1,12 @@
-import { ImagePlus, ScrollText, Shield } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
-
-import type { ActorCreatureSize, ActorSheet, CampaignSnapshot, MemberRole } from "@shared/types";
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
-
-import { NumericInput } from "./NumericInput";
+import type { ActorCreatureSize, ActorSheet, CampaignSnapshot, MemberRole } from "@shared/types";
+import { ImagePlus, ScrollText, Shield } from "lucide-react";
+import { type ChangeEvent, memo, useCallback, useEffect, useMemo, useState } from "react";
 import { PlayerNpcSheet2024 } from "../features/sheet/PlayerNpcSheet2024";
 import { cloneActor } from "../features/sheet/sheetUtils";
 import { resolveAssetUrl } from "../lib/assets";
 import { uploadImageAsset } from "../services/assetService";
+import { NumericInput } from "./NumericInput";
 
 interface CharacterSheetProps {
   token: string;

@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
-
 import type { CampaignMap, MapViewportRecall, MemberRole, Point } from "@shared/types";
+import type { CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { createGridStyle } from "../../lib/gridStyle";
 import { clamp, readBoardView, writeBoardView } from "./boardUtils";

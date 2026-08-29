@@ -1,7 +1,25 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction } from "react";
-import { ArrowDownToLine, FilePlus2, List, RefreshCw, X } from "lucide-react";
-
 import type { CampaignSourceBook, CompendiumReferenceEntry, SpellEntry } from "@shared/types";
+import { ArrowDownToLine, FilePlus2, List, RefreshCw, X } from "lucide-react";
+import { type ChangeEvent, type Dispatch, type FormEvent, type SetStateAction, useEffect, useMemo, useState } from "react";
+import { useAdminOverviewQuery } from "../features/admin/useAdminOverviewQuery";
+import { useAdminPanelActions } from "../features/admin/useAdminPanelActions";
+import {
+  type ClassFormState,
+  classFormToEntry,
+  createClassForm,
+  createFeatForm,
+  createMonsterForm,
+  createSpellForm,
+  type FeatFormState,
+  featFormToEntry,
+  type MonsterFormState,
+  monsterActionTemplate,
+  monsterFormToEntry,
+  type SpellFormState,
+  spellFormToEntry
+} from "../lib/adminDrafts";
+import { toErrorMessage } from "../lib/errors";
+import styles from "./AdminPanel.module.css";
 import {
   BookPreviewCard,
   ClassPreviewCard,
@@ -12,39 +30,20 @@ import {
   SpellPreviewCard,
   UserPreviewCard
 } from "./admin/AdminPreview";
-import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
-import styles from "./AdminPanel.module.css";
-import { useAdminOverviewQuery } from "../features/admin/useAdminOverviewQuery";
-import { useAdminPanelActions } from "../features/admin/useAdminPanelActions";
-import {
-  classFormToEntry,
-  createClassForm,
-  createFeatForm,
-  createMonsterForm,
-  createSpellForm,
-  featFormToEntry,
-  monsterActionTemplate,
-  monsterFormToEntry,
-  spellFormToEntry,
-  type ClassFormState,
-  type FeatFormState,
-  type MonsterFormState,
-  type SpellFormState
-} from "../lib/adminDrafts";
-import { toErrorMessage } from "../lib/errors";
 import {
   AdminField,
+  type AdminTab,
   buildPreview,
+  type CompendiumTab,
   countForTab,
   filterEntries,
   getImportExample,
   labelForTab,
   resolveSelected,
   singularLabel,
-  tabIcons,
-  type AdminTab,
-  type CompendiumTab
+  tabIcons
 } from "./admin/adminPanelUtils";
+import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
 
 type AdminMode = "list" | "add" | "import";
 type ListSort =

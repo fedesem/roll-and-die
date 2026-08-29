@@ -1,4 +1,3 @@
-import { evaluateActorSubclassAlwaysPreparedSpells } from "@shared/rules/progressionEngine";
 import {
   findBackgroundProgression,
   findClassProgression,
@@ -6,6 +5,7 @@ import {
   findSpeciesProgression,
   type ProgressionChoiceOption
 } from "@shared/data/progression";
+import { evaluateActorSubclassAlwaysPreparedSpells, hasProgressionFieldOverride } from "@shared/rules/progressionEngine";
 import type {
   AbilityKey,
   ActorClassEntry,
@@ -25,7 +25,6 @@ import type {
   SpellEntry,
   SpellSlotTrack
 } from "@shared/types";
-
 import type {
   GuidedChoiceSpec,
   GuidedEquipmentGroup,
@@ -52,7 +51,6 @@ import {
   selectGuidedAbilityChoiceMode,
   syncBuildClasses
 } from "./playerNpcSheet2024Selectors";
-import { hasProgressionFieldOverride } from "@shared/rules/progressionEngine";
 
 export function finalizeDraftForSave(
   actor: ActorSheet,

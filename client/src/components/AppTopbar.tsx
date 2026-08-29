@@ -1,6 +1,5 @@
-import { Shield } from "lucide-react";
-
 import type { MemberRole } from "@shared/types";
+import { Shield } from "lucide-react";
 
 import type { RoomStatus } from "../services/roomConnection";
 

@@ -1,17 +1,16 @@
-import { useDeferredValue, useMemo } from "react";
-
 import type { CampaignSnapshot } from "@shared/types";
+import { useDeferredValue, useMemo } from "react";
 
 import {
   buildCurrentMapRoster,
   filterCurrentMapRoster,
   filterMonsterCatalog,
   selectActiveMap,
-  selectMapAssignments,
-  selectMapTokens,
   selectAvailableActors,
   selectBoardSeenCells,
   selectBoardVisibleCells,
+  selectMapAssignments,
+  selectMapTokens,
   selectMonsterTemplate,
   selectPlayerMembers,
   selectSelectedActor,

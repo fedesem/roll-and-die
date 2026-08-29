@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ClipboardEvent as ReactClipboardEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { type ClipboardEvent as ReactClipboardEvent, type KeyboardEvent as ReactKeyboardEvent, useLayoutEffect, useRef } from "react";
 
 interface BoardTextEditorProps {
   x: number;

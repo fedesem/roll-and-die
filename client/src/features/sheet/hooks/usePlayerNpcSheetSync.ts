@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
-
 import type { ActorSheet } from "@shared/types";
+import { type MutableRefObject, useEffect, useMemo, useRef } from "react";
 
 import { buildMainAutosaveState } from "../selectors/playerNpcSheet2024Selectors";
 

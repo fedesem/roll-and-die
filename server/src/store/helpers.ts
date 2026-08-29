@@ -1,4 +1,5 @@
 import type { DatabaseSync, SQLInputValue } from "./types.js";
+
 const nestedTransactionCounters = new WeakMap<DatabaseSync, number>();
 function createSavepointName(database: DatabaseSync) {
   const nextCounter = (nestedTransactionCounters.get(database) ?? 0) + 1;

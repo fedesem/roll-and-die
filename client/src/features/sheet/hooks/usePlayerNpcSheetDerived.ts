@@ -1,9 +1,8 @@
-import { useMemo } from "react";
-
 import type { ProgressionChoiceGroupDef } from "@shared/data/progression";
 import { findClassProgression } from "@shared/data/progression";
 import { evaluateActorRestChoices } from "@shared/rules/progressionEngine";
 import type { ActorSheet, CampaignSnapshot, MemberRole } from "@shared/types";
+import { useMemo } from "react";
 
 import type { DerivedResourceDefinition, DetailRowEntry } from "../playerNpcSheet2024Types";
 import {

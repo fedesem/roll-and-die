@@ -1,7 +1,3 @@
-import { Plus, X } from "lucide-react";
-import type { ReactNode } from "react";
-
-import type { AbilityKey, ActorSheet, CompendiumChoiceGroup, CompendiumChoiceOption } from "@shared/types";
 import {
   findBackgroundProgression,
   findBaseClassProgression,
@@ -9,10 +5,14 @@ import {
   findSpeciesProgression,
   findSubclassesForClass
 } from "@shared/data/progression";
+import type { AbilityKey, ActorSheet, CompendiumChoiceGroup, CompendiumChoiceOption } from "@shared/types";
+import { Plus, X } from "lucide-react";
+import type { ReactNode } from "react";
 import { ClassPreviewCard, ReferencePreviewCard } from "../../../components/admin/AdminPreview";
 import { ModalFrame } from "../../../components/ModalFrame";
 import { NumericInput } from "../../../components/NumericInput";
 import type { GuidedSheetFlowState } from "../hooks/useGuidedSheetFlow";
+import { NEW_GUIDED_CLASS_ID, type SheetCompendium, type SpellSelectionTarget } from "../playerNpcSheet2024Types";
 import {
   collectSpellRows,
   createReferenceRow,
@@ -21,7 +21,6 @@ import {
   replaceGuideSelection
 } from "../selectors/playerNpcSheet2024Selectors";
 import { abilityModifier, abilityOrder, findCompendiumClass, formatModifier } from "../sheetUtils";
-import { NEW_GUIDED_CLASS_ID, type SheetCompendium, type SpellSelectionTarget } from "../playerNpcSheet2024Types";
 import { GuidedChoiceGroupField } from "./GuidedChoiceGroupField";
 import { DetailCollection, Field, HoverPreviewTrigger, inputClass, secondaryButtonClass } from "./sheetPrimitives";
 

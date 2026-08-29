@@ -1,6 +1,7 @@
 import type { CompendiumData } from "../../../shared/types.js";
-import { runStoreQuery } from "../store.js";
 import { readCampaignCompendium } from "../store/models/compendium.js";
+import { runStoreQuery } from "../store.js";
+
 type RoomCompendium = Pick<
   CompendiumData,
   | "spells"

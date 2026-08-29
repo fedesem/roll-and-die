@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useState } from "react";
-
 import type {
   CampaignSnapshot,
   MapPing,
@@ -10,9 +8,9 @@ import type {
   RoomTokenMoved,
   TokenMovementPreview
 } from "@shared/types";
-
-import type { SharedMeasurePreviewState, SharedMovementPreviewState } from "./types";
+import { useCallback, useEffect, useState } from "react";
 import type { RoomStatus } from "../../services/roomConnection";
+import type { SharedMeasurePreviewState, SharedMovementPreviewState } from "./types";
 
 interface UseRoomRealtimeStateOptions {
   isCampaignRoute: boolean;

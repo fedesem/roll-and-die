@@ -1,5 +1,5 @@
-import type { ActorKind } from "../../../../shared/types.js";
 import { clampCreatureTokenSize, clampStaticTokenDimension, normalizeTokenRotation } from "../../../../shared/tokenGeometry.js";
+import type { ActorKind } from "../../../../shared/types.js";
 import { addColumnIfMissing, readAll } from "../helpers.js";
 import type { Migration } from "../types.js";
 

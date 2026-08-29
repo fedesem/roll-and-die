@@ -1,10 +1,9 @@
-import { Dice6, Eye, Plus, RotateCcw, Skull, ThumbsDown, ThumbsUp } from "lucide-react";
-import { memo, useEffect, useRef, useState, type ReactNode } from "react";
-
 import type { ActorSheet, CompendiumReferenceEntry } from "@shared/types";
+import { Dice6, Eye, Plus, RotateCcw, Skull, ThumbsDown, ThumbsUp } from "lucide-react";
+import { memo, type ReactNode, useEffect, useRef, useState } from "react";
 
 import { CircleToggle } from "../../../components/CircleToggle";
-import { FloatingLayer, anchorFromRect, type FloatingAnchor } from "../../../components/FloatingLayer";
+import { anchorFromRect, type FloatingAnchor, FloatingLayer } from "../../../components/FloatingLayer";
 import { IconButton } from "../../../components/IconButton";
 import { resolveAssetUrl } from "../../../lib/assets";
 import styles from "../PlayerNpcSheet2024.module.css";

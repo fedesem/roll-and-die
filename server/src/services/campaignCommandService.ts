@@ -1,12 +1,9 @@
-import type { DatabaseSync } from "../store/types.js";
-import type { BoardToken, Campaign, CampaignInvite, ChatMessage, DrawingStroke } from "../../../shared/types.js";
-import { getActorTokenFootprint, normalizeTokenRotation, snapTokenToGrid } from "../../../shared/tokenGeometry.js";
-import { traceMovementPath } from "../../../shared/vision.js";
 import { isPlayerOwnedActor } from "../../../shared/campaignActors.js";
+import { getActorTokenFootprint, normalizeTokenRotation, snapTokenToGrid } from "../../../shared/tokenGeometry.js";
+import type { BoardToken, Campaign, CampaignInvite, ChatMessage, DrawingStroke } from "../../../shared/types.js";
+import { traceMovementPath } from "../../../shared/vision.js";
 import { parseRollCommand, rollDice } from "../dice.js";
 import { HttpError } from "../http/errors.js";
-import { runStoreQuery, runStoreTransaction } from "../store.js";
-import { deleteReplacedStoredUpload, externalizeImageUrl } from "./assetStorage.js";
 import {
   clearMapDrawingRecords,
   clearMapExploration,
@@ -41,12 +38,15 @@ import {
   replaceMapExploration,
   trimCampaignChatRecords,
   updateCampaignActiveMap,
+  updateDrawingRecord,
   upsertActorRecord,
   upsertCampaignToken,
-  upsertMapRecord,
-  updateDrawingRecord
+  upsertMapRecord
 } from "../store/models/campaigns.js";
 import { readCompendiumSourceBooks, readMonsterTemplateById } from "../store/models/compendium.js";
+import type { DatabaseSync } from "../store/types.js";
+import { runStoreQuery, runStoreTransaction } from "../store.js";
+import { deleteReplacedStoredUpload, externalizeImageUrl } from "./assetStorage.js";
 import { createId, now } from "./authService.js";
 import {
   applyActorPatch,
@@ -62,6 +62,7 @@ import {
   syncActorTokens,
   updateExplorationForMap
 } from "./campaignDomain.js";
+
 async function runCampaignTransaction<T>(campaignId: string, task: (database: DatabaseSync) => Promise<T> | T) {
   return await runStoreTransaction(task, { queueKey: `campaign:${campaignId}` });
 }

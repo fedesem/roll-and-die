@@ -1,5 +1,5 @@
-import type { Migration } from "../types.js";
 import { addColumnIfMissing } from "../helpers.js";
+import type { Migration } from "../types.js";
 export const monsterInitiativeMigration: Migration = {
   version: 109,
   name: "monster_initiative",

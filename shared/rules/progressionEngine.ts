@@ -1,3 +1,15 @@
+import {
+  type ClassProgressionDef,
+  findBackgroundProgression,
+  findClassProgression,
+  findFeatProgression,
+  findProgressionChoiceDomain,
+  findSpeciesProgression,
+  type LevelProgressionConfig,
+  type ProgressionChoiceGroupDef,
+  type ProgressionChoiceOption,
+  type ProgressionResourceDef
+} from "../data/progression/index.js";
 import type {
   AbilityKey,
   ActorClassEntry,
@@ -11,18 +23,6 @@ import type {
   SpellSlotTrack
 } from "../types.js";
 import { createCompendiumRef, parseCompendiumRef } from "./compendiumRefs.js";
-import {
-  findClassProgression,
-  findBackgroundProgression,
-  findFeatProgression,
-  findProgressionChoiceDomain,
-  findSpeciesProgression,
-  type ClassProgressionDef,
-  type LevelProgressionConfig,
-  type ProgressionChoiceGroupDef,
-  type ProgressionChoiceOption,
-  type ProgressionResourceDef
-} from "../data/progression/index.js";
 
 export interface ProgressionChoiceEligibilityContext {
   actor?: ActorSheet;
@@ -828,7 +828,7 @@ export function evaluateRestRecovery(actor: ActorSheet, restType: "short" | "lon
     const currentVal = existing ? existing.current : resDef.max;
 
     // Find class resource definition for shortRestRestore
-    let shortRestRestore: "all" | number | undefined = undefined;
+    let shortRestRestore: "all" | number | undefined;
     let resetOn: "shortRest" | "longRest" = resDef.resetOn;
 
     for (const actorClass of next.classes) {

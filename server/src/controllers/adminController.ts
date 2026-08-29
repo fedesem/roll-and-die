@@ -1,12 +1,10 @@
-import type { DatabaseSync } from "../store/types.js";
 import type { Request, Response } from "express";
-import type { MonsterTemplate } from "../../../shared/types.js";
 import {
   compendiumKindSchema,
-  createClassBodySchema,
   createActionBodySchema,
   createBackgroundBodySchema,
   createBookBodySchema,
+  createClassBodySchema,
   createConditionBodySchema,
   createFeatBodySchema,
   createItemBodySchema,
@@ -20,8 +18,8 @@ import {
   importActionsBodySchema,
   importBackgroundsBodySchema,
   importBooksBodySchema,
-  importConditionsBodySchema,
   importClassesBodySchema,
+  importConditionsBodySchema,
   importFeatsBodySchema,
   importItemsBodySchema,
   importLanguagesBodySchema,
@@ -32,23 +30,23 @@ import {
   importSpellsBodySchema,
   importVariantRulesBodySchema
 } from "../../../shared/contracts/admin.js";
+import type { MonsterTemplate } from "../../../shared/types.js";
 import { HttpError } from "../http/errors.js";
 import { parseWithSchema, requireRouteParam } from "../http/validation.js";
-import { runStoreQuery, runStoreTransaction } from "../store.js";
 import { requireAdmin, toUserProfile } from "../services/authService.js";
 import { importMonsterTokenArchive, prepareMonsterTemplateForStorage } from "../services/compendiumAssetService.js";
-import { invalidateRoomCompendiumCache } from "../services/roomCompendiumCache.js";
 import {
+  type CompendiumKind,
   importGeneratedSpellLookupIntoSpells,
   importGeneratedSubclassLookupIntoClasses,
   importSubclassesIntoClasses,
-  isGeneratedSubclassLookupImport,
   isGeneratedSpellLookupImport,
+  isGeneratedSubclassLookupImport,
   isSubclassImport,
   normalizeCompendiumImportEntries,
-  sanitizeCompendiumEntry,
-  type CompendiumKind
+  sanitizeCompendiumEntry
 } from "../services/compendiumService.js";
+import { invalidateRoomCompendiumCache } from "../services/roomCompendiumCache.js";
 import {
   deleteActorRecord,
   deleteCampaignChatMessagesByUser,
@@ -67,12 +65,15 @@ import {
   clearCompendiumCollection,
   compendiumEntryExists,
   deleteCompendiumEntryRecord,
-  insertCompendiumEntryAtStart,
   insertCompendiumEntriesAtStart,
+  insertCompendiumEntryAtStart,
   readCompendiumCollection,
   upsertCompendiumEntry
 } from "../store/models/compendium.js";
 import { deleteUser, deleteUserSessions, listUsers, readUserById, setUserAdminFlag } from "../store/models/users.js";
+import type { DatabaseSync } from "../store/types.js";
+import { runStoreQuery, runStoreTransaction } from "../store.js";
+
 function parseCompendiumCreateBody(kind: CompendiumKind, value: unknown) {
   switch (kind) {
     case "spells":

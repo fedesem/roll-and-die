@@ -1,6 +1,5 @@
-import { Eye, FilePlus2, Pencil, Users } from "lucide-react";
-
 import type { CampaignMap, MemberRole } from "@shared/types";
+import { Eye, FilePlus2, Pencil, Users } from "lucide-react";
 
 import { CampaignActionButton } from "./CampaignActionButton";
 

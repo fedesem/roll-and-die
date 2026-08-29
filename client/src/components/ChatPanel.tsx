@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { SendHorizontal } from "lucide-react";
-
 import { parseRollCommand, validateRollNotation } from "@shared/dice";
 import type { ChatActorContext, ChatMessage } from "@shared/types";
+import { SendHorizontal } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { resolveAssetUrl } from "../lib/assets";
 
 interface ChatPanelProps {

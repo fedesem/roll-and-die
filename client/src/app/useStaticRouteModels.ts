@@ -1,5 +1,5 @@
+import type { CampaignSourceBook, CampaignSummary } from "@shared/types";
 import { useCallback } from "react";
-
 import type { AppRoute } from "../appRouteState";
 import type {
   AdminRouteProps,
@@ -8,7 +8,6 @@ import type {
   CampaignJoinRouteProps,
   CampaignsRouteProps
 } from "./routeContentTypes";
-import type { CampaignSourceBook, CampaignSummary } from "@shared/types";
 
 interface UseStaticRouteModelsOptions {
   route: AppRoute;

@@ -1,6 +1,5 @@
-import { FilePlus2, MapPinned, Minus, ScrollText, Skull, Square, User, Users } from "lucide-react";
-
 import type { ActorKind, ActorSheet, CampaignMap, MemberRole } from "@shared/types";
+import { FilePlus2, MapPinned, Minus, ScrollText, Skull, Square, User, Users } from "lucide-react";
 
 import type { CurrentMapRosterEntry } from "../features/campaign/types";
 import { CampaignActionButton } from "./CampaignActionButton";

@@ -1,7 +1,6 @@
-import { Backpack, BookOpen, Brain, Coins, Heart, Shield, Sparkles, WandSparkles, Zap } from "lucide-react";
-import { useState, type ReactNode } from "react";
-
 import type { ActorSheet, InventoryEntry } from "@shared/types";
+import { Backpack, BookOpen, Brain, Coins, Heart, Shield, Sparkles, WandSparkles, Zap } from "lucide-react";
+import { type ReactNode, useState } from "react";
 
 import { CircleToggle } from "../../../components/CircleToggle";
 import { NumericInput } from "../../../components/NumericInput";
@@ -26,13 +25,13 @@ import {
   ExhaustionTrack,
   Field,
   HitPointBar,
-  PortraitCard,
-  SectionCard,
-  UsableTrack,
   inputClassCompact,
   miniButtonClass,
+  PortraitCard,
+  SectionCard,
   secondaryButtonClass,
-  textareaClassCompact
+  textareaClassCompact,
+  UsableTrack
 } from "./sheetPrimitives";
 
 interface PlayerNpcSheetMainTabProps {

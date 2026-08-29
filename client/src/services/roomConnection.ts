@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useRef } from "react";
-
 import { clientRoomMessageSchema, serverRoomMessageSchema } from "@shared/contracts/realtime";
 import type {
   CampaignSnapshot,
@@ -13,6 +11,7 @@ import type {
   ServerRoomMessage,
   TokenMovementPreview
 } from "@shared/types";
+import { useCallback, useEffect, useRef } from "react";
 
 export type RoomStatus = "offline" | "connecting" | "online";
 

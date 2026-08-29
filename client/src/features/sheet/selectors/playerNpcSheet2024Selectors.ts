@@ -19,33 +19,6 @@ import type {
   SpellEntry,
   SpellSlotTrack
 } from "@shared/types";
-
-import type {
-  GuidedAbilityChoiceConfig,
-  GuidedAbilityChoiceGrant,
-  GuidedAbilityChoiceMode,
-  GuidedAbilityChoiceSlot,
-  DerivedResourceDefinition,
-  DetailRowEntry,
-  DetailRowMeta,
-  GuidedChoiceSpec,
-  GuidedEquipmentGroup,
-  GuidedFlowMode,
-  GuidedSkillChoiceConfig,
-  GuidedSpeciesChoiceGroup,
-  GuidedSetupState,
-  SheetTab
-} from "../playerNpcSheet2024Types";
-import { NEW_GUIDED_CLASS_ID } from "../playerNpcSheet2024Types";
-import { abilityModifierTotal, availableClassFeatures, findCompendiumClass, formatModifier, normalizeKey, totalLevel } from "../sheetUtils";
-import {
-  evaluateActorPreparedSpellsLimit,
-  evaluateActorSpellSlots,
-  evaluateActorDerivedResources,
-  evaluateClassChoicesForLevel,
-  progressionChoiceOptionIsEligible,
-  resolveProgressionEffects
-} from "../../../../../shared/rules/progressionEngine";
 import {
   FEAT_PROGRESSIONS,
   findBackgroundProgression,
@@ -54,6 +27,32 @@ import {
   findProgressionChoiceDomain,
   findSubclassesForClass
 } from "../../../../../shared/data/progression";
+import {
+  evaluateActorDerivedResources,
+  evaluateActorPreparedSpellsLimit,
+  evaluateActorSpellSlots,
+  evaluateClassChoicesForLevel,
+  progressionChoiceOptionIsEligible,
+  resolveProgressionEffects
+} from "../../../../../shared/rules/progressionEngine";
+import type {
+  DerivedResourceDefinition,
+  DetailRowEntry,
+  DetailRowMeta,
+  GuidedAbilityChoiceConfig,
+  GuidedAbilityChoiceGrant,
+  GuidedAbilityChoiceMode,
+  GuidedAbilityChoiceSlot,
+  GuidedChoiceSpec,
+  GuidedEquipmentGroup,
+  GuidedFlowMode,
+  GuidedSetupState,
+  GuidedSkillChoiceConfig,
+  GuidedSpeciesChoiceGroup,
+  SheetTab
+} from "../playerNpcSheet2024Types";
+import { NEW_GUIDED_CLASS_ID } from "../playerNpcSheet2024Types";
+import { abilityModifierTotal, availableClassFeatures, findCompendiumClass, formatModifier, normalizeKey, totalLevel } from "../sheetUtils";
 
 export function defaultTabForActor(actor: ActorSheet): SheetTab {
   return actor.build?.speciesId || actor.build?.backgroundId || actor.classes.length > 0 ? "main" : "edit";

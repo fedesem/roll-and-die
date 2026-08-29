@@ -1,8 +1,8 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
+import { registerSW } from "virtual:pwa-register";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-import { registerSW } from "virtual:pwa-register";
+import React from "react";
+import ReactDOM from "react-dom/client";
 
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./index.css";

@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-
 import { loginBodySchema, registerBodySchema } from "@shared/contracts/auth";
 import type { AuthPayload } from "@shared/types";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
 
 import type { AppRoute } from "../../appRouteState";
 import { usePersistentState } from "../../hooks/usePersistentState";

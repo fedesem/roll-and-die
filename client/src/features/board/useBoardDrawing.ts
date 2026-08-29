@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-
 import type { CampaignMap, DrawingKind, DrawingStroke, DrawingTextFont, Point } from "@shared/types";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   drawingHasRenderableSpan,

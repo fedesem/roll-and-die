@@ -1,6 +1,5 @@
-import { useCallback } from "react";
-
 import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { useCallback } from "react";
 
 export type AppRoute =
   | { name: "campaigns" }

@@ -1,5 +1,3 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   ActorClassEntry,
   ActorSheet,
@@ -12,13 +10,14 @@ import type {
   FeatEntry,
   SpellEntry
 } from "@shared/types";
-
+import { describe, expect, it } from "vitest";
+import type { GuidedChoiceSpec, GuidedSetupState } from "../src/features/sheet/playerNpcSheet2024Types";
 import {
-  applyGuideBaseAbilities,
   applyBackgroundToActor,
-  applyEquipmentSelectionsToActor,
   applyClassSkillChoicesToActor,
   applyClassToActor,
+  applyEquipmentSelectionsToActor,
+  applyGuideBaseAbilities,
   applyGuideSelectionsToActor,
   applySpeciesChoiceGroupSelections,
   applySpeciesChoiceSelections,
@@ -26,20 +25,20 @@ import {
   finalizeDraftForSave
 } from "../src/features/sheet/selectors/playerNpcSheet2024Mutations";
 import {
+  collectFeatRows,
   deriveAttunementCount,
-  deriveBackgroundSkillChoiceConfig,
   deriveBackgroundAbilityConfig,
   deriveBackgroundEquipmentGroups,
+  deriveBackgroundSkillChoiceConfig,
   deriveBackgroundSkillProficiencies,
   deriveCarryingCapacity,
   deriveClassChoiceGroups,
-  deriveFeatChoiceGroups,
   deriveClassEquipmentGroups,
   deriveClassSkillChoiceConfig,
-  collectFeatRows,
+  deriveFeatChoiceGroups,
+  deriveGrantedSpellState,
   deriveGuidedAbilityChoiceSlots,
   deriveGuidedChoiceSpec,
-  deriveGrantedSpellState,
   deriveGuidedHitPointMax,
   deriveOriginFeatOptions,
   derivePreparedSpellLimit,
@@ -48,15 +47,14 @@ import {
   deriveSpeciesOriginFeatOptions,
   deriveSpeciesSkillChoiceConfig,
   deriveSpellSlots,
-  spellMatchesSingleClassFilter,
   healHitPoints,
   mergeDerivedResources,
   normalizeHitPoints,
   parseReferenceFeatureRows,
   selectGuidedAbilityChoiceMode,
+  spellMatchesSingleClassFilter,
   syncBuildClasses
 } from "../src/features/sheet/selectors/playerNpcSheet2024Selectors";
-import type { GuidedChoiceSpec, GuidedSetupState } from "../src/features/sheet/playerNpcSheet2024Types";
 import { skillTotal } from "../src/features/sheet/sheetUtils";
 
 function createActor(overrides: Partial<ActorSheet> = {}): ActorSheet {

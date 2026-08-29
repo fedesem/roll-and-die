@@ -1,31 +1,31 @@
-import { describe, expect, it } from "vitest";
-import type { ActorSheet } from "@shared/types";
 import {
-  CLASS_PROGRESSIONS,
-  SPECIES_PROGRESSIONS,
   BACKGROUND_PROGRESSIONS,
-  findClassProgression,
-  findSpeciesProgression,
-  findBackgroundProgression,
-  findSubclassesForClass,
+  CLASS_PROGRESSIONS,
   filterProgressionBySources,
   findActionDefinition,
-  PROGRESSION_CATALOG_DIAGNOSTICS
+  findBackgroundProgression,
+  findClassProgression,
+  findSpeciesProgression,
+  findSubclassesForClass,
+  PROGRESSION_CATALOG_DIAGNOSTICS,
+  SPECIES_PROGRESSIONS
 } from "@shared/data/progression";
 import {
-  evaluateActorSpellSlots,
-  evaluateActorPreparedSpellsLimit,
+  applyRestChoiceSelections,
+  createProgressionAwardFromActorDelta,
   evaluateActorDerivedResources,
   evaluateActorPassiveSkillBonuses,
-  evaluateClassChoicesForLevel,
-  evaluateActorSubclassAlwaysPreparedSpells,
+  evaluateActorPreparedSpellsLimit,
   evaluateActorRestChoices,
-  applyRestChoiceSelections,
+  evaluateActorSpellSlots,
+  evaluateActorSubclassAlwaysPreparedSpells,
+  evaluateClassChoicesForLevel,
   evaluateRestRecovery,
-  createProgressionAwardFromActorDelta,
   resolveProgressionEffects,
   validateProgressionAwardAgainstCurrentRules
 } from "@shared/rules/progressionEngine";
+import type { ActorSheet } from "@shared/types";
+import { describe, expect, it } from "vitest";
 
 function createActor(overrides: Partial<ActorSheet> = {}): ActorSheet {
   return {

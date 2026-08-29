@@ -1,6 +1,5 @@
-import { createPortal } from "react-dom";
-
 import type { ChatMessage } from "@shared/types";
+import { createPortal } from "react-dom";
 
 import { ChatPanel } from "../../components/ChatPanel";
 

@@ -1,4 +1,3 @@
-import type { ActorSheet, BoardToken, CampaignMap, CellKey, MapWall, MemberRole, Point, TokenFootprint } from "./types.js";
 import {
   getFootprintOccupiedCellKeys,
   getFootprintSamplePoints,
@@ -6,6 +5,7 @@ import {
   getTokenGridPosition,
   getTokenOccupiedCellKeys
 } from "./tokenGeometry.js";
+import type { ActorSheet, BoardToken, CampaignMap, CellKey, MapWall, MemberRole, Point, TokenFootprint } from "./types.js";
 
 const defaultVisionRange = 6;
 

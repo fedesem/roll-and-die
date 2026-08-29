@@ -1,6 +1,5 @@
-import { Check, Plus, X } from "lucide-react";
-
 import type { ProgressionChoiceGroupDef } from "@shared/data/progression";
+import { Check, Plus, X } from "lucide-react";
 import { ModalFrame } from "../../../components/ModalFrame";
 import type { PlayerNpcSheetDerivedState } from "../hooks/usePlayerNpcSheetDerived";
 import type { DetailRowEntry } from "../playerNpcSheet2024Types";

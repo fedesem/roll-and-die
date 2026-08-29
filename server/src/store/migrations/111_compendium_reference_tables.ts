@@ -1,5 +1,6 @@
 import { addColumnIfMissing, readAll, readCount, tableExists } from "../helpers.js";
 import type { Migration } from "../types.js";
+
 interface LegacyClassFeatureEntry {
   level?: number;
   name?: string;

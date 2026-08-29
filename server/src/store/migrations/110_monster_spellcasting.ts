@@ -1,5 +1,5 @@
-import type { Migration } from "../types.js";
 import { addColumnIfMissing } from "../helpers.js";
+import type { Migration } from "../types.js";
 export const monsterSpellcastingMigration: Migration = {
   version: 110,
   name: "monster_spellcasting",
