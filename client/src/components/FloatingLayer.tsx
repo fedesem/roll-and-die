@@ -1,5 +1,6 @@
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Z_INDEX } from "../lib/layers";
 
 export interface FloatingAnchor {
   left: number;
@@ -38,7 +39,7 @@ export function FloatingLayer({
   placement = "top-start",
   offset = 10,
   margin = 12,
-  zIndex = 2147483000,
+  zIndex = Z_INDEX.FLOATING_LAYER,
   onPointerEnter,
   onPointerLeave
 }: FloatingLayerProps) {

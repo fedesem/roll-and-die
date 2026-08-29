@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect } from "react";
+import { Z_INDEX } from "../lib/layers";
 
 interface ModalFrameProps {
   children: ReactNode;
@@ -45,7 +46,7 @@ export function ModalFrame({
   closeOnBackdrop = true,
   allowBackgroundInteraction = false
 }: ModalFrameProps) {
-  const layerIndex = 50 + activeModalCount * 10;
+  const layerIndex = Math.min(Z_INDEX.FLOATING_LAYER - 5, Z_INDEX.MODAL_BACKDROP + (activeModalCount - 1) * 10);
 
   useEffect(() => acquirePageScrollLock(), []);
 
