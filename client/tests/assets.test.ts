@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { resolveAssetUrl } from "../src/lib/assets.ts";
+import { resolveAssetUrl } from "../src/lib/assets";
 
 afterEach(() => {
   vi.unstubAllEnvs();

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { AuthPage } from "../src/pages/AuthPage.tsx";
+import { AuthPage } from "../src/pages/AuthPage";
 
 afterEach(() => {
   cleanup();

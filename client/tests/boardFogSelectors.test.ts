@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { ActorSheet, BoardToken, Campaign, CampaignMap, CampaignSnapshot } from "@shared/types";
 
-import { createClientActorDraft, createClientMapDraft } from "../src/lib/drafts.ts";
+import { createClientActorDraft, createClientMapDraft } from "../src/lib/drafts";
 import {
   selectBoardSeenCells,
   selectBoardVisibleCells,
   selectMapAssignments,
   selectAvailableActors,
   selectVisibleMapTokens
-} from "../src/features/campaign/selectors.ts";
+} from "../src/features/campaign/selectors";
 
 function createBoardMap(): CampaignMap {
   const map = createClientMapDraft("Fog Test");
@@ -97,7 +97,15 @@ function createCampaignFixture() {
     compendium: {
       spells: [],
       feats: [],
-      classes: []
+      classes: [],
+      variantRules: [],
+      conditions: [],
+      optionalFeatures: [],
+      backgrounds: [],
+      items: [],
+      languages: [],
+      races: [],
+      skills: []
     },
     playerVision: {
       [map.id]: ["0:0", "1:1"]

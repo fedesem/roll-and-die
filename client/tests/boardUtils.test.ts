@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CampaignMap, DrawingStroke, MapWall, MeasurePreview } from "@shared/types";
 
-import { createClientMapDraft } from "../src/lib/drafts.ts";
+import { createClientMapDraft } from "../src/lib/drafts";
 import {
   buildMeasurePreview,
   drawingHasRenderableSpan,
@@ -10,7 +10,7 @@ import {
   isPointCurrentlyVisible,
   serializeMeasurePreview,
   shouldFillDrawing
-} from "../src/features/board/boardUtils.ts";
+} from "../src/features/board/boardUtils";
 
 function createBoardMap(): CampaignMap {
   const map = createClientMapDraft("Board Test");
@@ -83,7 +83,8 @@ describe("boardUtils fog and drawing helpers", () => {
       start: { x: 50, y: 50 },
       end: { x: 50, y: 100 },
       kind: "door",
-      isOpen: false
+      isOpen: false,
+      isLocked: false
     };
 
     expect(isPointCurrentlyVisible(map, visibleCells, { x: 75, y: 75 })).toBe(true);
@@ -102,6 +103,10 @@ describe("boardUtils fog and drawing helpers", () => {
       fillOpacity: 0.6,
       size: 3,
       rotation: 0,
+      text: "",
+      fontFamily: "sans",
+      bold: false,
+      italic: false,
       points: [
         { x: 0, y: 0 },
         { x: 15, y: 15 }
@@ -116,6 +121,10 @@ describe("boardUtils fog and drawing helpers", () => {
       fillOpacity: 0.6,
       size: 3,
       rotation: 0,
+      text: "",
+      fontFamily: "sans",
+      bold: false,
+      italic: false,
       points: [
         { x: 10, y: 10 },
         { x: 11, y: 11 }

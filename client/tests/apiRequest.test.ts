@@ -30,7 +30,7 @@ describe("apiRequest", () => {
   it("parses successful responses with the provided zod schema", async () => {
     vi.stubEnv("VITE_API_URL", "http://localhost/api");
 
-    const { apiRequest } = await import("../src/api.ts");
+    const { apiRequest } = await import("../src/api");
     const response = await apiRequest("/ping", {
       responseSchema: z.object({
         ok: z.literal(true)
@@ -56,7 +56,7 @@ describe("apiRequest", () => {
       )
     );
 
-    const { apiRequest } = await import("../src/api.ts");
+    const { apiRequest } = await import("../src/api");
     await expect(apiRequest("/ping")).rejects.toThrow("Boom.");
   });
 });

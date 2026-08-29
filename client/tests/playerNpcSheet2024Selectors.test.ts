@@ -36,10 +36,12 @@ import {
   deriveFeatChoiceGroups,
   deriveClassEquipmentGroups,
   deriveClassSkillChoiceConfig,
+  collectFeatRows,
   deriveGuidedAbilityChoiceSlots,
   deriveGuidedChoiceSpec,
   deriveGrantedSpellState,
   deriveGuidedHitPointMax,
+  deriveOriginFeatOptions,
   derivePreparedSpellLimit,
   deriveScaledSpellDice,
   deriveSpeciesChoiceGroups,
@@ -54,6 +56,7 @@ import {
   selectGuidedAbilityChoiceMode,
   syncBuildClasses
 } from "../src/features/sheet/selectors/playerNpcSheet2024Selectors";
+import type { GuidedChoiceSpec, GuidedSetupState } from "../src/features/sheet/playerNpcSheet2024Types";
 import { skillTotal } from "../src/features/sheet/sheetUtils";
 
 function createActor(overrides: Partial<ActorSheet> = {}): ActorSheet {
@@ -105,6 +108,8 @@ function createActor(overrides: Partial<ActorSheet> = {}): ActorSheet {
     ],
     classes: [],
     savingThrowProficiencies: [],
+    armorProficiencies: [],
+    weaponProficiencies: [],
     toolProficiencies: [],
     languageProficiencies: [],
     spellSlots: [],
@@ -149,6 +154,76 @@ function createActor(overrides: Partial<ActorSheet> = {}): ActorSheet {
       classes: [],
       selections: []
     },
+    ...overrides
+  };
+}
+
+function createSetupState(overrides: Partial<GuidedSetupState> = {}): GuidedSetupState {
+  return {
+    speciesId: "",
+    speciesSizeChoice: "",
+    backgroundId: "",
+    classId: "",
+    subclassId: "",
+    hpMode: "average",
+    rolledHp: 0,
+    baseAbilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+    backgroundAbilityModeId: "three-plus-ones",
+    speciesOriginFeatId: "",
+    classChoiceIds: {},
+    featChoiceMap: {},
+    speciesSkillChoices: [],
+    backgroundSkillChoices: [],
+    classSkillChoices: [],
+    expertiseSkillChoices: [],
+    cantripIds: [],
+    knownSpellIds: [],
+    spellbookSpellIds: [],
+    preparedSpellIds: [],
+    languageChoices: [],
+    equipmentChoiceIds: {},
+    abilityChoices: [],
+    asiMode: "feat",
+    asiAbilityMode: "+2",
+    asiFeatId: "",
+    asiAbilityChoices: [],
+    classFeatIds: [],
+    optionalFeatureIds: [],
+    weaponMasteryChoices: [],
+    speciesChoiceIds: {},
+    originFeatId: "",
+    ...overrides
+  };
+}
+
+function createChoiceSpec(overrides: Partial<GuidedChoiceSpec> = {}): GuidedChoiceSpec {
+  return {
+    subclassOptions: [],
+    classFeatOptions: [],
+    classFeatCount: 0,
+    optionalFeatureOptions: [],
+    optionalFeatureCount: 0,
+    classChoiceGroups: [],
+    featChoiceGroups: {},
+    cantripOptions: [],
+    cantripCount: 0,
+    knownSpellOptions: [],
+    knownSpellCount: 0,
+    spellbookOptions: [],
+    spellbookCount: 0,
+    preparedSpellOptions: [],
+    preparedSpellCount: 0,
+    languageOptions: [],
+    languageCount: 0,
+    sizeOptions: [],
+    expertiseSkillOptions: [],
+    expertiseCount: 0,
+    abilityImprovementCount: 0,
+    weaponMasteryOptions: [],
+    weaponMasteryCount: 0,
+    hitDieFaces: 8,
+    conModifier: 0,
+    averageHpGain: 0,
     ...overrides
   };
 }
@@ -1050,7 +1125,7 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     actor = applyClassToActor(actor, classEntry, compendium.classes);
     actor = applyGuideSelectionsToActor(actor, {
       compendium,
-      setup: {
+      setup: createSetupState({
         speciesId: species.id,
         backgroundId: background.id,
         classId: classEntry.id,
@@ -1065,39 +1140,18 @@ describe("playerNpcSheet2024 extracted helpers", () => {
         },
         backgroundAbilityModeId: "primary",
         classFeatIds: [guideFeat.id],
-        optionalFeatureIds: [],
-        cantripIds: [],
         knownSpellIds: [spell.id],
-        spellbookSpellIds: [],
-        expertiseSkillChoices: [],
-        asiMode: "feat",
-        asiFeatId: "",
-        asiAbilityChoices: [],
         speciesSkillChoices: ["Perception"],
-        backgroundSkillChoices: [],
-        classSkillChoices: [],
-        speciesOriginFeatId: "",
-        speciesChoiceIds: {},
         originFeatId: originFeat.id,
         equipmentChoiceIds: { "group-1": "option-1" },
         abilityChoices: ["int", "wis"]
-      },
-      spec: {
-        subclassOptions: [],
+      }),
+      spec: createChoiceSpec({
         classFeatOptions: [guideFeat],
         classFeatCount: 1,
-        optionalFeatureOptions: [],
-        optionalFeatureCount: 0,
-        cantripOptions: [],
-        cantripCount: 0,
         knownSpellOptions: [spell],
-        knownSpellCount: 1,
-        spellbookOptions: [],
-        spellbookCount: 0,
-        expertiseSkillOptions: [],
-        expertiseCount: 0,
-        abilityImprovementCount: 0
-      },
+        knownSpellCount: 1
+      }),
       level: 1,
       targetClass: classEntry,
       targetActorClassId: actor.classes[0]?.id ?? null,
@@ -1154,11 +1208,8 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     };
     actor = applyGuideSelectionsToActor(actor, {
       compendium,
-      setup: {
-        speciesId: "",
-        backgroundId: "",
+      setup: createSetupState({
         classId: classEntry.id,
-        subclassId: "",
         baseAbilities: {
           str: 10,
           dex: 12,
@@ -1167,54 +1218,16 @@ describe("playerNpcSheet2024 extracted helpers", () => {
           wis: 16,
           cha: 10
         },
-        backgroundAbilityModeId: "",
         hpMode: "average",
-        rolledHp: null,
-        classFeatIds: [feat.id],
-        optionalFeatureIds: [],
-        classChoiceIds: {},
-        featChoiceMap: {},
-        cantripIds: [],
-        knownSpellIds: [],
-        spellbookSpellIds: [],
-        expertiseSkillChoices: [],
-        weaponMasteryChoices: [],
-        asiMode: "feat",
-        asiAbilityMode: "+2",
-        asiFeatId: "",
-        asiAbilityChoices: [],
-        speciesSkillChoices: [],
-        backgroundSkillChoices: [],
-        classSkillChoices: [],
-        speciesOriginFeatId: "",
-        speciesChoiceIds: {},
-        originFeatId: "",
-        equipmentChoiceIds: {},
-        abilityChoices: []
-      },
-      spec: {
-        subclassOptions: [],
+        classFeatIds: [feat.id]
+      }),
+      spec: createChoiceSpec({
         classFeatOptions: [feat],
         classFeatCount: 1,
-        optionalFeatureOptions: [],
-        optionalFeatureCount: 0,
-        classChoiceGroups: [],
-        featChoiceGroups: {},
-        cantripOptions: [],
-        cantripCount: 0,
-        knownSpellOptions: [],
-        knownSpellCount: 0,
-        spellbookOptions: [],
-        spellbookCount: 0,
-        expertiseSkillOptions: [],
-        expertiseCount: 0,
         weaponMasteryOptions: ["Dagger (Nick)", "Shortsword (Vex)"],
         weaponMasteryCount: 0,
-        abilityImprovementCount: 0,
-        hitDieFaces: 6,
-        conModifier: 2,
         averageHpGain: 6
-      },
+      }),
       level: 2,
       targetClass: classEntry,
       targetActorClassId: actor.classes[0]?.id ?? null,
@@ -1228,7 +1241,7 @@ describe("playerNpcSheet2024 extracted helpers", () => {
   });
 
   it("applies +2 and +1/+1 ASI increases and weapon masteries on level up", () => {
-    const classEntry: ClassEntry = {
+    const classEntry: ClassEntry = createClass({
       id: "cls-fighter",
       name: "Fighter",
       source: "XPHB",
@@ -1236,18 +1249,14 @@ describe("playerNpcSheet2024 extracted helpers", () => {
       hitDieFaces: 10,
       primaryAbilities: ["str"],
       savingThrowProficiencies: ["Str", "Con"],
-      startingProficiencies: { armor: [], weapons: [], tools: [] },
       spellcastingAbility: null,
       spellPreparation: "none",
       subclassLevel: 3,
       features: [
         { level: 1, name: "Weapon Mastery", description: "Master weapons.", source: "XPHB", reference: "" },
         { level: 4, name: "Ability Score Improvement", description: "Increase scores.", source: "XPHB", reference: "" }
-      ],
-      subclasses: [],
-      tables: [],
-      startingEquipment: []
-    };
+      ]
+    });
 
     let actor = createActor({ abilities: { str: 16, dex: 14, con: 14, int: 10, wis: 10, cha: 8 } });
     actor = applyClassToActor(actor, classEntry, [classEntry]);
@@ -1256,60 +1265,21 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     // Apply +2 ASI and Weapon Masteries
     actor = applyGuideSelectionsToActor(actor, {
       compendium,
-      setup: {
-        speciesId: "",
-        backgroundId: "",
+      setup: createSetupState({
         classId: classEntry.id,
-        subclassId: "",
         baseAbilities: { str: 16, dex: 14, con: 14, int: 10, wis: 10, cha: 8 },
-        backgroundAbilityModeId: "",
         hpMode: "average",
-        rolledHp: null,
-        classFeatIds: [],
-        optionalFeatureIds: [],
-        classChoiceIds: {},
-        featChoiceMap: {},
-        cantripIds: [],
-        knownSpellIds: [],
-        spellbookSpellIds: [],
-        expertiseSkillChoices: [],
         weaponMasteryChoices: ["Greatsword (Graze)", "Halberd (Cleave)"],
         asiMode: "ability",
         asiAbilityMode: "+2",
-        asiFeatId: "",
-        asiAbilityChoices: ["str"],
-        speciesSkillChoices: [],
-        backgroundSkillChoices: [],
-        classSkillChoices: [],
-        speciesOriginFeatId: "",
-        speciesChoiceIds: {},
-        originFeatId: "",
-        equipmentChoiceIds: {},
-        abilityChoices: []
-      },
-      spec: {
-        subclassOptions: [],
-        classFeatOptions: [],
-        classFeatCount: 0,
-        optionalFeatureOptions: [],
-        optionalFeatureCount: 0,
-        classChoiceGroups: [],
-        featChoiceGroups: {},
-        cantripOptions: [],
-        cantripCount: 0,
-        knownSpellOptions: [],
-        knownSpellCount: 0,
-        spellbookOptions: [],
-        spellbookCount: 0,
-        expertiseSkillOptions: [],
-        expertiseCount: 0,
+        asiAbilityChoices: ["str"]
+      }),
+      spec: createChoiceSpec({
         weaponMasteryOptions: ["Greatsword (Graze)", "Halberd (Cleave)"],
         weaponMasteryCount: 2,
         abilityImprovementCount: 1,
-        hitDieFaces: 10,
-        conModifier: 2,
         averageHpGain: 8
-      },
+      }),
       level: 4,
       targetClass: classEntry,
       targetActorClassId: actor.classes[0]?.id ?? null,
@@ -1322,7 +1292,7 @@ describe("playerNpcSheet2024 extracted helpers", () => {
   });
 
   it("applies scripted class choices like Cleric Holy Orders with automated grants", () => {
-    const clericEntry: ClassEntry = {
+    const clericEntry: ClassEntry = createClass({
       id: "cls-cleric",
       name: "Cleric",
       source: "XPHB",
@@ -1334,11 +1304,8 @@ describe("playerNpcSheet2024 extracted helpers", () => {
       spellcastingAbility: "wis",
       spellPreparation: "prepared",
       subclassLevel: 3,
-      features: [{ level: 1, name: "Holy Order", description: "Choose a sacred order.", source: "XPHB", reference: "" }],
-      subclasses: [],
-      tables: [],
-      startingEquipment: []
-    };
+      features: [{ level: 1, name: "Holy Order", description: "Choose a sacred order.", source: "XPHB", reference: "" }]
+    });
 
     let actor = createActor();
     actor = applyClassToActor(actor, clericEntry, [clericEntry]);
@@ -1362,37 +1329,12 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     // Select Protector Holy Order
     actor = applyGuideSelectionsToActor(actor, {
       compendium,
-      setup: {
-        speciesId: "",
-        backgroundId: "",
+      setup: createSetupState({
         classId: clericEntry.id,
-        subclassId: "",
         baseAbilities: { str: 14, dex: 10, con: 14, int: 10, wis: 16, cha: 10 },
-        backgroundAbilityModeId: "",
         hpMode: "average",
-        rolledHp: null,
-        classFeatIds: [],
-        optionalFeatureIds: [],
-        classChoiceIds: { "cleric-holy-order": ["protector"] },
-        featChoiceMap: {},
-        cantripIds: [],
-        knownSpellIds: [],
-        spellbookSpellIds: [],
-        expertiseSkillChoices: [],
-        weaponMasteryChoices: [],
-        asiMode: "feat",
-        asiAbilityMode: "+2",
-        asiFeatId: "",
-        asiAbilityChoices: [],
-        speciesSkillChoices: [],
-        backgroundSkillChoices: [],
-        classSkillChoices: [],
-        speciesOriginFeatId: "",
-        speciesChoiceIds: {},
-        originFeatId: "",
-        equipmentChoiceIds: {},
-        abilityChoices: []
-      },
+        classChoiceIds: { "cleric-holy-order": ["protector"] }
+      }),
       spec: choiceSpec,
       level: 1,
       targetClass: clericEntry,
@@ -1495,7 +1437,20 @@ describe("playerNpcSheet2024 extracted helpers", () => {
 
   it("scales spell slots across levels for full casters and half casters with standard D&D 2024 tables", () => {
     const druidActor = createActor({
-      classes: [{ id: "c1", name: "Druid", level: 1, hitDice: "d8", usedHitDice: 0, subclassId: "", spellcastingAbility: "wis" }]
+      classes: [
+        {
+          id: "c1",
+          compendiumId: "druid-xphb",
+          name: "Druid",
+          source: "XPHB",
+          level: 1,
+          hitDieFaces: 8,
+          usedHitDice: 0,
+          subclassId: "",
+          subclassName: "",
+          spellcastingAbility: "wis"
+        }
+      ]
     });
 
     const slotsLvl1 = deriveSpellSlots(druidActor, []);
@@ -1518,8 +1473,8 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     const actor = createActor({
       abilities: { str: 10, dex: 12, con: 14, int: 12, wis: 16, cha: 10 }, // wis mod = +3, int mod = +1
       skills: [
-        { name: "Arcana", ability: "int", proficient: false, expertise: false },
-        { name: "Nature", ability: "int", proficient: true, expertise: false } // prof bonus = 2, int = 1
+        { id: "skill-arcana", name: "Arcana", ability: "int", proficient: false, expertise: false },
+        { id: "skill-nature", name: "Nature", ability: "int", proficient: true, expertise: false } // prof bonus = 2, int = 1
       ],
       bonuses: ["Arcana", "Nature"].map((skillName) => ({
         id: `magician-${skillName}`,
@@ -1551,17 +1506,16 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     });
 
     const feats: FeatEntry[] = [
-      { id: "feat-alert", name: "Alert", category: "Origin", description: "Always on alert", entries: "", tags: [], prerequisite: null },
-      { id: "feat-tough", name: "Tough", category: "Origin", description: "Extra HP", entries: "", tags: [], prerequisite: null },
-      {
+      createFeat({ id: "feat-alert", name: "Alert", category: "Origin", description: "Always on alert", source: "XPHB" }),
+      createFeat({ id: "feat-tough", name: "Tough", category: "Origin", description: "Extra HP", source: "XPHB" }),
+      createFeat({
         id: "feat-gwm",
         name: "Great Weapon Master",
         category: "General",
         description: "Heavy weapons",
-        entries: "",
-        tags: [],
-        prerequisite: "Level 4"
-      }
+        source: "XPHB",
+        prerequisites: "Level 4"
+      })
     ];
 
     const originOptions = deriveSpeciesOriginFeatOptions(humanSpecies, feats);
@@ -1570,8 +1524,8 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     expect(originOptions.some((f) => f.name === "Great Weapon Master")).toBe(false);
 
     const skills: CompendiumReferenceEntry[] = [
-      { id: "sk-athletics", name: "Athletics", category: "skill", description: "", entries: "", tags: [] },
-      { id: "sk-stealth", name: "Stealth", category: "skill", description: "", entries: "", tags: [] }
+      { id: "sk-athletics", name: "Athletics", category: "skill", description: "", source: "XPHB", entries: "", tags: [] },
+      { id: "sk-stealth", name: "Stealth", category: "skill", description: "", source: "XPHB", entries: "", tags: [] }
     ];
 
     const skillConfig = deriveSpeciesSkillChoiceConfig(humanSpecies, skills);
@@ -1600,18 +1554,12 @@ describe("playerNpcSheet2024 extracted helpers", () => {
   });
 
   it("derives class progression choice groups including Fighting Style, Metamagic, and Invocations", () => {
-    const fighterClass: ClassEntry = {
+    const fighterClass: ClassEntry = createClass({
       id: "fighter-xphb",
       name: "Fighter",
       source: "XPHB",
-      category: "classes",
-      tags: [],
-      subclasses: [],
-      hitDieFaces: 10,
-      features: [],
-      tables: [],
-      startingEquipment: []
-    };
+      hitDieFaces: 10
+    });
 
     const fighterLvl1Groups = deriveClassChoiceGroups(fighterClass, 0, 1, {
       spells: [],
@@ -1620,18 +1568,12 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     });
     expect(fighterLvl1Groups.some((g) => g.id === "fighter-fighting-style")).toBe(true);
 
-    const sorcererClass: ClassEntry = {
+    const sorcererClass: ClassEntry = createClass({
       id: "sorcerer-xphb",
       name: "Sorcerer",
       source: "XPHB",
-      category: "classes",
-      tags: [],
-      subclasses: [],
-      hitDieFaces: 6,
-      features: [],
-      tables: [],
-      startingEquipment: []
-    };
+      hitDieFaces: 6
+    });
 
     const sorcererLvl2Groups = deriveClassChoiceGroups(sorcererClass, 1, 2, {
       spells: [],
@@ -1642,18 +1584,12 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     expect(metamagicGroup).toBeDefined();
     expect(metamagicGroup?.count).toBe(2);
 
-    const warlockClass: ClassEntry = {
+    const warlockClass: ClassEntry = createClass({
       id: "warlock-xphb",
       name: "Warlock",
       source: "XPHB",
-      category: "classes",
-      tags: [],
-      subclasses: [],
-      hitDieFaces: 8,
-      features: [],
-      tables: [],
-      startingEquipment: []
-    };
+      hitDieFaces: 8
+    });
 
     const warlockLvl1Groups = deriveClassChoiceGroups(warlockClass, 0, 1, {
       spells: [],
@@ -1745,21 +1681,35 @@ describe("playerNpcSheet2024 extracted helpers", () => {
 
   it("offers every Magic Initiate list to Humans and stores its leveled spell outside class preparation", () => {
     const human = createSpecies({ id: "human-xphb", name: "Human", source: "XPHB" });
-    const magicInitiate = createFeat({ id: "magic-initiate-wizard", name: "Magic Initiate (Wizard)", source: "XPHB" });
-    const magicInitiateCleric = createFeat({ id: "magic-initiate-cleric", name: "Magic Initiate (Cleric)", source: "XPHB" });
-    const magicInitiateDruid = createFeat({ id: "magic-initiate-druid", name: "Magic Initiate (Druid)", source: "XPHB" });
+    const magicInitiate = createFeat({
+      id: "compendium-magic-initiate",
+      name: "Magic Initiate",
+      source: "XPHB",
+      description: "Choose a Cleric, Druid, or Wizard spell list."
+    });
     const light = createSpell({ id: "light-xphb", name: "Light", source: "XPHB", level: "cantrip", classes: ["Wizard"] });
     const mageHand = createSpell({ id: "mage-hand-xphb", name: "Mage Hand", source: "XPHB", level: "cantrip", classes: ["Wizard"] });
     const shield = createSpell({ id: "shield-xphb", name: "Shield", source: "XPHB", level: 1, classes: ["Wizard"] });
     const druidClass = createClass({ id: "druid-xphb", name: "Druid", source: "XPHB", spellPreparation: "prepared" });
-    const feats = [magicInitiate, magicInitiateCleric, magicInitiateDruid];
+    const feats = [magicInitiate];
     const compendium = createCompendium({ classes: [druidClass], feats, races: [human], spells: [light, mageHand, shield] });
 
-    expect(
-      deriveSpeciesOriginFeatOptions(human, feats)
-        .map((feat) => feat.id)
-        .sort()
-    ).toEqual(["magic-initiate-cleric", "magic-initiate-druid", "magic-initiate-wizard"]);
+    const humanFeatOptions = deriveSpeciesOriginFeatOptions(human, feats);
+    expect(humanFeatOptions.map((feat) => feat.id).sort()).toEqual([
+      "magic-initiate-cleric",
+      "magic-initiate-druid",
+      "magic-initiate-wizard"
+    ]);
+    expect(humanFeatOptions.every((feat) => feat.description === magicInitiate.description)).toBe(true);
+    expect(deriveOriginFeatOptions(createBackground({ id: "sage-xphb", source: "XPHB" }), feats)[0]).toMatchObject({
+      id: "magic-initiate-wizard",
+      name: "Magic Initiate (Wizard)",
+      description: magicInitiate.description
+    });
+    expect(collectFeatRows(["Magic Initiate (Wizard)"], feats)[0]).toMatchObject({
+      title: "Magic Initiate (Wizard)",
+      description: magicInitiate.description
+    });
 
     let actor = applyClassToActor(createActor(), druidClass, [druidClass]);
     const spec = deriveGuidedChoiceSpec({
@@ -1788,7 +1738,7 @@ describe("playerNpcSheet2024 extracted helpers", () => {
         optionalFeatureIds: [],
         classChoiceIds: {},
         featChoiceMap: {
-          [magicInitiate.id]: {
+          "magic-initiate-wizard": {
             "magic-initiate-wizard-ability": ["wis"],
             "magic-initiate-wizard:cantrips": [light.id, mageHand.id],
             "magic-initiate-wizard:spells": [shield.id]
@@ -1809,7 +1759,7 @@ describe("playerNpcSheet2024 extracted helpers", () => {
         classSkillChoices: [],
         languageChoices: ["Common"],
         speciesSizeChoice: "Medium",
-        speciesOriginFeatId: magicInitiate.id,
+        speciesOriginFeatId: "magic-initiate-wizard",
         speciesChoiceIds: {},
         originFeatId: "",
         equipmentChoiceIds: {},
@@ -1826,21 +1776,16 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     expect(actor.spellState.alwaysPrepared).toContain("Shield");
     expect(actor.spellState.perLongRest).toContain("Shield");
     expect(actor.preparedSpells).not.toContain("Shield");
+    expect(actor.feats).toContain("Magic Initiate (Wizard)");
   });
 
   it("derives subclass choice groups on level up such as Battle Master maneuvers and Hunter tactics", () => {
-    const fighterClass: ClassEntry = {
+    const fighterClass: ClassEntry = createClass({
       id: "fighter-xphb",
       name: "Fighter",
       source: "XPHB",
-      category: "classes",
-      tags: [],
-      subclasses: [],
-      hitDieFaces: 10,
-      features: [],
-      tables: [],
-      startingEquipment: []
-    };
+      hitDieFaces: 10
+    });
 
     const battleMasterLvl3Groups = deriveClassChoiceGroups(fighterClass, 2, 3, {
       spells: [],
@@ -1871,7 +1816,16 @@ describe("playerNpcSheet2024 extracted helpers", () => {
       name: "Call Lightning",
       level: 3,
       classes: ["Circle of the Land (Druid)"],
-      classReferences: [{ name: "Circle of the Land", className: "Druid (XPHB)", source: "XPHB", kind: "subclass" }]
+      classReferences: [
+        {
+          name: "Circle of the Land",
+          className: "Druid (XPHB)",
+          classSource: "XPHB",
+          source: "XPHB",
+          kind: "subclass",
+          definedInSources: ["XPHB"]
+        }
+      ]
     });
 
     expect(spellMatchesSingleClassFilter(druidSpellWithSource, "druid")).toBe(true);

@@ -59,9 +59,7 @@ function createActor(overrides: Partial<ActorSheet> = {}): ActorSheet {
     savingThrowProficiencies: [],
     skills: [],
     attacks: [],
-    spellcastingAbility: null,
-    spellSaveDc: 10,
-    spellAttackBonus: 2,
+    spellcastingAbility: "int",
     spellSlots: [],
     spells: [],
     preparedSpells: [],
@@ -76,6 +74,9 @@ function createActor(overrides: Partial<ActorSheet> = {}): ActorSheet {
     talents: [],
     bonuses: [],
     conditions: [],
+    exhaustionLevel: 0,
+    concentration: false,
+    initiativeRoll: null,
     inventory: [],
     armorItems: [],
     currency: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 },
@@ -448,7 +449,7 @@ describe("JSON Progression Registry & Engine", () => {
           hitDieFaces: 8
         }
       ],
-      resources: [{ id: "prog-res-wild-shape", name: "Wild Shape", current: 0, max: 2, resetOn: "shortRest" }]
+      resources: [{ id: "prog-res-wild-shape", name: "Wild Shape", current: 0, max: 2, resetOn: "shortRest", restoreAmount: 1 }]
     });
 
     const restedDruid = evaluateRestRecovery(druidActor, "short");
@@ -490,8 +491,8 @@ describe("JSON Progression Registry & Engine", () => {
         }
       ],
       resources: [
-        { id: "prog-res-focus-points", name: "Focus Points", current: 1, max: 5, resetOn: "shortRest" },
-        { id: "prog-res-rage", name: "Rage", current: 1, max: 3, resetOn: "longRest" }
+        { id: "prog-res-focus-points", name: "Focus Points", current: 1, max: 5, resetOn: "shortRest", restoreAmount: 0 },
+        { id: "prog-res-rage", name: "Rage", current: 1, max: 3, resetOn: "longRest", restoreAmount: 0 }
       ]
     });
 
@@ -520,7 +521,7 @@ describe("JSON Progression Registry & Engine", () => {
         { level: 1, total: 4, used: 4 },
         { level: 2, total: 2, used: 2 }
       ],
-      resources: [{ id: "prog-res-channel-divinity", name: "Channel Divinity", current: 0, max: 2, resetOn: "shortRest" }]
+      resources: [{ id: "prog-res-channel-divinity", name: "Channel Divinity", current: 0, max: 2, resetOn: "shortRest", restoreAmount: 0 }]
     });
 
     const rested = evaluateRestRecovery(clericActor, "long");

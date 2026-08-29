@@ -7,7 +7,7 @@ import {
   createSpellForm,
   monsterFormToEntry,
   spellFormToEntry
-} from "../src/lib/adminDrafts.ts";
+} from "../src/lib/adminDrafts";
 
 describe("spellFormToEntry", () => {
   it("normalizes trimmed values and derives class references", () => {
