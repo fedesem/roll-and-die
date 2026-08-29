@@ -1,8 +1,5 @@
-name: ${COMPOSE_PROJECT_NAME:-roll-and-die}
-
 services:
-  app-dev:
-    profiles: ["dev"]
+  app:
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -18,24 +15,23 @@ services:
       - "${CLIENT_PORT:-5174}:5174"
     volumes:
       - .:/app
-    restart: unless-stopped
+    labels:
+      traefik.http.services.roll-and-die.loadbalancer.server.port: "5174"
 
-  app:
-    profiles: ["prod"]
+  npm:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: ${PROD_CONTAINER_NAME:-roll-and-die}
+      dockerfile: Dockerfile.dev
+    working_dir: /app
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    profiles:
+      - tools
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: ${SERVER_PORT:-4000}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-    ports:
-      - "${SERVER_PORT:-4000}:4000"
+      HOME: /tmp/app-home
+      NPM_CONFIG_CACHE: /tmp/app-home/.npm
     volumes:
-      - ${DATA_DIR:-./data}:/app/data
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
+      - .:/app
+    networks:
+      - default

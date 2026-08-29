@@ -1,0 +1,30 @@
+x-logging: &default-logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  app:
+    image: ${REGISTRY_IMAGE:-ghcr.io/fedesem/roll-and-die:latest}
+    container_name: ${PROD_CONTAINER_NAME:-roll-and-die}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ports:
+      - "${SERVER_PORT:-4000}:4000"
+    labels:
+      traefik.http.services.roll-and-die.loadbalancer.server.port: "4000"
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      REPO_USER: ${GHCR_USERNAME:-}
+      REPO_PASS: ${GHCR_TOKEN:-}
+    command: --interval 300 --cleanup --label-enable
+    <<: *default-logging

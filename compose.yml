@@ -1,0 +1,45 @@
+x-logging: &default-logging
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  app:
+    working_dir: /app
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${SERVER_PORT:-4000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    volumes:
+      - ${DATA_DIR:-./data}:/app/data
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "${TRAEFIK_NETWORK:-traefik}"
+      traefik.http.routers.roll-and-die.rule: "Host(`${WEB_HOST:-roll-and-die.localhost}`)"
+      traefik.http.routers.roll-and-die.entrypoints: "${TRAEFIK_SECURE_ENTRYPOINT:-websecure}"
+      traefik.http.routers.roll-and-die.tls: "true"
+      traefik.http.services.roll-and-die.loadbalancer.server.port: "4000"
+      com.centurylinklabs.watchtower.enable: "true"
+    networks:
+      - default
+      - traefik
+    <<: *default-logging
+
+networks:
+  traefik:
+    name: ${TRAEFIK_NETWORK:-traefik}
+    external: true
