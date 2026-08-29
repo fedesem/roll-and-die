@@ -2,13 +2,11 @@ import { Clock3, Edit3, Moon } from "lucide-react";
 import { memo, useDeferredValue, useEffect, useMemo } from "react";
 
 import { RulesText } from "../../components/admin/AdminPreview";
-import { IconButton } from "../../components/IconButton";
 import { useWorkspaceModalHeader } from "../../components/WorkspaceModal";
 import { GuidedSheetModal } from "./components/GuidedSheetModal";
 import { LongRestDialog } from "./components/LongRestDialog";
 import { PlayerNpcSheetEditTab } from "./components/PlayerNpcSheetEditTab";
 import { PlayerNpcSheetMainTab } from "./components/PlayerNpcSheetMainTab";
-import { headerRestButtonClass, headerRestButtonInnerClass } from "./components/sheetPrimitives";
 import { useGuidedSheetFlow } from "./hooks/useGuidedSheetFlow";
 import { usePlayerNpcSheetController } from "./hooks/usePlayerNpcSheetController";
 import { usePlayerNpcSheetDerived } from "./hooks/usePlayerNpcSheetDerived";
@@ -293,57 +291,76 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
 
   useWorkspaceModalHeader(
     permissions.hasMainTab ? (
-      <div className="flex flex-wrap items-center gap-1.5">
-        <IconButton
-          icon={<Edit3 size={12} />}
-          label="Toggle edit mode"
-          active={state.activeTab === "edit"}
-          onClick={() => actions.setActiveTab(state.activeTab === "edit" ? "main" : "edit")}
-          size="sm"
-        />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex items-center rounded-lg border border-white/10 bg-slate-900/90 p-0.5">
+          <button
+            type="button"
+            onClick={() => actions.setActiveTab("main")}
+            className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+              state.activeTab === "main"
+                ? "border border-amber-500/40 bg-amber-500/20 text-amber-300 shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            Play
+          </button>
+          <button
+            type="button"
+            onClick={() => actions.setActiveTab("edit")}
+            className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+              state.activeTab === "edit"
+                ? "border border-amber-500/40 bg-amber-500/20 text-amber-300 shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            <Edit3 size={11} />
+            Edit
+          </button>
+        </div>
+
         <button
           type="button"
-          className={headerRestButtonClass}
+          className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-slate-900/90 px-2 py-1 text-xs font-semibold text-zinc-300 transition hover:border-amber-500/40 hover:bg-slate-800 hover:text-amber-100 disabled:opacity-50"
           onClick={() => actions.startShortRest()}
           disabled={!permissions.mainTabInteractive}
           title="Short Rest"
           aria-label="Short Rest"
         >
-          <span className={headerRestButtonInnerClass}>
-            <Clock3 size={10} />
-            <span>SR</span>
-          </span>
+          <Clock3 size={12} className="text-amber-400" />
+          <span>SR</span>
         </button>
+
         <button
           type="button"
-          className={headerRestButtonClass}
+          className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-slate-900/90 px-2 py-1 text-xs font-semibold text-zinc-300 transition hover:border-indigo-400/40 hover:bg-slate-800 hover:text-indigo-200 disabled:opacity-50"
           onClick={() => actions.startLongRest()}
           disabled={!permissions.mainTabInteractive}
           title="Long Rest"
           aria-label="Long Rest"
         >
-          <span className={headerRestButtonInnerClass}>
-            <Moon size={10} />
-            <span>LR</span>
-          </span>
+          <Moon size={12} className="text-indigo-400" />
+          <span>LR</span>
         </button>
-        <div className="inline-flex items-center gap-0.5 rounded-full border border-white/10 bg-slate-900/90 p-0.5">
+
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-white/10 bg-slate-900/90 p-0.5">
           {(["normal", "advantage", "disadvantage"] as const).map((mode) => (
-            <label
+            <button
               key={mode}
-              className={`rounded-full px-2 py-[3px] text-[9px] font-medium uppercase tracking-[0.14em] transition ${
-                permissions.mainTabInteractive ? "cursor-pointer" : "cursor-default opacity-50"
-              } ${state.rollMode === mode ? "bg-slate-100 text-slate-950" : "text-slate-200 hover:bg-slate-800 hover:text-white"}`}
+              type="button"
+              className={`rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition ${
+                state.rollMode === mode
+                  ? mode === "advantage"
+                    ? "border border-emerald-500/40 bg-emerald-500/25 text-emerald-200"
+                    : mode === "disadvantage"
+                      ? "border border-rose-500/40 bg-rose-500/25 text-rose-200"
+                      : "border border-white/15 bg-slate-800 text-white"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+              disabled={!permissions.mainTabInteractive}
+              onClick={() => actions.setRollMode(mode)}
             >
-              <input
-                className="sr-only"
-                type="radio"
-                checked={state.rollMode === mode}
-                disabled={!permissions.mainTabInteractive}
-                onChange={() => actions.setRollMode(mode)}
-              />
-              {mode === "normal" ? "Normal" : mode === "advantage" ? "Adv" : "Dis"}
-            </label>
+              {mode === "normal" ? "Norm" : mode === "advantage" ? "Adv" : "Dis"}
+            </button>
           ))}
         </div>
       </div>

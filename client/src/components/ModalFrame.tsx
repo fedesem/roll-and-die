@@ -55,9 +55,9 @@ export function ModalFrame({
       style={{ zIndex: layerIndex }}
       onClick={closeOnBackdrop && onClose ? onClose : undefined}
     >
-      <div className="flex h-full w-full items-center justify-center p-4">
+      <div className="flex h-full w-full items-center justify-center p-4 sm:p-6">
         <section
-          className={`pointer-events-auto flex h-[90dvh] min-h-0 w-full flex-col overflow-hidden rounded-none border border-amber-200/12 bg-[linear-gradient(180deg,rgba(18,20,28,0.98),rgba(10,12,16,0.98))] shadow-[0_28px_90px_rgba(0,0,0,0.4)] ${panelClassName}`}
+          className={`pointer-events-auto flex h-[90dvh] min-h-0 w-full flex-col overflow-hidden rounded-xl border border-amber-500/25 bg-slate-950/95 shadow-[0_28px_90px_rgba(0,0,0,0.75)] backdrop-blur-xl ${panelClassName}`}
           onClick={(event) => {
             event.stopPropagation();
           }}

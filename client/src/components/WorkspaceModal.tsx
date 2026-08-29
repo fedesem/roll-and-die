@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "./IconButton";
@@ -143,22 +144,22 @@ export function WorkspaceModal(props: WorkspaceModalProps) {
       allowBackgroundInteraction={allowBackgroundInteraction}
     >
       <WorkspaceModalHeaderContext.Provider value={{ setHeaderActions }}>
-        <div className="flex items-center justify-between gap-4 border-b border-white/8 px-6 py-4">
+        <div className="flex items-center justify-between gap-4 border-b border-white/8 bg-gradient-to-r from-amber-500/[0.08] to-transparent px-6 py-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-            <h2 className="min-w-0 shrink-0 truncate font-serif text-2xl tracking-wide text-amber-50">{currentView.title}</h2>
+            <h2 className="min-w-0 shrink-0 truncate font-serif text-2xl font-bold tracking-wide text-amber-50">{currentView.title}</h2>
             {headerActions ? <div className="flex min-w-0 flex-wrap items-center gap-2">{headerActions}</div> : null}
           </div>
           <div className="flex justify-end">
             <IconButton
-              icon={<span aria-hidden="true">X</span>}
+              icon={<X size={16} />}
               label="Close popup"
               onClick={closeCurrentView}
-              className="text-base font-semibold leading-none"
-              size="xs"
+              className="text-zinc-300 hover:text-amber-100"
+              size="sm"
             />
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">{content}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 pb-10">{content}</div>
       </WorkspaceModalHeaderContext.Provider>
     </ModalFrame>
   );
