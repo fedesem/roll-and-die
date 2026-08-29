@@ -30,9 +30,19 @@ interface GuidedSheetModalProps {
   guided: GuidedSheetFlowState;
   onOpenSpellSelection: (target: SpellSelectionTarget) => void;
   renderRulesText: (text: string) => ReactNode;
+  embedded?: boolean;
+  onCancel?: () => void;
 }
 
-export function GuidedSheetModal({ draft, compendium, guided, onOpenSpellSelection, renderRulesText }: GuidedSheetModalProps) {
+export function GuidedSheetModal({
+  draft,
+  compendium,
+  guided,
+  onOpenSpellSelection,
+  renderRulesText,
+  embedded = false,
+  onCancel
+}: GuidedSheetModalProps) {
   if (!guided.guidedFlowOpen) {
     return null;
   }
@@ -50,13 +60,8 @@ export function GuidedSheetModal({ draft, compendium, guided, onOpenSpellSelecti
     ) : null;
   };
 
-  return (
-    <ModalFrame
-      onClose={guided.closeGuidedFlow}
-      backdropClassName="bg-black/70 backdrop-blur-sm"
-      panelClassName="max-w-4xl rounded-xl border border-amber-500/30 bg-slate-950/98 text-zinc-100 shadow-[0_24px_80px_rgba(0,0,0,0.8)]"
-      closeOnBackdrop={false}
-    >
+  const modalContent = (
+    <>
       <div className="flex items-start justify-between gap-4 border-b border-white/8 px-6 py-5 bg-gradient-to-r from-amber-500/[0.08] to-transparent">
         <div>
           <div className="flex items-center gap-2">
@@ -72,7 +77,7 @@ export function GuidedSheetModal({ draft, compendium, guided, onOpenSpellSelecti
               : "Advance a class level, determine hit points gain, and choose newly unlocked features or spells."}
           </p>
         </div>
-        <SheetButton variant="ghost" size="sm" icon={<X size={16} />} onClick={guided.closeGuidedFlow}>
+        <SheetButton variant="ghost" size="sm" icon={<X size={16} />} onClick={onCancel ?? guided.closeGuidedFlow}>
           Close
         </SheetButton>
       </div>
@@ -1273,6 +1278,25 @@ export function GuidedSheetModal({ draft, compendium, guided, onOpenSpellSelecti
           </div>
         </div>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div className="rounded-xl border border-amber-500/30 bg-slate-950/98 text-zinc-100 shadow-[0_24px_80px_rgba(0,0,0,0.8)] overflow-hidden">
+        {modalContent}
+      </div>
+    );
+  }
+
+  return (
+    <ModalFrame
+      onClose={onCancel ?? guided.closeGuidedFlow}
+      backdropClassName="bg-black/70 backdrop-blur-sm"
+      panelClassName="max-w-4xl rounded-xl border border-amber-500/30 bg-slate-950/98 text-zinc-100 shadow-[0_24px_80px_rgba(0,0,0,0.8)]"
+      closeOnBackdrop={false}
+    >
+      {modalContent}
     </ModalFrame>
   );
 }

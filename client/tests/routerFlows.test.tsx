@@ -91,6 +91,42 @@ function RouterHarness({ initialSession, loginSession, onAcceptInvite }: RouterH
     return <h1>Campaign board</h1>;
   }
 
+  if (route.name === "campaignCharacters") {
+    return (
+      <main>
+        <h1>Characters page</h1>
+        <button
+          type="button"
+          onClick={() => {
+            void navigate({ name: "campaignCharacterEdit", campaignId: route.campaignId, actorId: "actor-1" });
+          }}
+        >
+          Edit Character
+        </button>
+      </main>
+    );
+  }
+
+  if (route.name === "campaignCharacterEdit") {
+    return (
+      <main>
+        <h1>Character Edit page: {route.actorId}</h1>
+        <button
+          type="button"
+          onClick={() => {
+            void navigate({ name: "campaignCharacterLevelUp", campaignId: route.campaignId, actorId: route.actorId });
+          }}
+        >
+          Level Up
+        </button>
+      </main>
+    );
+  }
+
+  if (route.name === "campaignCharacterLevelUp") {
+    return <h1>Character Level Up page: {route.actorId}</h1>;
+  }
+
   if (route.name === "campaignCreate") {
     return <h1>Create campaign</h1>;
   }
@@ -146,6 +182,21 @@ function createHarnessRouter(history = createMemoryHistory({ initialEntries: ["/
     createRoute({
       getParentRoute: () => rootRoute,
       path: "/campaign/$campaignId/board",
+      component: EmptyRoute
+    }),
+    createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/campaign/$campaignId/characters",
+      component: EmptyRoute
+    }),
+    createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/campaign/$campaignId/characters/$actorId/edit",
+      component: EmptyRoute
+    }),
+    createRoute({
+      getParentRoute: () => rootRoute,
+      path: "/campaign/$campaignId/characters/$actorId/level-up",
       component: EmptyRoute
     })
   ]);
@@ -260,5 +311,36 @@ describe("router flows", () => {
       expect(history.location.pathname).toBe("/campaign/c1/board");
     });
     expect(await screen.findByRole("heading", { name: "Campaign board" })).not.toBeNull();
+  });
+
+  it("navigates through characters list, edit, and level up routes", async () => {
+    const session = {
+      token: "token-user",
+      user: {
+        id: "user-1",
+        name: "Fede",
+        isAdmin: false
+      }
+    } satisfies TestSession;
+
+    const { history, user } = renderHarness(["/campaign/c1/characters"], {
+      initialSession: session,
+      loginSession: session
+    });
+
+    expect(await screen.findByRole("heading", { name: "Characters page" })).not.toBeNull();
+    await user.click(screen.getByRole("button", { name: "Edit Character" }));
+
+    await waitFor(() => {
+      expect(history.location.pathname).toBe("/campaign/c1/characters/actor-1/edit");
+    });
+    expect(await screen.findByRole("heading", { name: "Character Edit page: actor-1" })).not.toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Level Up" }));
+
+    await waitFor(() => {
+      expect(history.location.pathname).toBe("/campaign/c1/characters/actor-1/level-up");
+    });
+    expect(await screen.findByRole("heading", { name: "Character Level Up page: actor-1" })).not.toBeNull();
   });
 });
