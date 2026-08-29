@@ -1,5 +1,5 @@
 import type { ActorSheet, InventoryEntry } from "@shared/types";
-import { Backpack, BookOpen, Brain, Coins, Heart, Shield, Sparkles, WandSparkles, Zap } from "lucide-react";
+import { Backpack, BookOpen, Brain, Coins, Heart, Plus, Shield, Sparkles, WandSparkles, Zap } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import { CircleToggle } from "../../../components/CircleToggle";
@@ -26,10 +26,9 @@ import {
   Field,
   HitPointBar,
   inputClassCompact,
-  miniButtonClass,
   PortraitCard,
   SectionCard,
-  secondaryButtonClass,
+  SheetButton,
   textareaClassCompact,
   UsableTrack
 } from "./sheetPrimitives";
@@ -55,31 +54,43 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
       : actionEconomy[actionTab];
 
   return (
-    <div className={`grid gap-3 xl:grid-cols-3 ${permissions.mainTabInteractive ? "" : "pointer-events-none opacity-75 select-none"}`}>
-      <div className="space-y-3">
-        <SectionCard title="Main" icon={<Shield size={14} />}>
+    <div className={`grid gap-4 xl:grid-cols-3 ${permissions.mainTabInteractive ? "" : "pointer-events-none opacity-75 select-none"}`}>
+      {/* LEFT COLUMN: IDENTITY, ABILITIES, SKILLS */}
+      <div className="space-y-4">
+        {/* HERO / MAIN CARD */}
+        <SectionCard title="Character" icon={<Shield size={16} />}>
           <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3.5">
               <PortraitCard actor={draft} compact />
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="truncate font-serif text-xl text-amber-50">{draft.name || "Unnamed Actor"}</h3>
-                  <div className="flex items-center gap-1">
+                  <h3 className="truncate font-serif text-xl font-bold text-amber-50">{draft.name || "Unnamed Actor"}</h3>
+                  <div
+                    className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 border transition cursor-pointer ${
+                      draft.inspiration
+                        ? "border-amber-400/60 bg-amber-500/20 text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                        : "border-white/10 bg-slate-900 text-zinc-400"
+                    }`}
+                    onClick={() => mutators.updateField("inspiration", !draft.inspiration)}
+                    title={draft.inspiration ? "Inspiration active (Click to toggle)" : "Inspiration inactive (Click to grant)"}
+                  >
                     <CircleToggle
                       checked={draft.inspiration}
                       label={draft.inspiration ? "Inspiration active" : "Inspiration inactive"}
                       onClick={() => mutators.updateField("inspiration", !draft.inspiration)}
+                      size="xs"
                     />
-                    <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-zinc-400">INS</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">INS</span>
                   </div>
                 </div>
-                <p className="truncate text-xs text-zinc-400">
+                <p className="truncate text-xs text-zinc-400 mt-0.5">
                   {[draft.species || "No species", draft.className || "No class", draft.background || "No background"].join(" • ")}
                 </p>
               </div>
             </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+
+          <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 xl:grid-cols-4">
             <CompactStatChip label="Level" value={String(derived.totalActorLevel)} />
             <CompactStatChip label="AC" value={String(derived.armorClass)} />
             <CompactStatChip label="Speed" value={`${derived.speed} ft`} />
@@ -101,7 +112,8 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
             />
             <CompactStatChip label="XP" value={String(draft.experience)} />
           </div>
-          <div className="min-w-0">
+
+          <div className="min-w-0 pt-1">
             <ExhaustionTrack
               level={draft.exhaustionLevel}
               onChange={(level) => mutators.updateField("exhaustionLevel", level)}
@@ -111,8 +123,9 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
           </div>
         </SectionCard>
 
-        <SectionCard title="Abilities" icon={<Brain size={14} />}>
-          <div className="grid grid-cols-2 gap-2">
+        {/* ABILITY SCORES */}
+        <SectionCard title="Abilities & Saves" icon={<Brain size={16} />}>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {abilityOrder.map((ability) => {
               const score = abilityScoreTotal(derived.actorWithDerivedNumbers, ability.key);
               const modifier = abilityModifier(score);
@@ -132,28 +145,33 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
           </div>
         </SectionCard>
 
-        <SectionCard title="Skills" icon={<Sparkles size={14} />}>
+        {/* SKILLS */}
+        <SectionCard title="Skills" icon={<Sparkles size={16} />}>
           <div className="grid gap-1.5">
             {draft.skills.map((skill) => {
               const total = skillTotal(derived.actorWithDerivedNumbers, skill);
-              const proficiencyLabel = skill.expertise ? "Exp" : skill.proficient ? "Prof" : "";
+              const proficiencyLabel = skill.expertise ? "EXP" : skill.proficient ? "PROF" : "";
               return (
                 <div
                   key={skill.id}
-                  className="cursor-pointer border border-white/8 bg-black/20 px-2 py-1.5 transition hover:border-amber-500/60"
+                  className="flex items-center justify-between gap-2 rounded-md border border-white/8 bg-slate-900/60 px-3 py-2 transition hover:border-amber-500/60 hover:bg-slate-850 cursor-pointer"
                   onClick={() => void actions.handleRoll(total, `${skill.name} check`)}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-xs text-zinc-100">{skill.name}</p>
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">{skill.ability}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {proficiencyLabel ? (
-                        <span className="text-[10px] uppercase tracking-[0.14em] text-amber-400">{proficiencyLabel}</span>
-                      ) : null}
-                      <span className="font-mono text-xs text-amber-200">{formatModifier(total)}</span>
-                    </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-zinc-100">{skill.name}</p>
+                    <p className="text-[9px] uppercase tracking-wider text-zinc-400">{skill.ability}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {proficiencyLabel ? (
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                          skill.expertise ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-slate-800 text-zinc-300"
+                        }`}
+                      >
+                        {proficiencyLabel}
+                      </span>
+                    ) : null}
+                    <span className="font-mono text-xs font-bold text-amber-200">{formatModifier(total)}</span>
                   </div>
                 </div>
               );
@@ -162,8 +180,10 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
         </SectionCard>
       </div>
 
-      <div className="space-y-3">
-        <SectionCard title="Vitals" icon={<Heart size={14} />}>
+      {/* CENTER COLUMN: VITALS, ACTIONS, SPELLCASTING, RESOURCES */}
+      <div className="space-y-4">
+        {/* VITALS */}
+        <SectionCard title="Health & Vitals" icon={<Heart size={16} />}>
           <HitPointBar
             current={derived.hitPointDisplay.current}
             damage={derived.hitPointDisplay.damage}
@@ -172,7 +192,7 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
             baseMax={derived.hitPointDisplay.baseMax}
             reducedMax={derived.hitPointDisplay.reducedMax}
           />
-          <div className="grid gap-1.5 sm:grid-cols-3">
+          <div className="grid gap-2 grid-cols-3">
             <Field label="HP" hint="Current hit points after damage is applied.">
               <NumericInput
                 className={inputClassCompact}
@@ -213,14 +233,17 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
           />
         </SectionCard>
 
-        <SectionCard title="Action Economy & Masteries" icon={<Zap size={14} />}>
-          <div className="flex flex-wrap gap-1 border-b border-white/5 pb-2">
+        {/* ACTIONS & MASTERIES */}
+        <SectionCard title="Action Economy & Attacks" icon={<Zap size={16} />}>
+          <div className="flex flex-wrap gap-1 border-b border-white/8 pb-2">
             {(["all", "action", "bonus", "reaction", "mastery"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
-                className={`px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider transition ${
-                  actionTab === tab ? "bg-amber-500 text-zinc-950" : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                className={`rounded px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider transition ${
+                  actionTab === tab
+                    ? "bg-amber-500 text-zinc-950 shadow-sm"
+                    : "bg-slate-900/80 text-zinc-400 hover:bg-slate-800 hover:text-zinc-200"
                 }`}
                 onClick={() => setActionTab(tab)}
               >
@@ -228,13 +251,13 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
               </button>
             ))}
           </div>
-          <div className="space-y-1.5 pt-1">
+          <div className="space-y-2 pt-1">
             {displayedActionItems.length > 0 ? (
               displayedActionItems.map((item) => (
                 <div
                   key={item.id}
-                  className={`border border-white/8 bg-black/20 p-2 transition ${
-                    item.rollPayload ? "cursor-pointer hover:border-amber-500/60" : ""
+                  className={`rounded-md border border-white/8 bg-slate-900/60 p-2.5 transition ${
+                    item.rollPayload ? "cursor-pointer hover:border-amber-500/60 hover:bg-slate-850" : ""
                   }`}
                   onClick={() => {
                     if (item.rollPayload) {
@@ -249,22 +272,25 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
                   }}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-medium text-zinc-100">{item.name}</p>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/90">{item.actionCost}</span>
+                    <p className="text-xs font-semibold text-zinc-100">{item.name}</p>
+                    <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300 border border-amber-500/20">
+                      {item.actionCost}
+                    </span>
                   </div>
-                  {item.subtitle ? <p className="mt-0.5 text-[10px] text-zinc-400">{item.subtitle}</p> : null}
+                  {item.subtitle ? <p className="mt-0.5 text-[11px] text-zinc-400">{item.subtitle}</p> : null}
                 </div>
               ))
             ) : (
-              <p className="text-xs text-zinc-500">No {actionTab} items available.</p>
+              <p className="text-xs text-zinc-500 italic p-2">No {actionTab} items available.</p>
             )}
           </div>
         </SectionCard>
 
-        <SectionCard title="Spellcasting" icon={<WandSparkles size={14} />}>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <label className="border border-white/8 bg-black/20 px-2 py-2 text-zinc-100">
-              <p className="text-[9px] uppercase tracking-[0.18em] text-amber-400/80">Concentration</p>
+        {/* SPELLCASTING SLOTS */}
+        <SectionCard title="Spell Slots & Focus" icon={<WandSparkles size={16} />}>
+          <div className="grid gap-2 grid-cols-3">
+            <label className="rounded-md border border-white/8 bg-slate-900/80 p-2.5 text-zinc-100 cursor-pointer">
+              <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-amber-400/90">Concentration</p>
               <div className="mt-1 flex items-center gap-2">
                 <CircleToggle
                   checked={draft.concentration}
@@ -272,7 +298,7 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
                   onClick={() => mutators.updateField("concentration", !draft.concentration)}
                   size="xs"
                 />
-                <span className="text-sm font-medium text-amber-50">{draft.concentration ? "Active" : "Off"}</span>
+                <span className="text-xs font-bold text-amber-50">{draft.concentration ? "Active" : "None"}</span>
               </div>
             </label>
             <CompactStatChip label="Spell DC" value={String(derived.spellSave)} />
@@ -284,26 +310,26 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
           </div>
 
           {derived.canPrepareSpells ? (
-            <div className="flex items-center justify-between border border-white/5 bg-black/10 px-2.5 py-1.5 text-xs">
+            <div className="flex items-center justify-between rounded-md border border-white/8 bg-slate-900/60 px-3 py-2 text-xs">
               <span className="text-zinc-400">Prepared Spells:</span>
-              <span className="font-mono text-amber-300">
-                {draft.preparedSpells.length} prepared • wizard target {derived.preparedSpellLimit}
+              <span className="font-mono font-semibold text-amber-300">
+                {draft.preparedSpells.length} / {derived.preparedSpellLimit}
               </span>
             </div>
           ) : null}
 
-          <div className="space-y-2">
+          <div className="space-y-2.5 pt-1">
             {derived.derivedSpellSlots.filter((entry) => entry.total > 0).length === 0 ? (
-              <p className="text-xs text-zinc-500">No spell slots on this sheet yet.</p>
+              <p className="text-xs text-zinc-500 italic">No spell slots on this sheet.</p>
             ) : (
               derived.derivedSpellSlots
                 .filter((entry) => entry.total > 0)
                 .map((slot) => (
-                  <div key={slot.level} className="space-y-1">
+                  <div key={slot.level} className="space-y-1 rounded-md border border-white/8 bg-slate-900/50 p-2.5">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-zinc-200">Level {slot.level}</span>
-                      <span className="text-zinc-500">
-                        {slot.total - slot.used}/{slot.total}
+                      <span className="font-semibold text-zinc-200">Level {slot.level} Slots</span>
+                      <span className="font-mono text-zinc-400">
+                        {slot.total - slot.used} / {slot.total} remaining
                       </span>
                     </div>
                     <UsableTrack
@@ -317,14 +343,15 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
           </div>
         </SectionCard>
 
-        <SectionCard title="Resources" icon={<Heart size={14} />}>
-          <div className="space-y-2">
+        {/* RESOURCES */}
+        <SectionCard title="Class Resources" icon={<Heart size={16} />}>
+          <div className="space-y-2.5">
             {derived.displayedResources.map((resource) => (
-              <div key={resource.id} className="space-y-1 border border-white/8 bg-black/20 p-2">
+              <div key={resource.id} className="space-y-1.5 rounded-md border border-white/8 bg-slate-900/60 p-2.5">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-zinc-100">{resource.name}</p>
-                  <p className="text-[10px] uppercase tracking-[0.14em] text-zinc-500">
-                    {resource.current}/{resource.max}
+                  <p className="text-xs font-semibold text-zinc-100">{resource.name}</p>
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-amber-300">
+                    {resource.current} / {resource.max}
                   </p>
                 </div>
                 <UsableTrack
@@ -334,23 +361,35 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
                 />
               </div>
             ))}
-            {derived.displayedResources.length === 0 ? <p className="text-xs text-zinc-500">No resources tracked yet.</p> : null}
+            {derived.displayedResources.length === 0 ? <p className="text-xs text-zinc-500 italic">No class resources tracked.</p> : null}
           </div>
         </SectionCard>
       </div>
 
-      <div className="space-y-3">
-        <SectionCard title="Features" icon={<Sparkles size={16} />}>
+      {/* RIGHT COLUMN: FEATURES, SPELLS, INVENTORY, NOTES */}
+      <div className="space-y-4">
+        {/* FEATURES */}
+        <SectionCard title="Features & Traits" icon={<Sparkles size={16} />}>
           <DetailCollection
             entries={derived.featureRows}
-            emptyMessage="No species, background, class, feat, or feature data is available yet."
+            emptyMessage="No features available on this sheet yet."
             renderText={renderRulesText}
           />
         </SectionCard>
 
-        <SectionCard title="Spells" icon={<BookOpen size={16} />}>
+        {/* SPELLS */}
+        <SectionCard
+          title="Spells"
+          icon={<BookOpen size={16} />}
+          action={
+            derived.canPrepareSpells ? (
+              <SheetButton variant="secondary" size="sm" onClick={() => actions.setSpellSelectionTarget("mainPrepared")}>
+                Prepare Spells
+              </SheetButton>
+            ) : null
+          }
+        >
           <DetailCollection
-            title="Spell List"
             entries={derived.spellRows.map((entry) => ({
               ...entry,
               onRemove: undefined,
@@ -371,19 +410,13 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
                 : entry.meta
             }))}
             emptyMessage="No spells on this sheet yet."
-            headerAction={
-              derived.canPrepareSpells ? (
-                <button type="button" className={secondaryButtonClass} onClick={() => actions.setSpellSelectionTarget("mainPrepared")}>
-                  Prepare Spells
-                </button>
-              ) : null
-            }
             renderText={renderRulesText}
           />
         </SectionCard>
 
+        {/* INVENTORY & ENCUMBRANCE */}
         <SectionCard title="Inventory & Encumbrance" icon={<Backpack size={16} />}>
-          <div className="space-y-2 border border-white/8 bg-black/20 p-2.5 text-xs">
+          <div className="space-y-2 rounded-md border border-white/10 bg-slate-900/80 p-3 text-xs">
             <div className="flex items-center justify-between">
               <span className="text-zinc-400">Weight Carried:</span>
               <span
@@ -398,9 +431,9 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
                 {carryingCapacity.totalCarriedWeight} / {carryingCapacity.carryingCapacity} lbs
               </span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden bg-white/10">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-950">
               <div
-                className={`h-full transition-all ${
+                className={`h-full transition-all duration-300 ${
                   carryingCapacity.encumbranceStatus === "normal"
                     ? "bg-emerald-500"
                     : carryingCapacity.encumbranceStatus === "encumbered"
@@ -414,13 +447,13 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
             </div>
             <div className="flex items-center justify-between text-[11px] text-zinc-400">
               <span>
-                Items: {carryingCapacity.itemWeight} lbs • Coins: {carryingCapacity.coinWeight} lbs
+                Gear: {carryingCapacity.itemWeight} lbs • Coins: {carryingCapacity.coinWeight} lbs
               </span>
-              <span className="font-medium text-amber-300">Attuned: {attunement.count} / 3</span>
+              <span className="font-semibold text-amber-300">Attuned: {attunement.count} / 3</span>
             </div>
           </div>
 
-          <div className="grid gap-2 md:grid-cols-5">
+          <div className="grid gap-2 grid-cols-5">
             {currencyOrder.map((currencyKey) => (
               <Field key={currencyKey} label={currencyKey.toUpperCase()}>
                 <NumericInput
@@ -436,9 +469,13 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
               </Field>
             ))}
           </div>
-          <div className="space-y-3">
+
+          <div className="space-y-2.5">
             {draft.inventory.map((item, index) => (
-              <div key={item.id} className="grid gap-2 border border-white/8 bg-black/20 p-2 md:grid-cols-[1.6fr,0.6fr,0.6fr,0.8fr,1fr]">
+              <div
+                key={item.id}
+                className="grid gap-2 rounded-md border border-white/8 bg-slate-900/60 p-2.5 md:grid-cols-[1.6fr,0.6fr,0.6fr,0.8fr,1fr]"
+              >
                 <Field label="Item">
                   <input
                     className={inputClassCompact}
@@ -472,29 +509,32 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
                     <option value="consumable">Consumable</option>
                   </select>
                 </Field>
-                <div className="flex items-center gap-3 pt-6 text-xs text-zinc-300">
-                  <label className="flex items-center gap-1.5">
+                <div className="flex items-center gap-3 pt-5 text-xs text-zinc-300">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={item.equipped}
                       onChange={(event) => mutators.updateInventory(index, { equipped: event.target.checked })}
+                      className="accent-amber-500 rounded"
                     />
-                    Equipped
+                    Eq
                   </label>
-                  <label className="flex items-center gap-1.5">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={Boolean(item.attuned)}
                       onChange={(event) => mutators.updateInventory(index, { attuned: event.target.checked })}
+                      className="accent-amber-500 rounded"
                     />
-                    Attuned
+                    Att
                   </label>
                 </div>
               </div>
             ))}
-            <button
-              type="button"
-              className={miniButtonClass}
+            <SheetButton
+              variant="secondary"
+              size="sm"
+              icon={<Plus size={13} />}
               onClick={() =>
                 mutators.updateDraft((current) => ({
                   ...current,
@@ -503,16 +543,18 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
               }
             >
               Add Item
-            </button>
+            </SheetButton>
           </div>
         </SectionCard>
 
-        <SectionCard title="Notes" icon={<Coins size={16} />}>
+        {/* NOTES */}
+        <SectionCard title="Quick Notes" icon={<Coins size={16} />}>
           <textarea
             className={textareaClassCompact}
             rows={4}
             value={draft.notes}
             onChange={(event) => mutators.updateField("notes", event.target.value)}
+            placeholder="Campaign clues, quest reminders, session notes..."
           />
         </SectionCard>
       </div>

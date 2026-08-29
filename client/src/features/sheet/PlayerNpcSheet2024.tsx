@@ -353,29 +353,27 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
   return (
     <section className="space-y-4 text-zinc-100">
       {!showSetupGuideOnly ? (
-        <>
-          {state.activeTab === "main" ? (
-            <PlayerNpcSheetMainTab
-              draft={state.draft}
-              derived={derived}
-              permissions={permissions}
-              mutators={mutators}
-              actions={actions}
-              renderRulesText={renderRulesText}
-            />
-          ) : (
-            <PlayerNpcSheetEditTab
-              draft={state.draft}
-              compendium={compendium}
-              derived={{ ...derived, saving: state.saving, imageError: state.imageError }}
-              permissions={permissions}
-              mutators={mutators}
-              actions={actions}
-              guided={guided}
-              renderRulesText={renderRulesText}
-            />
-          )}
-        </>
+        state.activeTab === "main" ? (
+          <PlayerNpcSheetMainTab
+            draft={state.draft}
+            derived={derived}
+            permissions={permissions}
+            mutators={mutators}
+            actions={actions}
+            renderRulesText={renderRulesText}
+          />
+        ) : (
+          <PlayerNpcSheetEditTab
+            draft={state.draft}
+            compendium={compendium}
+            derived={{ ...derived, saving: state.saving, imageError: state.imageError }}
+            permissions={permissions}
+            mutators={mutators}
+            actions={actions}
+            guided={guided}
+            renderRulesText={renderRulesText}
+          />
+        )
       ) : null}
 
       {state.shortRestOpen ? (
