@@ -38,20 +38,22 @@ export function AppTopbar({
       </div>
       {showRoomStatus && campaignName && role && roomStatus && (
         <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2">
-          <span className="rounded-none border border-amber-300/20 bg-amber-300/12 px-3 py-1 text-xs font-semibold text-amber-100">
+          <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-0.5 text-xs font-semibold text-amber-200">
             {campaignName}
           </span>
-          <span className="rounded-none border border-white/10 bg-white/6 px-3 py-1 text-xs text-slate-200">
+          <span className="rounded-full border border-white/10 bg-slate-900/80 px-3 py-0.5 text-xs text-slate-300">
             {activeMapName ?? "No map"}
           </span>
-          <span className="rounded-none border border-white/10 bg-white/6 px-3 py-1 text-xs text-slate-200">{role.toUpperCase()}</span>
+          <span className="rounded-full border border-white/10 bg-slate-900/80 px-3 py-0.5 text-xs font-medium text-slate-300">
+            {role.toUpperCase()}
+          </span>
           <span
-            className={`rounded-none border px-3 py-1 text-xs font-medium ${
+            className={`rounded-full border px-3 py-0.5 text-xs font-medium ${
               roomStatus === "online"
-                ? "border-emerald-400/25 bg-emerald-400/12 text-emerald-200"
+                ? "border-emerald-400/30 bg-emerald-500/15 text-emerald-300"
                 : roomStatus === "connecting"
-                  ? "border-amber-300/25 bg-amber-300/12 text-amber-100"
-                  : "border-rose-400/25 bg-rose-400/12 text-rose-200"
+                  ? "border-amber-300/30 bg-amber-500/15 text-amber-200"
+                  : "border-rose-400/30 bg-rose-500/15 text-rose-300"
             }`}
           >
             {roomStatus}
@@ -62,27 +64,27 @@ export function AppTopbar({
         {isAdmin && (
           <button
             type="button"
-            className={`inline-flex items-center gap-2 rounded-none border px-3 py-2 text-sm transition ${
+            className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition ${
               isAdminRoute
-                ? "border-amber-300/30 bg-amber-300/14 text-amber-50"
-                : "border-white/12 bg-white/5 text-slate-200 hover:border-amber-200/18 hover:bg-white/8"
+                ? "border-amber-400/40 bg-amber-500/20 text-amber-50 shadow-sm"
+                : "border-white/10 bg-slate-900/80 text-slate-200 hover:border-amber-500/40 hover:bg-slate-800"
             }`}
             onClick={onOpenAdmin}
           >
-            <Shield size={15} />
+            <Shield size={14} />
             <span>Admin</span>
           </button>
         )}
         <button
           type="button"
-          className="rounded-none border border-white/12 bg-white/5 px-3 py-2 text-sm text-slate-200 transition hover:border-amber-200/18 hover:bg-white/8"
+          className="rounded-md border border-white/10 bg-slate-900/80 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-amber-500/40 hover:bg-slate-800"
           onClick={onOpenCampaigns}
         >
           Campaigns
         </button>
         <button
           type="button"
-          className="rounded-none border border-white/12 bg-white/5 px-3 py-2 text-sm text-slate-200 transition hover:border-rose-200/18 hover:bg-white/8"
+          className="rounded-md border border-white/10 bg-slate-900/80 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-rose-400/40 hover:bg-rose-950/40 hover:text-rose-200"
           onClick={onLogout}
         >
           Logout
