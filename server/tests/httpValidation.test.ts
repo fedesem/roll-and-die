@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { HttpError } from "../src/http/errors.ts";
-import { parseWithSchema, requireRouteParam, toValidationError } from "../src/http/validation.ts";
+import { HttpError } from "../src/http/errors.js";
+import { parseWithSchema, requireRouteParam, toValidationError } from "../src/http/validation.js";
 
 describe("parseWithSchema", () => {
   it("returns parsed values when the payload matches the schema", () => {

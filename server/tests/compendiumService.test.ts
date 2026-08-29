@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ClassEntry, CompendiumSpeciesEntry } from "../../shared/types.js";
 
 import {
   importSubclassesIntoClasses,
@@ -57,7 +58,7 @@ describe("class compendium imports", () => {
       ]
     });
 
-    const classEntry = sanitizeCompendiumEntry("classes", entry);
+    const classEntry = sanitizeCompendiumEntry("classes", entry) as ClassEntry;
 
     expect(classEntry.subclassLevel).toBe(2);
     expect(classEntry.subclasses).toHaveLength(1);
@@ -174,7 +175,7 @@ describe("class compendium imports", () => {
       ]
     });
 
-    const classEntry = sanitizeCompendiumEntry("classes", entry);
+    const classEntry = sanitizeCompendiumEntry("classes", entry) as ClassEntry;
 
     expect(classEntry.source).toBe("XPHB");
     expect(classEntry.subclasses.map((subclass) => subclass.name)).toEqual(["College of Swords"]);
@@ -224,7 +225,7 @@ describe("class compendium imports", () => {
       ]
     });
 
-    const classEntry = sanitizeCompendiumEntry("classes", entry);
+    const classEntry = sanitizeCompendiumEntry("classes", entry) as ClassEntry;
 
     expect(classEntry.source).toBe("XPHB");
     expect(classEntry.subclasses.map((subclass) => `${subclass.name}|${subclass.source}`)).toEqual(["The Hexblade|XGE"]);
@@ -314,7 +315,7 @@ describe("class compendium imports", () => {
       ]
     });
 
-    const classEntry = sanitizeCompendiumEntry("classes", entry);
+    const classEntry = sanitizeCompendiumEntry("classes", entry) as ClassEntry;
 
     expect(classEntry.subclasses).toHaveLength(1);
     expect(
@@ -401,7 +402,7 @@ describe("class compendium imports", () => {
       ]
     });
 
-    const classEntry = sanitizeCompendiumEntry("classes", entry);
+    const classEntry = sanitizeCompendiumEntry("classes", entry) as ClassEntry;
     const description = classEntry.subclasses[0]?.features[0]?.description ?? "";
 
     expect(description).toContain("Expanded Spell List");
@@ -434,7 +435,7 @@ describe("class compendium imports", () => {
           }
         ]
       }
-    });
+    }) as ClassEntry;
 
     expect(classEntry.startingEquipment).toHaveLength(1);
     expect(classEntry.startingEquipment[0]?.options.map((option) => option.label)).toEqual(["Option A", "Option B"]);
@@ -451,7 +452,35 @@ describe("class compendium imports", () => {
 });
 
 describe("reference compendium imports", () => {
-  it("skips PHB 2014 entries while keeping newer rules content", () => {
+
+  it("normalizes backgrounds and skips PHB backgrounds when source is PHB", () => {
+    const entries = normalizeCompendiumImportEntries("backgrounds", {
+      background: [
+        {
+          name: "Acolyte",
+          source: "PHB",
+          page: 127,
+          entries: ["Classic background."]
+        },
+        {
+          name: "Acolyte",
+          source: "XPHB",
+          page: 176,
+          entries: ["Modern background."]
+        },
+        {
+          name: "Rewarded",
+          source: "XGE",
+          page: 10,
+          entries: ["Supplement background."]
+        }
+      ]
+    });
+
+    expect((entries as { name: string; source: string }[]).map((entry) => `${String(entry.name)}|${String(entry.source)}`)).toEqual(["Acolyte|XPHB", "Rewarded|XGE"]);
+  });
+
+  it("skips PHB backgrounds when source is PHB", () => {
     const entries = normalizeCompendiumImportEntries("backgrounds", {
       background: [
         {
@@ -476,7 +505,7 @@ describe("reference compendium imports", () => {
       ]
     });
 
-    expect(entries.map((entry) => `${String(entry.name)}|${String(entry.source)}`)).toEqual(["Acolyte|XPHB", "Rewarded|XGE"]);
+    expect((entries as { name: string; source: string }[]).map((entry) => `${String(entry.name)}|${String(entry.source)}`)).toEqual(["Acolyte|XPHB", "Rewarded|XGE"]);
   });
 
   it("skips PHB books based on book id", () => {
@@ -493,7 +522,7 @@ describe("reference compendium imports", () => {
       ]
     });
 
-    expect(entries.map((entry) => `${String(entry.id)}|${String(entry.name)}`)).toEqual(["XPHB|Player's Handbook (2024)"]);
+    expect((entries as { id: string; name: string }[]).map((entry) => `${String(entry.id)}|${String(entry.name)}`)).toEqual(["XPHB|Player's Handbook (2024)"]);
   });
 
   it("derives table-based species choice groups and base species spells from raw race entries", () => {
@@ -533,7 +562,7 @@ describe("reference compendium imports", () => {
           entries: ["You know the {@spell Thaumaturgy|XPHB} cantrip."]
         }
       ]
-    });
+    }) as CompendiumSpeciesEntry;
 
     expect(species.choiceGroups.map((group) => group.label)).toEqual(["Fiendish Legacy", "Legacy Spellcasting Ability"]);
     expect(species.choiceGroups[0]?.options[0]).toMatchObject({
@@ -580,7 +609,7 @@ describe("reference compendium imports", () => {
           ]
         }
       ]
-    });
+    }) as CompendiumSpeciesEntry;
 
     expect(species.choiceGroups.map((group) => group.label)).toEqual(["Gnomish Lineage", "Lineage Spellcasting Ability"]);
     expect(species.choiceGroups[0]?.options.map((option) => option.label)).toEqual(["Forest Gnome", "Rock Gnome"]);
@@ -598,39 +627,43 @@ describe("reference compendium imports", () => {
           shortName: "Conquest",
           source: "XGE",
           className: "Paladin",
-          classSource: "XPHB",
-          subclassFeatures: ["Oath of Conquest|Paladin|XPHB|Conquest|XGE|3"]
+          classSource: "PHB",
+          subclassFeatures: ["Oath of Conquest|Paladin|PHB|Conquest|XGE|3"]
         }
       ],
       subclassFeature: [
         {
           name: "Oath of Conquest",
           className: "Paladin",
-          classSource: "XPHB",
+          classSource: "PHB",
           subclassShortName: "Conquest",
           subclassSource: "XGE",
           level: 3,
           source: "XGE",
-          entries: ["Conquest oath spells and armor."]
+          entries: ["Conquer all enemies."]
         }
       ]
     };
 
     expect(isSubclassImport(rawSubclassFile)).toBe(true);
 
-    const classes = [
+    const classes: ClassEntry[] = [
       {
         id: "paladin-1",
         name: "Paladin",
         source: "XPHB",
+        description: "",
         hitDieFaces: 10,
-        savingThrowProficiencies: ["wis", "cha"] as ("wis" | "cha")[],
-        spellcastingAbility: "cha" as const,
-        spellPreparation: "prepared" as const,
+        primaryAbilities: ["str", "cha"],
+        savingThrowProficiencies: ["wis", "cha"],
+        startingProficiencies: { armor: [], weapons: [], tools: [] },
+        spellcastingAbility: "cha",
+        spellPreparation: "prepared",
         subclassLevel: 3,
         subclasses: [],
         features: [],
-        tables: []
+        tables: [],
+        startingEquipment: []
       }
     ];
 

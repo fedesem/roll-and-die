@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { evaluateRollNotation, isRollCommand, parseDiceToken, parseRollCommand, validateRollNotation } from "../../shared/dice.ts";
+import { evaluateRollNotation, isRollCommand, parseDiceToken, parseRollCommand, validateRollNotation } from "../../shared/dice.js";
 
 vi.mock("node:crypto", () => ({
   randomUUID: () => "roll-id"
@@ -134,7 +134,7 @@ describe("server rollDice", () => {
   it("returns a complete DiceRoll payload using deterministic random values", async () => {
     vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValueOnce(0.5);
 
-    const { rollDice } = await import("../src/dice.ts");
+    const { rollDice } = await import("../src/dice.js");
     const roll = rollDice(" 2d6 + 1 ", "Longsword");
 
     expect(roll).toMatchObject({
@@ -151,7 +151,7 @@ describe("server rollDice", () => {
   it("rolls advantage notation on the backend", async () => {
     vi.spyOn(Math, "random").mockReturnValueOnce(0.1).mockReturnValueOnce(0.9);
 
-    const { rollDice } = await import("../src/dice.ts");
+    const { rollDice } = await import("../src/dice.js");
     const roll = rollDice("2d20kh1+4", "Initiative");
 
     expect(roll).toMatchObject({
@@ -163,7 +163,7 @@ describe("server rollDice", () => {
   });
 
   it("throws a user-friendly message for invalid notations", async () => {
-    const { rollDice } = await import("../src/dice.ts");
+    const { rollDice } = await import("../src/dice.js");
 
     expect(() => rollDice("abc", "Bad Roll")).toThrowError("Use roll expressions like 1d20+2, 2d20kh1+4, 2d8*2, 1d8/2, or 3d6+2d4.");
   });

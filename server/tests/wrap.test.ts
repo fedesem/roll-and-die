@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { wrap } from "../src/http/wrap.ts";
+import { wrap } from "../src/http/wrap.js";
 
 async function flushMicrotasks() {
   await Promise.resolve();
