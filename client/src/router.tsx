@@ -59,6 +59,24 @@ const campaignBoardRoute = createRoute({
   component: EmptyRoute
 });
 
+const campaignCharactersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/campaign/$campaignId/characters",
+  component: EmptyRoute
+});
+
+const campaignCharacterEditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/campaign/$campaignId/characters/$actorId/edit",
+  component: EmptyRoute
+});
+
+const campaignCharacterLevelUpRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/campaign/$campaignId/characters/$actorId/level-up",
+  component: EmptyRoute
+});
+
 const routeTree = rootRoute.addChildren([
   campaignsIndexRoute,
   campaignsRoute,
@@ -67,7 +85,10 @@ const routeTree = rootRoute.addChildren([
   campaignJoinCodeRoute,
   adminRoute,
   campaignRoute,
-  campaignBoardRoute
+  campaignBoardRoute,
+  campaignCharactersRoute,
+  campaignCharacterEditRoute,
+  campaignCharacterLevelUpRoute
 ]);
 
 export function createAppRouter(history?: RouterHistory) {

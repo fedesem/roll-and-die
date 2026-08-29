@@ -230,7 +230,8 @@ export function useCampaignRouteModel({
     onRedoEditingMap: actions.redoEditingMap,
     onSetEditingMapActive: actions.setEditingMapActive,
     onBackToMapsList: handleBackToMapsList,
-    onMapUploadError: handleMapUploadError
+    onMapUploadError: handleMapUploadError,
+    onOpenCharacterEdit: navigation.openCharacterEdit
   };
 
   const boardPageProps: CampaignPageProps = {
@@ -306,7 +307,8 @@ export function useCampaignRouteModel({
     onSaveActor: actions.saveActor,
     onRealtimeSaveActor: actions.saveActorRealtime,
     onRoll: actions.rollFromSheet,
-    onUpdateToken: actions.updateToken
+    onUpdateToken: actions.updateToken,
+    onOpenCharacterEdit: navigation.openCharacterEdit
   };
 
   return {

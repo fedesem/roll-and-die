@@ -7,7 +7,10 @@ export type AppRoute =
   | { name: "campaignJoin"; code?: string }
   | { name: "admin" }
   | { name: "campaign"; campaignId: string }
-  | { name: "campaignBoard"; campaignId: string };
+  | { name: "campaignBoard"; campaignId: string }
+  | { name: "campaignCharacters"; campaignId: string }
+  | { name: "campaignCharacterEdit"; campaignId: string; actorId: string }
+  | { name: "campaignCharacterLevelUp"; campaignId: string; actorId: string };
 
 export function parseAppRoute(pathname: string): AppRoute {
   if (pathname === "/" || pathname === "/campaigns") {
@@ -32,6 +35,32 @@ export function parseAppRoute(pathname: string): AppRoute {
     return { name: "admin" };
   }
 
+  const characterEditMatch = pathname.match(/^\/campaign\/([^/]+)\/characters\/([^/]+)\/edit$/);
+  if (characterEditMatch?.[1] && characterEditMatch?.[2]) {
+    return {
+      name: "campaignCharacterEdit",
+      campaignId: decodeURIComponent(characterEditMatch[1]),
+      actorId: decodeURIComponent(characterEditMatch[2])
+    };
+  }
+
+  const characterLevelUpMatch = pathname.match(/^\/campaign\/([^/]+)\/characters\/([^/]+)\/level-up$/);
+  if (characterLevelUpMatch?.[1] && characterLevelUpMatch?.[2]) {
+    return {
+      name: "campaignCharacterLevelUp",
+      campaignId: decodeURIComponent(characterLevelUpMatch[1]),
+      actorId: decodeURIComponent(characterLevelUpMatch[2])
+    };
+  }
+
+  const charactersMatch = pathname.match(/^\/campaign\/([^/]+)\/characters$/);
+  if (charactersMatch?.[1]) {
+    return {
+      name: "campaignCharacters",
+      campaignId: decodeURIComponent(charactersMatch[1])
+    };
+  }
+
   const boardMatch = pathname.match(/^\/campaign\/([^/]+)\/board$/);
 
   if (boardMatch?.[1]) {
@@ -54,6 +83,18 @@ export function appRouteToPath(route: AppRoute) {
 
   if (route.name === "campaignBoard") {
     return `/campaign/${encodeURIComponent(route.campaignId)}/board`;
+  }
+
+  if (route.name === "campaignCharacters") {
+    return `/campaign/${encodeURIComponent(route.campaignId)}/characters`;
+  }
+
+  if (route.name === "campaignCharacterEdit") {
+    return `/campaign/${encodeURIComponent(route.campaignId)}/characters/${encodeURIComponent(route.actorId)}/edit`;
+  }
+
+  if (route.name === "campaignCharacterLevelUp") {
+    return `/campaign/${encodeURIComponent(route.campaignId)}/characters/${encodeURIComponent(route.actorId)}/level-up`;
   }
 
   if (route.name === "campaignCreate") {

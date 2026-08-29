@@ -26,10 +26,10 @@ const selectedCampaignStorageKey = "dnd-board-selected-campaign";
 
 export default function App() {
   const { route, navigate } = useAppRoute();
-  const isCampaignRoute = route.name === "campaign" || route.name === "campaignBoard";
+  const isCampaignRoute = "campaignId" in route;
   const isCampaignBoardRoute = route.name === "campaignBoard";
   const [selectedCampaignId, setSelectedCampaignIdState] = useState<string | null>(() =>
-    isCampaignRoute ? route.campaignId : readJson<string>(selectedCampaignStorageKey)
+    "campaignId" in route ? route.campaignId : readJson<string>(selectedCampaignStorageKey)
   );
   const [createCampaignName, setCreateCampaignName] = useState("");
   const [createCampaignAllowedSourceBooks, setCreateCampaignAllowedSourceBooks] = useState<string[]>([]);
@@ -104,7 +104,7 @@ export default function App() {
   }, [selectedCampaignId]);
 
   useEffect(() => {
-    if (route.name === "campaign" || route.name === "campaignBoard") {
+    if ("campaignId" in route) {
       setSelectedCampaignIdState((current) => (current === route.campaignId ? current : route.campaignId));
     }
   }, [route]);
@@ -525,6 +525,12 @@ export default function App() {
         showRoomStatus={isCampaignRoute && Boolean(campaign)}
         onOpenAdmin={() => void navigate({ name: "admin" })}
         onOpenCampaigns={() => void navigate({ name: "campaigns" })}
+        onOpenCharacters={
+          selectedCampaignId ? () => void navigate({ name: "campaignCharacters", campaignId: selectedCampaignId }) : undefined
+        }
+        isCharactersRoute={
+          route.name === "campaignCharacters" || route.name === "campaignCharacterEdit" || route.name === "campaignCharacterLevelUp"
+        }
         onLogout={handleLogout}
       />
 
