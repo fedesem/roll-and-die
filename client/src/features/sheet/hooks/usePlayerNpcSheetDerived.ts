@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import type { ProgressionChoiceGroupDef } from "@shared/data/progression";
+import { findClassProgression } from "@shared/data/progression";
 import { evaluateActorRestChoices } from "@shared/rules/progressionEngine";
 import type { ActorSheet, CampaignSnapshot, MemberRole } from "@shared/types";
 
@@ -25,7 +26,6 @@ import {
   bonusTotal,
   derivedArmorClass,
   derivedSpeed,
-  findCompendiumClass,
   normalizeKey,
   proficiencyBonusForLevel,
   spellAttackBonus,
@@ -145,8 +145,8 @@ export function usePlayerNpcSheetDerived({
     const featRows = collectFeatRows(draft.feats, compendium.feats);
     const filteredFeats = compendium.feats;
     const canPrepareSpells = draft.classes.some((actorClass) => {
-      const entry = findCompendiumClass(actorClass, compendium.classes);
-      return entry?.spellPreparation === "prepared" || entry?.spellPreparation === "spellbook";
+      const definition = findClassProgression(actorClass.compendiumId) ?? findClassProgression(actorClass.name);
+      return definition?.spellcastingRules?.changeCadence === "onLongRest";
     });
     const preparableSpellEntries = findSpellEntriesByNames(spellCollections.preparable, compendium.spells);
     const longRestPreparedSpellRows = collectSpellRows(

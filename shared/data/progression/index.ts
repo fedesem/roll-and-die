@@ -35,8 +35,9 @@ export * from "./types.js";
 export * from "./actions.js";
 export * from "./validation.js";
 
-const rawClasses = [artificer, barbarian, bard, cleric, druid, fighter, monk, paladin, ranger, rogue, sorcerer, warlock, wizard];
-const rawSubclasses = Object.values(SUBCLASS_DATA_BY_CLASS).flat();
+const rawClasses = [barbarian, bard, cleric, druid, fighter, monk, paladin, ranger, rogue, sorcerer, warlock, wizard];
+const rawSubclassEntries = Object.entries(SUBCLASS_DATA_BY_CLASS) as Array<[string, unknown[]]>;
+const rawSubclasses = rawSubclassEntries.filter(([classId]) => classId !== "artificer").flatMap(([, subclasses]) => subclasses);
 
 export const PROGRESSION_CATALOG_DIAGNOSTICS = validateProgressionCatalog({
   classes: rawClasses,
@@ -53,7 +54,6 @@ if (PROGRESSION_CATALOG_DIAGNOSTICS.length > 0) {
 }
 
 export const CLASS_PROGRESSIONS: Record<string, ClassProgressionDef> = {
-  artificer: artificer as unknown as ClassProgressionDef,
   barbarian: barbarian as unknown as ClassProgressionDef,
   bard: bard as unknown as ClassProgressionDef,
   cleric: cleric as unknown as ClassProgressionDef,
@@ -66,6 +66,10 @@ export const CLASS_PROGRESSIONS: Record<string, ClassProgressionDef> = {
   sorcerer: sorcerer as unknown as ClassProgressionDef,
   warlock: warlock as unknown as ClassProgressionDef,
   wizard: wizard as unknown as ClassProgressionDef
+};
+
+const COMPATIBILITY_CLASS_PROGRESSIONS: Record<string, ClassProgressionDef> = {
+  artificer: artificer as unknown as ClassProgressionDef
 };
 
 export const SUBCLASSES_BY_CLASS: Record<string, SubclassProgressionDef[]> = {
@@ -107,10 +111,18 @@ export const PROGRESSION_REGISTRY: ProgressionRegistry = {
 
 export function findClassProgression(classNameOrId: string): ClassProgressionDef | null {
   const norm = classNameOrId.toLowerCase().replace(/[^a-z0-9]+/g, "");
-  for (const [key, value] of Object.entries(CLASS_PROGRESSIONS)) {
+  for (const [key, value] of Object.entries({ ...CLASS_PROGRESSIONS, ...COMPATIBILITY_CLASS_PROGRESSIONS })) {
     if (key === norm || value.id === classNameOrId || value.name.toLowerCase().replace(/[^a-z0-9]+/g, "") === norm) {
       return value;
     }
+  }
+  return null;
+}
+
+export function findBaseClassProgression(classNameOrId: string): ClassProgressionDef | null {
+  const norm = classNameOrId.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  for (const [key, value] of Object.entries(CLASS_PROGRESSIONS)) {
+    if (key === norm || value.id === classNameOrId || value.name.toLowerCase().replace(/[^a-z0-9]+/g, "") === norm) return value;
   }
   return null;
 }

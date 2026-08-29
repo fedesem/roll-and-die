@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { AbilityKey, ActorSheet } from "@shared/types";
+import { findBaseClassProgression } from "@shared/data/progression";
 import { createProgressionAwardFromActorDelta } from "@shared/rules/progressionEngine";
 
 import type {
@@ -332,8 +333,8 @@ export function useGuidedSheetFlow({
     [compendium.skills, guidedSelectedSpecies]
   );
   const guidedSpeciesOriginFeatOptions = useMemo(
-    () => deriveSpeciesOriginFeatOptions(guidedSelectedSpecies, compendium.feats),
-    [compendium.feats, guidedSelectedSpecies]
+    () => deriveSpeciesOriginFeatOptions(guidedSelectedSpecies, compendium.feats).filter((feat) => feat.id !== guidedSetup.originFeatId),
+    [compendium.feats, guidedSelectedSpecies, guidedSetup.originFeatId]
   );
   const guidedSpeciesChoiceGroups = useMemo(() => deriveSpeciesChoiceGroups(guidedSelectedSpecies), [guidedSelectedSpecies]);
   const guidedAbilityChoiceConfig = useMemo(() => deriveBackgroundAbilityConfig(guidedSelectedBackground), [guidedSelectedBackground]);
@@ -450,7 +451,8 @@ export function useGuidedSheetFlow({
           ...guidedSetup.knownSpellIds,
           ...guidedSetup.spellbookSpellIds,
           ...guidedSetup.preparedSpellIds
-        ]
+        ],
+        selectedSpellbookSpellIds: guidedSetup.spellbookSpellIds
       }),
     [
       compendium.classes,
@@ -526,6 +528,9 @@ export function useGuidedSheetFlow({
       const nextSpellbookSpellIds = current.spellbookSpellIds
         .filter((entry) => guidedChoiceSpec.spellbookOptions.some((spell) => spell.id === entry))
         .slice(0, guidedChoiceSpec.spellbookCount);
+      const nextPreparedSpellIds = current.preparedSpellIds
+        .filter((entry) => guidedChoiceSpec.preparedSpellOptions.some((spell) => spell.id === entry))
+        .slice(0, guidedChoiceSpec.preparedSpellCount);
       const nextExpertiseSkillChoices = normalizeGuideSelections(
         current.expertiseSkillChoices,
         guidedChoiceSpec.expertiseCount,
@@ -560,6 +565,7 @@ export function useGuidedSheetFlow({
         shallowEqualArray(current.cantripIds, nextCantripIds) &&
         shallowEqualArray(current.knownSpellIds, nextKnownSpellIds) &&
         shallowEqualArray(current.spellbookSpellIds, nextSpellbookSpellIds) &&
+        shallowEqualArray(current.preparedSpellIds, nextPreparedSpellIds) &&
         shallowEqualArray(current.expertiseSkillChoices, nextExpertiseSkillChoices) &&
         current.asiFeatId === nextAsiFeatId &&
         shallowEqualArray(current.asiAbilityChoices, nextAsiAbilityChoices) &&
@@ -586,6 +592,7 @@ export function useGuidedSheetFlow({
         cantripIds: nextCantripIds,
         knownSpellIds: nextKnownSpellIds,
         spellbookSpellIds: nextSpellbookSpellIds,
+        preparedSpellIds: nextPreparedSpellIds,
         expertiseSkillChoices: nextExpertiseSkillChoices,
         asiFeatId: nextAsiFeatId,
         asiAbilityChoices: nextAsiAbilityChoices
@@ -674,7 +681,8 @@ export function useGuidedSheetFlow({
 
     const nextSpeciesId = draft.build?.speciesId ?? compendium.races[0]?.id ?? "";
     const nextBackgroundId = draft.build?.backgroundId ?? compendium.backgrounds[0]?.id ?? "";
-    const nextClassId = draft.classes[0]?.compendiumId ?? compendium.classes[0]?.id ?? "";
+    const firstBaseClass = compendium.classes.find((entry) => findBaseClassProgression(entry.id) || findBaseClassProgression(entry.name));
+    const nextClassId = draft.classes[0]?.compendiumId ?? firstBaseClass?.id ?? "";
     const backgroundEntry = compendium.backgrounds.find((entry) => entry.id === nextBackgroundId) ?? null;
     const classEntry = compendium.classes.find((entry) => entry.id === nextClassId) ?? null;
     const equipmentGroups = [...deriveBackgroundEquipmentGroups(backgroundEntry), ...deriveClassEquipmentGroups(classEntry)];
@@ -701,7 +709,12 @@ export function useGuidedSheetFlow({
       cantripIds: [],
       knownSpellIds: [],
       spellbookSpellIds: [],
-      preparedSpellIds: [],
+      preparedSpellIds:
+        mode === "levelup"
+          ? compendium.spells
+              .filter((spell) => draft.preparedSpells.some((name) => normalizeKey(name) === normalizeKey(spell.name)))
+              .map((spell) => spell.id)
+          : [],
       expertiseSkillChoices: [],
       weaponMasteryChoices: [],
       asiMode: "feat",

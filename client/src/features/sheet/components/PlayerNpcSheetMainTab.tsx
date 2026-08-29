@@ -288,7 +288,7 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
             <div className="flex items-center justify-between border border-white/5 bg-black/10 px-2.5 py-1.5 text-xs">
               <span className="text-zinc-400">Prepared Spells:</span>
               <span className="font-mono text-amber-300">
-                {draft.preparedSpells.length} / {derived.preparedSpellLimit}
+                {draft.preparedSpells.length} prepared • wizard target {derived.preparedSpellLimit}
               </span>
             </div>
           ) : null}

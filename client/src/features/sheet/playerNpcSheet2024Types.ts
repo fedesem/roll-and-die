@@ -31,6 +31,12 @@ export type SheetCompendium = CampaignSnapshot["compendium"];
 export type SheetTab = "main" | "edit";
 export type RollMode = "normal" | "advantage" | "disadvantage";
 export type GuidedFlowMode = "setup" | "levelup";
+export interface GuidedSpellChoiceTarget {
+  kind: "guidedChoice";
+  owner: "class" | "feat";
+  ownerId: string;
+  groupId: string;
+}
 export type SpellSelectionTarget =
   | "mainPrepared"
   | "longRestPrepared"
@@ -44,7 +50,8 @@ export type SpellSelectionTarget =
   | "guideCantrips"
   | "guideKnown"
   | "guideSpellbook"
-  | "guidePrepared";
+  | "guidePrepared"
+  | GuidedSpellChoiceTarget;
 
 export const NEW_GUIDED_CLASS_ID = "__new_class__";
 
@@ -166,6 +173,7 @@ export interface GuidedChoiceSpec {
   cantripCount: number;
   knownSpellOptions: SpellEntry[];
   knownSpellCount: number;
+  knownSpellLabel?: string;
   spellbookOptions: SpellEntry[];
   spellbookCount: number;
   preparedSpellOptions: SpellEntry[];

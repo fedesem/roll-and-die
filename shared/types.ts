@@ -464,6 +464,8 @@ export interface CompendiumChoiceGroup {
   count: number;
   level?: number;
   parentOption?: { groupId: string; optionId: string };
+  selectionKind?: "options" | "spells";
+  spellBucket?: "known" | "alwaysPrepared" | "alwaysPreparedPerLongRest";
   options: CompendiumChoiceOption[];
 }
 

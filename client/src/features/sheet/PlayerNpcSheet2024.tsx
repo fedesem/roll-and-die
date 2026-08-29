@@ -73,6 +73,47 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
       return null;
     }
 
+    if (typeof state.spellSelectionTarget === "object") {
+      const target = state.spellSelectionTarget;
+      const group =
+        target.owner === "class"
+          ? guided.guidedChoiceSpec.classChoiceGroups.find((entry) => entry.id === target.groupId)
+          : guided.guidedChoiceSpec.featChoiceGroups[target.ownerId]?.find((entry) => entry.id === target.groupId);
+      if (!group) return null;
+      const spells = compendium.spells.filter((spell) => group.options.some((option) => option.id === spell.id));
+      const selectedSpellIds =
+        target.owner === "class"
+          ? (guided.guidedSetup.classChoiceIds[target.groupId] ?? [])
+          : (guided.guidedSetup.featChoiceMap[target.ownerId]?.[target.groupId] ?? []);
+      return {
+        title: group.label,
+        subtitle: `Choose exactly ${group.count} eligible spell${group.count === 1 ? "" : "s"}. Eligibility filters are fixed by the feature's JSON rules.`,
+        spells,
+        selectedSpellIds: selectedSpellIds.filter((id) => spells.some((spell) => spell.id === id)),
+        maxSelections: group.count,
+        lockEligibilityFilters: true,
+        applyLabel: "Apply Spell Choice",
+        onApply: (spellIds) =>
+          guided.setGuidedSetup((current) =>
+            target.owner === "class"
+              ? {
+                  ...current,
+                  classChoiceIds: { ...current.classChoiceIds, [target.groupId]: spellIds.slice(0, group.count) }
+                }
+              : {
+                  ...current,
+                  featChoiceMap: {
+                    ...current.featChoiceMap,
+                    [target.ownerId]: {
+                      ...(current.featChoiceMap[target.ownerId] ?? {}),
+                      [target.groupId]: spellIds.slice(0, group.count)
+                    }
+                  }
+                }
+          )
+      };
+    }
+
     switch (state.spellSelectionTarget) {
       case "mainPrepared":
         return {
@@ -188,8 +229,8 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
         };
       case "guideKnown":
         return {
-          title: "Guide Known Spells",
-          subtitle: "Choose the spells learned from this guide step.",
+          title: guided.guidedChoiceSpec.knownSpellLabel ?? "Class Spells",
+          subtitle: "Choose the class spells prepared by this guide step.",
           spells: guided.guidedChoiceSpec.knownSpellOptions,
           selectedSpellIds: guided.guidedSetup.knownSpellIds.filter((entry) =>
             guided.guidedChoiceSpec.knownSpellOptions.some((spell) => spell.id === entry)

@@ -32,6 +32,12 @@
     }
   ],
   "spellListId": "paladin",
+  "spellcastingRules": {
+    "preparedSpellsProgression": [2, 3, 4, 5, 6, 6, 7, 7, 9, 9, 10, 10, 11, 11, 12, 12, 14, 14, 15, 15],
+    "preparationSource": "classList",
+    "changeCadence": "onLongRest",
+    "replacementMode": "one"
+  },
   "multiclassing": {
     "prerequisites": { "str": 13, "cha": 13 },
     "proficienciesGranted": {
@@ -46,8 +52,6 @@
       "weaponMasteriesCount": 2,
       "spellcasting": {
         "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 2 },
-        "changeCadence": "onLongRest",
         "spellcastingAbility": "cha"
       },
       "resources": [
@@ -80,22 +84,24 @@
             {
               "id": "blessed-warrior",
               "name": "Blessed Warrior",
-              "grants": { "features": ["Fighting Style: Blessed Warrior (Two Cleric Cantrips)"] }
+              "grants": {
+                "features": ["Fighting Style: Blessed Warrior"],
+                "spellList": "Cleric",
+                "cantripsCount": 2
+              }
             }
           ]
         }
       ],
       "spellcasting": {
-        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 3 }
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0]
       }
     },
     "3": {
       "features": ["Channel Divinity", "Sacred Oath"],
       "subclassChoice": true,
       "spellcasting": {
-        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 4 }
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0]
       },
       "resources": [
         {
@@ -111,57 +117,49 @@
       "features": ["Ability Score Improvement"],
       "asiChoice": true,
       "spellcasting": {
-        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 5 }
+        "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0]
       }
     },
     "5": {
       "features": ["Extra Attack", "Faithful Steed"],
       "spellcasting": {
-        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 6 }
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0]
       }
     },
     "6": {
       "features": ["Aura of Protection"],
       "spellcasting": {
-        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 6 }
+        "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0]
       }
     },
     "7": {
       "spellcasting": {
-        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 7 }
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0]
       }
     },
     "8": {
       "features": ["Ability Score Improvement"],
       "asiChoice": true,
       "spellcasting": {
-        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 7 }
+        "slots": [4, 3, 0, 0, 0, 0, 0, 0, 0]
       }
     },
     "9": {
       "features": ["Abjure Foes"],
       "spellcasting": {
-        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 9 }
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0]
       }
     },
     "10": {
       "features": ["Aura of Courage"],
       "spellcasting": {
-        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 9 }
+        "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0]
       }
     },
     "11": {
       "features": ["Radiant Strikes"],
       "spellcasting": {
-        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 10 }
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0]
       },
       "resources": [
         {
@@ -177,62 +175,53 @@
       "features": ["Ability Score Improvement"],
       "asiChoice": true,
       "spellcasting": {
-        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 10 }
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0]
       }
     },
     "13": {
       "spellcasting": {
-        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 11 }
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0]
       }
     },
     "14": {
       "features": ["Restoring Touch"],
       "spellcasting": {
-        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 11 }
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0]
       }
     },
     "15": {
       "spellcasting": {
-        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 12 }
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0]
       }
     },
     "16": {
       "features": ["Ability Score Improvement"],
       "asiChoice": true,
       "spellcasting": {
-        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 12 }
+        "slots": [4, 3, 3, 2, 0, 0, 0, 0, 0]
       }
     },
     "17": {
       "spellcasting": {
-        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 14 }
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0]
       }
     },
     "18": {
       "features": ["Aura Expansion"],
       "spellcasting": {
-        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 14 }
+        "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0]
       }
     },
     "19": {
       "features": ["Epic Boon"],
       "asiChoice": true,
       "spellcasting": {
-        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 15 }
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0]
       }
     },
     "20": {
       "spellcasting": {
-        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0],
-        "preparedSpellsFormula": { "type": "table", "count": 15 }
+        "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0]
       }
     }
   },

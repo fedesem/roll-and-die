@@ -163,6 +163,15 @@ export const classProgressionDataSchema = z
     startingSkillChoices: z.object({ choose: z.number().int().nonnegative(), options: stringArray }).optional(),
     equipmentChoices: equipmentChoicesSchema,
     spellListId: z.string().min(1).optional(),
+    spellcastingRules: z
+      .object({
+        preparedSpellsProgression: z.array(z.number().int().nonnegative()).length(20),
+        preparationSource: z.enum(["classList", "spellbook"]),
+        changeCadence: z.enum(["onLongRest", "onLevelUp"]),
+        replacementMode: z.enum(["all", "one"])
+      })
+      .strict()
+      .optional(),
     multiclassing: z
       .object({
         prerequisites: z.partialRecord(abilitySchema, z.number().int()).default({}),
@@ -306,6 +315,19 @@ export function validateProgressionCatalog(input: ProgressionCatalogInput): stri
     for (let level = 1; level <= 20; level += 1) {
       if (!parsed.data.levels[String(level)]) errors.push(`classes[${classIndex}]: missing level ${level}`);
     }
+    if (parsed.data.source !== "XPHB") errors.push(`classes[${classIndex}]: 2024 base classes must use source XPHB`);
+    if (parsed.data.multiclassing.casterType !== "none" && !parsed.data.spellcastingRules) {
+      errors.push(`classes[${classIndex}]: spellcasting base classes require fixed 2024 spellcastingRules`);
+    }
+    Object.entries(parsed.data.levels).forEach(([level, config]) => {
+      const spellcasting = config.spellcasting as Record<string, unknown> | undefined;
+      if (
+        spellcasting &&
+        ("preparedSpellsFormula" in spellcasting || "spellsKnown" in spellcasting || "useSpellsFormula" in spellcasting)
+      ) {
+        errors.push(`classes[${classIndex}].levels.${level}: legacy prepared-spell fields are not allowed`);
+      }
+    });
     Object.entries(parsed.data.levels).forEach(([level, config]) =>
       validateChoiceDomains(`classes[${classIndex}].levels.${level}`, config.choices)
     );

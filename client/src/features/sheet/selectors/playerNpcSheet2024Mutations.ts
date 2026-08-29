@@ -84,9 +84,9 @@ export function finalizeDraftForSave(
   next.spellSlots = derived.spellSlots;
   next.resources = derived.resources;
   next.features = mergeTextValues([], derived.featureNames);
-  next.preparedSpells = next.preparedSpells
-    .filter((entry) => derived.preparableSpellNames.some((name) => normalizeKey(name) === normalizeKey(entry)))
-    .slice(0, derived.preparedSpellLimit > 0 ? derived.preparedSpellLimit : next.preparedSpells.length);
+  // Manual sheet saves preserve the user's list. Guided setup and level-up
+  // replace their class preparation selections explicitly when applied.
+  next.preparedSpells = mergeTextValues([], next.preparedSpells);
   return next;
 }
 
@@ -574,13 +574,15 @@ export function applyGuideSelectionsToActor(
     selections.push(createBuildSelection("spell", params.level, spell.id, spell.name, spell.source, "Guide spellbook"));
   });
 
-  if (params.setup.preparedSpellIds && params.setup.preparedSpellIds.length > 0) {
-    const chosenNames = params.setup.preparedSpellIds
+  if (params.spec.preparedSpellCount > 0) {
+    const chosenNames = (params.setup.preparedSpellIds ?? [])
+      .slice(0, params.spec.preparedSpellCount)
       .map((id) => params.compendium.spells.find((s) => s.id === id)?.name)
       .filter((name): name is string => Boolean(name));
-    if (chosenNames.length > 0) {
-      next.preparedSpells = mergeTextValues(next.preparedSpells, chosenNames);
-    }
+    const targetClassSpellNames = new Set(params.spec.preparedSpellOptions.map((spell) => normalizeKey(spell.name)));
+    const preparationsFromOtherClasses = next.preparedSpells.filter((name) => !targetClassSpellNames.has(normalizeKey(name)));
+    next.preparedSpells = mergeTextValues(preparationsFromOtherClasses, chosenNames);
+    next.spells = mergeTextValues(next.spells, chosenNames);
   }
 
   if (params.setup.languageChoices && params.setup.languageChoices.length > 0) {
@@ -674,7 +676,7 @@ export function applyGuideSelectionsToActor(
         next.features = mergeTextValues(next.features, option.grants.features);
       }
       if (option.grants?.spells) {
-        next.spells = mergeTextValues(next.spells, option.grants.spells);
+        applyChoiceSpellGrant(next, group, option.grants.spells);
       }
       if (option.grants?.alwaysPreparedSpells) {
         next.spellState = {
@@ -754,7 +756,7 @@ export function applyGuideSelectionsToActor(
           next.features = mergeTextValues(next.features, option.grants.features);
         }
         if (option.grants?.spells) {
-          next.spells = mergeTextValues(next.spells, option.grants.spells);
+          applyChoiceSpellGrant(next, group, option.grants.spells);
         }
         if (option.grants?.alwaysPreparedSpells) {
           next.spellState.alwaysPrepared = mergeTextValues(next.spellState.alwaysPrepared, option.grants.alwaysPreparedSpells);
@@ -899,6 +901,16 @@ function applyProgressionGrants(actor: ActorSheet, grants: ProgressionChoiceOpti
     });
   });
   applyPassiveBonuses(actor, grants.passiveBonuses, source);
+}
+
+function applyChoiceSpellGrant(actor: ActorSheet, group: CompendiumChoiceGroup, spellNames: string[]) {
+  actor.spells = mergeTextValues(actor.spells, spellNames);
+  if (group.spellBucket === "alwaysPrepared" || group.spellBucket === "alwaysPreparedPerLongRest") {
+    actor.spellState.alwaysPrepared = mergeTextValues(actor.spellState.alwaysPrepared, spellNames);
+  }
+  if (group.spellBucket === "alwaysPreparedPerLongRest") {
+    actor.spellState.perLongRest = mergeTextValues(actor.spellState.perLongRest, spellNames);
+  }
 }
 
 function applyPassiveBonuses(actor: ActorSheet, bonuses: NonNullable<ProgressionChoiceOption["grants"]>["passiveBonuses"], source: string) {

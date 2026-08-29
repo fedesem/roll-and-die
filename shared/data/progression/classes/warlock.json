@@ -35,6 +35,12 @@
     }
   ],
   "spellListId": "warlock",
+  "spellcastingRules": {
+    "preparedSpellsProgression": [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15],
+    "preparationSource": "classList",
+    "changeCadence": "onLevelUp",
+    "replacementMode": "one"
+  },
   "multiclassing": {
     "prerequisites": { "cha": 13 },
     "proficienciesGranted": {
@@ -132,24 +138,20 @@
       "spellcasting": {
         "slots": [1, 0, 0, 0, 0, 0, 0, 0, 0],
         "cantripsKnown": 2,
-        "spellsKnown": 2,
-        "changeCadence": "onLevelUp",
         "spellcastingAbility": "cha"
       }
     },
     "2": {
       "features": ["Magical Cunning"],
       "spellcasting": {
-        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
-        "spellsKnown": 3
+        "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0]
       }
     },
     "3": {
       "features": ["Otherworldly Patron"],
       "subclassChoice": true,
       "spellcasting": {
-        "slots": [0, 2, 0, 0, 0, 0, 0, 0, 0],
-        "spellsKnown": 4
+        "slots": [0, 2, 0, 0, 0, 0, 0, 0, 0]
       }
     },
     "4": {
@@ -157,119 +159,102 @@
       "asiChoice": true,
       "spellcasting": {
         "slots": [0, 2, 0, 0, 0, 0, 0, 0, 0],
-        "cantripsKnown": 3,
-        "spellsKnown": 5
+        "cantripsKnown": 3
       }
     },
     "5": {
       "spellcasting": {
-        "slots": [0, 0, 2, 0, 0, 0, 0, 0, 0],
-        "spellsKnown": 6
+        "slots": [0, 0, 2, 0, 0, 0, 0, 0, 0]
       }
     },
     "6": {
       "spellcasting": {
-        "slots": [0, 0, 2, 0, 0, 0, 0, 0, 0],
-        "spellsKnown": 7
+        "slots": [0, 0, 2, 0, 0, 0, 0, 0, 0]
       }
     },
     "7": {
       "spellcasting": {
-        "slots": [0, 0, 0, 2, 0, 0, 0, 0, 0],
-        "spellsKnown": 8
+        "slots": [0, 0, 0, 2, 0, 0, 0, 0, 0]
       }
     },
     "8": {
       "features": ["Ability Score Improvement"],
       "asiChoice": true,
       "spellcasting": {
-        "slots": [0, 0, 0, 2, 0, 0, 0, 0, 0],
-        "spellsKnown": 9
+        "slots": [0, 0, 0, 2, 0, 0, 0, 0, 0]
       }
     },
     "9": {
       "features": ["Contact Patron"],
       "spellcasting": {
-        "slots": [0, 0, 0, 0, 2, 0, 0, 0, 0],
-        "spellsKnown": 10
+        "slots": [0, 0, 0, 0, 2, 0, 0, 0, 0]
       }
     },
     "10": {
       "spellcasting": {
         "slots": [0, 0, 0, 0, 2, 0, 0, 0, 0],
-        "cantripsKnown": 4,
-        "spellsKnown": 10
+        "cantripsKnown": 4
       }
     },
     "11": {
       "features": ["Mystic Arcanum (Level 6)"],
       "spellcasting": {
-        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0],
-        "spellsKnown": 11
+        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0]
       }
     },
     "12": {
       "features": ["Ability Score Improvement"],
       "asiChoice": true,
       "spellcasting": {
-        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0],
-        "spellsKnown": 11
+        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0]
       }
     },
     "13": {
       "features": ["Mystic Arcanum (Level 7)"],
       "spellcasting": {
-        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0],
-        "spellsKnown": 12
+        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0]
       }
     },
     "14": {
       "spellcasting": {
-        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0],
-        "spellsKnown": 12
+        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0]
       }
     },
     "15": {
       "features": ["Mystic Arcanum (Level 8)"],
       "spellcasting": {
-        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0],
-        "spellsKnown": 13
+        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0]
       }
     },
     "16": {
       "features": ["Ability Score Improvement"],
       "asiChoice": true,
       "spellcasting": {
-        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0],
-        "spellsKnown": 13
+        "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0]
       }
     },
     "17": {
       "features": ["Mystic Arcanum (Level 9)"],
       "spellcasting": {
-        "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0],
-        "spellsKnown": 14
+        "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0]
       }
     },
     "18": {
       "spellcasting": {
-        "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0],
-        "spellsKnown": 14
+        "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0]
       }
     },
     "19": {
       "features": ["Epic Boon"],
       "asiChoice": true,
       "spellcasting": {
-        "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0],
-        "spellsKnown": 15
+        "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0]
       }
     },
     "20": {
       "features": ["Eldritch Master"],
       "spellcasting": {
-        "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0],
-        "spellsKnown": 15
+        "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0]
       }
     }
   },

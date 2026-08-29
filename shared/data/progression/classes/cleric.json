@@ -31,6 +31,12 @@
     }
   ],
   "spellListId": "cleric",
+  "spellcastingRules": {
+    "preparedSpellsProgression": [4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16, 16, 17, 17, 18, 18, 19, 20, 21, 22],
+    "preparationSource": "classList",
+    "changeCadence": "onLongRest",
+    "replacementMode": "all"
+  },
   "multiclassing": {
     "prerequisites": { "wis": 13 },
     "proficienciesGranted": {
@@ -85,8 +91,6 @@
       "spellcasting": {
         "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
         "cantripsKnown": 3,
-        "preparedSpellsFormula": { "type": "abilityPlusLevel", "ability": "wis" },
-        "changeCadence": "onLongRest",
         "ritualCasting": true,
         "spellcastingAbility": "wis"
       }

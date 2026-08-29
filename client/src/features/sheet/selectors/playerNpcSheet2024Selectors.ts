@@ -124,13 +124,13 @@ export function deriveOriginFeatOptions(background: CompendiumBackgroundEntry | 
   }
 
   const progression = findBackgroundProgression(background.id) ?? findBackgroundProgression(background.name);
-  const featIds = progression ? [progression.originFeatId] : [];
+  const featIds = progression ? [progression.originFeatId, progression.originFeatName] : [];
 
   const matched = featIds
     .map((entry) => feats.find((feat) => feat.id === entry) ?? feats.find((feat) => normalizeKey(feat.name) === normalizeKey(entry)))
     .filter((entry): entry is FeatEntry => Boolean(entry));
 
-  return matched;
+  return matched.filter((entry, index) => matched.findIndex((candidate) => candidate.id === entry.id) === index);
 }
 
 export function deriveBackgroundSkillChoiceConfig(
@@ -258,9 +258,14 @@ export function deriveSpeciesOriginFeatOptions(species: CompendiumSpeciesEntry |
   const featChoice = progDef?.choices?.find((choice) => choice.source === "species" && choice.id.includes("feat"));
 
   if (featChoice) {
-    return featChoice.options
-      .map((option) => feats.find((feat) => feat.id === option.id || normalizeKey(feat.name) === normalizeKey(option.name)))
-      .filter((entry): entry is FeatEntry => Boolean(entry));
+    const options = featChoice.options.flatMap((option) => {
+      if (option.id === "magic-initiate") {
+        return feats.filter((feat) => (findFeatProgression(feat.id) ?? findFeatProgression(feat.name))?.id.startsWith("magic-initiate-"));
+      }
+      const feat = feats.find((entry) => entry.id === option.id || normalizeKey(entry.name) === normalizeKey(option.name));
+      return feat ? [feat] : [];
+    });
+    return options.filter((entry, index) => options.findIndex((candidate) => candidate.id === entry.id) === index);
   }
   return [];
 }
@@ -584,12 +589,12 @@ export function deriveActorSpellCollections(actor: ActorSheet, compendium: Campa
         const definition = findClassProgression(actorClass.compendiumId) ?? findClassProgression(actorClass.name);
         if (!definition?.spellListId) return false;
         const spellListId = definition.spellListId;
-        const spellcastingConfigs = Object.values(definition.levels).map((level) => level.spellcasting);
         if (
-          !spellcastingConfigs.some((config) => config?.preparedSpellsFormula) ||
-          spellcastingConfigs.some((config) => config?.spellbookAdditions)
-        )
+          definition.spellcastingRules?.preparationSource !== "classList" ||
+          definition.spellcastingRules.changeCadence !== "onLongRest"
+        ) {
           return false;
+        }
         return (
           spellMatchesSingleClassFilter(entry, spellListId) ||
           entry.classReferences.some((reference) => normalizeKey(reference.className) === normalizeKey(spellListId))
@@ -862,8 +867,8 @@ export function validateGuideSelections(params: {
     return "Choose every required spellbook spell.";
   }
 
-  if (params.setup.preparedSpellIds.length > params.spec.preparedSpellCount) {
-    return `Prepare no more than ${params.spec.preparedSpellCount} spells.`;
+  if (!hasEnoughGuideSelections(params.setup.preparedSpellIds, params.spec.preparedSpellCount)) {
+    return "Choose every required prepared spell.";
   }
 
   if (!hasEnoughGuideSelections(params.setup.expertiseSkillChoices, params.spec.expertiseCount)) {
@@ -1037,6 +1042,7 @@ export function deriveGuidedChoiceSpec(params: {
   mode: GuidedFlowMode;
   selectedClassChoiceIds?: Record<string, string[]>;
   selectedSpellIds?: string[];
+  selectedSpellbookSpellIds?: string[];
 }): GuidedChoiceSpec {
   const actorClassForGuide =
     params.targetActorClassId && params.targetActorClassId !== NEW_GUIDED_CLASS_ID
@@ -1113,11 +1119,9 @@ export function deriveGuidedChoiceSpec(params: {
     latestNumber(targetLevel, (config) => config.spellcasting?.cantripsKnown) -
       latestNumber(currentLevel, (config) => config.spellcasting?.cantripsKnown)
   );
-  const knownSpellCount = Math.max(
-    0,
-    latestNumber(targetLevel, (config) => config.spellcasting?.spellsKnown) -
-      latestNumber(currentLevel, (config) => config.spellcasting?.spellsKnown)
-  );
+  const preparedProgression = classDef?.spellcastingRules?.preparedSpellsProgression ?? [];
+  const targetPreparedCount = preparedProgression[targetLevel - 1] ?? 0;
+  const knownSpellCount = 0;
   const spellbookCount = configAt(targetLevel)?.spellcasting?.spellbookAdditions ?? 0;
   const fightingStyleCount = 0;
   const expertiseCount = configAt(targetLevel)?.expertiseChoices ?? 0;
@@ -1153,29 +1157,14 @@ export function deriveGuidedChoiceSpec(params: {
     (entry) => typeof entry.level === "number" && entry.level <= maxSpellLevel && !existingSpellNames.has(normalizeKey(entry.name))
   );
 
-  const isPreparedCaster = Object.values(classDef?.levels ?? {}).some((level) => level.spellcasting?.preparedSpellsFormula);
-  const preparedSpellCount = isPreparedCaster
-    ? derivePreparedSpellLimit(
-        {
-          ...params.actor,
-          classes: [
-            {
-              id: classEntry.id,
-              compendiumId: classEntry.id,
-              name: classEntry.name,
-              source: classEntry.source,
-              level: targetLevel,
-              hitDieFaces: classEntry.hitDieFaces || 8,
-              usedHitDice: 0,
-              subclassId: activeSubclassId,
-              spellcastingAbility: classEntry.spellcastingAbility
-            }
-          ]
-        },
-        [classEntry]
-      )
-    : 0;
-  const preparedSpellOptions = classSpellOptions.filter((entry) => typeof entry.level === "number" && entry.level <= maxSpellLevel);
+  const preparedSpellCount = classDef?.spellcastingRules ? targetPreparedCount : 0;
+  const selectedSpellbookSpellIdSet = new Set(params.selectedSpellbookSpellIds ?? []);
+  const spellbookNames = new Set(params.actor.spellState.spellbook.map(normalizeKey));
+  const preparedSpellOptions = classSpellOptions.filter((entry) => {
+    if (typeof entry.level !== "number" || entry.level > maxSpellLevel) return false;
+    if (classDef?.spellcastingRules?.preparationSource !== "spellbook") return true;
+    return spellbookNames.has(normalizeKey(entry.name)) || selectedSpellbookSpellIdSet.has(entry.id);
+  });
 
   const hitDieFaces = classEntry.hitDieFaces || 8;
   const conModifier = abilityModifierTotal(params.actor, "con");
@@ -1220,6 +1209,7 @@ export function deriveGuidedChoiceSpec(params: {
     cantripCount,
     knownSpellOptions: leveledSpellOptions,
     knownSpellCount,
+    knownSpellLabel: classDef?.spellcastingRules?.changeCadence === "onLevelUp" ? "Prepared Spells" : "Class Spells",
     spellbookOptions: leveledSpellOptions,
     spellbookCount,
     preparedSpellOptions,
@@ -1315,10 +1305,16 @@ export function deriveClassChoiceGroups(
                   : referencedGroupEntry;
                 return {
                   id: opt.id,
-                  label: referencedEntry?.name ?? opt.name,
+                  label: opt.name,
                   compendiumRef: opt.referenceId ?? groupReferenceId,
-                  disabledReason: !referencedEntry ? `Unavailable compendium reference: ${opt.referenceId ?? groupReferenceId}` : undefined,
-                  description: referencedEntry && "description" in referencedEntry ? referencedEntry.description : "",
+                  description:
+                    referencedEntry && "description" in referencedEntry
+                      ? extractChoiceOptionDescription(
+                          referencedEntry.description,
+                          opt.name,
+                          eligibleOptions.map((option) => option.name)
+                        )
+                      : "",
                   grants: {
                     features: opt.grants?.features || [],
                     skills: opt.grants?.skills || [],
@@ -1383,6 +1379,8 @@ export function deriveClassChoiceGroups(
                   count: choice.count,
                   level: lvl,
                   parentOption: { groupId: g.id, optionId: rawOption.id },
+                  selectionKind: "spells",
+                  spellBucket: "known",
                   options: availableSpells.map((spell) => ({
                     id: spell.id,
                     label: spell.name,
@@ -1399,6 +1397,18 @@ export function deriveClassChoiceGroups(
   }
 
   return groups;
+}
+
+function extractChoiceOptionDescription(description: string, optionName: string, siblingNames: string[]) {
+  const normalizedDescription = description.toLowerCase();
+  const start = normalizedDescription.indexOf(optionName.toLowerCase());
+  if (start < 0) return description;
+  const nextStarts = siblingNames
+    .filter((name) => name !== optionName)
+    .map((name) => normalizedDescription.indexOf(name.toLowerCase(), start + optionName.length))
+    .filter((index) => index > start);
+  const end = nextStarts.length > 0 ? Math.min(...nextStarts) : description.length;
+  return description.slice(start, end).trim();
 }
 
 export function deriveFeatChoiceGroups(feat: FeatEntry, spells: SpellEntry[], actor: ActorSheet): CompendiumChoiceGroup[] {
@@ -1475,6 +1485,8 @@ export function deriveFeatChoiceGroups(feat: FeatEntry, spells: SpellEntry[], ac
         id: `${definition.id}:${spellGroup.suffix}`,
         label: `${feat.name}: ${spellGroup.label}`,
         count: spellGroup.count,
+        selectionKind: "spells",
+        spellBucket: spellGroup.cantrip ? "known" : "alwaysPreparedPerLongRest",
         options: listSpells
           .filter((spell) => (spellGroup.cantrip ? spell.level === "cantrip" : spell.level === 1))
           .map((spell) => ({

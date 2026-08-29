@@ -22,7 +22,8 @@ import {
   applyGuideSelectionsToActor,
   applySpeciesChoiceGroupSelections,
   applySpeciesChoiceSelections,
-  applySpeciesToActor
+  applySpeciesToActor,
+  finalizeDraftForSave
 } from "../src/features/sheet/selectors/playerNpcSheet2024Mutations";
 import {
   deriveAttunementCount,
@@ -469,6 +470,91 @@ describe("playerNpcSheet2024 extracted helpers", () => {
 
     expect(deriveSpeciesSkillChoiceConfig(species, skillEntries).count).toBe(0);
     expect(deriveSpeciesSkillChoiceConfig(species, skillEntries).options).toEqual([]);
+  });
+
+  it("preserves manual prepared-spell counts without normalizing them on save", () => {
+    const actor = createActor({ preparedSpells: ["Entangle", "Faerie Fire", "Healing Word"] });
+    const saved = finalizeDraftForSave(actor, {
+      armorClass: 10,
+      proficiencyBonus: 2,
+      speed: 30,
+      hitPointMax: 10,
+      spellSlots: [],
+      resources: [],
+      featureNames: [],
+      preparedSpellLimit: 2,
+      preparableSpellNames: ["Entangle", "Faerie Fire"]
+    });
+    expect(saved.preparedSpells).toEqual(["Entangle", "Faerie Fire", "Healing Word"]);
+  });
+
+  it("lets the wizard replace its class preparation set without changing other prepared spells", () => {
+    const druidClass = createClass({ id: "druid-xphb", name: "Druid", source: "XPHB", spellPreparation: "prepared" });
+    const druidSpells = ["Entangle", "Faerie Fire", "Healing Word", "Goodberry", "Fog Cloud", "Ice Knife"].map((name) =>
+      createSpell({ id: `${name.toLowerCase().replaceAll(" ", "-")}-xphb`, name, source: "XPHB", level: 1, classes: ["Druid"] })
+    );
+    const shield = createSpell({ id: "shield-xphb", name: "Shield", source: "XPHB", level: 1, classes: ["Wizard"] });
+    const compendium = createCompendium({ classes: [druidClass], spells: [...druidSpells, shield] });
+    let actor = applyClassToActor(createActor(), druidClass, compendium.classes);
+    actor.preparedSpells = [...druidSpells.slice(0, 5).map((spell) => spell.name), shield.name];
+    const spec = deriveGuidedChoiceSpec({
+      actor,
+      classes: compendium.classes,
+      spells: compendium.spells,
+      feats: [],
+      optionalFeatures: [],
+      targetClassId: druidClass.id,
+      targetActorClassId: actor.classes[0]?.id ?? "",
+      targetSubclassId: "",
+      mode: "levelup"
+    });
+    const chosenDruidSpells = druidSpells.slice(1, 6);
+
+    actor = applyGuideSelectionsToActor(actor, {
+      compendium,
+      setup: {
+        speciesId: "",
+        backgroundId: "",
+        classId: druidClass.id,
+        subclassId: "",
+        baseAbilities: actor.abilities,
+        backgroundAbilityModeId: "",
+        hpMode: "average",
+        rolledHp: null,
+        classFeatIds: [],
+        optionalFeatureIds: [],
+        classChoiceIds: {},
+        featChoiceMap: {},
+        cantripIds: [],
+        knownSpellIds: [],
+        spellbookSpellIds: [],
+        preparedSpellIds: chosenDruidSpells.map((spell) => spell.id),
+        expertiseSkillChoices: [],
+        weaponMasteryChoices: [],
+        asiMode: "feat",
+        asiAbilityMode: "+2",
+        asiFeatId: "",
+        asiAbilityChoices: [],
+        speciesSkillChoices: [],
+        backgroundSkillChoices: [],
+        classSkillChoices: [],
+        languageChoices: [],
+        speciesSizeChoice: "Medium",
+        speciesOriginFeatId: "",
+        speciesChoiceIds: {},
+        originFeatId: "",
+        equipmentChoiceIds: {},
+        abilityChoices: []
+      },
+      spec,
+      level: 2,
+      targetClass: druidClass,
+      targetActorClassId: actor.classes[0]?.id ?? null,
+      mode: "levelup"
+    });
+
+    expect(spec.preparedSpellCount).toBe(5);
+    expect(actor.preparedSpells).toEqual([shield.name, ...chosenDruidSpells.map((spell) => spell.name)]);
   });
 
   it("applies fixed and chosen setup skills from species and backgrounds", () => {
@@ -1591,9 +1677,43 @@ describe("playerNpcSheet2024 extracted helpers", () => {
       optionalFeatures: [],
       actor: createActor()
     });
+    expect(druidGroups.find((group) => group.id === "druid-primal-order")?.options.map((option) => option.label)).toEqual([
+      "Magician",
+      "Warden"
+    ]);
     expect(druidGroups.find((group) => group.id === "druid-primal-order:magician:cantrips")?.parentOption).toEqual({
       groupId: "druid-primal-order",
       optionId: "magician"
+    });
+    expect(druidGroups.find((group) => group.id === "druid-primal-order:magician:cantrips")?.selectionKind).toBe("spells");
+
+    const rangerClass = createClass({ id: "ranger-xphb", name: "Ranger", source: "XPHB" });
+    const rangerGroups = deriveClassChoiceGroups(rangerClass, 1, 2, {
+      spells: [druidCantrip],
+      optionalFeatures: [],
+      actor: createActor()
+    });
+    expect(rangerGroups.find((group) => group.id === "ranger-fighting-style:druidic-warrior:cantrips")).toMatchObject({
+      count: 2,
+      selectionKind: "spells"
+    });
+
+    const paladinClass = createClass({ id: "paladin-xphb", name: "Paladin", source: "XPHB" });
+    const clericCantrip = createSpell({
+      id: "thaumaturgy-xphb",
+      name: "Thaumaturgy",
+      source: "XPHB",
+      level: "cantrip",
+      classes: ["Cleric"]
+    });
+    const paladinGroups = deriveClassChoiceGroups(paladinClass, 1, 2, {
+      spells: [clericCantrip],
+      optionalFeatures: [],
+      actor: createActor()
+    });
+    expect(paladinGroups.find((group) => group.id === "paladin-fighting-style:blessed-warrior:cantrips")).toMatchObject({
+      count: 2,
+      selectionKind: "spells"
     });
   });
 
@@ -1606,7 +1726,12 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     ];
     const magicGroups = deriveFeatChoiceGroups(magicInitiate, wizardSpells, createActor());
     expect(magicGroups.find((group) => group.id === "magic-initiate-wizard-ability")?.count).toBe(1);
-    expect(magicGroups.find((group) => group.id === "magic-initiate-wizard:cantrips")?.count).toBe(2);
+    expect(magicGroups.find((group) => group.id === "magic-initiate-wizard:cantrips")).toMatchObject({
+      count: 2,
+      selectionKind: "spells",
+      spellBucket: "known"
+    });
+    expect(magicGroups.find((group) => group.id === "magic-initiate-wizard:spells")?.spellBucket).toBe("alwaysPreparedPerLongRest");
     expect(magicGroups.find((group) => group.id === "magic-initiate-wizard:spells")?.options.map((entry) => entry.label)).toEqual([
       "Shield"
     ]);
@@ -1616,6 +1741,91 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     expect(skilledGroup?.count).toBe(3);
     expect(skilledGroup?.options.some((option) => option.grants?.skills?.includes("Perception"))).toBe(true);
     expect(skilledGroup?.options.some((option) => option.grants?.tools?.includes("Thieves' Tools"))).toBe(true);
+  });
+
+  it("offers every Magic Initiate list to Humans and stores its leveled spell outside class preparation", () => {
+    const human = createSpecies({ id: "human-xphb", name: "Human", source: "XPHB" });
+    const magicInitiate = createFeat({ id: "magic-initiate-wizard", name: "Magic Initiate (Wizard)", source: "XPHB" });
+    const magicInitiateCleric = createFeat({ id: "magic-initiate-cleric", name: "Magic Initiate (Cleric)", source: "XPHB" });
+    const magicInitiateDruid = createFeat({ id: "magic-initiate-druid", name: "Magic Initiate (Druid)", source: "XPHB" });
+    const light = createSpell({ id: "light-xphb", name: "Light", source: "XPHB", level: "cantrip", classes: ["Wizard"] });
+    const mageHand = createSpell({ id: "mage-hand-xphb", name: "Mage Hand", source: "XPHB", level: "cantrip", classes: ["Wizard"] });
+    const shield = createSpell({ id: "shield-xphb", name: "Shield", source: "XPHB", level: 1, classes: ["Wizard"] });
+    const druidClass = createClass({ id: "druid-xphb", name: "Druid", source: "XPHB", spellPreparation: "prepared" });
+    const feats = [magicInitiate, magicInitiateCleric, magicInitiateDruid];
+    const compendium = createCompendium({ classes: [druidClass], feats, races: [human], spells: [light, mageHand, shield] });
+
+    expect(
+      deriveSpeciesOriginFeatOptions(human, feats)
+        .map((feat) => feat.id)
+        .sort()
+    ).toEqual(["magic-initiate-cleric", "magic-initiate-druid", "magic-initiate-wizard"]);
+
+    let actor = applyClassToActor(createActor(), druidClass, [druidClass]);
+    const spec = deriveGuidedChoiceSpec({
+      actor,
+      classes: [druidClass],
+      spells: [light, mageHand, shield],
+      feats,
+      optionalFeatures: [],
+      targetClassId: druidClass.id,
+      targetActorClassId: "",
+      targetSubclassId: "",
+      mode: "setup"
+    });
+    actor = applyGuideSelectionsToActor(actor, {
+      compendium,
+      setup: {
+        speciesId: human.id,
+        backgroundId: "",
+        classId: druidClass.id,
+        subclassId: "",
+        baseAbilities: actor.abilities,
+        backgroundAbilityModeId: "",
+        hpMode: "average",
+        rolledHp: null,
+        classFeatIds: [],
+        optionalFeatureIds: [],
+        classChoiceIds: {},
+        featChoiceMap: {
+          [magicInitiate.id]: {
+            "magic-initiate-wizard-ability": ["wis"],
+            "magic-initiate-wizard:cantrips": [light.id, mageHand.id],
+            "magic-initiate-wizard:spells": [shield.id]
+          }
+        },
+        cantripIds: [],
+        knownSpellIds: [],
+        spellbookSpellIds: [],
+        preparedSpellIds: [],
+        expertiseSkillChoices: [],
+        weaponMasteryChoices: [],
+        asiMode: "feat",
+        asiAbilityMode: "+2",
+        asiFeatId: "",
+        asiAbilityChoices: [],
+        speciesSkillChoices: [],
+        backgroundSkillChoices: [],
+        classSkillChoices: [],
+        languageChoices: ["Common"],
+        speciesSizeChoice: "Medium",
+        speciesOriginFeatId: magicInitiate.id,
+        speciesChoiceIds: {},
+        originFeatId: "",
+        equipmentChoiceIds: {},
+        abilityChoices: []
+      },
+      spec,
+      level: 1,
+      targetClass: druidClass,
+      targetActorClassId: actor.classes[0]?.id ?? null,
+      mode: "setup"
+    });
+
+    expect(actor.spells).toEqual(expect.arrayContaining(["Light", "Mage Hand", "Shield"]));
+    expect(actor.spellState.alwaysPrepared).toContain("Shield");
+    expect(actor.spellState.perLongRest).toContain("Shield");
+    expect(actor.preparedSpells).not.toContain("Shield");
   });
 
   it("derives subclass choice groups on level up such as Battle Master maneuvers and Hunter tactics", () => {
@@ -1688,5 +1898,6 @@ describe("playerNpcSheet2024 extracted helpers", () => {
 
     expect(spec.cantripOptions.map((s) => s.name)).toEqual(["Druidcraft"]);
     expect(spec.cantripCount).toBe(2);
+    expect(spec.preparedSpellCount).toBe(4);
   });
 });

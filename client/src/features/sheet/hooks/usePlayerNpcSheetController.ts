@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 
 import { applyRestChoiceSelections, hasProgressionFieldOverride } from "@shared/rules/progressionEngine";
+import { findClassProgression } from "@shared/data/progression";
 import type {
   AbilityKey,
   ActorClassEntry,
@@ -37,7 +38,6 @@ import {
   cloneActor,
   derivedArmorClass,
   derivedSpeed,
-  findCompendiumClass,
   proficiencyBonusForLevel,
   totalLevel
 } from "../sheetUtils";
@@ -632,8 +632,8 @@ export function usePlayerNpcSheetController({
     const nextDraft = cloneActor(draft);
     const derivedHitPointMax = deriveGuidedHitPointMax(nextDraft);
     const canPrepareSpells = nextDraft.classes.some((actorClass) => {
-      const classEntry = findCompendiumClass(actorClass, compendium.classes);
-      return classEntry?.spellPreparation === "prepared" || classEntry?.spellPreparation === "spellbook";
+      const definition = findClassProgression(actorClass.compendiumId) ?? findClassProgression(actorClass.name);
+      return definition?.spellcastingRules?.changeCadence === "onLongRest";
     });
 
     if (!hasProgressionFieldOverride(nextDraft, "hitPointMax")) {

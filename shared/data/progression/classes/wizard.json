@@ -31,6 +31,12 @@
     }
   ],
   "spellListId": "wizard",
+  "spellcastingRules": {
+    "preparedSpellsProgression": [4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16, 16, 17, 18, 19, 21, 22, 23, 24, 25],
+    "preparationSource": "spellbook",
+    "changeCadence": "onLongRest",
+    "replacementMode": "all"
+  },
   "multiclassing": {
     "prerequisites": { "int": 13 },
     "proficienciesGranted": {},
@@ -43,8 +49,6 @@
         "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
         "cantripsKnown": 3,
         "spellbookAdditions": 6,
-        "preparedSpellsFormula": { "type": "abilityPlusLevel", "ability": "int" },
-        "changeCadence": "onLongRest",
         "ritualCasting": true,
         "spellcastingAbility": "int"
       }

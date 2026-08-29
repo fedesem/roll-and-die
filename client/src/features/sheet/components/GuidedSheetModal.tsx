@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import type { AbilityKey, ActorSheet, CompendiumChoiceGroup, CompendiumChoiceOption } from "@shared/types";
 import {
   findBackgroundProgression,
-  findClassProgression,
+  findBaseClassProgression,
   findFeatProgression,
   findSpeciesProgression,
   findSubclassesForClass
@@ -21,14 +21,15 @@ import {
   replaceGuideSelection
 } from "../selectors/playerNpcSheet2024Selectors";
 import { abilityModifier, abilityOrder, findCompendiumClass, formatModifier } from "../sheetUtils";
-import { NEW_GUIDED_CLASS_ID, type SheetCompendium } from "../playerNpcSheet2024Types";
+import { NEW_GUIDED_CLASS_ID, type SheetCompendium, type SpellSelectionTarget } from "../playerNpcSheet2024Types";
+import { GuidedChoiceGroupField } from "./GuidedChoiceGroupField";
 import { DetailCollection, Field, HoverPreviewTrigger, inputClass, secondaryButtonClass } from "./sheetPrimitives";
 
 interface GuidedSheetModalProps {
   draft: ActorSheet;
   compendium: SheetCompendium;
   guided: GuidedSheetFlowState;
-  onOpenSpellSelection: (target: "guideCantrips" | "guideKnown" | "guideSpellbook" | "guidePrepared") => void;
+  onOpenSpellSelection: (target: SpellSelectionTarget) => void;
   renderRulesText: (text: string) => ReactNode;
 }
 
@@ -43,6 +44,11 @@ export function GuidedSheetModal({ draft, compendium, guided, onOpenSpellSelecti
     classEntries: compendium.classes,
     variantRuleEntries: compendium.variantRules,
     conditionEntries: compendium.conditions
+  };
+  const renderChoiceOptionPreview = (option: CompendiumChoiceOption) => {
+    return option.description ? (
+      <div className="max-w-md p-3 text-sm leading-6 text-zinc-300">{renderRulesText(option.description)}</div>
+    ) : null;
   };
 
   return (
@@ -214,16 +220,13 @@ export function GuidedSheetModal({ draft, compendium, guided, onOpenSpellSelecti
                         }
                       >
                         <option value="">Select a class</option>
-                        {compendium.classes.map((entry) => (
-                          <option
-                            key={entry.id}
-                            value={entry.id}
-                            disabled={!findClassProgression(entry.id) && !findClassProgression(entry.name)}
-                          >
-                            {entry.name}
-                            {!findClassProgression(entry.id) && !findClassProgression(entry.name) ? " (rules metadata unavailable)" : ""}
-                          </option>
-                        ))}
+                        {compendium.classes
+                          .filter((entry) => findBaseClassProgression(entry.id) || findBaseClassProgression(entry.name))
+                          .map((entry) => (
+                            <option key={entry.id} value={entry.id}>
+                              {entry.name}
+                            </option>
+                          ))}
                       </select>
                       <HoverPreviewTrigger
                         label="Class Preview"
@@ -643,16 +646,13 @@ export function GuidedSheetModal({ draft, compendium, guided, onOpenSpellSelecti
                         onChange={(event) => guided.setGuidedSetup((current) => ({ ...current, classId: event.target.value }))}
                       >
                         <option value="">Select a class</option>
-                        {compendium.classes.map((entry) => (
-                          <option
-                            key={entry.id}
-                            value={entry.id}
-                            disabled={!findClassProgression(entry.id) && !findClassProgression(entry.name)}
-                          >
-                            {entry.name}
-                            {!findClassProgression(entry.id) && !findClassProgression(entry.name) ? " (rules metadata unavailable)" : ""}
-                          </option>
-                        ))}
+                        {compendium.classes
+                          .filter((entry) => findBaseClassProgression(entry.id) || findBaseClassProgression(entry.name))
+                          .map((entry) => (
+                            <option key={entry.id} value={entry.id}>
+                              {entry.name}
+                            </option>
+                          ))}
                       </select>
                     </Field>
                   ) : null}
@@ -772,6 +772,7 @@ export function GuidedSheetModal({ draft, compendium, guided, onOpenSpellSelecti
             guided.guidedChoiceSpec.cantripCount > 0 ||
             guided.guidedChoiceSpec.knownSpellCount > 0 ||
             guided.guidedChoiceSpec.spellbookCount > 0 ||
+            guided.guidedChoiceSpec.preparedSpellCount > 0 ||
             guided.guidedChoiceSpec.expertiseCount > 0 ||
             guided.guidedChoiceSpec.abilityImprovementCount > 0 ? (
               <div className="space-y-4 border border-white/8 bg-black/20 p-4">
@@ -902,7 +903,7 @@ export function GuidedSheetModal({ draft, compendium, guided, onOpenSpellSelecti
                   <div className="space-y-3 border border-white/8 bg-black/20 p-3">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm text-zinc-100">Known Spells</p>
+                        <p className="text-sm text-zinc-100">{guided.guidedChoiceSpec.knownSpellLabel ?? "Class Spells"}</p>
                         <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
                           {guided.guidedSetup.knownSpellIds.filter(Boolean).length}/{guided.guidedChoiceSpec.knownSpellCount} selected
                         </p>
@@ -1018,66 +1019,27 @@ export function GuidedSheetModal({ draft, compendium, guided, onOpenSpellSelecti
                       )
                       .map((group: CompendiumChoiceGroup) => {
                         const selectedIds = guided.guidedSetup.classChoiceIds?.[group.id] ?? [];
-                        const maxCount = group.count || 1;
-
                         return (
-                          <div key={group.id} className="space-y-2 border border-white/5 bg-slate-900/40 p-3">
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs font-semibold uppercase tracking-wider text-amber-300">{group.label}</p>
-                              <span className="text-[11px] text-zinc-400">
-                                {selectedIds.length}/{maxCount} selected {group.hint ? `• ${group.hint}` : ""}
-                              </span>
-                            </div>
-                            <div className="grid gap-2 sm:grid-cols-2">
-                              {group.options.map((opt: CompendiumChoiceOption) => {
-                                const isSelected = selectedIds.includes(opt.id);
-                                return (
-                                  <button
-                                    key={opt.id}
-                                    type="button"
-                                    disabled={Boolean(opt.disabledReason)}
-                                    className={`flex flex-col items-start gap-1 border p-2.5 text-left transition ${
-                                      opt.disabledReason
-                                        ? "cursor-not-allowed border-red-500/20 bg-red-950/10 text-zinc-500"
-                                        : isSelected
-                                          ? "border-amber-500/80 bg-amber-500/10 text-amber-50"
-                                          : "border-white/8 bg-black/20 text-zinc-300 hover:border-white/20"
-                                    }`}
-                                    onClick={() => {
-                                      guided.setGuidedSetup((current) => {
-                                        const existing = current.classChoiceIds?.[group.id] ?? [];
-                                        let nextChoices: string[];
-                                        if (isSelected) {
-                                          nextChoices = existing.filter((id) => id !== opt.id);
-                                        } else if (maxCount === 1) {
-                                          nextChoices = [opt.id];
-                                        } else if (existing.length < maxCount) {
-                                          nextChoices = [...existing, opt.id];
-                                        } else {
-                                          nextChoices = [...existing.slice(1), opt.id];
-                                        }
-                                        return {
-                                          ...current,
-                                          classChoiceIds: {
-                                            ...current.classChoiceIds,
-                                            [group.id]: nextChoices
-                                          }
-                                        };
-                                      });
-                                    }}
-                                  >
-                                    <span className="text-xs font-medium text-amber-200">{opt.label}</span>
-                                    {opt.description ? (
-                                      <span className="text-[11px] leading-relaxed text-zinc-400">{opt.description}</span>
-                                    ) : null}
-                                    {opt.disabledReason ? (
-                                      <span className="text-[11px] leading-relaxed text-red-300">{opt.disabledReason}</span>
-                                    ) : null}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
+                          <GuidedChoiceGroupField
+                            key={group.id}
+                            group={group}
+                            selectedIds={selectedIds}
+                            renderOptionPreview={renderChoiceOptionPreview}
+                            onChooseSpells={() =>
+                              onOpenSpellSelection({
+                                kind: "guidedChoice",
+                                owner: "class",
+                                ownerId: guided.guidedSetup.classId,
+                                groupId: group.id
+                              })
+                            }
+                            onChange={(optionIds) =>
+                              guided.setGuidedSetup((current) => ({
+                                ...current,
+                                classChoiceIds: { ...current.classChoiceIds, [group.id]: optionIds }
+                              }))
+                            }
+                          />
                         );
                       })}
                   </div>
@@ -1104,55 +1066,24 @@ export function GuidedSheetModal({ draft, compendium, guided, onOpenSpellSelecti
                       {selectedGroups.map(({ featId, group }) => {
                         const selectedIds = guided.guidedSetup.featChoiceMap?.[featId]?.[group.id] ?? [];
                         return (
-                          <div key={`${featId}:${group.id}`} className="space-y-2">
-                            <p className="text-xs text-zinc-300">
-                              {group.label} ({selectedIds.length}/{group.count})
-                            </p>
-                            <div className="grid gap-2 sm:grid-cols-2">
-                              {group.options.map((option) => {
-                                const selected = selectedIds.includes(option.id);
-                                return (
-                                  <button
-                                    key={option.id}
-                                    type="button"
-                                    disabled={Boolean(option.disabledReason)}
-                                    className={`border p-2 text-left text-xs ${
-                                      option.disabledReason
-                                        ? "cursor-not-allowed border-red-500/20 text-zinc-500"
-                                        : selected
-                                          ? "border-amber-500 bg-amber-500/10 text-amber-100"
-                                          : "border-white/10 text-zinc-300 hover:border-white/25"
-                                    }`}
-                                    onClick={() =>
-                                      guided.setGuidedSetup((current) => {
-                                        const currentIds = current.featChoiceMap?.[featId]?.[group.id] ?? [];
-                                        const nextIds = selected
-                                          ? currentIds.filter((id) => id !== option.id)
-                                          : group.count === 1
-                                            ? [option.id]
-                                            : currentIds.length < group.count
-                                              ? [...currentIds, option.id]
-                                              : [...currentIds.slice(1), option.id];
-                                        return {
-                                          ...current,
-                                          featChoiceMap: {
-                                            ...current.featChoiceMap,
-                                            [featId]: { ...(current.featChoiceMap?.[featId] ?? {}), [group.id]: nextIds }
-                                          }
-                                        };
-                                      })
-                                    }
-                                  >
-                                    <span className="block font-medium">{option.label}</span>
-                                    {option.description ? <span className="mt-1 block text-zinc-500">{option.description}</span> : null}
-                                    {option.disabledReason ? (
-                                      <span className="mt-1 block text-red-300">{option.disabledReason}</span>
-                                    ) : null}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
+                          <GuidedChoiceGroupField
+                            key={`${featId}:${group.id}`}
+                            group={group}
+                            selectedIds={selectedIds}
+                            renderOptionPreview={renderChoiceOptionPreview}
+                            onChooseSpells={() =>
+                              onOpenSpellSelection({ kind: "guidedChoice", owner: "feat", ownerId: featId, groupId: group.id })
+                            }
+                            onChange={(optionIds) =>
+                              guided.setGuidedSetup((current) => ({
+                                ...current,
+                                featChoiceMap: {
+                                  ...current.featChoiceMap,
+                                  [featId]: { ...(current.featChoiceMap?.[featId] ?? {}), [group.id]: optionIds }
+                                }
+                              }))
+                            }
+                          />
                         );
                       })}
                     </div>

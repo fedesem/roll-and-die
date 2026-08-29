@@ -130,16 +130,17 @@ export interface ProgressionEquipmentChoiceGroup {
 export interface ProgressionSpellcastingDef {
   slots?: number[];
   cantripsKnown?: number;
-  spellsKnown?: number;
-  preparedSpellsFormula?: {
-    type: "table" | "abilityPlusLevel" | "fixed";
-    ability?: AbilityKey;
-    count?: number;
-  };
   spellbookAdditions?: number;
-  changeCadence?: SpellChangeCadence;
   ritualCasting?: boolean;
   spellcastingAbility?: AbilityKey;
+}
+
+export interface ClassSpellcastingRules {
+  /** Fixed 2024 Prepared Spells column, indexed by class level minus one. */
+  preparedSpellsProgression: number[];
+  preparationSource: "classList" | "spellbook";
+  changeCadence: Extract<SpellChangeCadence, "onLongRest" | "onLevelUp">;
+  replacementMode: "all" | "one";
 }
 
 export interface LevelProgressionConfig {
@@ -176,6 +177,7 @@ export interface ClassProgressionDef {
   startingSkillChoices?: { choose: number; options: string[] };
   equipmentChoices: ProgressionEquipmentChoiceGroup[];
   spellListId?: string;
+  spellcastingRules?: ClassSpellcastingRules;
   multiclassing: {
     prerequisites: Partial<Record<AbilityKey, number>>;
     prerequisiteMode?: "all" | "any";

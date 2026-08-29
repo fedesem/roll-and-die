@@ -175,6 +175,7 @@ describe("JSON Progression Registry & Engine", () => {
       expect(CLASS_PROGRESSIONS[key].levels[1]).toBeDefined();
       expect(CLASS_PROGRESSIONS[key].levels[20]).toBeDefined();
     });
+    expect(Object.keys(CLASS_PROGRESSIONS).sort()).toEqual(classKeys.sort());
 
     expect(Object.keys(SPECIES_PROGRESSIONS).length).toBeGreaterThanOrEqual(10);
     expect(Object.keys(BACKGROUND_PROGRESSIONS).length).toBeGreaterThanOrEqual(16);
@@ -354,14 +355,14 @@ describe("JSON Progression Registry & Engine", () => {
     expect(paladinRes.find((r) => r.name === "Lay on Hands")?.max).toBe(20);
   });
 
-  it("evaluates prepared spells limits correctly for prepared casters", () => {
+  it("uses fixed 2024 prepared-spell tables instead of ability modifiers", () => {
     const clericActor = createActor({
-      abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 16, cha: 10 }, // wis mod = +3
+      abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 3, cha: 10 },
       classes: [
         {
           id: "c1",
           name: "Cleric",
-          level: 3,
+          level: 1,
           usedHitDice: 0,
           subclassId: "",
           spellcastingAbility: "wis",
@@ -372,9 +373,43 @@ describe("JSON Progression Registry & Engine", () => {
       ]
     });
 
-    // formula: abilityPlusLevel -> 3 + 3 = 6
-    const limit = evaluateActorPreparedSpellsLimit(clericActor);
-    expect(limit).toBe(6);
+    expect(evaluateActorPreparedSpellsLimit(clericActor)).toBe(4);
+    clericActor.abilities.wis = 20;
+    expect(evaluateActorPreparedSpellsLimit(clericActor)).toBe(4);
+  });
+
+  it("matches every XPHB prepared-spell progression from the reference data", () => {
+    const expected: Record<string, number[]> = {
+      Bard: [4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16, 16, 17, 17, 18, 18, 19, 20, 21, 22],
+      Cleric: [4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16, 16, 17, 17, 18, 18, 19, 20, 21, 22],
+      Druid: [4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16, 16, 17, 17, 18, 18, 19, 20, 21, 22],
+      Paladin: [2, 3, 4, 5, 6, 6, 7, 7, 9, 9, 10, 10, 11, 11, 12, 12, 14, 14, 15, 15],
+      Ranger: [2, 3, 4, 5, 6, 6, 7, 7, 9, 9, 10, 10, 11, 11, 12, 12, 14, 14, 15, 15],
+      Sorcerer: [2, 4, 6, 7, 9, 10, 11, 12, 14, 15, 16, 16, 17, 17, 18, 18, 19, 20, 21, 22],
+      Warlock: [2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15],
+      Wizard: [4, 5, 6, 7, 9, 10, 11, 12, 14, 15, 16, 16, 17, 18, 19, 21, 22, 23, 24, 25]
+    };
+
+    Object.entries(expected).forEach(([className, progression]) => {
+      expect(findClassProgression(className)?.spellcastingRules?.preparedSpellsProgression).toEqual(progression);
+      progression.forEach((count, index) => {
+        const actor = createActor({
+          classes: [
+            {
+              id: `${className}-${index + 1}`,
+              name: className,
+              level: index + 1,
+              usedHitDice: 0,
+              spellcastingAbility: "wis",
+              source: "XPHB",
+              compendiumId: `${className.toLowerCase()}-xphb`,
+              hitDieFaces: 8
+            }
+          ]
+        });
+        expect(evaluateActorPreparedSpellsLimit(actor)).toBe(count);
+      });
+    });
   });
 
   it("derives passive bonuses for Primal Order Magician and Holy Order Thaumaturge", () => {

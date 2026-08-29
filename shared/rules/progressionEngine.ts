@@ -342,7 +342,8 @@ export function validateProgressionAwardAgainstCurrentRules(award: ProgressionAw
               (option) =>
                 option.id === optionId ||
                 (selectedFeat &&
-                  option.name.toLowerCase().replace(/[^a-z0-9]+/g, "") === selectedFeat.name.toLowerCase().replace(/[^a-z0-9]+/g, ""))
+                  (option.name.toLowerCase().replace(/[^a-z0-9]+/g, "") === selectedFeat.name.toLowerCase().replace(/[^a-z0-9]+/g, "") ||
+                    (option.id === "magic-initiate" && selectedFeat.id.startsWith("magic-initiate-"))))
             );
           })
         ) {
@@ -624,36 +625,12 @@ export function evaluateActorSpellSlots(actor: ActorSheet): Array<{ level: numbe
 }
 
 export function evaluateActorPreparedSpellsLimit(actor: ActorSheet): number {
-  let totalPrepared = 0;
-
-  actor.classes.forEach((actorClass: ActorClassEntry) => {
+  return actor.classes.reduce((totalPrepared, actorClass: ActorClassEntry) => {
     const def = findClassProgression(actorClass.name) || findClassProgression(actorClass.id);
-    if (!def) return;
-
-    let formula = def.levels[actorClass.level]?.spellcasting?.preparedSpellsFormula;
-    let spellcastingAbility = def.levels[actorClass.level]?.spellcasting?.spellcastingAbility;
-    if (!formula) {
-      for (let l = 1; l <= actorClass.level; l++) {
-        if (def.levels[l]?.spellcasting?.preparedSpellsFormula) {
-          formula = def.levels[l]?.spellcasting?.preparedSpellsFormula;
-        }
-        if (def.levels[l]?.spellcasting?.spellcastingAbility) {
-          spellcastingAbility = def.levels[l]?.spellcasting?.spellcastingAbility;
-        }
-      }
-    }
-    if (!formula) return;
-
-    if (formula.type === "fixed" || formula.type === "table") {
-      totalPrepared += formula.count ?? 0;
-    } else if (formula.type === "abilityPlusLevel") {
-      const ability = formula.ability ?? actorClass.spellcastingAbility ?? spellcastingAbility ?? "wis";
-      const mod = actorAbilityModifier(actor, ability);
-      totalPrepared += Math.max(1, actorClass.level + mod);
-    }
-  });
-
-  return totalPrepared;
+    const progression = def?.spellcastingRules?.preparedSpellsProgression;
+    if (!progression) return totalPrepared;
+    return totalPrepared + (progression[Math.max(1, Math.min(20, actorClass.level)) - 1] ?? 0);
+  }, 0);
 }
 
 export function evaluateResourceMax(resourceDef: ProgressionResourceDef, actor: ActorSheet, classLevel: number): number {
