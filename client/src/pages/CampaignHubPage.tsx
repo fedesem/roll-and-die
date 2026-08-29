@@ -80,6 +80,7 @@ export interface CampaignHubPageProps {
   onSetEditingMapActive: () => void;
   onBackToMapsList: () => void;
   onMapUploadError: (message: string) => void;
+  onOpenCharacterEdit?: (actorId: string) => void;
 }
 
 export function CampaignHubPage({
@@ -141,7 +142,8 @@ export function CampaignHubPage({
   onRedoEditingMap,
   onSetEditingMapActive,
   onBackToMapsList,
-  onMapUploadError
+  onMapUploadError,
+  onOpenCharacterEdit
 }: CampaignHubPageProps) {
   const [section, setSection] = useState<DashboardSection>(role === "dm" ? "maps" : "actors");
   const [mapDialog, setMapDialog] = useState<MapDialogState>(null);
@@ -457,6 +459,7 @@ export function CampaignHubPage({
             sheetContext="campaign"
             onSave={onSaveActor}
             onRoll={onRoll}
+            onNavigateToEdit={selectedActor && onOpenCharacterEdit ? () => onOpenCharacterEdit(selectedActor.id) : undefined}
           />
         </WorkspaceModal>
       )}

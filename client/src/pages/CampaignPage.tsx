@@ -104,6 +104,7 @@ export interface CampaignPageProps {
   onRealtimeSaveActor: (actor: ActorSheet) => Promise<void>;
   onRoll: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
   onUpdateToken: (tokenId: string, patch: TokenUpdatePatch) => Promise<void>;
+  onOpenCharacterEdit?: (actorId: string) => void;
 }
 
 export function CampaignPage({
@@ -179,7 +180,8 @@ export function CampaignPage({
   onSaveActor,
   onRealtimeSaveActor,
   onRoll,
-  onUpdateToken
+  onUpdateToken,
+  onOpenCharacterEdit
 }: CampaignPageProps) {
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
   const [rollingInitiative, setRollingInitiative] = useState(false);
@@ -437,6 +439,7 @@ export function CampaignPage({
             onSave={onSaveActor}
             onRealtimeSave={onRealtimeSaveActor}
             onRoll={onRoll}
+            onNavigateToEdit={selectedActor && onOpenCharacterEdit ? () => onOpenCharacterEdit(selectedActor.id) : undefined}
           />
         </WorkspaceModal>
       )}

@@ -292,31 +292,17 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
   useWorkspaceModalHeader(
     permissions.hasMainTab ? (
       <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex items-center rounded-lg border border-white/10 bg-slate-900/90 p-0.5">
+        {props.onNavigateToEdit ? (
           <button
             type="button"
-            onClick={() => actions.setActiveTab("main")}
-            className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
-              state.activeTab === "main"
-                ? "border border-amber-500/40 bg-amber-500/20 text-amber-300 shadow-sm"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
-          >
-            Play
-          </button>
-          <button
-            type="button"
-            onClick={() => actions.setActiveTab("edit")}
-            className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
-              state.activeTab === "edit"
-                ? "border border-amber-500/40 bg-amber-500/20 text-amber-300 shadow-sm"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
+            onClick={props.onNavigateToEdit}
+            className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-200 transition hover:border-amber-500/60 hover:bg-amber-500/20 hover:text-amber-100"
+            title="Open Fullscreen Character Editor"
           >
             <Edit3 size={11} />
-            Edit
+            <span>Edit Full ↗</span>
           </button>
-        </div>
+        ) : null}
 
         <button
           type="button"
