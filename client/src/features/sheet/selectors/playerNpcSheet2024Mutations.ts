@@ -48,6 +48,7 @@ import {
   mergeDerivedResources,
   mergeTextValues,
   normalizeHitPoints,
+  resolveProgressionFeatEntry,
   selectGuidedAbilityChoiceMode,
   syncBuildClasses
 } from "./playerNpcSheet2024Selectors";
@@ -150,8 +151,7 @@ export function applySpeciesChoiceSelections(
   applySkillChoiceSelections(next, [...deriveSpeciesSkillProficiencies(species), ...skillNames]);
 
   if (featId.trim()) {
-    const featEntry =
-      feats.find((entry) => entry.id === featId) ?? feats.find((entry) => normalizeKey(entry.name) === normalizeKey(featId));
+    const featEntry = resolveProgressionFeatEntry(feats, featId);
 
     if (featEntry && !next.feats.includes(featEntry.name)) {
       next.feats.push(featEntry.name);
@@ -295,8 +295,7 @@ export function applyBackgroundToActor(
   const featIds =
     options?.featId && options.featId.trim() ? [options.featId] : deriveOriginFeatOptions(background, feats).map((entry) => entry.id);
   featIds.forEach((featId) => {
-    const featEntry =
-      feats.find((entry) => entry.id === featId) ?? feats.find((entry) => normalizeKey(entry.name) === normalizeKey(featId));
+    const featEntry = resolveProgressionFeatEntry(feats, featId);
     const featName = featEntry?.name ?? featId;
 
     if (!next.feats.includes(featName)) {
@@ -744,7 +743,7 @@ export function applyGuideSelectionsToActor(
 
   // Apply Scripted Feat Subchoices (e.g. Magic Initiate, Skill Expert, Resilient)
   Object.entries(params.setup.featChoiceMap ?? {}).forEach(([featId, choiceGroupsMap]) => {
-    const feat = params.compendium.feats.find((f) => f.id === featId);
+    const feat = resolveProgressionFeatEntry(params.compendium.feats, featId);
     const groups: CompendiumChoiceGroup[] = params.spec.featChoiceGroups?.[featId] ?? [];
     groups.forEach((group: CompendiumChoiceGroup) => {
       const selectedOptionIds = choiceGroupsMap[group.id] ?? [];
@@ -809,11 +808,10 @@ export function applyGuideSelectionsToActor(
     )
   );
   selectedFeatIds.forEach((featId) => {
-    const feat = params.compendium.feats.find((entry) => entry.id === featId);
-    if (!feat) return;
-    const definition = findFeatProgression(feat.id) ?? findFeatProgression(feat.name);
+    const feat = resolveProgressionFeatEntry(params.compendium.feats, featId);
+    const definition = findFeatProgression(featId) ?? (feat ? findFeatProgression(feat.name) : null);
     if (!definition) return;
-    next.feats = mergeTextValues(next.feats, [feat.name]);
+    next.feats = mergeTextValues(next.feats, [definition.name]);
     applyProgressionGrants(
       next,
       {

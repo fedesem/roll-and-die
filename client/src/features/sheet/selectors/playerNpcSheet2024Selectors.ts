@@ -47,6 +47,7 @@ import {
   resolveProgressionEffects
 } from "../../../../../shared/rules/progressionEngine";
 import {
+  FEAT_PROGRESSIONS,
   findBackgroundProgression,
   findClassProgression,
   findFeatProgression,
@@ -124,13 +125,36 @@ export function deriveOriginFeatOptions(background: CompendiumBackgroundEntry | 
   }
 
   const progression = findBackgroundProgression(background.id) ?? findBackgroundProgression(background.name);
-  const featIds = progression ? [progression.originFeatId, progression.originFeatName] : [];
+  const feat = progression
+    ? (resolveProgressionFeatEntry(feats, progression.originFeatId) ?? resolveProgressionFeatEntry(feats, progression.originFeatName))
+    : null;
+  return feat ? [feat] : [];
+}
 
-  const matched = featIds
-    .map((entry) => feats.find((feat) => feat.id === entry) ?? feats.find((feat) => normalizeKey(feat.name) === normalizeKey(entry)))
+/** Projects rules metadata onto a real compendium entry without duplicating its full text. */
+export function resolveProgressionFeatEntry(feats: FeatEntry[], featNameOrId: string): FeatEntry | null {
+  const directEntry =
+    feats.find((feat) => feat.id === featNameOrId) ?? feats.find((feat) => normalizeKey(feat.name) === normalizeKey(featNameOrId));
+  const definition = findFeatProgression(featNameOrId) ?? (directEntry ? findFeatProgression(directEntry.name) : null);
+  if (!definition) return directEntry ?? null;
+
+  const reference = definition.compendiumRef ?? createCompendiumRef(definition.name, definition.source);
+  const displayEntry = feats.find((feat) => compendiumRefMatches(reference, feat)) ?? directEntry;
+  if (!displayEntry) return null;
+
+  return {
+    ...displayEntry,
+    id: definition.id,
+    name: definition.name,
+    category: definition.category,
+    source: definition.source
+  };
+}
+
+export function deriveProgressionFeatEntries(feats: FeatEntry[]): FeatEntry[] {
+  return Object.values(FEAT_PROGRESSIONS)
+    .map((definition) => resolveProgressionFeatEntry(feats, definition.id))
     .filter((entry): entry is FeatEntry => Boolean(entry));
-
-  return matched.filter((entry, index) => matched.findIndex((candidate) => candidate.id === entry.id) === index);
 }
 
 export function deriveBackgroundSkillChoiceConfig(
@@ -258,13 +282,9 @@ export function deriveSpeciesOriginFeatOptions(species: CompendiumSpeciesEntry |
   const featChoice = progDef?.choices?.find((choice) => choice.source === "species" && choice.id.includes("feat"));
 
   if (featChoice) {
-    const options = featChoice.options.flatMap((option) => {
-      if (option.id === "magic-initiate") {
-        return feats.filter((feat) => (findFeatProgression(feat.id) ?? findFeatProgression(feat.name))?.id.startsWith("magic-initiate-"));
-      }
-      const feat = feats.find((entry) => entry.id === option.id || normalizeKey(entry.name) === normalizeKey(option.name));
-      return feat ? [feat] : [];
-    });
+    const options = featChoice.options
+      .map((option) => resolveProgressionFeatEntry(feats, option.id) ?? resolveProgressionFeatEntry(feats, option.name))
+      .filter((entry): entry is FeatEntry => Boolean(entry));
     return options.filter((entry, index) => options.findIndex((candidate) => candidate.id === entry.id) === index);
   }
   return [];
@@ -1176,7 +1196,10 @@ export function deriveGuidedChoiceSpec(params: {
     characterLevel: targetCharacterLevel
   });
   const featChoiceGroups: Record<string, CompendiumChoiceGroup[]> = {};
-  params.feats.forEach((feat) => {
+  const featEntries = [...params.feats, ...deriveProgressionFeatEntries(params.feats)].filter(
+    (feat, index, entries) => entries.findIndex((candidate) => candidate.id === feat.id) === index
+  );
+  featEntries.forEach((feat) => {
     featChoiceGroups[feat.id] = deriveFeatChoiceGroups(feat, params.spells, params.actor);
   });
 
@@ -1959,7 +1982,7 @@ export function collectFeatureRows(
 
   actor.feats.forEach((featName) => {
     if (suppressedNames.has(normalizeKey(featName))) return;
-    const feat = findByName(compendium.feats, featName);
+    const feat = resolveProgressionFeatEntry(compendium.feats, featName) ?? findByName(compendium.feats, featName);
 
     rows.push(
       feat
@@ -2036,7 +2059,7 @@ export function collectSpellRows(spellNames: string[], preparedSpells: string[],
 
 export function collectFeatRows(featNames: string[], feats: FeatEntry[]) {
   return featNames.map((featName) => {
-    const feat = findByName(feats, featName);
+    const feat = resolveProgressionFeatEntry(feats, featName) ?? findByName(feats, featName);
 
     if (!feat) {
       return {
