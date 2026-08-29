@@ -2561,7 +2561,6 @@ function compareValues(
       return (extra?.crLeft ?? 0) - (extra?.crRight ?? 0) || left.name.localeCompare(right.name);
     case "cr-desc":
       return (extra?.crRight ?? 0) - (extra?.crLeft ?? 0) || left.name.localeCompare(right.name);
-    case "name-asc":
     default:
       return left.name.localeCompare(right.name);
   }

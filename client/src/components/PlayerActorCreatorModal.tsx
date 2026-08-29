@@ -226,7 +226,6 @@ function filterAndSortMonsterCatalog(
           return compareChallengeRating(left.challengeRating, right.challengeRating) || left.name.localeCompare(right.name);
         case "cr-desc":
           return compareChallengeRating(right.challengeRating, left.challengeRating) || left.name.localeCompare(right.name);
-        case "name-asc":
         default:
           return left.name.localeCompare(right.name) || left.source.localeCompare(right.source);
       }
