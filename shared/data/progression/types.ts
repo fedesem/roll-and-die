@@ -229,6 +229,8 @@ export interface FeatProgressionDef {
   id: string;
   name: string;
   source: string;
+  /** Full-text display entry. Multiple mechanical variants may share it. */
+  compendiumRef?: string;
   category: "origin" | "general" | "fightingStyle" | "epicBoon";
   prerequisites?: {
     minLevel?: number;

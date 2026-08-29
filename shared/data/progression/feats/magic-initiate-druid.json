@@ -2,6 +2,7 @@
   "id": "magic-initiate-druid",
   "name": "Magic Initiate (Druid)",
   "source": "XPHB",
+  "compendiumRef": "Magic Initiate|XPHB",
   "category": "origin",
   "features": ["Two Druid Cantrips", "One 1st-Level Druid Spell"],
   "grants": {

@@ -46,10 +46,24 @@
           }
         },
         {
-          "id": "magic-initiate",
-          "name": "Magic Initiate",
+          "id": "magic-initiate-cleric",
+          "name": "Magic Initiate (Cleric)",
           "grants": {
-            "features": ["Feat: Magic Initiate"]
+            "features": ["Feat: Magic Initiate (Cleric)"]
+          }
+        },
+        {
+          "id": "magic-initiate-druid",
+          "name": "Magic Initiate (Druid)",
+          "grants": {
+            "features": ["Feat: Magic Initiate (Druid)"]
+          }
+        },
+        {
+          "id": "magic-initiate-wizard",
+          "name": "Magic Initiate (Wizard)",
+          "grants": {
+            "features": ["Feat: Magic Initiate (Wizard)"]
           }
         },
         {

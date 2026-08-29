@@ -2,6 +2,7 @@
   "id": "magic-initiate-cleric",
   "name": "Magic Initiate (Cleric)",
   "source": "XPHB",
+  "compendiumRef": "Magic Initiate|XPHB",
   "category": "origin",
   "features": ["Two Cleric Cantrips", "One 1st-Level Cleric Spell"],
   "grants": {

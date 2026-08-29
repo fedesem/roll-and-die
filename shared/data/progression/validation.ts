@@ -233,6 +233,7 @@ export const backgroundProgressionDataSchema = z
 export const featProgressionDataSchema = z
   .object({
     ...namedEntityFields,
+    compendiumRef: z.string().refine(isCompendiumRef, "compendiumRef must use Name|SOURCE syntax").optional(),
     category: z.enum(["origin", "general", "fightingStyle", "epicBoon"]),
     prerequisites: z
       .object({
@@ -376,12 +377,18 @@ export function validateProgressionCatalog(input: ProgressionCatalogInput): stri
       if (manifestRefs.has(entry.ref)) errors.push(`manifest: duplicate reference ${entry.ref}`);
       manifestRefs.add(entry.ref);
     });
-    const expectedEntries = [...input.classes, ...input.subclasses, ...input.species, ...input.backgrounds, ...input.feats];
+    const expectedEntries = [...input.classes, ...input.subclasses, ...input.species, ...input.backgrounds];
     expectedEntries.forEach((entry) => {
       const parsed = namedEntitySchema.safeParse(entry);
       if (parsed.success && !manifestRefs.has(`${parsed.data.name}|${parsed.data.source}`)) {
         errors.push(`manifest: missing ${parsed.data.name}|${parsed.data.source}`);
       }
+    });
+    input.feats.forEach((entry) => {
+      const parsed = featProgressionDataSchema.safeParse(entry);
+      if (!parsed.success) return;
+      const reference = parsed.data.compendiumRef ?? `${parsed.data.name}|${parsed.data.source}`;
+      if (!manifestRefs.has(reference)) errors.push(`manifest: missing ${reference}`);
     });
   }
   return errors;

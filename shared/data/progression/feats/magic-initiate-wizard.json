@@ -2,6 +2,7 @@
   "id": "magic-initiate-wizard",
   "name": "Magic Initiate (Wizard)",
   "source": "XPHB",
+  "compendiumRef": "Magic Initiate|XPHB",
   "category": "origin",
   "features": ["Two Wizard Cantrips", "One 1st-Level Wizard Spell"],
   "grants": {
