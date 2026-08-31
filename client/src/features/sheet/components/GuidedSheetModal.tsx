@@ -124,7 +124,13 @@ export function GuidedSheetModal({
     featEntries: compendium.feats,
     classEntries: compendium.classes,
     variantRuleEntries: compendium.variantRules,
-    conditionEntries: compendium.conditions
+    conditionEntries: compendium.conditions,
+    itemEntries: compendium.items,
+    optionalFeatureEntries: compendium.optionalFeatures,
+    skillEntries: compendium.skills,
+    languageEntries: compendium.languages,
+    raceEntries: compendium.races,
+    backgroundEntries: compendium.backgrounds
   };
   const renderChoiceOptionPreview = (option: CompendiumChoiceOption) => {
     return option.description ? (
@@ -261,11 +267,81 @@ export function GuidedSheetModal({
     }
   }
 
-  const getFeaturePreviewEntry = (featName: string): CompendiumReferenceEntry => {
+  const getFeaturePreviewEntry = (featName: string, isSubclass = false): CompendiumReferenceEntry => {
+    // 1. Search in target subclass features
+    if (isSubclass || effectiveSubclassId) {
+      const activeSubclasses = targetClassEntry?.subclasses ?? [];
+      for (const sub of activeSubclasses) {
+        if (!effectiveSubclassId || sub.id === effectiveSubclassId || sub.name === effectiveSubclassId) {
+          const match = sub.features.find((f) => f.name.toLowerCase() === featName.toLowerCase());
+          if (match && match.description) {
+            return {
+              id: `${sub.id}:${match.name}`,
+              name: match.name,
+              category: `${sub.name} (Subclass Feature)`,
+              source: match.source || sub.source || targetClassEntry?.source || "2024 Player's Handbook",
+              description: match.description,
+              entries: match.description,
+              tags: [targetClassEntry?.name ?? "", sub.name, `Level ${match.level}`].filter(Boolean)
+            };
+          }
+        }
+      }
+    }
+
+    // 2. Search in target class features
+    if (targetClassEntry) {
+      const match = targetClassEntry.features.find((f) => f.name.toLowerCase() === featName.toLowerCase());
+      if (match && match.description) {
+        return {
+          id: `${targetClassEntry.id}:${match.name}`,
+          name: match.name,
+          category: `${targetClassEntry.name} Feature`,
+          source: match.source || targetClassEntry.source || "2024 Player's Handbook",
+          description: match.description,
+          entries: match.description,
+          tags: [targetClassEntry.name, `Level ${match.level}`].filter(Boolean)
+        };
+      }
+    }
+
+    // 3. Search across all classes and subclasses in compendium
+    for (const cls of compendium.classes) {
+      const match = cls.features.find((f) => f.name.toLowerCase() === featName.toLowerCase());
+      if (match && match.description) {
+        return {
+          id: `${cls.id}:${match.name}`,
+          name: match.name,
+          category: `${cls.name} Feature`,
+          source: match.source || cls.source || "2024 Player's Handbook",
+          description: match.description,
+          entries: match.description,
+          tags: [cls.name, `Level ${match.level}`].filter(Boolean)
+        };
+      }
+      for (const sub of cls.subclasses) {
+        const subMatch = sub.features.find((f) => f.name.toLowerCase() === featName.toLowerCase());
+        if (subMatch && subMatch.description) {
+          return {
+            id: `${sub.id}:${subMatch.name}`,
+            name: subMatch.name,
+            category: `${sub.name} (${cls.name} Subclass Feature)`,
+            source: subMatch.source || sub.source || cls.source || "2024 Player's Handbook",
+            description: subMatch.description,
+            entries: subMatch.description,
+            tags: [cls.name, sub.name, `Level ${subMatch.level}`].filter(Boolean)
+          };
+        }
+      }
+    }
+
+    // 4. Search in compendium optionalFeatures
     const fromOptional = compendium.optionalFeatures.find((f) => f.name.toLowerCase() === featName.toLowerCase() || f.id === featName);
     if (fromOptional) {
       return fromOptional;
     }
+
+    // 5. Search in compendium feats
     const fromFeats = compendium.feats.find((f) => f.name.toLowerCase() === featName.toLowerCase() || f.id === featName);
     if (fromFeats) {
       return {
@@ -278,6 +354,7 @@ export function GuidedSheetModal({
         tags: [fromFeats.category || "Feat"]
       };
     }
+
     return {
       id: featName,
       name: featName,
@@ -285,7 +362,7 @@ export function GuidedSheetModal({
       source: targetClassEntry?.source || "2024 Player's Handbook",
       description: `${targetClassEntry?.name || "Class"} level ${nextClassLevel} feature.`,
       entries: `${targetClassEntry?.name || "Class"} level ${nextClassLevel} feature.`,
-      tags: [targetClassEntry?.name || "Class"]
+      tags: [targetClassEntry?.name || "Class", `Level ${nextClassLevel}`].filter(Boolean)
     };
   };
 
@@ -1618,7 +1695,7 @@ export function GuidedSheetModal({
                     );
                   })}
                   {newSubclassFeatures.map((featName) => {
-                    const featureEntry = getFeaturePreviewEntry(featName);
+                    const featureEntry = getFeaturePreviewEntry(featName, true);
                     return (
                       <HoverBadge
                         key={featName}

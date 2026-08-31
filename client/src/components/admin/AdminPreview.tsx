@@ -92,27 +92,18 @@ export function UserPreviewCard({ user }: { user: UserProfile }) {
 
 export function SpellPreviewCard({
   spell,
-  featEntries = [],
-  classEntries = [],
-  variantRuleEntries = [],
-  conditionEntries = [],
-  actionEntries = [],
-  sourceTitle
+  sourceTitle,
+  ...lookupProps
 }: {
   spell: SpellEntry | Omit<SpellEntry, "id">;
-  featEntries?: FeatEntry[];
-  classEntries?: ClassEntry[];
-  variantRuleEntries?: CompendiumReferenceEntry[];
-  conditionEntries?: CompendiumReferenceEntry[];
-  actionEntries?: CompendiumReferenceEntry[];
   sourceTitle?: string;
-}) {
+} & RulesLookupData) {
   const subtitle = spell.level === "cantrip" ? `${spell.school} Cantrip` : `${spell.school} Level ${spell.level}`;
   const components = [spell.components.verbal ? "V" : null, spell.components.somatic ? "S" : null, spell.components.material ? "M" : null]
     .filter(Boolean)
     .join(", ");
   const displayedClasses = formatSpellClassList(spell);
-  const referencingClasses = getReferencingClassesForSpell(spell.name, classEntries);
+  const referencingClasses = getReferencingClassesForSpell(spell.name, lookupProps.classEntries || []);
 
   return (
     <PreviewFrame eyebrow="Spell" title={spell.name} source={spell.source} sourceTitle={sourceTitle} subtitle={subtitle}>
@@ -133,16 +124,18 @@ export function SpellPreviewCard({
           </div>
         </div>
         <p className="admin-preview-body">
-          <RulesText
-            text={spell.description}
-            spellEntries={[spell]}
-            featEntries={featEntries}
-            classEntries={classEntries}
-            variantRuleEntries={variantRuleEntries}
-            conditionEntries={conditionEntries}
-            actionEntries={actionEntries}
-          />
+          <RulesText text={spell.description} {...lookupProps} spellEntries={[spell, ...(lookupProps.spellEntries ?? [])]} />
         </p>
+        {displayedClasses ? (
+          <p className="admin-preview-footnote">
+            <strong>Classes:</strong> {displayedClasses}
+          </p>
+        ) : null}
+        {referencingClasses.length > 0 ? (
+          <p className="admin-preview-footnote">
+            <strong>Referenced by:</strong> {referencingClasses.join(", ")}
+          </p>
+        ) : null}
         {spell.damageNotation && (
           <p className="admin-preview-body">
             <strong>Damage:</strong> {spell.damageNotation}
@@ -152,38 +145,14 @@ export function SpellPreviewCard({
         {spell.higherLevelDescription && (
           <p className="admin-preview-body">
             <strong>Higher Levels.</strong>{" "}
-            <RulesText
-              text={spell.higherLevelDescription}
-              spellEntries={[spell]}
-              featEntries={featEntries}
-              classEntries={classEntries}
-              variantRuleEntries={variantRuleEntries}
-              conditionEntries={conditionEntries}
-              actionEntries={actionEntries}
-            />
+            <RulesText text={spell.higherLevelDescription} {...lookupProps} spellEntries={[spell, ...(lookupProps.spellEntries ?? [])]} />
           </p>
         )}
         {spell.fullDescription && spell.fullDescription !== spell.description && (
           <p className="admin-preview-body">
-            <RulesText
-              text={spell.fullDescription}
-              spellEntries={[spell]}
-              featEntries={featEntries}
-              classEntries={classEntries}
-              variantRuleEntries={variantRuleEntries}
-              conditionEntries={conditionEntries}
-              actionEntries={actionEntries}
-            />
+            <RulesText text={spell.fullDescription} {...lookupProps} spellEntries={[spell, ...(lookupProps.spellEntries ?? [])]} />
           </p>
         )}
-        <p className="admin-preview-footnote">
-          <strong>Classes:</strong> {displayedClasses || "Unavailable in imported source data"}
-        </p>
-        {referencingClasses.length > 0 ? (
-          <p className="admin-preview-footnote">
-            <strong>Referenced by classes:</strong> {referencingClasses.join(", ")}
-          </p>
-        ) : null}
       </div>
     </PreviewFrame>
   );
@@ -191,21 +160,12 @@ export function SpellPreviewCard({
 
 export function FeatPreviewCard({
   feat,
-  spellEntries = [],
-  classEntries = [],
-  variantRuleEntries = [],
-  conditionEntries = [],
-  actionEntries = [],
-  sourceTitle
+  sourceTitle,
+  ...lookupProps
 }: {
   feat: FeatEntry | Omit<FeatEntry, "id">;
-  spellEntries?: SpellEntry[];
-  classEntries?: ClassEntry[];
-  variantRuleEntries?: CompendiumReferenceEntry[];
-  conditionEntries?: CompendiumReferenceEntry[];
-  actionEntries?: CompendiumReferenceEntry[];
   sourceTitle?: string;
-}) {
+} & RulesLookupData) {
   const subtitle = feat.prerequisites ? `${feat.category} (Prerequisites: ${feat.prerequisites})` : feat.category;
 
   return (
@@ -214,25 +174,11 @@ export function FeatPreviewCard({
         {feat.abilityScoreIncrease && (
           <p className="admin-preview-body">
             <strong>Ability Score Increase.</strong>{" "}
-            <RulesText
-              text={feat.abilityScoreIncrease}
-              spellEntries={spellEntries}
-              classEntries={classEntries}
-              variantRuleEntries={variantRuleEntries}
-              conditionEntries={conditionEntries}
-              actionEntries={actionEntries}
-            />
+            <RulesText text={feat.abilityScoreIncrease} {...lookupProps} featEntries={[feat, ...(lookupProps.featEntries ?? [])]} />
           </p>
         )}
         <p className="admin-preview-body">
-          <RulesText
-            text={feat.description}
-            spellEntries={spellEntries}
-            classEntries={classEntries}
-            variantRuleEntries={variantRuleEntries}
-            conditionEntries={conditionEntries}
-            actionEntries={actionEntries}
-          />
+          <RulesText text={feat.description} {...lookupProps} featEntries={[feat, ...(lookupProps.featEntries ?? [])]} />
         </p>
       </div>
     </PreviewFrame>
@@ -553,38 +499,19 @@ export function ReferencePreviewCard({
   title,
   eyebrow,
   entry,
-  spellEntries = [],
-  featEntries = [],
-  classEntries = [],
-  variantRuleEntries = [],
-  conditionEntries = [],
-  actionEntries = [],
-  sourceTitle
+  sourceTitle,
+  ...lookupProps
 }: {
   title: string;
   eyebrow: string;
   entry: CompendiumReferenceEntry;
-  spellEntries?: SpellEntry[];
-  featEntries?: FeatEntry[];
-  classEntries?: ClassEntry[];
-  variantRuleEntries?: CompendiumReferenceEntry[];
-  conditionEntries?: CompendiumReferenceEntry[];
-  actionEntries?: CompendiumReferenceEntry[];
   sourceTitle?: string;
-}) {
+} & RulesLookupData) {
   return (
     <PreviewFrame eyebrow={eyebrow} title={entry.name} source={entry.source} sourceTitle={sourceTitle} subtitle={entry.category}>
       <div className="admin-preview-stack">
         <p className="admin-preview-body">
-          <RulesText
-            text={entry.entries || entry.description}
-            spellEntries={spellEntries}
-            featEntries={featEntries}
-            classEntries={classEntries}
-            variantRuleEntries={variantRuleEntries}
-            conditionEntries={conditionEntries}
-            actionEntries={actionEntries}
-          />
+          <RulesText text={entry.entries || entry.description} {...lookupProps} />
         </p>
         {entry.tags.length > 0 ? (
           <p className="admin-preview-footnote">
