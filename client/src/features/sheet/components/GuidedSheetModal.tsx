@@ -5,10 +5,11 @@ import {
   findSpeciesProgression,
   findSubclassesForClass
 } from "@shared/data/progression";
-import type { AbilityKey, ActorSheet, CompendiumChoiceGroup, CompendiumChoiceOption } from "@shared/types";
+import type { AbilityKey, ActorSheet, CompendiumChoiceGroup, CompendiumChoiceOption, CompendiumReferenceEntry } from "@shared/types";
 import { Dice6, Plus, Sparkles, X } from "lucide-react";
-import type { ReactNode } from "react";
-import { ClassPreviewCard, ReferencePreviewCard } from "../../../components/admin/AdminPreview";
+import { type ReactNode, useRef, useState } from "react";
+import { ClassPreviewCard, FeatPreviewCard, ReferencePreviewCard, SpellPreviewCard } from "../../../components/admin/AdminPreview";
+import { anchorFromRect, type FloatingAnchor, FloatingLayer } from "../../../components/FloatingLayer";
 import { ModalFrame } from "../../../components/ModalFrame";
 import { NumericInput } from "../../../components/NumericInput";
 import type { GuidedSheetFlowState } from "../hooks/useGuidedSheetFlow";
@@ -16,13 +17,84 @@ import { NEW_GUIDED_CLASS_ID, type SheetCompendium, type SpellSelectionTarget } 
 import {
   collectSpellRows,
   createReferenceRow,
+  deriveClassResources,
+  deriveSpellSlots,
   findSpellNamesByIds,
   guideOptionDisabled,
   replaceGuideSelection
 } from "../selectors/playerNpcSheet2024Selectors";
-import { abilityModifier, abilityOrder, findCompendiumClass, formatModifier } from "../sheetUtils";
+import { abilityModifier, abilityOrder, cloneActor, findCompendiumClass, formatModifier } from "../sheetUtils";
 import { GuidedChoiceGroupField } from "./GuidedChoiceGroupField";
 import { DetailCollection, Field, HoverPreviewTrigger, inputClass, SheetButton, secondaryButtonClass } from "./sheetPrimitives";
+
+function HoverBadge({
+  label,
+  icon,
+  className = "",
+  preview
+}: {
+  label: string;
+  icon?: ReactNode;
+  className?: string;
+  preview?: ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [anchor, setAnchor] = useState<FloatingAnchor | null>(null);
+  const triggerRef = useRef<HTMLDivElement | null>(null);
+  const closeTimeoutRef = useRef<number | null>(null);
+
+  const openPreview = () => {
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    if (triggerRef.current) {
+      setAnchor(anchorFromRect(triggerRef.current.getBoundingClientRect()));
+    }
+    setIsOpen(true);
+  };
+
+  const closePreviewSoon = () => {
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+    }
+    closeTimeoutRef.current = window.setTimeout(() => {
+      setIsOpen(false);
+      closeTimeoutRef.current = null;
+    }, 150);
+  };
+
+  return (
+    <>
+      <div
+        ref={triggerRef}
+        className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium cursor-pointer transition hover:scale-[1.02] hover:brightness-110 active:scale-[0.98] select-none ${className}`}
+        tabIndex={0}
+        onPointerEnter={openPreview}
+        onPointerLeave={closePreviewSoon}
+        onFocus={openPreview}
+        onBlur={closePreviewSoon}
+      >
+        {icon ? <span className="shrink-0">{icon}</span> : null}
+        <span>{label}</span>
+      </div>
+      {isOpen && preview ? (
+        <FloatingLayer
+          anchor={anchor}
+          placement="top-start"
+          offset={8}
+          className="pointer-events-auto z-[2147483000] max-w-md"
+          onPointerEnter={openPreview}
+          onPointerLeave={closePreviewSoon}
+        >
+          <div className="max-h-[calc(100vh-2rem)] overflow-y-auto overscroll-contain rounded-lg border border-amber-500/40 bg-slate-950 p-4 shadow-[0_28px_90px_rgba(0,0,0,0.8)] text-zinc-100">
+            {preview}
+          </div>
+        </FloatingLayer>
+      ) : null}
+    </>
+  );
+}
 
 interface GuidedSheetModalProps {
   draft: ActorSheet;
@@ -126,6 +198,96 @@ export function GuidedSheetModal({
       }
     }
   }
+
+  // Derive spell slots, proficiency bonus, and class resources changes
+  const beforeSlots = deriveSpellSlots(draft, compendium.classes);
+  const previewNextActor = cloneActor(draft);
+  if (guided.guidedClassId === NEW_GUIDED_CLASS_ID) {
+    if (targetClassEntry) {
+      previewNextActor.classes = [
+        ...previewNextActor.classes,
+        {
+          id: "preview-new-class",
+          name: targetClassEntry.name,
+          level: 1,
+          hitDieFaces: targetClassEntry.hitDieFaces || 8,
+          usedHitDice: 0,
+          compendiumId: targetClassEntry.id,
+          source: targetClassEntry.source,
+          subclassId: "",
+          subclassName: "",
+          spellcastingAbility: null
+        }
+      ];
+    }
+  } else if (targetActorClass) {
+    previewNextActor.classes = previewNextActor.classes.map((c) => (c.id === targetActorClass.id ? { ...c, level: c.level + 1 } : c));
+  }
+  if (guided.guidedSetup.subclassId) {
+    const targetClassId =
+      guided.guidedClassId === NEW_GUIDED_CLASS_ID
+        ? (previewNextActor.classes.find((c) => c.compendiumId === targetClassEntry?.id)?.id ?? "")
+        : (targetActorClass?.id ?? "");
+    previewNextActor.classes = previewNextActor.classes.map((c) =>
+      c.id === targetClassId ? { ...c, subclassId: guided.guidedSetup.subclassId } : c
+    );
+  }
+  previewNextActor.level = previewNextActor.classes.reduce((sum, c) => sum + (c.level || 0), 0);
+  const afterSlots = deriveSpellSlots(previewNextActor, compendium.classes);
+
+  const slotChanges: { level: number; before: number; after: number }[] = [];
+  const maxSlotLevel = Math.max(...beforeSlots.map((s) => s.level), ...afterSlots.map((s) => s.level), 0);
+  for (let lvl = 1; lvl <= maxSlotLevel; lvl += 1) {
+    const before = beforeSlots.find((s) => s.level === lvl)?.total ?? 0;
+    const after = afterSlots.find((s) => s.level === lvl)?.total ?? 0;
+    if (after !== before) {
+      slotChanges.push({ level: lvl, before, after });
+    }
+  }
+
+  const beforePB = Math.floor((Math.max(1, currentTotalLevel) - 1) / 4) + 2;
+  const afterPB = Math.floor((Math.max(1, nextTotalLevel) - 1) / 4) + 2;
+  const pbChanged = isLevelUp && afterPB > beforePB;
+
+  const beforeResources = deriveClassResources(draft, compendium.classes);
+  const afterResources = deriveClassResources(previewNextActor, compendium.classes);
+  const resourceChanges: { name: string; before: number; after: number; description?: string }[] = [];
+  for (const afterRes of afterResources) {
+    const beforeRes = beforeResources.find((r) => r.id === afterRes.id || r.name === afterRes.name);
+    if (!beforeRes) {
+      resourceChanges.push({ name: afterRes.name, before: 0, after: afterRes.max, description: afterRes.description });
+    } else if (afterRes.max !== beforeRes.max) {
+      resourceChanges.push({ name: afterRes.name, before: beforeRes.max, after: afterRes.max, description: afterRes.description });
+    }
+  }
+
+  const getFeaturePreviewEntry = (featName: string): CompendiumReferenceEntry => {
+    const fromOptional = compendium.optionalFeatures.find((f) => f.name.toLowerCase() === featName.toLowerCase() || f.id === featName);
+    if (fromOptional) {
+      return fromOptional;
+    }
+    const fromFeats = compendium.feats.find((f) => f.name.toLowerCase() === featName.toLowerCase() || f.id === featName);
+    if (fromFeats) {
+      return {
+        id: fromFeats.id,
+        name: fromFeats.name,
+        category: fromFeats.category || "Feat",
+        source: fromFeats.source,
+        description: [fromFeats.abilityScoreIncrease, fromFeats.description].filter(Boolean).join("\n\n"),
+        entries: [fromFeats.abilityScoreIncrease, fromFeats.description].filter(Boolean).join("\n\n"),
+        tags: [fromFeats.category || "Feat"]
+      };
+    }
+    return {
+      id: featName,
+      name: featName,
+      category: "Class Feature",
+      source: targetClassEntry?.source || "2024 Player's Handbook",
+      description: `${targetClassEntry?.name || "Class"} level ${nextClassLevel} feature.`,
+      entries: `${targetClassEntry?.name || "Class"} level ${nextClassLevel} feature.`,
+      tags: [targetClassEntry?.name || "Class"]
+    };
+  };
 
   const modalContent = (
     <>
@@ -1352,7 +1514,14 @@ export function GuidedSheetModal({
                 </p>
               </div>
 
-              {modifiedAbilities.length > 0 ? (
+              {pbChanged ? (
+                <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 p-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">Proficiency Bonus</span>
+                  <p className="text-sm font-semibold text-indigo-100 mt-0.5">
+                    +{beforePB} ➔ <span className="font-bold text-indigo-200">+{afterPB}</span>
+                  </p>
+                </div>
+              ) : modifiedAbilities.length > 0 ? (
                 <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-2.5">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">Ability Score Boost</span>
                   <div className="text-xs font-semibold text-amber-100 mt-0.5 space-y-0.5">
@@ -1376,58 +1545,127 @@ export function GuidedSheetModal({
               )}
             </div>
 
-            {/* UNLOCKED & ADDED ABILITIES / FEATURES */}
+            {/* SPELL SLOTS & CLASS RESOURCES GAINED */}
+            {slotChanges.length > 0 || resourceChanges.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 pt-2 border-t border-white/5">
+                {slotChanges.length > 0 ? (
+                  <div className="space-y-1.5 rounded-lg border border-blue-500/20 bg-blue-500/5 p-2.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300">Spell Slots Progression</span>
+                    <div className="flex flex-wrap gap-2 text-xs text-blue-100">
+                      {slotChanges.map((slot) => (
+                        <span
+                          key={slot.level}
+                          className="inline-flex items-center gap-1 rounded bg-blue-500/15 border border-blue-500/30 px-2 py-0.5"
+                        >
+                          Level {slot.level}: {slot.before} ➔ <span className="font-bold text-blue-200">{slot.after} slots</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {resourceChanges.length > 0 ? (
+                  <div className="space-y-1.5 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">Class Resources Updated</span>
+                    <div className="flex flex-wrap gap-2 text-xs text-amber-100">
+                      {resourceChanges.map((res) => (
+                        <HoverBadge
+                          key={res.name}
+                          label={`${res.name}: ${res.before > 0 ? `${res.before} ➔ ` : ""}${res.after} uses`}
+                          className="border-amber-500/30 bg-amber-500/15 text-amber-200 hover:border-amber-400"
+                          preview={
+                            res.description ? (
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-300">{res.name}</p>
+                                <p className="text-xs text-zinc-300 leading-relaxed">{res.description}</p>
+                              </div>
+                            ) : null
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {/* UNLOCKED & ADDED ABILITIES / FEATURES WITH HOVER PREVIEW */}
             {newClassFeatures.length > 0 ||
             newSubclassFeatures.length > 0 ||
             guided.selectedGuideFeats.length > 0 ||
             guided.selectedGuideOptionalFeatures.length > 0 ||
             guided.selectedGuideSpells.length > 0 ? (
               <div className="space-y-2 pt-2 border-t border-white/5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                  Abilities & Features to be Added to Sheet
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Abilities & Features to be Added to Sheet
+                  </span>
+                  <span className="text-[10px] text-amber-400/80 italic">Hover any item for details</span>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {newClassFeatures.map((featName) => (
-                    <span
-                      key={featName}
-                      className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-200"
-                    >
-                      <Sparkles size={12} className="text-amber-400" />
-                      {featName}
-                    </span>
-                  ))}
-                  {newSubclassFeatures.map((featName) => (
-                    <span
-                      key={featName}
-                      className="inline-flex items-center gap-1 rounded-md border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-xs font-medium text-purple-200"
-                    >
-                      <Sparkles size={12} className="text-purple-400" />
-                      {featName} (Subclass)
-                    </span>
-                  ))}
+                  {newClassFeatures.map((featName) => {
+                    const featureEntry = getFeaturePreviewEntry(featName);
+                    return (
+                      <HoverBadge
+                        key={featName}
+                        label={featName}
+                        icon={<Sparkles size={12} className="text-amber-400" />}
+                        className="border-amber-500/30 bg-amber-500/10 text-amber-200 hover:border-amber-400"
+                        preview={
+                          <ReferencePreviewCard title="Feature" eyebrow="Class Feature" entry={featureEntry} {...previewLookupProps} />
+                        }
+                      />
+                    );
+                  })}
+                  {newSubclassFeatures.map((featName) => {
+                    const featureEntry = getFeaturePreviewEntry(featName);
+                    return (
+                      <HoverBadge
+                        key={featName}
+                        label={`${featName} (Subclass)`}
+                        icon={<Sparkles size={12} className="text-purple-400" />}
+                        className="border-purple-500/30 bg-purple-500/10 text-purple-200 hover:border-purple-400"
+                        preview={
+                          <ReferencePreviewCard
+                            title="Subclass Feature"
+                            eyebrow="Subclass Feature"
+                            entry={featureEntry}
+                            {...previewLookupProps}
+                          />
+                        }
+                      />
+                    );
+                  })}
                   {guided.selectedGuideFeats.map((feat) => (
-                    <span
+                    <HoverBadge
                       key={feat.id}
-                      className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-xs font-medium text-cyan-200"
-                    >
-                      Feat: {feat.name}
-                    </span>
+                      label={`Feat: ${feat.name}`}
+                      className="border-cyan-500/30 bg-cyan-500/10 text-cyan-200 hover:border-cyan-400"
+                      preview={<FeatPreviewCard feat={feat} {...previewLookupProps} />}
+                    />
                   ))}
                   {guided.selectedGuideOptionalFeatures.map((opt) => (
-                    <span
+                    <HoverBadge
                       key={opt.id}
-                      className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-200"
-                    >
-                      Feature: {opt.name}
-                    </span>
+                      label={`Feature: ${opt.name}`}
+                      className="border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:border-emerald-400"
+                      preview={
+                        <ReferencePreviewCard
+                          title="Optional Feature"
+                          eyebrow={opt.category || "Optional Feature"}
+                          entry={opt}
+                          {...previewLookupProps}
+                        />
+                      }
+                    />
                   ))}
                   {guided.selectedGuideSpells.map((spell) => (
-                    <span
+                    <HoverBadge
                       key={spell.id}
-                      className="inline-flex items-center gap-1 rounded-md border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-200"
-                    >
-                      Spell: {spell.name}
-                    </span>
+                      label={`Spell: ${spell.name}`}
+                      className="border-blue-500/30 bg-blue-500/10 text-blue-200 hover:border-blue-400"
+                      preview={<SpellPreviewCard spell={spell} {...previewLookupProps} />}
+                    />
                   ))}
                 </div>
               </div>
