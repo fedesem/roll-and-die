@@ -13,7 +13,9 @@
       "!**/*.config.js",
       "!**/scripts/**/*.mjs",
       "!**/package-lock.json",
-      "!**/data"
+      "!**/data",
+      "!**/test-results",
+      "!**/playwright-report"
     ]
   },
   "linter": {
