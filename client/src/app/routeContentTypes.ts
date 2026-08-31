@@ -17,9 +17,7 @@ export interface AppNavigation {
   setSelectedCampaignId: (campaignId: string | null, options?: { replace?: boolean }) => void;
   openCampaignHome: () => void;
   openCampaignBoard: () => void;
-  openCampaignCharacters: () => void;
   openCharacterEdit: (actorId: string) => void;
-  openCharacterLevelUp: (actorId: string) => void;
 }
 
 export interface CampaignsRouteProps {

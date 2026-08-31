@@ -19,10 +19,10 @@ export function CharacterEditRouteContent({ actorId, navigation }: { actorId: st
         <p className="text-sm text-zinc-400">The character with ID &ldquo;{actorId}&rdquo; was not found in this campaign.</p>
         <button
           type="button"
-          onClick={navigation.openCampaignCharacters}
+          onClick={navigation.openCampaignHome}
           className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-200"
         >
-          Back to Characters
+          Back to Campaign
         </button>
       </div>
     );
@@ -37,8 +37,7 @@ export function CharacterEditRouteContent({ actorId, navigation }: { actorId: st
         allowedSourceBooks={hubPageProps.campaign.allowedSourceBooks}
         role={hubPageProps.role}
         currentUserId={hubPageProps.currentUserId}
-        onBack={navigation.openCampaignCharacters}
-        onOpenLevelUp={navigation.openCharacterLevelUp}
+        onBack={navigation.openCampaignHome}
         onSave={hubPageProps.onSaveActor}
         onRoll={(notation, label) => hubPageProps.onRoll(notation, label, actor)}
       />

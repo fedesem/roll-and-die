@@ -8,9 +8,7 @@ export type AppRoute =
   | { name: "admin" }
   | { name: "campaign"; campaignId: string }
   | { name: "campaignBoard"; campaignId: string }
-  | { name: "campaignCharacters"; campaignId: string }
-  | { name: "campaignCharacterEdit"; campaignId: string; actorId: string }
-  | { name: "campaignCharacterLevelUp"; campaignId: string; actorId: string };
+  | { name: "campaignCharacterEdit"; campaignId: string; actorId: string };
 
 export function parseAppRoute(pathname: string): AppRoute {
   if (pathname === "/" || pathname === "/campaigns") {
@@ -47,7 +45,7 @@ export function parseAppRoute(pathname: string): AppRoute {
   const characterLevelUpMatch = pathname.match(/^\/campaign\/([^/]+)\/characters\/([^/]+)\/level-up$/);
   if (characterLevelUpMatch?.[1] && characterLevelUpMatch?.[2]) {
     return {
-      name: "campaignCharacterLevelUp",
+      name: "campaignCharacterEdit",
       campaignId: decodeURIComponent(characterLevelUpMatch[1]),
       actorId: decodeURIComponent(characterLevelUpMatch[2])
     };
@@ -56,7 +54,7 @@ export function parseAppRoute(pathname: string): AppRoute {
   const charactersMatch = pathname.match(/^\/campaign\/([^/]+)\/characters$/);
   if (charactersMatch?.[1]) {
     return {
-      name: "campaignCharacters",
+      name: "campaign",
       campaignId: decodeURIComponent(charactersMatch[1])
     };
   }
@@ -85,16 +83,8 @@ export function appRouteToPath(route: AppRoute) {
     return `/campaign/${encodeURIComponent(route.campaignId)}/board`;
   }
 
-  if (route.name === "campaignCharacters") {
-    return `/campaign/${encodeURIComponent(route.campaignId)}/characters`;
-  }
-
   if (route.name === "campaignCharacterEdit") {
     return `/campaign/${encodeURIComponent(route.campaignId)}/characters/${encodeURIComponent(route.actorId)}/edit`;
-  }
-
-  if (route.name === "campaignCharacterLevelUp") {
-    return `/campaign/${encodeURIComponent(route.campaignId)}/characters/${encodeURIComponent(route.actorId)}/level-up`;
   }
 
   if (route.name === "campaignCreate") {

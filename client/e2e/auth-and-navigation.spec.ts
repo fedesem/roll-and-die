@@ -6,11 +6,11 @@ test.describe("Authentication and Navigation", () => {
     await expect(page).toHaveTitle(/Roll or Die/i);
 
     // Form inputs and buttons are visible
-    const usernameInput = page.getByRole("textbox", { name: /username/i });
+    const emailInput = page.locator('input[type="email"]');
     const passwordInput = page.locator('input[type="password"]');
-    const submitButton = page.getByRole("button", { name: /enter table/i });
+    const submitButton = page.getByRole("button", { name: /enter the table/i });
 
-    await expect(usernameInput).toBeVisible();
+    await expect(emailInput).toBeVisible();
     await expect(passwordInput).toBeVisible();
     await expect(submitButton).toBeVisible();
   });
@@ -18,20 +18,16 @@ test.describe("Authentication and Navigation", () => {
   test("toggles between Login and Registration forms smoothly", async ({ page }) => {
     await page.goto("/");
 
-    const modeSwitchButton = page.getByRole("button", { name: /create one/i });
-    if (await modeSwitchButton.isVisible()) {
-      await modeSwitchButton.click();
+    const registerButton = page.getByRole("button", { name: /^register$/i });
+    await expect(registerButton).toBeVisible();
+    await registerButton.click();
 
-      // In registration mode, display name input should be present
-      await expect(page.getByPlaceholder(/your display name/i)).toBeVisible();
-      await expect(page.getByRole("button", { name: /join table/i })).toBeVisible();
+    // In registration mode, name input and create account button should be present
+    await expect(page.getByRole("button", { name: /create account/i })).toBeVisible();
 
-      // Toggle back to login mode
-      const backToLoginButton = page.getByRole("button", { name: /sign in instead/i });
-      if (await backToLoginButton.isVisible()) {
-        await backToLoginButton.click();
-        await expect(page.getByRole("button", { name: /enter table/i })).toBeVisible();
-      }
-    }
+    // Toggle back to login mode
+    const loginButton = page.getByRole("button", { name: /^login$/i });
+    await loginButton.click();
+    await expect(page.getByRole("button", { name: /enter the table/i })).toBeVisible();
   });
 });

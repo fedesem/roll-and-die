@@ -1,4 +1,13 @@
+import fs from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
+
+const chromiumExecutablePath =
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ||
+  (fs.existsSync("/usr/bin/chromium-browser")
+    ? "/usr/bin/chromium-browser"
+    : fs.existsSync("/usr/bin/chromium")
+      ? "/usr/bin/chromium"
+      : undefined);
 
 export default defineConfig({
   testDir: "./client/e2e",
@@ -14,7 +23,13 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] }
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: {
+          executablePath: chromiumExecutablePath,
+          args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
+        }
+      }
     }
   ],
   webServer: {

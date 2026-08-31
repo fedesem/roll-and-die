@@ -8,3 +8,5 @@ coverage
 data/app.sqlite
 data/app.sqlite*
 data/uploads/*
+test-results
+playwright-report

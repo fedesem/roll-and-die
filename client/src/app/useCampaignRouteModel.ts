@@ -307,8 +307,7 @@ export function useCampaignRouteModel({
     onSaveActor: actions.saveActor,
     onRealtimeSaveActor: actions.saveActorRealtime,
     onRoll: actions.rollFromSheet,
-    onUpdateToken: actions.updateToken,
-    onOpenCharacterEdit: navigation.openCharacterEdit
+    onUpdateToken: actions.updateToken
   };
 
   return {

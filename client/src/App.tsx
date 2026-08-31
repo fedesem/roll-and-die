@@ -525,12 +525,6 @@ export default function App() {
         showRoomStatus={isCampaignRoute && Boolean(campaign)}
         onOpenAdmin={() => void navigate({ name: "admin" })}
         onOpenCampaigns={() => void navigate({ name: "campaigns" })}
-        onOpenCharacters={
-          selectedCampaignId ? () => void navigate({ name: "campaignCharacters", campaignId: selectedCampaignId }) : undefined
-        }
-        isCharactersRoute={
-          route.name === "campaignCharacters" || route.name === "campaignCharacterEdit" || route.name === "campaignCharacterLevelUp"
-        }
         onLogout={handleLogout}
       />
 

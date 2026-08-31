@@ -42,15 +42,6 @@ export function useAppNavigationModel({
     void navigate({ name: "campaignBoard", campaignId: selectedCampaignId });
   }, [navigate, selectedCampaignId, setActivePopup]);
 
-  const openCampaignCharacters = useCallback(() => {
-    if (!selectedCampaignId) {
-      return;
-    }
-
-    setActivePopup(null);
-    void navigate({ name: "campaignCharacters", campaignId: selectedCampaignId });
-  }, [navigate, selectedCampaignId, setActivePopup]);
-
   const openCharacterEdit = useCallback(
     (actorId: string) => {
       if (!selectedCampaignId) {
@@ -63,25 +54,11 @@ export function useAppNavigationModel({
     [navigate, selectedCampaignId, setActivePopup]
   );
 
-  const openCharacterLevelUp = useCallback(
-    (actorId: string) => {
-      if (!selectedCampaignId) {
-        return;
-      }
-
-      setActivePopup(null);
-      void navigate({ name: "campaignCharacterLevelUp", campaignId: selectedCampaignId, actorId });
-    },
-    [navigate, selectedCampaignId, setActivePopup]
-  );
-
   return {
     navigate,
     setSelectedCampaignId,
     openCampaignHome,
     openCampaignBoard,
-    openCampaignCharacters,
-    openCharacterEdit,
-    openCharacterLevelUp
+    openCharacterEdit
   };
 }

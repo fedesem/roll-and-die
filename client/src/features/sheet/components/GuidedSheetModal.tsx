@@ -60,6 +60,73 @@ export function GuidedSheetModal({
     ) : null;
   };
 
+  const isLevelUp = guided.guidedFlowMode === "levelup";
+  const targetActorClass =
+    guided.guidedClassId === NEW_GUIDED_CLASS_ID ? null : (draft.classes.find((entry) => entry.id === guided.guidedClassId) ?? null);
+  const targetClassEntry =
+    guided.guidedClassId === NEW_GUIDED_CLASS_ID
+      ? (compendium.classes.find((entry) => entry.id === guided.guidedSetup.classId) ?? null)
+      : targetActorClass
+        ? (findCompendiumClass(targetActorClass, compendium.classes) ?? null)
+        : (compendium.classes.find((entry) => entry.id === guided.guidedSetup.classId) ?? null);
+
+  const currentClassLevel = targetActorClass?.level ?? 0;
+  const nextClassLevel = guided.guidedClassId === NEW_GUIDED_CLASS_ID ? 1 : currentClassLevel + 1;
+  const currentTotalLevel = draft.classes.reduce((acc, c) => acc + (c.level || 0), 0) || 1;
+  const nextTotalLevel = isLevelUp ? currentTotalLevel + 1 : 1;
+
+  const classProgression = targetClassEntry
+    ? (findBaseClassProgression(targetClassEntry.id) ?? findBaseClassProgression(targetClassEntry.name))
+    : null;
+  const newClassFeatures = isLevelUp
+    ? (classProgression?.levels[nextClassLevel]?.features ?? [])
+    : (classProgression?.levels[1]?.features ?? []);
+
+  const effectiveSubclassId = guided.guidedSetup.subclassId || targetActorClass?.subclassId;
+  const subclassProgDef = classProgression?.subclasses.find((s) => s.id === effectiveSubclassId || s.name === effectiveSubclassId);
+  const newSubclassFeatures = isLevelUp ? (subclassProgDef?.levels[nextClassLevel]?.features ?? []) : [];
+
+  const hpGain =
+    guided.guidedSetup.hpMode === "roll" && typeof guided.guidedSetup.rolledHp === "number" && guided.guidedSetup.rolledHp > 0
+      ? Math.max(1, guided.guidedSetup.rolledHp + guided.guidedChoiceSpec.conModifier)
+      : guided.guidedChoiceSpec.averageHpGain;
+
+  const modifiedAbilities: { key: AbilityKey; label: string; before: number; after: number; beforeMod: string; afterMod: string }[] = [];
+  if (isLevelUp && guided.guidedChoiceSpec.abilityImprovementCount > 0 && guided.guidedSetup.asiMode === "ability") {
+    if (guided.guidedSetup.asiAbilityMode === "+2") {
+      const key = guided.guidedSetup.asiAbilityChoices[0] ?? "str";
+      const before = draft.abilities[key] ?? 10;
+      const after = before + 2;
+      const label = abilityOrder.find((a) => a.key === key)?.label ?? key.toUpperCase();
+      modifiedAbilities.push({
+        key,
+        label,
+        before,
+        after,
+        beforeMod: formatModifier(abilityModifier(before)),
+        afterMod: formatModifier(abilityModifier(after))
+      });
+    } else {
+      const key1 = guided.guidedSetup.asiAbilityChoices[0] ?? "str";
+      const key2 = guided.guidedSetup.asiAbilityChoices[1] ?? "dex";
+      const keys = key1 === key2 ? [key1] : [key1, key2];
+      for (const key of keys) {
+        const bonus = key1 === key2 ? 2 : 1;
+        const before = draft.abilities[key] ?? 10;
+        const after = before + bonus;
+        const label = abilityOrder.find((a) => a.key === key)?.label ?? key.toUpperCase();
+        modifiedAbilities.push({
+          key,
+          label,
+          before,
+          after,
+          beforeMod: formatModifier(abilityModifier(before)),
+          afterMod: formatModifier(abilityModifier(after))
+        });
+      }
+    }
+  }
+
   const modalContent = (
     <>
       <div className="flex items-start justify-between gap-4 border-b border-white/8 px-6 py-5 bg-gradient-to-r from-amber-500/[0.08] to-transparent">
@@ -1221,6 +1288,151 @@ export function GuidedSheetModal({
               ) : null}
             </div>
           ) : null}
+
+          {/* PLANNED CHANGES & ABILITIES TO APPLY */}
+          <div className="rounded-xl border border-amber-500/30 bg-slate-900/80 p-4 shadow-inner space-y-3">
+            <div className="flex items-center justify-between border-b border-amber-500/20 pb-2.5">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-amber-400" />
+                <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-amber-300">
+                  {isLevelUp ? "Level Up Changes Summary" : "Initial Character Setup Summary"}
+                </h4>
+              </div>
+              <span className="text-[11px] text-zinc-400">
+                {isLevelUp ? `Character Level ${currentTotalLevel} ➔ ${nextTotalLevel}` : `Starting at Level 1`}
+              </span>
+            </div>
+
+            {/* NUMERICAL & STAT MODIFICATIONS */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border border-white/5 bg-slate-950/60 p-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Class & Level</span>
+                <p className="text-sm font-semibold text-zinc-100 mt-0.5">
+                  {targetClassEntry ? targetClassEntry.name : "Class"}
+                  {isLevelUp ? (
+                    <span className="text-xs font-normal text-amber-300 ml-1">
+                      (Lvl {currentClassLevel} ➔ {nextClassLevel})
+                    </span>
+                  ) : (
+                    <span className="text-xs font-normal text-amber-300 ml-1">(Lvl 1)</span>
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-white/5 bg-slate-950/60 p-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Max Hit Points</span>
+                <p className="text-sm font-semibold text-emerald-300 mt-0.5">
+                  {isLevelUp ? (
+                    <>
+                      {draft.hitPoints.max} ➔ {draft.hitPoints.max + hpGain}
+                      <span className="text-xs font-normal text-emerald-400 ml-1">(+{hpGain} HP)</span>
+                    </>
+                  ) : (
+                    <>
+                      {Math.max(1, (guided.guidedChoiceSpec.hitDieFaces || 8) + guided.guidedChoiceSpec.conModifier)} HP
+                      <span className="text-xs font-normal text-zinc-400 ml-1">
+                        ({guided.guidedChoiceSpec.hitDieFaces || 8} + {formatModifier(guided.guidedChoiceSpec.conModifier)} CON)
+                      </span>
+                    </>
+                  )}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-white/5 bg-slate-950/60 p-2.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Hit Die</span>
+                <p className="text-sm font-semibold text-zinc-100 mt-0.5">
+                  {isLevelUp ? (
+                    <>
+                      +1d{guided.guidedChoiceSpec.hitDieFaces || 8}
+                      <span className="text-xs font-normal text-zinc-400 ml-1">die added</span>
+                    </>
+                  ) : (
+                    `1d${guided.guidedChoiceSpec.hitDieFaces || 8}`
+                  )}
+                </p>
+              </div>
+
+              {modifiedAbilities.length > 0 ? (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">Ability Score Boost</span>
+                  <div className="text-xs font-semibold text-amber-100 mt-0.5 space-y-0.5">
+                    {modifiedAbilities.map((mod) => (
+                      <div key={mod.key}>
+                        {mod.label}: {mod.before} ({mod.beforeMod}) ➔{" "}
+                        <span className="font-bold text-amber-200">
+                          {mod.after} ({mod.afterMod})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-white/5 bg-slate-950/60 p-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Total Level</span>
+                  <p className="text-sm font-semibold text-zinc-100 mt-0.5">
+                    Level {isLevelUp ? `${currentTotalLevel} ➔ ${nextTotalLevel}` : "1"}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* UNLOCKED & ADDED ABILITIES / FEATURES */}
+            {newClassFeatures.length > 0 ||
+            newSubclassFeatures.length > 0 ||
+            guided.selectedGuideFeats.length > 0 ||
+            guided.selectedGuideOptionalFeatures.length > 0 ||
+            guided.selectedGuideSpells.length > 0 ? (
+              <div className="space-y-2 pt-2 border-t border-white/5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                  Abilities & Features to be Added to Sheet
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {newClassFeatures.map((featName) => (
+                    <span
+                      key={featName}
+                      className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-200"
+                    >
+                      <Sparkles size={12} className="text-amber-400" />
+                      {featName}
+                    </span>
+                  ))}
+                  {newSubclassFeatures.map((featName) => (
+                    <span
+                      key={featName}
+                      className="inline-flex items-center gap-1 rounded-md border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 text-xs font-medium text-purple-200"
+                    >
+                      <Sparkles size={12} className="text-purple-400" />
+                      {featName} (Subclass)
+                    </span>
+                  ))}
+                  {guided.selectedGuideFeats.map((feat) => (
+                    <span
+                      key={feat.id}
+                      className="inline-flex items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-xs font-medium text-cyan-200"
+                    >
+                      Feat: {feat.name}
+                    </span>
+                  ))}
+                  {guided.selectedGuideOptionalFeatures.map((opt) => (
+                    <span
+                      key={opt.id}
+                      className="inline-flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-200"
+                    >
+                      Feature: {opt.name}
+                    </span>
+                  ))}
+                  {guided.selectedGuideSpells.map((spell) => (
+                    <span
+                      key={spell.id}
+                      className="inline-flex items-center gap-1 rounded-md border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-200"
+                    >
+                      Spell: {spell.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
 
           {guided.selectedGuideFeats.length > 0 ||
           guided.selectedGuideOptionalFeatures.length > 0 ||

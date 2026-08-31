@@ -237,6 +237,7 @@ After any file edit:
 
 - always run the relevant automated tests or validation commands before responding
 - use `./app.sh test` as the default entry point when running the repo test suite for validation
+- when editing UI, always check with Playwright (`./app.sh test:e2e`)
 - if no dedicated test exists for the touched area, run the closest meaningful verification for that workspace and state what you ran
 - do not skip verification just because the change looks small
 

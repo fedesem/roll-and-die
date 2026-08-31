@@ -1,5 +1,5 @@
 import type { MemberRole } from "@shared/types";
-import { Shield, Users } from "lucide-react";
+import { Shield } from "lucide-react";
 
 import type { RoomStatus } from "../services/roomConnection";
 
@@ -14,8 +14,6 @@ interface AppTopbarProps {
   showRoomStatus: boolean;
   onOpenAdmin: () => void;
   onOpenCampaigns: () => void;
-  onOpenCharacters?: () => void;
-  isCharactersRoute?: boolean;
   onLogout: () => void;
 }
 
@@ -30,8 +28,6 @@ export function AppTopbar({
   showRoomStatus,
   onOpenAdmin,
   onOpenCampaigns,
-  onOpenCharacters,
-  isCharactersRoute = false,
   onLogout
 }: AppTopbarProps) {
   return (
@@ -65,20 +61,6 @@ export function AppTopbar({
         </div>
       )}
       <div className="flex items-center gap-2">
-        {onOpenCharacters && (
-          <button
-            type="button"
-            className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition ${
-              isCharactersRoute
-                ? "border-amber-400/40 bg-amber-500/20 text-amber-50 shadow-sm"
-                : "border-white/10 bg-slate-900/80 text-slate-200 hover:border-amber-500/40 hover:bg-slate-800"
-            }`}
-            onClick={onOpenCharacters}
-          >
-            <Users size={14} />
-            <span>Characters</span>
-          </button>
-        )}
         {isAdmin && (
           <button
             type="button"

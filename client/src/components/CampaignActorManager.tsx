@@ -1,5 +1,5 @@
 import type { ActorKind, ActorSheet, CampaignMap, CampaignMember, MemberRole } from "@shared/types";
-import { Map, MapPinned, ScrollText, Skull, Square, Trash2, User, Users } from "lucide-react";
+import { Edit3, Map, MapPinned, ScrollText, Skull, Square, Trash2, User, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { ActorTypeFilter, AvailableActorEntry } from "../features/campaign/types";
@@ -17,6 +17,7 @@ interface CampaignActorManagerProps {
   actorTypeFilter: ActorTypeFilter;
   actorCreatorOpen: boolean;
   onOpenSheet: (actorId: string) => void;
+  onOpenEdit?: (actorId: string) => void;
   onActorSearchChange: (value: string) => void;
   onActorTypeFilterChange: (value: ActorTypeFilter) => void;
   onActorCreatorOpenChange: (open: boolean) => void;
@@ -34,6 +35,7 @@ export function CampaignActorManager({
   actorTypeFilter,
   actorCreatorOpen,
   onOpenSheet,
+  onOpenEdit,
   onActorSearchChange,
   onActorTypeFilterChange,
   onActorCreatorOpenChange,
@@ -169,6 +171,14 @@ export function CampaignActorManager({
                     onClick={() => onOpenSheet(actor.id)}
                     icon={ScrollText}
                   />
+                  {canManage && onOpenEdit && (actor.kind === "character" || actor.kind === "npc") ? (
+                    <CampaignActionButton
+                      title="Edit character"
+                      aria-label="Edit character"
+                      onClick={() => onOpenEdit(actor.id)}
+                      icon={Edit3}
+                    />
+                  ) : null}
                   {canManage && (
                     <CampaignActionButton
                       title="Delete actor"

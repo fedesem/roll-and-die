@@ -1,4 +1,4 @@
-import { Clock3, Edit3, Moon } from "lucide-react";
+import { Clock3, Moon } from "lucide-react";
 import { memo, useDeferredValue, useEffect, useMemo } from "react";
 
 import { RulesText } from "../../components/admin/AdminPreview";
@@ -292,18 +292,6 @@ function PlayerNpcSheet2024Component(props: PlayerNpcSheet2024Props) {
   useWorkspaceModalHeader(
     permissions.hasMainTab ? (
       <div className="flex flex-wrap items-center gap-2">
-        {props.onNavigateToEdit ? (
-          <button
-            type="button"
-            onClick={props.onNavigateToEdit}
-            className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-200 transition hover:border-amber-500/60 hover:bg-amber-500/20 hover:text-amber-100"
-            title="Open Fullscreen Character Editor"
-          >
-            <Edit3 size={11} />
-            <span>Edit Full ↗</span>
-          </button>
-        ) : null}
-
         <button
           type="button"
           className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-slate-900/90 px-2 py-1 text-xs font-semibold text-zinc-300 transition hover:border-amber-500/40 hover:bg-slate-800 hover:text-amber-100 disabled:opacity-50"

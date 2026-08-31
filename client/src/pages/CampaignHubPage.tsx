@@ -322,6 +322,7 @@ export function CampaignHubPage({
                   onSelectActor(actorId);
                   onSetActivePopup("sheet");
                 }}
+                onOpenEdit={onOpenCharacterEdit}
                 onActorSearchChange={onActorSearchChange}
                 onActorTypeFilterChange={onActorTypeFilterChange}
                 onActorCreatorOpenChange={onActorCreatorOpenChange}
@@ -459,7 +460,6 @@ export function CampaignHubPage({
             sheetContext="campaign"
             onSave={onSaveActor}
             onRoll={onRoll}
-            onNavigateToEdit={selectedActor && onOpenCharacterEdit ? () => onOpenCharacterEdit(selectedActor.id) : undefined}
           />
         </WorkspaceModal>
       )}

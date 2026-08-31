@@ -280,8 +280,8 @@ export interface GuidedSheetFlowState {
   ) => void;
   applyClass: (classId: string, existingActorClassId?: string) => void;
   applySubclass: (actorClassId: string, subclassId: string) => void;
-  confirmGuidedSetup: () => void;
-  confirmGuidedLevelUp: () => void;
+  confirmGuidedSetup: () => ActorSheet | null;
+  confirmGuidedLevelUp: () => ActorSheet | null;
 }
 
 interface UseGuidedSheetFlowParams {
@@ -776,17 +776,17 @@ export function useGuidedSheetFlow({
     updateDraft((current) => assignSubclassToActor(current, compendium.classes, actorClassId, subclassId));
   }
 
-  function confirmGuidedSetup() {
+  function confirmGuidedSetup(): ActorSheet | null {
     if (!guidedSetup.speciesId || !guidedSetup.backgroundId || !guidedSetup.classId) {
       setGuideError("Choose a species, background, and class before applying setup.");
-      return;
+      return null;
     }
 
     const classEntry = compendium.classes.find((entry) => entry.id === guidedSetup.classId);
 
     if (!classEntry) {
       setGuideError("The selected class is no longer available in the campaign compendium.");
-      return;
+      return null;
     }
 
     const guideValidation = validateGuideSelections({
@@ -805,9 +805,10 @@ export function useGuidedSheetFlow({
 
     if (guideValidation) {
       setGuideError(guideValidation);
-      return;
+      return null;
     }
 
+    let nextActor: ActorSheet | null = null;
     updateDraft((current) => {
       const before = cloneActor(current);
       let next = cloneActor(current);
@@ -895,12 +896,14 @@ export function useGuidedSheetFlow({
         awards: [...(next.build?.awards ?? []), award],
         overrides: next.build?.overrides ?? []
       };
+      nextActor = next;
       return next;
     });
 
     setGuideError(null);
     setGuidedFlowOpen(false);
     setActiveTab("edit");
+    return nextActor;
   }
 
   function confirmGuidedLevelUp() {
@@ -914,7 +917,7 @@ export function useGuidedSheetFlow({
 
     if (!classEntry) {
       setGuideError("Choose a class to level before applying the guide.");
-      return;
+      return null;
     }
 
     const currentSubclassId = targetActorClass
@@ -931,7 +934,7 @@ export function useGuidedSheetFlow({
 
     if (guideValidation) {
       setGuideError(guideValidation);
-      return;
+      return null;
     }
 
     const constitutionModifier = abilityModifierTotal(draft, "con");
@@ -943,6 +946,7 @@ export function useGuidedSheetFlow({
           : Math.floor((classEntry.hitDieFaces || 8) / 2) + 1;
     const hpGain = Math.max(1, rolledValue + constitutionModifier);
 
+    let nextActor: ActorSheet | null = null;
     updateDraft((current) => {
       const before = cloneActor(current);
       let next = cloneActor(current);
@@ -1033,11 +1037,13 @@ export function useGuidedSheetFlow({
         awards: [...(next.build?.awards ?? []), award],
         overrides: next.build?.overrides ?? []
       };
+      nextActor = next;
       return next;
     });
 
     setGuideError(null);
     setGuidedFlowOpen(false);
+    return nextActor;
   }
 
   return {

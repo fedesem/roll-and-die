@@ -19,7 +19,6 @@ interface CharacterSheetProps {
   onSave: (actor: ActorSheet) => Promise<void>;
   onRealtimeSave?: (actor: ActorSheet) => Promise<void>;
   onRoll: (notation: string, label: string, actor?: ActorSheet | null) => Promise<void>;
-  onNavigateToEdit?: () => void;
   onNavigateToLevelUp?: () => void;
 }
 
@@ -34,7 +33,6 @@ function CharacterSheetComponent({
   onSave,
   onRealtimeSave,
   onRoll,
-  onNavigateToEdit,
   onNavigateToLevelUp
 }: CharacterSheetProps) {
   const [draft, setDraft] = useState<ActorSheet | null>(actor ? cloneActor(actor) : null);
@@ -98,7 +96,6 @@ function CharacterSheetComponent({
         onSave={onSave}
         onRealtimeSave={onRealtimeSave}
         onRoll={handlePlayerNpcRoll}
-        onNavigateToEdit={onNavigateToEdit}
         onNavigateToLevelUp={onNavigateToLevelUp}
       />
     );

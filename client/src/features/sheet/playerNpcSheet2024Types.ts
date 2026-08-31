@@ -25,7 +25,6 @@ export interface PlayerNpcSheet2024Props {
   onSave: (actor: ActorSheet) => Promise<void>;
   onRealtimeSave?: (actor: ActorSheet) => Promise<void>;
   onRoll: (notation: string, label: string) => Promise<void>;
-  onNavigateToEdit?: () => void;
   onNavigateToLevelUp?: () => void;
 }
 
