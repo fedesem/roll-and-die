@@ -444,29 +444,34 @@ export function applyClassToActor(actor: ActorSheet, classEntry: ClassEntry, cla
 
 export function assignSubclassToActor(actor: ActorSheet, classes: ClassEntry[], actorClassId: string, subclassId: string) {
   const actorClass = actor.classes.find((entry) => entry.id === actorClassId);
-  const classEntry = actorClass ? findCompendiumClass(actorClass, classes) : null;
-  const subclass = classEntry?.subclasses.find((entry) => entry.id === subclassId);
-  const classDefinition = actorClass ? (findClassProgression(actorClass.compendiumId) ?? findClassProgression(actorClass.name)) : null;
-  const subclassDefinition = classDefinition?.subclasses.find(
-    (entry) => entry.id === subclassId || normalizeKey(entry.name) === normalizeKey(subclass?.name ?? "")
-  );
-
-  if (!actorClass || !classEntry || !subclass || !subclassDefinition) {
+  if (!actorClass) {
     return actor;
   }
+  const classEntry = findCompendiumClass(actorClass, classes);
+  const classDefinition = findClassProgression(actorClass.compendiumId) ?? findClassProgression(actorClass.name);
+  const subclassDefinition = classDefinition?.subclasses.find(
+    (entry) => entry.id.toLowerCase() === subclassId.toLowerCase() || normalizeKey(entry.name) === normalizeKey(subclassId)
+  );
+  const compendiumSubclass = classEntry?.subclasses.find(
+    (entry) => entry.id.toLowerCase() === subclassId.toLowerCase() || normalizeKey(entry.name) === normalizeKey(subclassId)
+  );
+
+  const subId = subclassDefinition?.id || compendiumSubclass?.id || subclassId;
+  const subName = subclassDefinition?.name || compendiumSubclass?.name || subclassId;
+  const subSource = subclassDefinition?.source || compendiumSubclass?.source || classEntry?.source || "2024 Player's Handbook";
 
   const next = cloneActor(actor);
   next.classes = next.classes.map((entry) =>
     entry.id === actorClassId
       ? {
           ...entry,
-          subclassId: subclassDefinition.id,
-          subclassName: subclassDefinition.name,
-          subclassSource: subclassDefinition.source
+          subclassId: subId,
+          subclassName: subName,
+          subclassSource: subSource
         }
       : entry
   );
-  next.features = mergeTextValues(next.features, collectGuidedFeatures(next, classes, { [actorClassId]: subclassId }));
+  next.features = mergeTextValues(next.features, collectGuidedFeatures(next, classes, { [actorClassId]: subId }));
   next.build = {
     ruleset: "dnd-2024",
     schemaVersion: 2,
@@ -484,9 +489,9 @@ export function assignSubclassToActor(actor: ActorSheet, classes: ClassEntry[], 
       entry.id === actorClassId
         ? {
             ...entry,
-            subclassId: subclassDefinition.id,
-            subclassName: subclassDefinition.name,
-            subclassSource: subclassDefinition.source
+            subclassId: subId,
+            subclassName: subName,
+            subclassSource: subSource
           }
         : entry
     )

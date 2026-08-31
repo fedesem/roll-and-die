@@ -160,9 +160,32 @@ export function GuidedSheetModal({
     ? (classProgression?.levels[nextClassLevel]?.features ?? [])
     : (classProgression?.levels[1]?.features ?? []);
 
-  const effectiveSubclassId = guided.guidedSetup.subclassId || targetActorClass?.subclassId;
-  const subclassProgDef = classProgression?.subclasses.find((s) => s.id === effectiveSubclassId || s.name === effectiveSubclassId);
-  const newSubclassFeatures = isLevelUp ? (subclassProgDef?.levels[nextClassLevel]?.features ?? []) : [];
+  const effectiveSubclassId = guided.guidedSetup.subclassId || targetActorClass?.subclassId || "";
+  const subclassProgDef = classProgression?.subclasses.find(
+    (s) => s.id.toLowerCase() === effectiveSubclassId.toLowerCase() || s.name.toLowerCase() === effectiveSubclassId.toLowerCase()
+  );
+  const targetSubclassEntry = targetClassEntry?.subclasses.find(
+    (s) => s.id.toLowerCase() === effectiveSubclassId.toLowerCase() || s.name.toLowerCase() === effectiveSubclassId.toLowerCase()
+  );
+
+  const isNewSubclassChoice = !targetActorClass?.subclassId && Boolean(effectiveSubclassId);
+  const newSubclassFeatures = isLevelUp
+    ? (() => {
+        if (!effectiveSubclassId) return [];
+        const features: string[] = [];
+        const minLevel = isNewSubclassChoice ? 1 : nextClassLevel;
+        for (let lvl = minLevel; lvl <= nextClassLevel; lvl++) {
+          const fromProg = subclassProgDef?.levels[lvl]?.features ?? [];
+          const fromComp = targetSubclassEntry?.features.filter((f) => f.level === lvl).map((f) => f.name) ?? [];
+          for (const feat of [...fromProg, ...fromComp]) {
+            if (!features.includes(feat)) {
+              features.push(feat);
+            }
+          }
+        }
+        return features;
+      })()
+    : [];
 
   const hpGain =
     guided.guidedSetup.hpMode === "roll" && typeof guided.guidedSetup.rolledHp === "number" && guided.guidedSetup.rolledHp > 0
@@ -229,13 +252,26 @@ export function GuidedSheetModal({
   } else if (targetActorClass) {
     previewNextActor.classes = previewNextActor.classes.map((c) => (c.id === targetActorClass.id ? { ...c, level: c.level + 1 } : c));
   }
-  if (guided.guidedSetup.subclassId) {
+  if (effectiveSubclassId) {
     const targetClassId =
       guided.guidedClassId === NEW_GUIDED_CLASS_ID
         ? (previewNextActor.classes.find((c) => c.compendiumId === targetClassEntry?.id)?.id ?? "")
         : (targetActorClass?.id ?? "");
+    const subDef =
+      subclassProgDef ??
+      targetClassEntry?.subclasses.find(
+        (s) => s.id.toLowerCase() === effectiveSubclassId.toLowerCase() || s.name.toLowerCase() === effectiveSubclassId.toLowerCase()
+      ) ??
+      null;
     previewNextActor.classes = previewNextActor.classes.map((c) =>
-      c.id === targetClassId ? { ...c, subclassId: guided.guidedSetup.subclassId } : c
+      c.id === targetClassId
+        ? {
+            ...c,
+            subclassId: subDef?.id ?? effectiveSubclassId,
+            subclassName: subDef?.name ?? effectiveSubclassId,
+            subclassSource: subDef?.source ?? targetClassEntry?.source
+          }
+        : c
     );
   }
   previewNextActor.level = previewNextActor.classes.reduce((sum, c) => sum + (c.level || 0), 0);
@@ -975,41 +1011,89 @@ export function GuidedSheetModal({
                         ? (findCompendiumClass(targetActorClass, compendium.classes) ?? null)
                         : null;
                   const nextLevel = guided.guidedClassId === NEW_GUIDED_CLASS_ID ? 1 : (targetActorClass?.level ?? 0) + 1;
+                  const subclassLevelReq = targetClassEntry?.subclassLevel ?? 3;
 
-                  return targetClassEntry &&
-                    targetClassEntry.subclasses.length > 0 &&
-                    nextLevel >= (targetClassEntry.subclassLevel ?? 99) ? (
-                    <Field label="Subclass (Level 3+)">
-                      <select
-                        className={inputClass}
-                        value={guided.guidedSetup.subclassId}
-                        onChange={(event) => guided.setGuidedSetup((current) => ({ ...current, subclassId: event.target.value }))}
-                      >
-                        <option value="">Select a subclass</option>
-                        {targetClassEntry.subclasses.map((entry) => (
-                          <option
-                            key={entry.id}
-                            value={entry.id}
-                            disabled={
-                              !findSubclassesForClass(targetClassEntry.name).some(
-                                (definition) => definition.id === entry.id || definition.name === entry.name
-                              )
+                  if (!targetClassEntry) return null;
+
+                  const availableSubclasses = (() => {
+                    const fromCompendium = targetClassEntry.subclasses ?? [];
+                    const fromProgression = findSubclassesForClass(targetClassEntry.name).map((sub) => ({
+                      id: sub.id,
+                      name: sub.name,
+                      shortName: sub.name,
+                      source: sub.source,
+                      className: targetClassEntry.name,
+                      classSource: targetClassEntry.source,
+                      description: "",
+                      features: []
+                    }));
+                    const combined = [...fromCompendium];
+                    for (const sub of fromProgression) {
+                      if (!combined.some((existing) => existing.id === sub.id || existing.name.toLowerCase() === sub.name.toLowerCase())) {
+                        combined.push(sub);
+                      }
+                    }
+                    return combined;
+                  })();
+
+                  if (availableSubclasses.length === 0 || nextLevel < subclassLevelReq) {
+                    return null;
+                  }
+
+                  const selectedSubclassId = guided.guidedSetup.subclassId || targetActorClass?.subclassId || "";
+                  const selectedSubclass = availableSubclasses.find(
+                    (s) =>
+                      s.id.toLowerCase() === selectedSubclassId.toLowerCase() || s.name.toLowerCase() === selectedSubclassId.toLowerCase()
+                  );
+
+                  return (
+                    <Field label={`Subclass (Level ${subclassLevelReq}+)`}>
+                      <div className="space-y-2">
+                        <select
+                          className={inputClass}
+                          value={selectedSubclassId}
+                          onChange={(event) => guided.setGuidedSetup((current) => ({ ...current, subclassId: event.target.value }))}
+                        >
+                          <option value="">Select a subclass</option>
+                          {availableSubclasses.map((entry) => (
+                            <option key={entry.id} value={entry.id}>
+                              {entry.name} ({entry.source || "2024 PHB"})
+                            </option>
+                          ))}
+                        </select>
+                        {selectedSubclass ? (
+                          <HoverPreviewTrigger
+                            label="Subclass Details"
+                            caption={selectedSubclass.name}
+                            emptyMessage=""
+                            preview={
+                              <ReferencePreviewCard
+                                title="Subclass"
+                                eyebrow="Subclass Reference"
+                                entry={{
+                                  id: selectedSubclass.id,
+                                  name: selectedSubclass.name,
+                                  category: `${targetClassEntry.name} Subclass`,
+                                  source: selectedSubclass.source || targetClassEntry.source,
+                                  description:
+                                    selectedSubclass.description || `${selectedSubclass.name} subclass for ${targetClassEntry.name}.`,
+                                  entries:
+                                    selectedSubclass.description || `${selectedSubclass.name} subclass for ${targetClassEntry.name}.`,
+                                  tags: [targetClassEntry.name, selectedSubclass.name]
+                                }}
+                                {...previewLookupProps}
+                              />
                             }
-                          >
-                            {entry.name} ({entry.source})
-                            {!findSubclassesForClass(targetClassEntry.name).some(
-                              (definition) => definition.id === entry.id || definition.name === entry.name
-                            )
-                              ? " — rules metadata unavailable"
-                              : ""}
-                          </option>
-                        ))}
-                      </select>
-                      {targetActorClass?.subclassName ? (
-                        <p className="mt-2 text-xs text-zinc-500">Current: {targetActorClass.subclassName}</p>
-                      ) : null}
+                          />
+                        ) : null}
+                        {targetActorClass?.subclassName ? (
+                          <p className="text-xs text-zinc-400">
+                            Current on Sheet: <span className="text-amber-300 font-medium">{targetActorClass.subclassName}</span>
+                          </p>
+                        ) : null}
+                      </div>
                     </Field>
-                  ) : null;
+                  );
                 })()}
               </div>
 

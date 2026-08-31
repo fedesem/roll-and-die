@@ -1219,8 +1219,12 @@ export function deriveGuidedChoiceSpec(params: {
     }
   });
 
+  const subclassLevelThreshold = classEntry.subclassLevel ?? 3;
+  const showSubclassChoice =
+    Boolean(configAt(targetLevel)?.subclassChoice) || (!currentSubclassId && targetLevel >= subclassLevelThreshold);
+
   return {
-    subclassOptions: configAt(targetLevel)?.subclassChoice ? combinedSubclasses : [],
+    subclassOptions: showSubclassChoice ? combinedSubclasses : [],
     classFeatOptions,
     classFeatCount: fightingStyleCount,
     optionalFeatureOptions,

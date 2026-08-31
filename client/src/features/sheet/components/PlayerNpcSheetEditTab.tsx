@@ -1,3 +1,4 @@
+import { findSubclassesForClass } from "@shared/data/progression";
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 import { type AbilityKey, type ActorBonusEntry, type ActorSheet, type ArmorEntry, TOKEN_STATUS_MARKERS } from "@shared/types";
 import { BookOpen, Brain, Heart, ImagePlus, Plus, Shield, Sparkles, Swords, Trash2, Wand2 } from "lucide-react";
@@ -397,23 +398,46 @@ export function PlayerNpcSheetEditTab({
                     </Field>
                   </div>
 
-                  {classEntry && classEntry.subclasses.length > 0 && actorClass.level >= (classEntry.subclassLevel ?? 99) ? (
-                    <Field label="Subclass">
-                      <select
-                        className={inputClass}
-                        disabled={permissions.editReadOnly}
-                        value={actorClass.subclassId ?? ""}
-                        onChange={(event) => guided.applySubclass(actorClass.id, event.target.value)}
-                      >
-                        <option value="">Select a subclass</option>
-                        {classEntry.subclasses.map((entry) => (
-                          <option key={entry.id} value={entry.id}>
-                            {entry.name}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                  ) : null}
+                  {(() => {
+                    if (!classEntry) return null;
+                    const fromCompendium = classEntry.subclasses ?? [];
+                    const fromProgression = findSubclassesForClass(classEntry.name).map((sub) => ({
+                      id: sub.id,
+                      name: sub.name,
+                      shortName: sub.name,
+                      source: sub.source,
+                      className: classEntry.name,
+                      classSource: classEntry.source,
+                      description: "",
+                      features: []
+                    }));
+                    const combined = [...fromCompendium];
+                    for (const sub of fromProgression) {
+                      if (!combined.some((existing) => existing.id === sub.id || existing.name.toLowerCase() === sub.name.toLowerCase())) {
+                        combined.push(sub);
+                      }
+                    }
+                    const threshold = classEntry.subclassLevel ?? 3;
+                    if (combined.length === 0 || actorClass.level < threshold) return null;
+
+                    return (
+                      <Field label={`Subclass (Level ${threshold}+)`}>
+                        <select
+                          className={inputClass}
+                          disabled={permissions.editReadOnly}
+                          value={actorClass.subclassId ?? ""}
+                          onChange={(event) => guided.applySubclass(actorClass.id, event.target.value)}
+                        >
+                          <option value="">Select a subclass</option>
+                          {combined.map((entry) => (
+                            <option key={entry.id} value={entry.id}>
+                              {entry.name} ({entry.source || "2024 PHB"})
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    );
+                  })()}
 
                   {classEntry ? (
                     <DetailCollection
