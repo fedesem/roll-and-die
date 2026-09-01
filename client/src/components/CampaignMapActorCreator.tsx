@@ -4,8 +4,8 @@ import { useState } from "react";
 
 import type { ActorTypeFilter, AvailableActorEntry } from "../features/campaign/types";
 import { createClientActorDraft } from "../lib/drafts";
-import { RulesText } from "./admin/AdminPreview";
 import { CampaignActionButton } from "./CampaignActionButton";
+import { RulesText } from "./compendium";
 import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
 import { MonsterCatalogOption, MonsterStatBlock } from "./monster/MonsterStatBlock";
 

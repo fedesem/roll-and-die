@@ -21,16 +21,6 @@ import {
 import { toErrorMessage } from "../lib/errors";
 import styles from "./AdminPanel.module.css";
 import {
-  BookPreviewCard,
-  ClassPreviewCard,
-  FeatPreviewCard,
-  MonsterPreviewCard,
-  PreviewPlaceholder,
-  ReferencePreviewCard,
-  SpellPreviewCard,
-  UserPreviewCard
-} from "./admin/AdminPreview";
-import {
   AdminField,
   type AdminTab,
   buildPreview,
@@ -43,6 +33,16 @@ import {
   singularLabel,
   tabIcons
 } from "./admin/adminPanelUtils";
+import {
+  BookPreviewCard,
+  ClassPreviewCard,
+  FeatPreviewCard,
+  MonsterPreviewCard,
+  PreviewPlaceholder,
+  ReferencePreviewCard,
+  SpellPreviewCard,
+  UserPreviewCard
+} from "./compendium";
 import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
 
 type AdminMode = "list" | "add" | "import";

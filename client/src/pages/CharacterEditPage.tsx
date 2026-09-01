@@ -2,7 +2,7 @@ import type { ActorSheet, CampaignSnapshot, MemberRole } from "@shared/types";
 import { ArrowLeft, Check, RotateCcw, Save, Sparkles } from "lucide-react";
 import { memo, useDeferredValue, useEffect, useMemo } from "react";
 
-import { RulesText } from "../components/admin/AdminPreview";
+import { RulesText } from "../components/compendium";
 import { GuidedSheetModal } from "../features/sheet/components/GuidedSheetModal";
 import { PlayerNpcSheetEditTab } from "../features/sheet/components/PlayerNpcSheetEditTab";
 import { SheetButton } from "../features/sheet/components/sheetPrimitives";

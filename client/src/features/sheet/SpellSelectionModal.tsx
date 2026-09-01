@@ -1,7 +1,7 @@
 import type { CampaignSnapshot, SpellEntry, SpellLevel, SpellSchool } from "@shared/types";
 import { Eye, Sparkles, X } from "lucide-react";
 import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
-import { SpellPreviewCard } from "../../components/admin/AdminPreview";
+import { SpellPreviewCard } from "../../components/compendium";
 import { anchorFromRect, type FloatingAnchor, FloatingLayer } from "../../components/FloatingLayer";
 import { ModalFrame } from "../../components/ModalFrame";
 import { inputClass, SheetButton } from "./components/sheetPrimitives";

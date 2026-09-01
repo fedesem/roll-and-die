@@ -3,7 +3,7 @@ import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 import { type AbilityKey, type ActorBonusEntry, type ActorSheet, type ArmorEntry, TOKEN_STATUS_MARKERS } from "@shared/types";
 import { BookOpen, Brain, Heart, ImagePlus, Plus, Shield, Sparkles, Swords, Trash2, Wand2 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
-
+import { SubclassPreviewCard } from "../../../components/compendium";
 import { NumericInput } from "../../../components/NumericInput";
 import type { GuidedSheetFlowState } from "../hooks/useGuidedSheetFlow";
 import type { PlayerNpcSheetActions, PlayerNpcSheetMutators } from "../hooks/usePlayerNpcSheetController";
@@ -22,6 +22,7 @@ import {
   CalloutBanner,
   DetailCollection,
   Field,
+  HoverPreviewTrigger,
   inputClass,
   LazyDetails,
   SectionCard,
@@ -420,21 +421,76 @@ export function PlayerNpcSheetEditTab({
                     const threshold = classEntry.subclassLevel ?? 3;
                     if (combined.length === 0 || actorClass.level < threshold) return null;
 
+                    const selectedSub = combined.find(
+                      (s) =>
+                        s.id.toLowerCase() === (actorClass.subclassId ?? "").toLowerCase() ||
+                        s.name.toLowerCase() === (actorClass.subclassId ?? "").toLowerCase()
+                    );
+                    const compDef = classEntry.subclasses.find(
+                      (s) =>
+                        s.id.toLowerCase() === (actorClass.subclassId ?? "").toLowerCase() ||
+                        s.name.toLowerCase() === (actorClass.subclassId ?? "").toLowerCase()
+                    );
+                    const progDef = findSubclassesForClass(classEntry.name).find(
+                      (s) =>
+                        s.id.toLowerCase() === (actorClass.subclassId ?? "").toLowerCase() ||
+                        s.name.toLowerCase() === (actorClass.subclassId ?? "").toLowerCase()
+                    );
+                    const combinedFeatures = [...(compDef?.features ?? [])];
+                    const fullSubclassModel = selectedSub
+                      ? {
+                          id: selectedSub.id,
+                          name: selectedSub.name,
+                          source: selectedSub.source || compDef?.source || classEntry.source,
+                          className: classEntry.name,
+                          classSource: classEntry.source,
+                          description: compDef?.description || selectedSub.description || "",
+                          features: combinedFeatures,
+                          levels: progDef?.levels
+                        }
+                      : null;
+
                     return (
                       <Field label={`Subclass (Level ${threshold}+)`}>
-                        <select
-                          className={inputClass}
-                          disabled={permissions.editReadOnly}
-                          value={actorClass.subclassId ?? ""}
-                          onChange={(event) => guided.applySubclass(actorClass.id, event.target.value)}
-                        >
-                          <option value="">Select a subclass</option>
-                          {combined.map((entry) => (
-                            <option key={entry.id} value={entry.id}>
-                              {entry.name} ({entry.source || "2024 PHB"})
-                            </option>
-                          ))}
-                        </select>
+                        <div className="space-y-2">
+                          <select
+                            className={inputClass}
+                            disabled={permissions.editReadOnly}
+                            value={actorClass.subclassId ?? ""}
+                            onChange={(event) => guided.applySubclass(actorClass.id, event.target.value)}
+                          >
+                            <option value="">Select a subclass</option>
+                            {combined.map((entry) => (
+                              <option key={entry.id} value={entry.id}>
+                                {entry.name} ({entry.source || "2024 PHB"})
+                              </option>
+                            ))}
+                          </select>
+                          {fullSubclassModel ? (
+                            <HoverPreviewTrigger
+                              label="Subclass Details"
+                              caption={fullSubclassModel.name}
+                              emptyMessage=""
+                              preview={
+                                <SubclassPreviewCard
+                                  subclass={fullSubclassModel}
+                                  className={classEntry.name}
+                                  spellEntries={compendium.spells}
+                                  featEntries={compendium.feats}
+                                  classEntries={compendium.classes}
+                                  variantRuleEntries={compendium.variantRules}
+                                  conditionEntries={compendium.conditions}
+                                  itemEntries={compendium.items}
+                                  optionalFeatureEntries={compendium.optionalFeatures}
+                                  skillEntries={compendium.skills}
+                                  languageEntries={compendium.languages}
+                                  raceEntries={compendium.races}
+                                  backgroundEntries={compendium.backgrounds}
+                                />
+                              }
+                            />
+                          ) : null}
+                        </div>
                       </Field>
                     );
                   })()}

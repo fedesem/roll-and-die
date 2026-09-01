@@ -1,9 +1,9 @@
 import type { ActorKind, ActorSheet, CampaignSnapshot, MemberRole, MonsterTemplate } from "@shared/types";
 import { FilePlus2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { RulesText } from "./admin/AdminPreview";
 import { CampaignActionButton } from "./CampaignActionButton";
 import { CharacterSheet } from "./CharacterSheet";
+import { RulesText } from "./compendium";
 import { ViewportWorkspace, WorkspacePane, WorkspacePaneBody } from "./layout/ViewportWorkspace";
 import { MonsterCatalogOption, MonsterStatBlock } from "./monster/MonsterStatBlock";
 

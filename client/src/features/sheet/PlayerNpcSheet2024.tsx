@@ -1,7 +1,7 @@
 import { Clock3, Moon } from "lucide-react";
 import { memo, useDeferredValue, useEffect, useMemo } from "react";
 
-import { RulesText } from "../../components/admin/AdminPreview";
+import { RulesText } from "../../components/compendium";
 import { useWorkspaceModalHeader } from "../../components/WorkspaceModal";
 import { GuidedSheetModal } from "./components/GuidedSheetModal";
 import { LongRestDialog } from "./components/LongRestDialog";

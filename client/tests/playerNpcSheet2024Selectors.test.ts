@@ -26,6 +26,7 @@ import {
 } from "../src/features/sheet/selectors/playerNpcSheet2024Mutations";
 import {
   collectFeatRows,
+  collectGuidedFeatures,
   deriveAttunementCount,
   deriveBackgroundAbilityConfig,
   deriveBackgroundEquipmentGroups,
@@ -1851,5 +1852,62 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     expect(spec.cantripOptions.map((s) => s.name)).toEqual(["Druidcraft"]);
     expect(spec.cantripCount).toBe(2);
     expect(spec.preparedSpellCount).toBe(4);
+  });
+
+  it("filters generic subclass placeholders and decomposes into individual subclass features", () => {
+    const fighterClass = createClass({
+      id: "fighter-xphb",
+      name: "Fighter",
+      source: "XPHB"
+    });
+    const championSubclass = {
+      id: "fighter-champion-xphb",
+      name: "Champion",
+      shortName: "Champion",
+      source: "XPHB",
+      className: "Fighter",
+      classSource: "XPHB",
+      description: "Champion fighter archetype",
+      features: [
+        {
+          level: 3,
+          name: "Improved Critical",
+          description: "Your attack rolls score a critical hit on a roll of 19 or 20.",
+          source: "XPHB",
+          reference: ""
+        },
+        {
+          level: 3,
+          name: "Remarkable Athlete",
+          description: "Add half your proficiency bonus to athletic checks.",
+          source: "XPHB",
+          reference: ""
+        }
+      ]
+    };
+    fighterClass.subclasses = [championSubclass];
+
+    const actor = createActor({
+      classes: [
+        {
+          id: "cls-1",
+          compendiumId: "fighter-xphb",
+          name: "Fighter",
+          level: 3,
+          hitDieFaces: 10,
+          usedHitDice: 0,
+          subclassId: "fighter-champion-xphb",
+          subclassName: "Champion",
+          source: "XPHB",
+          spellcastingAbility: null
+        }
+      ]
+    });
+
+    const features = collectGuidedFeatures(actor, [fighterClass]);
+    expect(features).toContain("Improved Critical");
+    expect(features).toContain("Remarkable Athlete");
+    expect(features).not.toContain("Martial Archetype");
+    expect(features).not.toContain("Subclass");
   });
 });

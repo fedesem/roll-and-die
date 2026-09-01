@@ -556,6 +556,37 @@ export function normalizeSpeciesSize(value: string | undefined): ActorSheet["cre
   }
 }
 
+const SUBCLASS_PLACEHOLDER_FEATURE_NAMES = new Set([
+  "subclass",
+  "martial archetype",
+  "primal path",
+  "divine domain",
+  "cleric subclass",
+  "bard college",
+  "bard subclass",
+  "wizard subclass",
+  "arcane tradition",
+  "roguish archetype",
+  "rogue subclass",
+  "sacred oath",
+  "paladin subclass",
+  "druid circle",
+  "druid subclass",
+  "monastic tradition",
+  "monk subclass",
+  "sorcerous origin",
+  "sorcerer subclass",
+  "otherworldly patron",
+  "warlock subclass",
+  "ranger archetype",
+  "ranger subclass",
+  "artificer specialist"
+]);
+
+export function isSubclassPlaceholder(featName: string): boolean {
+  return SUBCLASS_PLACEHOLDER_FEATURE_NAMES.has(featName.toLowerCase().trim());
+}
+
 export function collectGuidedFeatures(actor: ActorSheet, classes: ClassEntry[], subclassOverrides?: Record<string, string>) {
   void classes;
   const progressionFeatureNames = actor.classes.flatMap((actorClass) => {
@@ -563,7 +594,8 @@ export function collectGuidedFeatures(actor: ActorSheet, classes: ClassEntry[], 
     if (!definition) return [];
     const features: string[] = [];
     for (let level = 1; level <= actorClass.level; level += 1) {
-      features.push(...(definition.levels[level]?.features ?? []));
+      const classLevelFeatures = definition.levels[level]?.features ?? [];
+      features.push(...classLevelFeatures.filter((f) => !isSubclassPlaceholder(f)));
     }
     const subclassId =
       subclassOverrides?.[actorClass.id] ??
@@ -574,7 +606,8 @@ export function collectGuidedFeatures(actor: ActorSheet, classes: ClassEntry[], 
     );
     if (subclass) {
       for (let level = 1; level <= actorClass.level; level += 1) {
-        features.push(...(subclass.levels[level]?.features ?? []));
+        const subLevelFeatures = subclass.levels[level]?.features ?? [];
+        features.push(...subLevelFeatures.filter((f) => !isSubclassPlaceholder(f)));
       }
     }
     return features;

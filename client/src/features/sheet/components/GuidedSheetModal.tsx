@@ -8,7 +8,13 @@ import {
 import type { AbilityKey, ActorSheet, CompendiumChoiceGroup, CompendiumChoiceOption, CompendiumReferenceEntry } from "@shared/types";
 import { Dice6, Plus, Sparkles, X } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
-import { ClassPreviewCard, FeatPreviewCard, ReferencePreviewCard, SpellPreviewCard } from "../../../components/admin/AdminPreview";
+import {
+  ClassPreviewCard,
+  FeatPreviewCard,
+  ReferencePreviewCard,
+  SpellPreviewCard,
+  SubclassPreviewCard
+} from "../../../components/compendium";
 import { anchorFromRect, type FloatingAnchor, FloatingLayer } from "../../../components/FloatingLayer";
 import { ModalFrame } from "../../../components/ModalFrame";
 import { NumericInput } from "../../../components/NumericInput";
@@ -26,6 +32,37 @@ import {
 import { abilityModifier, abilityOrder, cloneActor, findCompendiumClass, formatModifier } from "../sheetUtils";
 import { GuidedChoiceGroupField } from "./GuidedChoiceGroupField";
 import { DetailCollection, Field, HoverPreviewTrigger, inputClass, SheetButton, secondaryButtonClass } from "./sheetPrimitives";
+
+const SUBCLASS_PLACEHOLDER_FEATURE_NAMES = new Set([
+  "subclass",
+  "martial archetype",
+  "primal path",
+  "divine domain",
+  "cleric subclass",
+  "bard college",
+  "bard subclass",
+  "wizard subclass",
+  "arcane tradition",
+  "roguish archetype",
+  "rogue subclass",
+  "sacred oath",
+  "paladin subclass",
+  "druid circle",
+  "druid subclass",
+  "monastic tradition",
+  "monk subclass",
+  "sorcerous origin",
+  "sorcerer subclass",
+  "otherworldly patron",
+  "warlock subclass",
+  "ranger archetype",
+  "ranger subclass",
+  "artificer specialist"
+]);
+
+function isSubclassPlaceholder(featName: string): boolean {
+  return SUBCLASS_PLACEHOLDER_FEATURE_NAMES.has(featName.toLowerCase().trim());
+}
 
 function HoverBadge({
   label,
@@ -156,9 +193,10 @@ export function GuidedSheetModal({
   const classProgression = targetClassEntry
     ? (findBaseClassProgression(targetClassEntry.id) ?? findBaseClassProgression(targetClassEntry.name))
     : null;
-  const newClassFeatures = isLevelUp
+  const rawClassFeatures = isLevelUp
     ? (classProgression?.levels[nextClassLevel]?.features ?? [])
     : (classProgression?.levels[1]?.features ?? []);
+  const newClassFeatures = rawClassFeatures.filter((featName) => !isSubclassPlaceholder(featName));
 
   const effectiveSubclassId = guided.guidedSetup.subclassId || targetActorClass?.subclassId || "";
   const subclassProgDef = classProgression?.subclasses.find(
@@ -178,12 +216,29 @@ export function GuidedSheetModal({
           const fromProg = subclassProgDef?.levels[lvl]?.features ?? [];
           const fromComp = targetSubclassEntry?.features.filter((f) => f.level === lvl).map((f) => f.name) ?? [];
           for (const feat of [...fromProg, ...fromComp]) {
-            if (!features.includes(feat)) {
+            if (!features.includes(feat) && !isSubclassPlaceholder(feat)) {
               features.push(feat);
             }
           }
         }
         return features;
+      })()
+    : [];
+
+  const newSubclassSpells = isLevelUp
+    ? (() => {
+        if (!effectiveSubclassId || !subclassProgDef) return [];
+        const spells: string[] = [];
+        const minLevel = isNewSubclassChoice ? 1 : nextClassLevel;
+        for (let lvl = minLevel; lvl <= nextClassLevel; lvl++) {
+          const levelSpells = subclassProgDef.levels[lvl]?.alwaysPreparedSpells ?? [];
+          for (const spell of levelSpells) {
+            if (!spells.includes(spell)) {
+              spells.push(spell);
+            }
+          }
+        }
+        return spells;
       })()
     : [];
 
@@ -1061,31 +1116,68 @@ export function GuidedSheetModal({
                             </option>
                           ))}
                         </select>
-                        {selectedSubclass ? (
-                          <HoverPreviewTrigger
-                            label="Subclass Details"
-                            caption={selectedSubclass.name}
-                            emptyMessage=""
-                            preview={
-                              <ReferencePreviewCard
-                                title="Subclass"
-                                eyebrow="Subclass Reference"
-                                entry={{
-                                  id: selectedSubclass.id,
-                                  name: selectedSubclass.name,
-                                  category: `${targetClassEntry.name} Subclass`,
-                                  source: selectedSubclass.source || targetClassEntry.source,
-                                  description:
-                                    selectedSubclass.description || `${selectedSubclass.name} subclass for ${targetClassEntry.name}.`,
-                                  entries:
-                                    selectedSubclass.description || `${selectedSubclass.name} subclass for ${targetClassEntry.name}.`,
-                                  tags: [targetClassEntry.name, selectedSubclass.name]
-                                }}
-                                {...previewLookupProps}
-                              />
+                        {(() => {
+                          if (!selectedSubclass) return null;
+                          const compDef = targetClassEntry?.subclasses.find(
+                            (s) =>
+                              s.id.toLowerCase() === selectedSubclass.id.toLowerCase() ||
+                              s.name.toLowerCase() === selectedSubclass.name.toLowerCase()
+                          );
+                          const progDef = findSubclassesForClass(targetClassEntry.name).find(
+                            (s) =>
+                              s.id.toLowerCase() === selectedSubclass.id.toLowerCase() ||
+                              s.name.toLowerCase() === selectedSubclass.name.toLowerCase()
+                          );
+
+                          const combinedFeatures = [...(compDef?.features ?? [])];
+                          if (progDef?.levels) {
+                            for (const [lvlKey, lvlConfig] of Object.entries(progDef.levels)) {
+                              const lvl = Number(lvlKey);
+                              for (const featName of lvlConfig.features ?? []) {
+                                if (
+                                  !combinedFeatures.some((f) => f.name.toLowerCase() === featName.toLowerCase()) &&
+                                  !isSubclassPlaceholder(featName)
+                                ) {
+                                  const previewEntry = getFeaturePreviewEntry(featName, true);
+                                  combinedFeatures.push({
+                                    level: lvl,
+                                    name: featName,
+                                    description: previewEntry.description,
+                                    source: previewEntry.source || targetClassEntry.source,
+                                    reference: ""
+                                  });
+                                }
+                              }
                             }
-                          />
-                        ) : null}
+                          }
+                          combinedFeatures.sort((a, b) => a.level - b.level);
+
+                          const fullSubclassModel = {
+                            id: selectedSubclass.id,
+                            name: selectedSubclass.name,
+                            source: selectedSubclass.source || compDef?.source || targetClassEntry.source,
+                            className: targetClassEntry.name,
+                            classSource: targetClassEntry.source,
+                            description: compDef?.description || selectedSubclass.description || "",
+                            features: combinedFeatures,
+                            levels: progDef?.levels
+                          };
+
+                          return (
+                            <HoverPreviewTrigger
+                              label="Subclass Details"
+                              caption={fullSubclassModel.name}
+                              emptyMessage=""
+                              preview={
+                                <SubclassPreviewCard
+                                  subclass={fullSubclassModel}
+                                  className={targetClassEntry.name}
+                                  {...previewLookupProps}
+                                />
+                              }
+                            />
+                          );
+                        })()}
                         {targetActorClass?.subclassName ? (
                           <p className="text-xs text-zinc-400">
                             Current on Sheet: <span className="text-amber-300 font-medium">{targetActorClass.subclassName}</span>
@@ -1753,6 +1845,7 @@ export function GuidedSheetModal({
             {/* UNLOCKED & ADDED ABILITIES / FEATURES WITH HOVER PREVIEW */}
             {newClassFeatures.length > 0 ||
             newSubclassFeatures.length > 0 ||
+            newSubclassSpells.length > 0 ||
             guided.selectedGuideFeats.length > 0 ||
             guided.selectedGuideOptionalFeatures.length > 0 ||
             guided.selectedGuideSpells.length > 0 ? (
@@ -1780,19 +1873,54 @@ export function GuidedSheetModal({
                   })}
                   {newSubclassFeatures.map((featName) => {
                     const featureEntry = getFeaturePreviewEntry(featName, true);
+                    const subLabel = targetSubclassEntry?.name || subclassProgDef?.name || "Subclass";
                     return (
                       <HoverBadge
                         key={featName}
-                        label={`${featName} (Subclass)`}
+                        label={`${featName} (${subLabel})`}
                         icon={<Sparkles size={12} className="text-purple-400" />}
                         className="border-purple-500/30 bg-purple-500/10 text-purple-200 hover:border-purple-400"
                         preview={
                           <ReferencePreviewCard
                             title="Subclass Feature"
-                            eyebrow="Subclass Feature"
+                            eyebrow={`${subLabel} Feature`}
                             entry={featureEntry}
                             {...previewLookupProps}
                           />
+                        }
+                      />
+                    );
+                  })}
+                  {newSubclassSpells.map((spellName) => {
+                    const foundSpell = compendium.spells.find(
+                      (s) => s.name.toLowerCase() === spellName.toLowerCase() || s.id === spellName
+                    );
+                    const subLabel = targetSubclassEntry?.name || subclassProgDef?.name || "Subclass";
+                    return (
+                      <HoverBadge
+                        key={`subclass-spell:${spellName}`}
+                        label={`Subclass Spell: ${spellName}`}
+                        icon={<Sparkles size={12} className="text-blue-400" />}
+                        className="border-blue-500/30 bg-blue-500/10 text-blue-200 hover:border-blue-400"
+                        preview={
+                          foundSpell ? (
+                            <SpellPreviewCard spell={foundSpell} {...previewLookupProps} />
+                          ) : (
+                            <ReferencePreviewCard
+                              title="Spell"
+                              eyebrow={`${subLabel} Spell`}
+                              entry={{
+                                id: spellName,
+                                name: spellName,
+                                category: `${subLabel} Spell`,
+                                source: targetClassEntry?.source || "2024 Player's Handbook",
+                                description: `${spellName} granted by ${subLabel}.`,
+                                entries: `${spellName} granted by ${subLabel}.`,
+                                tags: [subLabel, "Spell"]
+                              }}
+                              {...previewLookupProps}
+                            />
+                          )
                         }
                       />
                     );
