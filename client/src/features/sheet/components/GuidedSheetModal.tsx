@@ -483,7 +483,7 @@ export function GuidedSheetModal({
           {guided.guideError}
         </div>
       ) : null}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">
+      <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">
         <div className="space-y-4">
           {guided.guidedFlowMode === "setup" ? (
             <>
@@ -824,7 +824,7 @@ export function GuidedSheetModal({
 
               <div className="space-y-3 border border-white/8 bg-black/20 p-4">
                 <p className="text-xs uppercase tracking-[0.24em] text-amber-400/80">Languages</p>
-                <p className="text-xs text-zinc-400">Common + choose up to 2 additional languages.</p>
+                <p className="text-xs text-zinc-400">Common + choose up to 2 additional Standard Languages.</p>
                 <div className="grid gap-3 md:grid-cols-2">
                   {Array.from({ length: 2 }, (_, index) => (
                     <Field key={`lang-${index}`} label={`Language Choice ${index + 1}`}>
@@ -1520,10 +1520,23 @@ export function GuidedSheetModal({
                             })
                           }
                           onChange={(optionIds) =>
-                            guided.setGuidedSetup((current) => ({
-                              ...current,
-                              classChoiceIds: { ...current.classChoiceIds, [group.id]: optionIds }
-                            }))
+                            guided.setGuidedSetup((current) => {
+                              const nextClassChoiceIds = { ...current.classChoiceIds, [group.id]: optionIds };
+                              if (guided.guidedChoiceSpec.classChoiceGroups) {
+                                guided.guidedChoiceSpec.classChoiceGroups.forEach((childGroup) => {
+                                  if (
+                                    childGroup.parentOption?.groupId === group.id &&
+                                    !optionIds.includes(childGroup.parentOption.optionId)
+                                  ) {
+                                    delete nextClassChoiceIds[childGroup.id];
+                                  }
+                                });
+                              }
+                              return {
+                                ...current,
+                                classChoiceIds: nextClassChoiceIds
+                              };
+                            })
                           }
                         />
                       );

@@ -302,7 +302,7 @@ function SimpleActorSheet({ token, actor, canEdit, saving, imageError, onDraftCh
                   <span>{actor.name.slice(0, 2).toUpperCase()}</span>
                 )}
               </div>
-              <label className="block">
+              <label className="relative block">
                 <span className="sr-only">Upload portrait</span>
                 <span className="flex cursor-pointer items-center justify-center gap-2 border border-zinc-800 px-3 py-2 text-xs uppercase tracking-[0.2em] text-zinc-300 transition hover:border-amber-700/70 hover:text-amber-50">
                   <ImagePlus size={14} />

@@ -19,6 +19,7 @@ interface SpellSelectionModalProps {
   lockEligibilityFilters?: boolean;
   emptyMessage?: string;
   applyLabel?: string;
+  validateSelection?: (spellIds: string[]) => string | null;
   onApply: (spellIds: string[]) => void;
   onClose: () => void;
 }
@@ -43,6 +44,7 @@ export function SpellSelectionModal({
   lockEligibilityFilters = false,
   emptyMessage = "No spells match these filters.",
   applyLabel = "Apply Spells",
+  validateSelection,
   onApply,
   onClose
 }: SpellSelectionModalProps) {
@@ -53,6 +55,7 @@ export function SpellSelectionModal({
   const [classFilter, setClassFilter] = useState("all");
   const [previewAnchor, setPreviewAnchor] = useState<FloatingAnchor | null>(null);
   const [previewSpell, setPreviewSpell] = useState<SpellEntry | null>(null);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const closePreviewTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -63,6 +66,7 @@ export function SpellSelectionModal({
     setClassFilter("all");
     setPreviewAnchor(null);
     setPreviewSpell(null);
+    setSelectionError(null);
   }, [selectedSpellIds, spells, title]);
 
   useEffect(
@@ -89,13 +93,16 @@ export function SpellSelectionModal({
       }),
     [spells]
   );
-  const normalizedAllowedBooks = useMemo(() => new Set(allowedSourceBooks.map((entry) => normalizeKey(entry))), [allowedSourceBooks]);
+  const normalizedAllowedBooks = useMemo(
+    () => new Set((allowedSourceBooks ?? []).map((entry) => normalizeKey(entry))),
+    [allowedSourceBooks]
+  );
   const classOptions = useMemo(() => {
     const byKey = new Map<string, SpellAccessFilterOption>();
     const availableSubclasses = new Map<string, { label: string; classLabel: string }>();
 
-    compendium.classes.forEach((classEntry) => {
-      classEntry.subclasses.forEach((subclassEntry) => {
+    (compendium?.classes ?? []).forEach((classEntry) => {
+      (classEntry.subclasses ?? []).forEach((subclassEntry) => {
         if (normalizedAllowedBooks.size > 0 && !normalizedAllowedBooks.has(normalizeKey(subclassEntry.source))) {
           return;
         }
@@ -108,7 +115,7 @@ export function SpellSelectionModal({
     });
 
     sortedSpells.forEach((spell) => {
-      spell.classes.forEach((entry) => {
+      (spell.classes ?? []).forEach((entry) => {
         const normalized = normalizeKey(entry);
         if (!normalized || byKey.has(`class:${normalized}`)) {
           return;
@@ -121,7 +128,7 @@ export function SpellSelectionModal({
         });
       });
 
-      spell.classReferences.forEach((entry) => {
+      (spell.classReferences ?? []).forEach((entry) => {
         const referenceKind = entry.kind === "subclass" || entry.kind === "subclassVariant" ? "subclass" : "class";
         const label = referenceKind === "subclass" ? entry.name : entry.source ? `${entry.name} (${entry.source})` : entry.name;
         const normalized = normalizeKey(label);
@@ -144,7 +151,7 @@ export function SpellSelectionModal({
     });
 
     return Array.from(byKey.values()).sort((left, right) => left.label.localeCompare(right.label));
-  }, [compendium.classes, normalizedAllowedBooks, sortedSpells]);
+  }, [compendium?.classes, normalizedAllowedBooks, sortedSpells]);
 
   const baseClassOptions = useMemo(() => classOptions.filter((entry) => entry.kind === "class"), [classOptions]);
   const subclassOptionsByClass = useMemo(() => {
@@ -199,6 +206,7 @@ export function SpellSelectionModal({
   const selectionLimitReached = typeof maxSelections === "number" && maxSelections > 0 && localSelectedIds.length >= maxSelections;
 
   function toggleSpell(spellId: string) {
+    setSelectionError(null);
     setLocalSelectedIds((current) => {
       if (current.includes(spellId)) {
         return current.filter((entry) => entry !== spellId);
@@ -210,6 +218,16 @@ export function SpellSelectionModal({
 
       return [...current, spellId];
     });
+  }
+
+  function applySelection() {
+    const validIds = localSelectedIds.filter((entry) => spellLookup.has(entry));
+    const error = validateSelection?.(validIds) ?? null;
+    if (error) {
+      setSelectionError(error);
+      return;
+    }
+    onApply(validIds);
   }
 
   function queuePreviewClose() {
@@ -253,7 +271,7 @@ export function SpellSelectionModal({
         </SheetButton>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-4">
+      <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 space-y-4">
         <div
           className={`grid gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-4 ${
             lockEligibilityFilters ? "md:grid-cols-[minmax(0,1fr)_auto]" : "md:grid-cols-4"
@@ -431,13 +449,18 @@ export function SpellSelectionModal({
         ) : null}
       </div>
 
-      <div className="flex justify-end gap-3 border-t border-white/8 px-6 py-4">
-        <SheetButton variant="secondary" size="md" onClick={onClose}>
-          Cancel
-        </SheetButton>
-        <SheetButton variant="primary" size="md" onClick={() => onApply(localSelectedIds.filter((entry) => spellLookup.has(entry)))}>
-          {applyLabel}
-        </SheetButton>
+      <div className="flex items-center justify-between gap-3 border-t border-white/8 px-6 py-4">
+        <p className="text-sm text-red-300" role="alert">
+          {selectionError}
+        </p>
+        <div className="flex gap-3">
+          <SheetButton variant="secondary" size="md" onClick={onClose}>
+            Cancel
+          </SheetButton>
+          <SheetButton variant="primary" size="md" onClick={applySelection}>
+            {applyLabel}
+          </SheetButton>
+        </div>
       </div>
     </ModalFrame>
   );

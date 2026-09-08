@@ -58,7 +58,15 @@ export function ModalFrame({
     >
       <div className="flex h-full w-full items-center justify-center p-4 sm:p-6">
         <section
-          className={`pointer-events-auto flex h-[90dvh] min-h-0 w-full flex-col overflow-hidden rounded-xl border border-amber-500/25 bg-slate-950/95 shadow-[0_28px_90px_rgba(0,0,0,0.75)] backdrop-blur-xl ${panelClassName}`}
+          className={`relative pointer-events-auto flex h-[90dvh] min-h-0 w-full flex-col overflow-hidden rounded-xl border border-amber-500/25 bg-slate-950/95 shadow-[0_28px_90px_rgba(0,0,0,0.75)] backdrop-blur-xl ${panelClassName}`}
+          onScroll={(event) => {
+            if (event.currentTarget.scrollTop !== 0) {
+              event.currentTarget.scrollTop = 0;
+            }
+            if (event.currentTarget.scrollLeft !== 0) {
+              event.currentTarget.scrollLeft = 0;
+            }
+          }}
           onClick={(event) => {
             event.stopPropagation();
           }}

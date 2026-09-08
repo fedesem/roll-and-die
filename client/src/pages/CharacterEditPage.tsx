@@ -1,3 +1,4 @@
+import { stagePreparedSpellConfiguration, stageSpellChoiceConfiguration } from "@shared/rules/progressionEngine";
 import type { ActorSheet, CampaignSnapshot, MemberRole } from "@shared/types";
 import { ArrowLeft, Check, RotateCcw, Save, Sparkles } from "lucide-react";
 import { memo, useDeferredValue, useEffect, useMemo } from "react";
@@ -51,15 +52,13 @@ export function CharacterEditPageComponent({
 
   const { state, mutators, actions } = controller;
   const deferredDraft = useDeferredValue(state.draft);
-  const deferredLongRestPreparedSpells = useDeferredValue(state.longRestPreparedSpells);
 
   const { permissions, derived } = usePlayerNpcSheetDerived({
     draft: deferredDraft,
     compendium,
     role,
     currentUserId,
-    sheetContext: "campaign",
-    longRestPreparedSpells: deferredLongRestPreparedSpells
+    sheetContext: "campaign"
   });
 
   const guided = useGuidedSheetFlow({
@@ -71,9 +70,11 @@ export function CharacterEditPageComponent({
     setActiveTab: actions.setActiveTab
   });
 
+  const { setAutosavePaused } = actions;
+
   useEffect(() => {
-    actions.setAutosavePaused(guided.guidedFlowOpen);
-  }, [actions, guided.guidedFlowOpen]);
+    setAutosavePaused(guided.guidedFlowOpen);
+  }, [guided.guidedFlowOpen, setAutosavePaused]);
 
   const spellSelectionConfig = useMemo<SpellSelectionConfig | null>(() => {
     if (!state.spellSelectionTarget) {
@@ -82,10 +83,79 @@ export function CharacterEditPageComponent({
 
     if (typeof state.spellSelectionTarget === "object") {
       const target = state.spellSelectionTarget;
+      if (target.kind === "restPrepared") {
+        const preparation = derived.restPreparedSpellGroups.find((entry) => entry.actorClassId === target.actorClassId);
+        if (!preparation) return null;
+        return {
+          title: `${preparation.className} Rest Preparation`,
+          subtitle: "Stage this class's prepared spells. The change takes effect when the next Long Rest completes.",
+          spells: preparation.options,
+          selectedSpellIds: preparation.selectedIds,
+          maxSelections: preparation.limit,
+          lockEligibilityFilters: true,
+          applyLabel: "Stage Rest Preparation",
+          validateSelection: (spellIds) => {
+            if (spellIds.length !== preparation.limit) {
+              return `Choose exactly ${preparation.limit} spell${preparation.limit === 1 ? "" : "s"} for this class.`;
+            }
+            if (preparation.replacementLimit === "all" || preparation.activeIds.length === 0) return null;
+            const selected = new Set(spellIds);
+            const replaced = preparation.activeIds.filter((id) => !selected.has(id)).length;
+            return replaced > preparation.replacementLimit
+              ? `This class can replace only ${preparation.replacementLimit} prepared spell${preparation.replacementLimit === 1 ? "" : "s"} per Long Rest.`
+              : null;
+          },
+          onApply: (spellIds) =>
+            mutators.updateDraft((current) =>
+              stagePreparedSpellConfiguration(current, {
+                ownerRef: preparation.ownerRef,
+                ownerInstanceId: preparation.actorClassId,
+                expectedCount: preparation.limit,
+                spells: spellIds
+                  .slice(0, preparation.limit)
+                  .map((id) => compendium.spells.find((spell) => spell.id === id))
+                  .filter((spell): spell is (typeof compendium.spells)[number] => Boolean(spell)),
+                replacementLimit: preparation.replacementLimit
+              })
+            )
+        };
+      }
+      if (target.kind === "restSpellChoice") {
+        const group = derived.restSpellChoiceGroups.find(
+          (entry) => entry.actorClassId === target.actorClassId && entry.groupId === target.groupId
+        );
+        if (!group) return null;
+        return {
+          title: group.title,
+          subtitle: `Stage this selection. It takes effect after the next ${group.trigger === "shortOrLongRest" ? "Short or Long" : "Long"} Rest.`,
+          spells: group.options,
+          selectedSpellIds: group.selectedIds,
+          maxSelections: group.count,
+          lockEligibilityFilters: true,
+          applyLabel: "Stage Spell Choice",
+          validateSelection: (spellIds) =>
+            spellIds.length === group.count ? null : `Choose exactly ${group.count} spell${group.count === 1 ? "" : "s"}.`,
+          onApply: (spellIds) =>
+            mutators.updateDraft((current) =>
+              stageSpellChoiceConfiguration(current, {
+                ownerRef: group.ownerRef,
+                ownerInstanceId: group.actorClassId,
+                groupId: group.groupId,
+                trigger: group.trigger,
+                expectedCount: group.count,
+                bucket: group.bucket,
+                spells: spellIds.flatMap((spellId) => {
+                  const spell = compendium.spells.find((entry) => entry.id === spellId);
+                  return spell ? [{ id: spell.id, name: spell.name, source: spell.source }] : [];
+                })
+              })
+            )
+        };
+      }
       const group =
         target.owner === "class"
-          ? guided.guidedChoiceSpec.classChoiceGroups.find((entry) => entry.id === target.groupId)
-          : guided.guidedChoiceSpec.featChoiceGroups[target.ownerId]?.find((entry) => entry.id === target.groupId);
+          ? guided.guidedChoiceSpec.classChoiceGroups?.find((entry) => entry.id === target.groupId)
+          : guided.guidedChoiceSpec.featChoiceGroups?.[target.ownerId]?.find((entry) => entry.id === target.groupId);
       if (!group) return null;
       const spells = compendium.spells.filter((spell) => group.options.some((option) => option.id === spell.id));
       const selectedSpellIds =
@@ -131,16 +201,6 @@ export function CharacterEditPageComponent({
           maxSelections: derived.preparedSpellLimit > 0 ? derived.preparedSpellLimit : undefined,
           applyLabel: "Apply Prepared Spells",
           onApply: (spellIds) => mutators.updateField("preparedSpells", findSpellNamesByIds(spellIds, compendium.spells))
-        };
-      case "longRestPrepared":
-        return {
-          title: "Long Rest Preparation",
-          subtitle: "Choose the spells this actor will prepare when the long rest completes.",
-          spells: derived.preparableSpellEntries,
-          selectedSpellIds: findSpellIdsByNames(state.longRestPreparedSpells, compendium.spells),
-          maxSelections: derived.preparedSpellLimit > 0 ? derived.preparedSpellLimit : undefined,
-          applyLabel: "Apply Rest Preparation",
-          onApply: (spellIds) => actions.setLongRestPreparedSpells(findSpellNamesByIds(spellIds, compendium.spells))
         };
       case "editKnown":
         return {
@@ -293,10 +353,11 @@ export function CharacterEditPageComponent({
     compendium.spells,
     derived.preparableSpellEntries,
     derived.preparedSpellLimit,
+    derived.restPreparedSpellGroups,
+    derived.restSpellChoiceGroups,
     guided,
     mutators,
     state.draft,
-    state.longRestPreparedSpells,
     state.spellSelectionTarget
   ]);
 

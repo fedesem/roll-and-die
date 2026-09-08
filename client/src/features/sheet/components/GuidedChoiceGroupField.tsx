@@ -12,10 +12,18 @@ interface GuidedChoiceGroupFieldProps {
   renderOptionPreview?: (option: CompendiumChoiceOption) => ReactNode;
 }
 
-export function GuidedChoiceGroupField({ group, selectedIds, onChange, onChooseSpells, renderOptionPreview }: GuidedChoiceGroupFieldProps) {
+export function GuidedChoiceGroupField({
+  group,
+  selectedIds = [],
+  onChange,
+  onChooseSpells,
+  renderOptionPreview
+}: GuidedChoiceGroupFieldProps) {
+  const safeSelectedIds = selectedIds ?? [];
+  const options = group.options ?? [];
   const maxCount = group.count || 1;
   const isSpellChoice = group.selectionKind === "spells";
-  const selectedOptions = group.options.filter((option) => selectedIds.includes(option.id));
+  const selectedOptions = options.filter((option) => safeSelectedIds.includes(option.id));
 
   if (isSpellChoice) {
     return (
@@ -25,7 +33,7 @@ export function GuidedChoiceGroupField({ group, selectedIds, onChange, onChooseS
         <legend className="px-2 text-xs font-bold uppercase tracking-wider text-amber-400">{group.label}</legend>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-zinc-300">
-            <span className="font-semibold text-amber-300">{selectedIds.length}</span> / {maxCount} selected
+            <span className="font-semibold text-amber-300">{safeSelectedIds.length}</span> / {maxCount} selected
             {group.hint ? <span className="text-zinc-400"> • {group.hint}</span> : ""}
           </p>
           <SheetButton variant="secondary" size="sm" icon={<Sparkles size={13} />} onClick={onChooseSpells}>
@@ -51,15 +59,15 @@ export function GuidedChoiceGroupField({ group, selectedIds, onChange, onChooseS
   }
 
   const toggle = (option: CompendiumChoiceOption) => {
-    if (selectedIds.includes(option.id)) {
-      onChange(maxCount === 1 ? selectedIds : selectedIds.filter((id) => id !== option.id));
+    if (safeSelectedIds.includes(option.id)) {
+      onChange(maxCount === 1 ? safeSelectedIds : safeSelectedIds.filter((id) => id !== option.id));
       return;
     }
     if (maxCount === 1) {
       onChange([option.id]);
       return;
     }
-    onChange(selectedIds.length < maxCount ? [...selectedIds, option.id] : [...selectedIds.slice(1), option.id]);
+    if (safeSelectedIds.length < maxCount) onChange([...safeSelectedIds, option.id]);
   };
 
   return (
@@ -68,12 +76,12 @@ export function GuidedChoiceGroupField({ group, selectedIds, onChange, onChooseS
     >
       <legend className="px-2 text-xs font-bold uppercase tracking-wider text-amber-400">{group.label}</legend>
       <p className="text-xs text-zinc-300">
-        <span className="font-semibold text-amber-300">{selectedIds.length}</span> / {maxCount} selected
+        <span className="font-semibold text-amber-300">{safeSelectedIds.length}</span> / {maxCount} selected
         {group.hint ? <span className="text-zinc-400"> • {group.hint}</span> : ""}
       </p>
       <div className="space-y-2" role={maxCount === 1 ? "radiogroup" : "group"} aria-label={group.label}>
-        {group.options.map((option) => {
-          const checked = selectedIds.includes(option.id);
+        {options.map((option) => {
+          const checked = safeSelectedIds.includes(option.id);
           const preview = renderOptionPreview?.(option);
           return (
             <div
@@ -87,7 +95,7 @@ export function GuidedChoiceGroupField({ group, selectedIds, onChange, onChooseS
               }`}
             >
               <label
-                className={`flex min-w-0 flex-1 items-center gap-3 ${option.disabledReason ? "cursor-not-allowed" : "cursor-pointer"}`}
+                className={`relative flex min-w-0 flex-1 items-center gap-3 ${option.disabledReason ? "cursor-not-allowed" : "cursor-pointer"}`}
               >
                 <div
                   className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
@@ -100,7 +108,7 @@ export function GuidedChoiceGroupField({ group, selectedIds, onChange, onChooseS
                   type={maxCount === 1 ? "radio" : "checkbox"}
                   name={maxCount === 1 ? group.id : undefined}
                   checked={checked}
-                  disabled={Boolean(option.disabledReason)}
+                  disabled={Boolean(option.disabledReason) || (maxCount > 1 && !checked && safeSelectedIds.length >= maxCount)}
                   onChange={() => toggle(option)}
                   className="sr-only"
                 />

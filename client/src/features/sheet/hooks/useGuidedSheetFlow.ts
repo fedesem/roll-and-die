@@ -46,6 +46,7 @@ import {
   deriveSpeciesSkillChoiceConfig,
   deriveSpellSlots,
   effectiveHitPointMax,
+  featCanBeSelectedAgain,
   featMeetsProgressionPrerequisites,
   mergeDerivedResources,
   mergeTextValues,
@@ -437,6 +438,7 @@ export function useGuidedSheetFlow({
       deriveGuidedChoiceSpec({
         actor: guidedFlowMode === "setup" ? guidedSetupActorForGuideChoices : draft,
         classes: compendium.classes,
+        items: compendium.items,
         spells: compendium.spells,
         feats: compendium.feats,
         optionalFeatures: compendium.optionalFeatures,
@@ -474,7 +476,11 @@ export function useGuidedSheetFlow({
   const guidedFeatOptions = useMemo(() => {
     const targetCharacterLevel =
       guidedFlowMode === "levelup" ? totalLevel(guidedSetupActorForGuideChoices) + 1 : totalLevel(guidedSetupActorForGuideChoices);
-    return filteredFeats.filter((feat) => featMeetsProgressionPrerequisites(feat, guidedSetupActorForGuideChoices, targetCharacterLevel));
+    return filteredFeats.filter(
+      (feat) =>
+        featCanBeSelectedAgain(feat, guidedSetupActorForGuideChoices) &&
+        featMeetsProgressionPrerequisites(feat, guidedSetupActorForGuideChoices, targetCharacterLevel)
+    );
   }, [filteredFeats, guidedFlowMode, guidedSetupActorForGuideChoices]);
 
   useEffect(() => {
@@ -674,8 +680,9 @@ export function useGuidedSheetFlow({
       return;
     }
 
+    const targetClassInstanceId = mode === "levelup" ? (draft.classes[0]?.id ?? NEW_GUIDED_CLASS_ID) : "";
     setGuidedFlowMode(mode);
-    setGuidedClassId(mode === "levelup" ? (draft.classes[0]?.id ?? NEW_GUIDED_CLASS_ID) : "");
+    setGuidedClassId(targetClassInstanceId);
     setGuideError(null);
 
     const nextSpeciesId = draft.build?.speciesId ?? compendium.races[0]?.id ?? "";
@@ -703,16 +710,28 @@ export function useGuidedSheetFlow({
       rolledHp: null,
       classFeatIds: [],
       optionalFeatureIds: [],
-      classChoiceIds: {},
+      classChoiceIds:
+        mode === "levelup"
+          ? Object.fromEntries(
+              (draft.build?.configurations ?? [])
+                .filter(
+                  (entry) =>
+                    entry.ownerInstanceId === targetClassInstanceId &&
+                    entry.groupId !== "prepared-spells" &&
+                    entry.groupId !== "weapon-masteries"
+                )
+                .map((entry) => [entry.groupId, entry.activeOptionIds])
+            )
+          : {},
       featChoiceMap: {},
       cantripIds: [],
       knownSpellIds: [],
       spellbookSpellIds: [],
       preparedSpellIds:
         mode === "levelup"
-          ? compendium.spells
-              .filter((spell) => draft.preparedSpells.some((name) => normalizeKey(name) === normalizeKey(spell.name)))
-              .map((spell) => spell.id)
+          ? (draft.build?.configurations?.find(
+              (entry) => entry.ownerInstanceId === targetClassInstanceId && entry.groupId === "prepared-spells"
+            )?.activeOptionIds ?? [])
           : [],
       expertiseSkillChoices: [],
       weaponMasteryChoices: [],
@@ -816,11 +835,12 @@ export function useGuidedSheetFlow({
       next.className = "";
       next.build = {
         ruleset: "dnd-2024",
-        schemaVersion: 2,
+        schemaVersion: 3,
         mode: current.build?.mode ?? "guided",
         classes: [],
         selections: current.build?.selections ?? [],
         awards: current.build?.awards ?? [],
+        configurations: current.build?.configurations ?? [],
         overrides: current.build?.overrides ?? []
       };
       next.features = [];
@@ -892,8 +912,9 @@ export function useGuidedSheetFlow({
       });
       next.build = {
         ...(next.build ?? { ruleset: "dnd-2024", mode: "guided", classes: [], selections: [] }),
-        schemaVersion: 2,
+        schemaVersion: 3,
         awards: [...(next.build?.awards ?? []), award],
+        configurations: next.build?.configurations ?? [],
         overrides: next.build?.overrides ?? []
       };
       nextActor = next;
@@ -981,7 +1002,7 @@ export function useGuidedSheetFlow({
       next.hitDice = next.classes.map((entry) => `${entry.level}d${entry.hitDieFaces}`).join(" + ");
       next.build = {
         ruleset: "dnd-2024",
-        schemaVersion: 2,
+        schemaVersion: 3,
         mode: current.build?.mode ?? "guided",
         speciesId: current.build?.speciesId,
         speciesName: current.build?.speciesName,
@@ -1001,6 +1022,7 @@ export function useGuidedSheetFlow({
           }
         ],
         awards: current.build?.awards ?? [],
+        configurations: current.build?.configurations ?? [],
         overrides: current.build?.overrides ?? [],
         classes: syncBuildClasses(next.classes, current.build?.classes ?? [])
       };
@@ -1033,8 +1055,9 @@ export function useGuidedSheetFlow({
       });
       next.build = {
         ...(next.build ?? { ruleset: "dnd-2024", mode: "guided", classes: [], selections: [] }),
-        schemaVersion: 2,
+        schemaVersion: 3,
         awards: [...(next.build?.awards ?? []), award],
+        configurations: next.build?.configurations ?? [],
         overrides: next.build?.overrides ?? []
       };
       nextActor = next;
