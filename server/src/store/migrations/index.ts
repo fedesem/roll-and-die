@@ -35,6 +35,8 @@ import { classSubclassStructureMigration } from "./135_class_subclass_structure.
 import { compendiumGuideChoicesMigration } from "./136_compendium_guide_choices.js";
 import { actorProgressionLedgerMigration } from "./137_actor_progression_ledger.js";
 import { actorDynamicBonusesMigration } from "./138_actor_dynamic_bonuses.js";
+import { actorProgressionConfigurationsMigration } from "./139_actor_progression_configurations.js";
+import { actorProficiencyBonusScalingMigration } from "./140_actor_proficiency_bonus_scaling.js";
 
 export const migrations = [
   currentSchemaMigration,
@@ -73,5 +75,7 @@ export const migrations = [
   classSubclassStructureMigration,
   compendiumGuideChoicesMigration,
   actorProgressionLedgerMigration,
-  actorDynamicBonusesMigration
+  actorDynamicBonusesMigration,
+  actorProgressionConfigurationsMigration,
+  actorProficiencyBonusScalingMigration
 ];

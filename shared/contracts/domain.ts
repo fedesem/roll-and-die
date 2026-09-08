@@ -80,6 +80,7 @@ import type {
   Point,
   ProgressionAward,
   ProgressionAwardChoice,
+  ProgressionConfiguration,
   ProgressionEffect,
   ResourceEntry,
   SkillEntry,
@@ -145,7 +146,15 @@ export const attackEntrySchema: z.ZodType<AttackEntry> = z.object({
   attackBonus: finiteNumber,
   damage: trimmedString,
   damageType: trimmedString,
-  notes: trimmedString
+  notes: trimmedString,
+  actionCost: z.enum(["action", "bonus", "reaction", "free", "passive", "special"]).optional(),
+  resourceCost: z.object({ resourceName: trimmedString, count: finiteNumber }).optional(),
+  sourceRef: trimmedString.optional(),
+  range: trimmedString.optional(),
+  duration: trimmedString.optional(),
+  activationChoiceGroupId: trimmedString.optional(),
+  usesTargetHitDie: z.boolean().optional(),
+  addProficiencyBonus: z.boolean().optional()
 });
 
 export const armorEntrySchema: z.ZodType<ArmorEntry> = z.object({
@@ -206,7 +215,8 @@ export const actorSpellStateSchema: z.ZodType<ActorSpellState> = z.object({
   alwaysPrepared: z.array(trimmedString),
   atWill: z.array(trimmedString),
   perShortRest: z.array(trimmedString),
-  perLongRest: z.array(trimmedString)
+  perLongRest: z.array(trimmedString),
+  available: z.array(trimmedString).optional()
 });
 
 export const actorDeathSaveStateSchema: z.ZodType<ActorDeathSaveState> = z.object({
@@ -233,6 +243,7 @@ export const actorBonusEntrySchema: z.ZodType<ActorBonusEntry> = z.object({
   targetKey: trimmedString,
   value: finiteNumber,
   statBonus: abilityKeySchema.optional(),
+  proficiencyBonusMultiplier: finiteNumber.optional(),
   minimum: finiteNumber.optional(),
   enabled: z.boolean()
 });
@@ -272,7 +283,7 @@ export const progressionEffectSchema: z.ZodType<ProgressionEffect> = z.discrimin
     id: trimmedString,
     kind: z.literal("spell"),
     ref: trimmedString,
-    bucket: z.enum(["known", "prepared", "spellbook", "alwaysPrepared", "atWill", "perShortRest", "perLongRest"])
+    bucket: z.enum(["known", "prepared", "spellbook", "alwaysPrepared", "atWill", "perShortRest", "perLongRest", "available"])
   }),
   z.object({
     id: trimmedString,
@@ -283,6 +294,17 @@ export const progressionEffectSchema: z.ZodType<ProgressionEffect> = z.discrimin
   z.object({ id: trimmedString, kind: z.literal("ability"), ability: abilityKeySchema, amount: finiteNumber }),
   z.object({ id: trimmedString, kind: z.literal("resource"), value: resourceEntrySchema }),
   z.object({ id: trimmedString, kind: z.literal("action"), value: attackEntrySchema }),
+  z.object({
+    id: trimmedString,
+    kind: z.literal("weaponMastery"),
+    value: z.object({
+      weaponRef: trimmedString,
+      weaponName: trimmedString,
+      mastery: trimmedString,
+      ownerRef: trimmedString,
+      ownerInstanceId: trimmedString
+    })
+  }),
   z.object({ id: trimmedString, kind: z.literal("bonus"), value: actorBonusEntrySchema }),
   z.object({ id: trimmedString, kind: z.literal("inventory"), ref: trimmedString, quantity: finiteNumber })
 ]);
@@ -306,6 +328,21 @@ export const progressionAwardSchema: z.ZodType<ProgressionAward> = z.object({
   committedAt: trimmedString
 });
 
+export const progressionConfigurationSchema: z.ZodType<ProgressionConfiguration> = z.object({
+  id: trimmedString,
+  ownerRef: trimmedString,
+  ownerInstanceId: trimmedString.optional(),
+  groupId: trimmedString,
+  trigger: z.enum(["levelUp", "shortRest", "longRest", "shortOrLongRest", "activation"]),
+  replacementLimit: z.union([finiteNumber, z.literal("all")]),
+  requiredCount: finiteNumber.optional(),
+  activeOptionIds: z.array(trimmedString),
+  activeEffects: z.array(progressionEffectSchema),
+  pendingOptionIds: z.array(trimmedString).optional(),
+  pendingEffects: z.array(progressionEffectSchema).optional(),
+  activatedAt: trimmedString.optional()
+});
+
 export const actorManualOverrideSchema: z.ZodType<ActorManualOverride> = z
   .object({
     id: trimmedString,
@@ -324,7 +361,7 @@ export const actorManualOverrideSchema: z.ZodType<ActorManualOverride> = z
 
 export const playerNpcBuildSchema: z.ZodType<PlayerNpcBuild> = z.object({
   ruleset: z.literal("dnd-2024"),
-  schemaVersion: z.literal(2).optional(),
+  schemaVersion: z.literal(3).optional(),
   mode: playerNpcBuildModeSchema,
   speciesId: trimmedString.optional(),
   speciesName: trimmedString.optional(),
@@ -335,6 +372,7 @@ export const playerNpcBuildSchema: z.ZodType<PlayerNpcBuild> = z.object({
   classes: z.array(playerNpcBuildClassEntrySchema),
   selections: z.array(playerNpcBuildSelectionSchema),
   awards: z.array(progressionAwardSchema).optional(),
+  configurations: z.array(progressionConfigurationSchema).optional(),
   overrides: z.array(actorManualOverrideSchema).optional()
 });
 
@@ -373,6 +411,17 @@ export const actorSheetSchema: z.ZodType<ActorSheet> = z.object({
   savingThrowProficiencies: z.array(abilityKeySchema),
   armorProficiencies: z.array(trimmedString),
   weaponProficiencies: z.array(trimmedString),
+  weaponMasteries: z
+    .array(
+      z.object({
+        weaponRef: trimmedString,
+        weaponName: trimmedString,
+        mastery: trimmedString,
+        ownerRef: trimmedString,
+        ownerInstanceId: trimmedString
+      })
+    )
+    .optional(),
   toolProficiencies: z.array(trimmedString),
   languageProficiencies: z.array(trimmedString),
   spellSlots: z.array(spellSlotTrackSchema),

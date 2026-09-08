@@ -1395,10 +1395,11 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
       damage: string;
       damageType: string;
       notes: string;
+      metadataJson: string;
     }>(
       database,
       `
-      SELECT id, name, attack_bonus as attackBonus, damage, damage_type as damageType, notes
+      SELECT id, name, attack_bonus as attackBonus, damage, damage_type as damageType, notes, metadata_json as metadataJson
       FROM actor_attacks
       WHERE actor_id = ?
       ORDER BY sort_order, id
@@ -1411,7 +1412,8 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
     attackBonus: entry.attackBonus,
     damage: entry.damage,
     damageType: entry.damageType,
-    notes: entry.notes
+    notes: entry.notes,
+    ...(parseJsonObject<Partial<AttackEntry>>(entry.metadataJson) ?? {})
   }));
   actor.armorItems = (
     await readAll<{
@@ -1460,13 +1462,14 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
       targetKey: string;
       value: number;
       statBonus: ActorBonusEntry["statBonus"];
+      proficiencyBonusMultiplier: number | null;
       minimum: number | null;
       enabled: number;
     }>(
       database,
       `
       SELECT id, name, source_type as sourceType, target_type as targetType, target_key as targetKey,
-        value, stat_bonus as statBonus, minimum, enabled
+        value, stat_bonus as statBonus, proficiency_bonus_multiplier as proficiencyBonusMultiplier, minimum, enabled
       FROM actor_bonuses
       WHERE actor_id = ?
       ORDER BY sort_order, id
@@ -1481,6 +1484,7 @@ export async function readActorById(database: DatabaseSync, campaignId: string, 
     targetKey: entry.targetKey,
     value: entry.value,
     statBonus: entry.statBonus ?? undefined,
+    proficiencyBonusMultiplier: entry.proficiencyBonusMultiplier ?? undefined,
     minimum: entry.minimum ?? undefined,
     enabled: toBoolean(entry.enabled)
   }));
@@ -1981,8 +1985,8 @@ function prepareCampaignWriteStatements(database: DatabaseSync): CampaignWriteSt
       VALUES (?, ?, ?, ?)
     `),
     insertActorAttack: database.prepare(`
-      INSERT INTO actor_attacks (actor_id, id, sort_order, name, attack_bonus, damage, damage_type, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO actor_attacks (actor_id, id, sort_order, name, attack_bonus, damage, damage_type, notes, metadata_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     insertActorArmorItem: database.prepare(`
       INSERT INTO actor_armor_items (actor_id, id, sort_order, name, kind, armor_class, max_dex_bonus, bonus, equipped, notes)
@@ -1990,9 +1994,10 @@ function prepareCampaignWriteStatements(database: DatabaseSync): CampaignWriteSt
     `),
     insertActorBonus: database.prepare(`
       INSERT INTO actor_bonuses (
-        actor_id, id, sort_order, name, source_type, target_type, target_key, value, stat_bonus, minimum, enabled
+        actor_id, id, sort_order, name, source_type, target_type, target_key, value, stat_bonus,
+        proficiency_bonus_multiplier, minimum, enabled
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `),
     insertActorResource: database.prepare(`
       INSERT INTO actor_resources (actor_id, id, sort_order, name, current_value, max_value, reset_on, restore_amount)
@@ -2133,6 +2138,7 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
         savingThrowProficiencies: actor.savingThrowProficiencies,
         armorProficiencies: actor.armorProficiencies,
         weaponProficiencies: actor.weaponProficiencies,
+        weaponMasteries: actor.weaponMasteries ?? [],
         toolProficiencies: actor.toolProficiencies,
         languageProficiencies: actor.languageProficiencies
       }),
@@ -2188,7 +2194,8 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
         attack.attackBonus,
         attack.damage,
         attack.damageType,
-        attack.notes
+        attack.notes,
+        serializeAttackMetadata(attack)
       );
     });
     actor.armorItems.forEach((item, itemOrder) => {
@@ -2216,6 +2223,7 @@ function writeCampaignRecord(statements: CampaignWriteStatements, campaign: Camp
         bonus.targetKey,
         bonus.value,
         bonus.statBonus ?? null,
+        bonus.proficiencyBonusMultiplier ?? null,
         bonus.minimum ?? null,
         toIntegerBoolean(bonus.enabled)
       );
@@ -2846,10 +2854,12 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
     damage: string;
     damageType: string;
     notes: string;
+    metadataJson: string;
   }>(
     database,
     `
-      SELECT actor_id as actorId, id, name, attack_bonus as attackBonus, damage, damage_type as damageType, notes
+      SELECT actor_id as actorId, id, name, attack_bonus as attackBonus, damage, damage_type as damageType, notes,
+             metadata_json as metadataJson
       FROM actor_attacks
       WHERE actor_id IN (SELECT id FROM actors WHERE campaign_id = ?)
       ORDER BY actor_id, sort_order, id
@@ -2862,7 +2872,8 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
       attackBonus: row.attackBonus,
       damage: row.damage,
       damageType: row.damageType,
-      notes: row.notes
+      notes: row.notes,
+      ...(parseJsonObject<Partial<AttackEntry>>(row.metadataJson) ?? {})
     } satisfies AttackEntry);
   }
   for (const row of await readAll<{
@@ -2914,6 +2925,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
     targetKey: string;
     value: number;
     statBonus: ActorBonusEntry["statBonus"];
+    proficiencyBonusMultiplier: number | null;
     minimum: number | null;
     enabled: number;
   }>(
@@ -2928,6 +2940,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
         target_key as targetKey,
         value,
         stat_bonus as statBonus,
+        proficiency_bonus_multiplier as proficiencyBonusMultiplier,
         minimum,
         enabled
       FROM actor_bonuses
@@ -2944,6 +2957,7 @@ async function readCampaignAggregateById(database: DatabaseSync, campaignId: str
       targetKey: row.targetKey,
       value: row.value,
       statBonus: row.statBonus ?? undefined,
+      proficiencyBonusMultiplier: row.proficiencyBonusMultiplier ?? undefined,
       minimum: row.minimum ?? undefined,
       enabled: toBoolean(row.enabled)
     } satisfies ActorBonusEntry);
@@ -3687,6 +3701,7 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
         savingThrowProficiencies: actor.savingThrowProficiencies,
         armorProficiencies: actor.armorProficiencies,
         weaponProficiencies: actor.weaponProficiencies,
+        weaponMasteries: actor.weaponMasteries ?? [],
         toolProficiencies: actor.toolProficiencies,
         languageProficiencies: actor.languageProficiencies
       }),
@@ -3786,11 +3801,21 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
     database
       .prepare(
         `
-          INSERT INTO actor_attacks (actor_id, id, sort_order, name, attack_bonus, damage, damage_type, notes)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO actor_attacks (actor_id, id, sort_order, name, attack_bonus, damage, damage_type, notes, metadata_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       )
-      .run(actor.id, attack.id, attackOrder, attack.name, attack.attackBonus, attack.damage, attack.damageType, attack.notes);
+      .run(
+        actor.id,
+        attack.id,
+        attackOrder,
+        attack.name,
+        attack.attackBonus,
+        attack.damage,
+        attack.damageType,
+        attack.notes,
+        serializeAttackMetadata(attack)
+      );
   });
   actor.armorItems.forEach((item, itemOrder) => {
     database
@@ -3818,9 +3843,10 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
       .prepare(
         `
           INSERT INTO actor_bonuses (
-            actor_id, id, sort_order, name, source_type, target_type, target_key, value, stat_bonus, minimum, enabled
+            actor_id, id, sort_order, name, source_type, target_type, target_key, value, stat_bonus,
+            proficiency_bonus_multiplier, minimum, enabled
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       )
       .run(
@@ -3833,6 +3859,7 @@ export async function upsertActorRecord(database: DatabaseSync, campaignId: stri
         bonus.targetKey,
         bonus.value,
         bonus.statBonus ?? null,
+        bonus.proficiencyBonusMultiplier ?? null,
         bonus.minimum ?? null,
         toIntegerBoolean(bonus.enabled)
       );
@@ -4387,12 +4414,26 @@ function parseJsonObject<T>(raw: string): T | undefined {
   }
 }
 
+function serializeAttackMetadata(attack: AttackEntry) {
+  return JSON.stringify({
+    actionCost: attack.actionCost,
+    resourceCost: attack.resourceCost,
+    sourceRef: attack.sourceRef,
+    range: attack.range,
+    duration: attack.duration,
+    activationChoiceGroupId: attack.activationChoiceGroupId,
+    usesTargetHitDie: attack.usesTargetHitDie,
+    addProficiencyBonus: attack.addProficiencyBonus
+  });
+}
+
 function parseStoredActorProficiencies(raw: string) {
   const parsed =
     parseJsonObject<{
       savingThrowProficiencies?: unknown;
       armorProficiencies?: unknown;
       weaponProficiencies?: unknown;
+      weaponMasteries?: unknown;
       toolProficiencies?: unknown;
       languageProficiencies?: unknown;
     }>(raw) ?? {};
@@ -4401,6 +4442,29 @@ function parseStoredActorProficiencies(raw: string) {
     savingThrowProficiencies: normalizeStoredAbilityKeys(parsed.savingThrowProficiencies),
     armorProficiencies: normalizeStoredStringArray(parsed.armorProficiencies),
     weaponProficiencies: normalizeStoredStringArray(parsed.weaponProficiencies),
+    weaponMasteries: Array.isArray(parsed.weaponMasteries)
+      ? parsed.weaponMasteries.flatMap((entry) => {
+          if (!entry || typeof entry !== "object") return [];
+          const value = entry as Record<string, unknown>;
+          if (
+            typeof value.weaponRef !== "string" ||
+            typeof value.weaponName !== "string" ||
+            typeof value.mastery !== "string" ||
+            typeof value.ownerRef !== "string" ||
+            typeof value.ownerInstanceId !== "string"
+          )
+            return [];
+          return [
+            {
+              weaponRef: value.weaponRef,
+              weaponName: value.weaponName,
+              mastery: value.mastery,
+              ownerRef: value.ownerRef,
+              ownerInstanceId: value.ownerInstanceId
+            }
+          ];
+        })
+      : [],
     toolProficiencies: normalizeStoredStringArray(parsed.toolProficiencies),
     languageProficiencies: normalizeStoredStringArray(parsed.languageProficiencies)
   };

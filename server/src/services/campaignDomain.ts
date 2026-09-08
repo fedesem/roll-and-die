@@ -809,11 +809,12 @@ function defaultSpellSlots(): SpellSlotTrack[] {
 function createDefaultPlayerNpcBuild(): PlayerNpcBuild {
   return {
     ruleset: "dnd-2024",
-    schemaVersion: 2,
+    schemaVersion: 3,
     mode: "guided",
     classes: [],
     selections: [],
     awards: [],
+    configurations: [],
     overrides: []
   };
 }
@@ -1060,14 +1061,23 @@ function sanitizeAttacks(value: unknown, fallback: AttackEntry[]): AttackEntry[]
       }
 
       const attack = entry as Partial<AttackEntry>;
-      return {
+      const sanitized: AttackEntry = {
         id: typeof attack.id === "string" ? attack.id : createId("atk"),
         name: getOptionalString(attack.name, "Attack"),
         attackBonus: getOptionalNumber(attack.attackBonus, 0, -20, 30),
         damage: getOptionalString(attack.damage, ""),
         damageType: getOptionalString(attack.damageType, ""),
-        notes: getOptionalString(attack.notes, "")
+        notes: getOptionalString(attack.notes, ""),
+        actionCost: attack.actionCost,
+        resourceCost: attack.resourceCost,
+        sourceRef: attack.sourceRef,
+        range: attack.range,
+        duration: attack.duration,
+        activationChoiceGroupId: attack.activationChoiceGroupId,
+        usesTargetHitDie: attack.usesTargetHitDie,
+        addProficiencyBonus: attack.addProficiencyBonus
       };
+      return sanitized;
     })
     .filter((entry): entry is AttackEntry => Boolean(entry))
     .slice(0, 24);
@@ -1215,6 +1225,8 @@ function sanitizeActorBonuses(value: unknown, fallback: ActorBonusEntry[]) {
 
       const bonus = entry as Partial<ActorBonusEntry>;
       const statBonus = parseAbilityKey(bonus.statBonus, null);
+      const proficiencyBonusMultiplier =
+        typeof bonus.proficiencyBonusMultiplier === "number" ? getOptionalNumber(bonus.proficiencyBonusMultiplier, 0, -10, 10) : undefined;
       const minimum = typeof bonus.minimum === "number" ? getOptionalNumber(bonus.minimum, 0, -20, 20) : null;
       return {
         id: typeof bonus.id === "string" ? bonus.id : createId("bon"),
@@ -1232,12 +1244,38 @@ function sanitizeActorBonuses(value: unknown, fallback: ActorBonusEntry[]) {
         targetKey: getOptionalString(bonus.targetKey, ""),
         value: getOptionalNumber(bonus.value, 0, -20, 20),
         ...(statBonus ? { statBonus } : {}),
+        ...(proficiencyBonusMultiplier !== undefined ? { proficiencyBonusMultiplier } : {}),
         ...(minimum !== null ? { minimum } : {}),
         enabled: typeof bonus.enabled === "boolean" ? bonus.enabled : true
       };
     })
     .filter((entry): entry is ActorBonusEntry => Boolean(entry))
     .slice(0, 64);
+}
+
+function sanitizeWeaponMasteries(value: unknown, fallback: ActorSheet["weaponMasteries"] = []) {
+  if (!Array.isArray(value)) return fallback;
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const mastery = entry as Record<string, unknown>;
+    if (
+      typeof mastery.weaponRef !== "string" ||
+      typeof mastery.weaponName !== "string" ||
+      typeof mastery.mastery !== "string" ||
+      typeof mastery.ownerRef !== "string" ||
+      typeof mastery.ownerInstanceId !== "string"
+    )
+      return [];
+    return [
+      {
+        weaponRef: mastery.weaponRef,
+        weaponName: mastery.weaponName,
+        mastery: mastery.mastery,
+        ownerRef: mastery.ownerRef,
+        ownerInstanceId: mastery.ownerInstanceId
+      }
+    ];
+  });
 }
 
 function sanitizeActorLayout(value: unknown, fallback: ActorLayoutEntry[]) {
@@ -1276,7 +1314,12 @@ function getBonusTotal(actor: ActorSheet, targetType: ActorBonusEntry["targetTyp
 
     if (normalizedKey && entry.targetKey.trim().toLowerCase() !== normalizedKey) return total;
     const statValue = entry.statBonus ? getAbilityModifier(actor.abilities[entry.statBonus]) : 0;
-    return total + entry.value + (entry.statBonus ? Math.max(entry.minimum ?? Number.NEGATIVE_INFINITY, statValue) : 0);
+    return (
+      total +
+      entry.value +
+      (entry.statBonus ? Math.max(entry.minimum ?? Number.NEGATIVE_INFINITY, statValue) : 0) +
+      (entry.proficiencyBonusMultiplier ?? 0) * actor.proficiencyBonus
+    );
   }, 0);
 }
 
@@ -1520,6 +1563,7 @@ export function applyActorPatch(actor: ActorSheet, patch: Record<string, unknown
   actor.savingThrowProficiencies = normalizeAbilityKeyArray(patch.savingThrowProficiencies, actor.savingThrowProficiencies);
   actor.armorProficiencies = normalizeStringArray(patch.armorProficiencies, actor.armorProficiencies);
   actor.weaponProficiencies = normalizeStringArray(patch.weaponProficiencies, actor.weaponProficiencies);
+  actor.weaponMasteries = sanitizeWeaponMasteries(patch.weaponMasteries, actor.weaponMasteries);
   actor.toolProficiencies = normalizeStringArray(patch.toolProficiencies, actor.toolProficiencies);
   actor.languageProficiencies = normalizeStringArray(patch.languageProficiencies, actor.languageProficiencies);
   actor.spellSlots = sanitizeSpellSlots(patch.spellSlots, actor.spellSlots);
