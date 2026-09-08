@@ -1,4 +1,9 @@
 import { findSubclassesForClass } from "@shared/data/progression";
+import {
+  progressionConfigurationSelections,
+  stageProgressionChoiceConfiguration,
+  stageWeaponMasteryConfiguration
+} from "@shared/rules/progressionEngine";
 import { CREATURE_SIZE_OPTIONS } from "@shared/tokenGeometry";
 import { type AbilityKey, type ActorBonusEntry, type ActorSheet, type ArmorEntry, TOKEN_STATUS_MARKERS } from "@shared/types";
 import { BookOpen, Brain, Heart, ImagePlus, Plus, Shield, Sparkles, Swords, Trash2, Wand2 } from "lucide-react";
@@ -18,6 +23,7 @@ import {
 } from "../selectors/playerNpcSheet2024Mutations";
 import { collectSpellRows, createReferenceRow, splitCommaValues } from "../selectors/playerNpcSheet2024Selectors";
 import { abilityOrder, findCompendiumClass, formatModifier, normalizeKey, skillTotal } from "../sheetUtils";
+import { GuidedChoiceGroupField } from "./GuidedChoiceGroupField";
 import {
   CalloutBanner,
   DetailCollection,
@@ -56,6 +62,10 @@ export function PlayerNpcSheetEditTab({
   const [featToAdd, setFeatToAdd] = useState("");
   const [featureToAdd, setFeatureToAdd] = useState("");
   const [talentToAdd, setTalentToAdd] = useState("");
+  const restConfigurationSelections = useMemo(
+    () => progressionConfigurationSelections(draft, derived.longRestChoices),
+    [derived.longRestChoices, draft]
+  );
 
   const spellDetailEntries = useMemo(
     () => ({
@@ -210,7 +220,7 @@ export function PlayerNpcSheetEditTab({
           build && targetEffect && !(build.overrides ?? []).some((entry) => entry.targetEffectId === targetEffect.id)
             ? {
                 ...build,
-                schemaVersion: 2,
+                schemaVersion: 3,
                 overrides: [
                   ...(build.overrides ?? []),
                   {
@@ -270,6 +280,122 @@ export function PlayerNpcSheetEditTab({
             feature choices on top of manual edits.
           </CalloutBanner>
         </SectionCard>
+
+        {derived.longRestChoices.length > 0 ||
+        derived.restPreparedSpellGroups.length > 0 ||
+        derived.restSpellChoiceGroups.length > 0 ||
+        derived.restWeaponMasteryGroups.length > 0 ? (
+          <SectionCard title="Rest-Configurable Features" icon={<Sparkles size={16} />}>
+            <p className="text-xs text-zinc-400">
+              Choose the configuration now. It remains pending and takes effect when you finish the Short or Long Rest required by the
+              feature.
+            </p>
+            <div className="space-y-3">
+              {derived.restWeaponMasteryGroups.map((group) => (
+                <GuidedChoiceGroupField
+                  key={`${group.actorClassId}:weapon-masteries`}
+                  group={{
+                    id: `${group.actorClassId}:weapon-masteries`,
+                    label: `${group.className} Weapon Masteries`,
+                    count: group.count,
+                    hint: group.hasPendingChanges ? "Pending next Long Rest" : "May be changed after a Long Rest",
+                    options: group.options.map((option) => ({
+                      id: option.id,
+                      label: option.label,
+                      disabledReason: permissions.editReadOnly ? "Read only" : undefined
+                    }))
+                  }}
+                  selectedIds={group.selectedIds}
+                  onChange={(optionIds) =>
+                    mutators.updateDraft((current) =>
+                      stageWeaponMasteryConfiguration(current, {
+                        ownerRef: group.ownerRef,
+                        ownerInstanceId: group.actorClassId,
+                        expectedCount: group.count,
+                        choices: optionIds.flatMap((optionId) => {
+                          const option = group.options.find((entry) => entry.id === optionId);
+                          return option
+                            ? [
+                                {
+                                  weaponRef: option.id,
+                                  weaponName: option.weaponName,
+                                  mastery: option.mastery,
+                                  ownerRef: group.ownerRef,
+                                  ownerInstanceId: group.actorClassId
+                                }
+                              ]
+                            : [];
+                        })
+                      })
+                    )
+                  }
+                />
+              ))}
+              {derived.restPreparedSpellGroups.map((group) => (
+                <div key={group.actorClassId} className="rounded-lg border border-amber-500/20 bg-slate-900/60 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-amber-400">{group.className} Prepared Spells</p>
+                      <p className="mt-1 text-xs text-zinc-400">
+                        {group.selectedIds.length} / {group.limit} selected{group.hasPendingChanges ? " • Pending next Long Rest" : ""}
+                      </p>
+                    </div>
+                    <SheetButton
+                      variant="secondary"
+                      size="sm"
+                      disabled={permissions.editReadOnly}
+                      onClick={() => actions.setSpellSelectionTarget({ kind: "restPrepared", actorClassId: group.actorClassId })}
+                    >
+                      Choose Spells
+                    </SheetButton>
+                  </div>
+                </div>
+              ))}
+              {derived.restSpellChoiceGroups.map((group) => (
+                <div key={`${group.actorClassId}:${group.groupId}`} className="rounded-lg border border-amber-500/20 bg-slate-900/60 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-amber-400">{group.title}</p>
+                      <p className="mt-1 text-xs text-zinc-400">
+                        {group.selectedIds.length} / {group.count} selected{group.hasPendingChanges ? " • Pending required Rest" : ""}
+                      </p>
+                    </div>
+                    <SheetButton
+                      variant="secondary"
+                      size="sm"
+                      disabled={permissions.editReadOnly}
+                      onClick={() =>
+                        actions.setSpellSelectionTarget({
+                          kind: "restSpellChoice",
+                          actorClassId: group.actorClassId,
+                          groupId: group.groupId
+                        })
+                      }
+                    >
+                      Choose Spells
+                    </SheetButton>
+                  </div>
+                </div>
+              ))}
+              {derived.longRestChoices.map((group) => (
+                <GuidedChoiceGroupField
+                  key={group.id}
+                  group={{
+                    id: group.id,
+                    label: group.title,
+                    count: group.choose,
+                    hint: group.cadence === "onShortRest" ? "Applies after a Short or Long Rest" : "Applies after a Long Rest",
+                    options: group.options.map((option) => ({ id: option.id, label: option.name, description: "" }))
+                  }}
+                  selectedIds={restConfigurationSelections[group.id] ?? []}
+                  onChange={(optionIds) =>
+                    mutators.updateDraft((current) => stageProgressionChoiceConfiguration(current, group, optionIds))
+                  }
+                />
+              ))}
+            </div>
+          </SectionCard>
+        ) : null}
 
         {/* BUILD SUMMARY */}
         <SectionCard title="Build Summary" icon={<Sparkles size={16} />}>

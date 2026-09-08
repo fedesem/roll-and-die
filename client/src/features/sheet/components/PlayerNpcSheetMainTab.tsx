@@ -257,9 +257,25 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
                 <div
                   key={item.id}
                   className={`rounded-md border border-white/8 bg-slate-900/60 p-2.5 transition ${
-                    item.rollPayload ? "cursor-pointer hover:border-amber-500/60 hover:bg-slate-850" : ""
+                    item.rollPayload || item.activationChoiceGroupId || item.resourceCost
+                      ? item.resourceCost && !item.resourceCost.available
+                        ? "cursor-not-allowed opacity-55"
+                        : "cursor-pointer hover:border-amber-500/60 hover:bg-slate-850"
+                      : ""
                   }`}
                   onClick={() => {
+                    if (item.resourceCost && !item.resourceCost.available) return;
+                    if (item.activationChoiceGroupId && actions.openActivationChoice(item.activationChoiceGroupId)) {
+                      return;
+                    }
+                    if (item.resourceCost) {
+                      const resource = draft.resources.find((entry) => entry.id === item.resourceCost?.resourceId);
+                      if (resource) {
+                        mutators.updateResourceById(resource.id, {
+                          current: Math.max(0, resource.current - item.resourceCost.count)
+                        });
+                      }
+                    }
                     if (item.rollPayload) {
                       if (item.rollPayload.type === "attack" && typeof item.rollPayload.bonus === "number") {
                         void actions.handleRoll(item.rollPayload.bonus, item.rollPayload.label);
@@ -383,8 +399,16 @@ export function PlayerNpcSheetMainTab({ draft, derived, permissions, mutators, a
           icon={<BookOpen size={16} />}
           action={
             derived.canPrepareSpells ? (
-              <SheetButton variant="secondary" size="sm" onClick={() => actions.setSpellSelectionTarget("mainPrepared")}>
-                Prepare Spells
+              <SheetButton
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  derived.restPreparedSpellGroups.length > 0
+                    ? actions.setActiveTab("edit")
+                    : actions.setSpellSelectionTarget("mainPrepared")
+                }
+              >
+                Configure Preparation
               </SheetButton>
             ) : null
           }

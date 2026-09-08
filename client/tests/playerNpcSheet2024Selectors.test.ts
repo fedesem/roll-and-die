@@ -43,11 +43,14 @@ import {
   deriveGuidedHitPointMax,
   deriveOriginFeatOptions,
   derivePreparedSpellLimit,
+  deriveRestSpellChoiceGroups,
   deriveScaledSpellDice,
   deriveSpeciesChoiceGroups,
   deriveSpeciesOriginFeatOptions,
   deriveSpeciesSkillChoiceConfig,
   deriveSpellSlots,
+  featCanBeSelectedAgain,
+  featMeetsProgressionPrerequisites,
   healHitPoints,
   mergeDerivedResources,
   normalizeHitPoints,
@@ -56,7 +59,7 @@ import {
   spellMatchesSingleClassFilter,
   syncBuildClasses
 } from "../src/features/sheet/selectors/playerNpcSheet2024Selectors";
-import { skillTotal } from "../src/features/sheet/sheetUtils";
+import { bonusTotal, skillTotal } from "../src/features/sheet/sheetUtils";
 
 function createActor(overrides: Partial<ActorSheet> = {}): ActorSheet {
   return {
@@ -120,7 +123,8 @@ function createActor(overrides: Partial<ActorSheet> = {}): ActorSheet {
       alwaysPrepared: [],
       atWill: [],
       perShortRest: [],
-      perLongRest: []
+      perLongRest: [],
+      available: []
     },
     talents: [],
     feats: [],
@@ -212,6 +216,9 @@ function createChoiceSpec(overrides: Partial<GuidedChoiceSpec> = {}): GuidedChoi
     spellbookCount: 0,
     preparedSpellOptions: [],
     preparedSpellCount: 0,
+    preparedSpellPreviousIds: [],
+    preparedSpellReplacementLimit: 0,
+    preparedSpellTrigger: "levelUp",
     languageOptions: [],
     languageCount: 0,
     sizeOptions: [],
@@ -401,7 +408,7 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     const actor = createActor({
       build: {
         ruleset: "dnd-2024",
-        schemaVersion: 2,
+        schemaVersion: 3,
         mode: "guided",
         backgroundId: "prose-trap",
         classes: [],
@@ -431,7 +438,8 @@ describe("playerNpcSheet2024 extracted helpers", () => {
       alwaysPrepared: ["Magic Missile"],
       atWill: [],
       perShortRest: [],
-      perLongRest: []
+      perLongRest: [],
+      available: []
     });
   });
 
@@ -571,6 +579,28 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     const compendium = createCompendium({ classes: [druidClass], spells: [...druidSpells, shield] });
     let actor = applyClassToActor(createActor(), druidClass, compendium.classes);
     actor.preparedSpells = [...druidSpells.slice(0, 5).map((spell) => spell.name), shield.name];
+    const druidActorClassId = actor.classes[0]?.id ?? "";
+    actor.build = {
+      ...(actor.build ?? { ruleset: "dnd-2024", mode: "guided", classes: [], selections: [] }),
+      schemaVersion: 3,
+      configurations: [
+        {
+          id: "druid-preparations",
+          ownerRef: "Druid|XPHB",
+          ownerInstanceId: druidActorClassId,
+          groupId: "prepared-spells",
+          trigger: "longRest",
+          replacementLimit: "all",
+          activeOptionIds: druidSpells.slice(0, 5).map((spell) => spell.id),
+          activeEffects: druidSpells.slice(0, 5).map((spell, index) => ({
+            id: `druid-preparations:${index}`,
+            kind: "spell",
+            ref: `${spell.name}|${spell.source}`,
+            bucket: "prepared"
+          }))
+        }
+      ]
+    };
     const spec = deriveGuidedChoiceSpec({
       actor,
       classes: compendium.classes,
@@ -578,7 +608,7 @@ describe("playerNpcSheet2024 extracted helpers", () => {
       feats: [],
       optionalFeatures: [],
       targetClassId: druidClass.id,
-      targetActorClassId: actor.classes[0]?.id ?? "",
+      targetActorClassId: druidActorClassId,
       targetSubclassId: "",
       mode: "levelup"
     });
@@ -623,12 +653,206 @@ describe("playerNpcSheet2024 extracted helpers", () => {
       spec,
       level: 2,
       targetClass: druidClass,
-      targetActorClassId: actor.classes[0]?.id ?? null,
+      targetActorClassId: druidActorClassId,
       mode: "levelup"
     });
 
     expect(spec.preparedSpellCount).toBe(5);
     expect(actor.preparedSpells).toEqual([shield.name, ...chosenDruidSpells.map((spell) => spell.name)]);
+  });
+
+  it("filters Weapon Mastery choices by the class weapon proficiencies", () => {
+    const rogue = createClass({ id: "rogue-xphb", name: "Rogue", source: "XPHB" });
+    const spec = deriveGuidedChoiceSpec({
+      actor: createActor(),
+      classes: [rogue],
+      spells: [],
+      feats: [],
+      optionalFeatures: [],
+      targetClassId: rogue.id,
+      targetActorClassId: "",
+      targetSubclassId: "",
+      mode: "setup"
+    });
+
+    expect(spec.weaponMasteryOptions).toContain("Dagger (Nick)");
+    expect(spec.weaponMasteryOptions).toContain("Rapier (Vex)");
+    expect(spec.weaponMasteryOptions).toContain("Shortsword (Vex)");
+    expect(spec.weaponMasteryOptions).not.toContain("Greatsword (Graze)");
+  });
+
+  it("treats Sentinel's Strength or Dexterity prerequisite as OR", () => {
+    const sentinel = createFeat({ id: "sentinel", name: "Sentinel", source: "XPHB", category: "General" });
+    expect(
+      featMeetsProgressionPrerequisites(sentinel, createActor({ abilities: { str: 10, dex: 13, con: 10, int: 10, wis: 10, cha: 10 } }), 4)
+    ).toBe(true);
+    expect(
+      featMeetsProgressionPrerequisites(sentinel, createActor({ abilities: { str: 12, dex: 12, con: 10, int: 10, wis: 10, cha: 10 } }), 4)
+    ).toBe(false);
+  });
+
+  it("prevents duplicate nonrepeatable feats while allowing repeatable feats", () => {
+    const actor = createActor({ feats: ["Alert", "Skilled"] });
+    expect(featCanBeSelectedAgain(createFeat({ id: "alert", name: "Alert", source: "XPHB" }), actor)).toBe(false);
+    expect(featCanBeSelectedAgain(createFeat({ id: "skilled", name: "Skilled", source: "XPHB" }), actor)).toBe(true);
+  });
+
+  it("applies proficiency-scaled and level-scaled feat grants from progression JSON", () => {
+    const fighter = createClass({ id: "fighter-xphb", name: "Fighter", source: "XPHB", hitDieFaces: 10 });
+    const feats = [
+      createFeat({ id: "alert", name: "Alert", source: "XPHB" }),
+      createFeat({ id: "lucky", name: "Lucky", source: "XPHB" }),
+      createFeat({ id: "tough", name: "Tough", source: "XPHB" })
+    ];
+    const compendium = createCompendium({ classes: [fighter], feats });
+    const actorClass: ActorClassEntry = {
+      id: "fighter-class",
+      compendiumId: fighter.id,
+      name: fighter.name,
+      level: 5,
+      hitDieFaces: 10,
+      usedHitDice: 0,
+      subclassId: "",
+      subclassName: "",
+      source: "XPHB",
+      spellcastingAbility: null
+    };
+    const actor = applyGuideSelectionsToActor(createActor({ classes: [actorClass], level: 5, proficiencyBonus: 3 }), {
+      compendium,
+      setup: createSetupState({ classId: fighter.id, classFeatIds: feats.map((feat) => feat.id) }),
+      spec: createChoiceSpec({ classFeatOptions: feats, classFeatCount: 3 }),
+      level: 5,
+      targetClass: fighter,
+      targetActorClassId: actorClass.id,
+      mode: "levelup"
+    });
+
+    expect(bonusTotal(actor, "initiative")).toBe(3);
+    expect(actor.resources.find((resource) => resource.name === "Luck Points")).toMatchObject({ current: 3, max: 3 });
+    expect(deriveGuidedHitPointMax(actor)).toBe(22);
+  });
+
+  it("materializes exact-level Mystic Arcanum choices and spellbook-only rest choices from JSON", () => {
+    const warlock = createClass({ id: "warlock-xphb", name: "Warlock", source: "XPHB" });
+    const wizard = createClass({ id: "wizard-xphb", name: "Wizard", source: "XPHB" });
+    const circleOfDeath = createSpell({
+      id: "circle-of-death-xphb",
+      name: "Circle of Death",
+      source: "XPHB",
+      level: 6,
+      classes: ["Warlock"]
+    });
+    const fingerOfDeath = createSpell({
+      id: "finger-of-death-xphb",
+      name: "Finger of Death",
+      source: "XPHB",
+      level: 7,
+      classes: ["Warlock"]
+    });
+    const shield = createSpell({ id: "shield-xphb", name: "Shield", source: "XPHB", level: 1, classes: ["Wizard"] });
+    const magicMissile = createSpell({ id: "magic-missile-xphb", name: "Magic Missile", source: "XPHB", level: 1, classes: ["Wizard"] });
+    const actor = createActor({
+      classes: [
+        {
+          id: "wizard-class",
+          compendiumId: wizard.id,
+          name: "Wizard",
+          source: "XPHB",
+          level: 18,
+          hitDieFaces: 6,
+          usedHitDice: 0,
+          spellcastingAbility: "int"
+        }
+      ],
+      spellState: {
+        spellbook: ["Shield"],
+        alwaysPrepared: [],
+        atWill: [],
+        perShortRest: [],
+        perLongRest: []
+      }
+    });
+    const arcanumGroups = deriveClassChoiceGroups(warlock, 10, 11, {
+      spells: [circleOfDeath, fingerOfDeath],
+      optionalFeatures: [],
+      actor: createActor(),
+      characterLevel: 11
+    });
+    const arcanum = arcanumGroups.find((group) => group.id === "mystic-arcanum-6");
+    expect(arcanum?.spellBucket).toBe("perLongRest");
+    expect(arcanum?.options.map((option) => option.label)).toEqual(["Circle of Death"]);
+
+    const restGroups = deriveRestSpellChoiceGroups(actor, [shield, magicMissile]);
+    expect(restGroups.find((group) => group.groupId === "wizard-spell-mastery-1")?.options.map((spell) => spell.name)).toEqual(["Shield"]);
+  });
+
+  it("derives Pact of the Tome child spell choices and exposes them for later Short Rest changes", () => {
+    const warlock = createClass({ id: "warlock-xphb", name: "Warlock", source: "XPHB" });
+    const fireBolt = createSpell({ id: "fire-bolt-xphb", name: "Fire Bolt", source: "XPHB", level: "cantrip", classes: ["Wizard"] });
+    const guidance = createSpell({ id: "guidance-xphb", name: "Guidance", source: "XPHB", level: "cantrip", classes: ["Cleric"] });
+    const alarm = createSpell({ id: "alarm-xphb", name: "Alarm", source: "XPHB", level: 1, classes: ["Wizard"] });
+    const detectMagic = createSpell({ id: "detect-magic-xphb", name: "Detect Magic", source: "XPHB", level: 1, classes: ["Wizard"] });
+    const burningHands = createSpell({ id: "burning-hands-xphb", name: "Burning Hands", source: "XPHB", level: 1, classes: ["Wizard"] });
+    const spells = [fireBolt, guidance, alarm, detectMagic, burningHands];
+    const actor = createActor({
+      classes: [
+        {
+          id: "warlock-class",
+          compendiumId: warlock.id,
+          name: "Warlock",
+          source: "XPHB",
+          level: 1,
+          hitDieFaces: 8,
+          usedHitDice: 0,
+          spellcastingAbility: "cha"
+        }
+      ],
+      preparedSpells: ["Guidance"],
+      spellState: {
+        spellbook: [],
+        alwaysPrepared: ["Detect Magic"],
+        atWill: [],
+        perShortRest: [],
+        perLongRest: []
+      },
+      build: {
+        ruleset: "dnd-2024",
+        schemaVersion: 3,
+        mode: "guided",
+        classes: [],
+        selections: [],
+        configurations: [
+          {
+            id: "configuration:warlock-class:warlock-invocations",
+            ownerRef: "Warlock|XPHB",
+            ownerInstanceId: "warlock-class",
+            groupId: "warlock-invocations",
+            trigger: "levelUp",
+            replacementLimit: 1,
+            activeOptionIds: ["pact-of-the-tome"],
+            activeEffects: []
+          }
+        ]
+      }
+    });
+
+    const wizardGroups = deriveClassChoiceGroups(warlock, 0, 1, {
+      spells,
+      optionalFeatures: [],
+      actor,
+      selectedClassChoiceIds: { "warlock-invocations": ["pact-of-the-tome"] }
+    });
+    expect(wizardGroups.find((group) => group.id === "pact-tome-cantrips")).toMatchObject({
+      count: 3,
+      parentOption: { groupId: "warlock-invocations", optionId: "pact-of-the-tome" },
+      configurationTrigger: "shortOrLongRest"
+    });
+    expect(wizardGroups.find((group) => group.id === "pact-tome-cantrips")?.options.map((option) => option.label)).toEqual(["Fire Bolt"]);
+    expect(wizardGroups.find((group) => group.id === "pact-tome-rituals")?.options.map((option) => option.label)).toEqual(["Alarm"]);
+
+    const restGroups = deriveRestSpellChoiceGroups(actor, spells);
+    expect(restGroups.find((group) => group.groupId === "pact-tome-cantrips")?.options.map((spell) => spell.name)).toEqual(["Fire Bolt"]);
+    expect(restGroups.find((group) => group.groupId === "pact-tome-rituals")?.options.map((spell) => spell.name)).toEqual(["Alarm"]);
   });
 
   it("applies fixed and chosen setup skills from species and backgrounds", () => {
@@ -1286,11 +1510,16 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     });
 
     expect(actor.abilities.str).toBe(18);
-    expect(actor.features).toContain("Weapon Mastery: Greatsword (Graze)");
-    expect(actor.features).toContain("Weapon Mastery: Halberd (Cleave)");
+    expect(actor.weaponMasteries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ weaponName: "Greatsword", mastery: "Graze" }),
+        expect.objectContaining({ weaponName: "Halberd", mastery: "Cleave" })
+      ])
+    );
+    expect(actor.features.some((entry) => entry.startsWith("Weapon Mastery:"))).toBe(false);
   });
 
-  it("applies scripted class choices like Cleric Holy Orders with automated grants", () => {
+  it("applies scripted class choices like Cleric Divine Orders with automated grants", () => {
     const clericEntry: ClassEntry = createClass({
       id: "cls-cleric",
       name: "Cleric",
@@ -1303,7 +1532,7 @@ describe("playerNpcSheet2024 extracted helpers", () => {
       spellcastingAbility: "wis",
       spellPreparation: "prepared",
       subclassLevel: 3,
-      features: [{ level: 1, name: "Holy Order", description: "Choose a sacred order.", source: "XPHB", reference: "" }]
+      features: [{ level: 1, name: "Divine Order", description: "Choose a sacred order.", source: "XPHB", reference: "" }]
     });
 
     let actor = createActor();
@@ -1323,16 +1552,16 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     });
 
     expect(choiceSpec.classChoiceGroups.length).toBeGreaterThan(0);
-    expect(choiceSpec.classChoiceGroups[0]?.id).toBe("cleric-holy-order");
+    expect(choiceSpec.classChoiceGroups[0]?.id).toBe("cleric-divine-order");
 
-    // Select Protector Holy Order
+    // Select Protector Divine Order
     actor = applyGuideSelectionsToActor(actor, {
       compendium,
       setup: createSetupState({
         classId: clericEntry.id,
         baseAbilities: { str: 14, dex: 10, con: 14, int: 10, wis: 16, cha: 10 },
         hpMode: "average",
-        classChoiceIds: { "cleric-holy-order": ["protector"] }
+        classChoiceIds: { "cleric-divine-order": ["protector"] }
       }),
       spec: choiceSpec,
       level: 1,
@@ -1343,6 +1572,54 @@ describe("playerNpcSheet2024 extracted helpers", () => {
 
     expect(actor.armorProficiencies).toContain("Heavy Armor");
     expect(actor.weaponProficiencies).toContain("Martial Weapons");
+  });
+
+  it("keeps prepared spells owned by their class configuration", () => {
+    const cleric = createClass({ id: "cleric-xphb", name: "Cleric", source: "XPHB", spellPreparation: "prepared" });
+    const druid = createClass({ id: "druid-xphb", name: "Druid", source: "XPHB", spellPreparation: "prepared" });
+    const cureWounds = createSpell({ id: "cure-wounds-xphb", name: "Cure Wounds", source: "XPHB", classes: ["Cleric", "Druid"] });
+    const bless = createSpell({ id: "bless-xphb", name: "Bless", source: "XPHB", classes: ["Cleric"] });
+    const compendium = createCompendium({ classes: [cleric, druid], spells: [cureWounds, bless] });
+    let actor = applyClassToActor(createActor(), cleric, [cleric, druid]);
+    actor = applyClassToActor(actor, druid, [cleric, druid]);
+    const clericClassId = actor.classes.find((entry) => entry.name === "Cleric")?.id ?? null;
+    const druidClassId = actor.classes.find((entry) => entry.name === "Druid")?.id ?? null;
+    const spec = createChoiceSpec({
+      preparedSpellOptions: [cureWounds, bless],
+      preparedSpellCount: 1,
+      preparedSpellReplacementLimit: 1
+    });
+
+    actor = applyGuideSelectionsToActor(actor, {
+      compendium,
+      setup: createSetupState({ preparedSpellIds: [cureWounds.id] }),
+      spec,
+      level: 2,
+      targetClass: cleric,
+      targetActorClassId: clericClassId,
+      mode: "levelup"
+    });
+    actor = applyGuideSelectionsToActor(actor, {
+      compendium,
+      setup: createSetupState({ preparedSpellIds: [cureWounds.id] }),
+      spec,
+      level: 2,
+      targetClass: druid,
+      targetActorClassId: druidClassId,
+      mode: "levelup"
+    });
+    actor = applyGuideSelectionsToActor(actor, {
+      compendium,
+      setup: createSetupState({ preparedSpellIds: [bless.id] }),
+      spec: { ...spec, preparedSpellPreviousIds: [cureWounds.id] },
+      level: 3,
+      targetClass: cleric,
+      targetActorClassId: clericClassId,
+      mode: "levelup"
+    });
+
+    expect(actor.build?.configurations?.filter((entry) => entry.groupId === "prepared-spells")).toHaveLength(2);
+    expect(actor.preparedSpells).toEqual(expect.arrayContaining(["Bless", "Cure Wounds"]));
   });
 
   it("calculates carrying capacity, coin weights, and encumbrance thresholds accurately", () => {
@@ -1595,15 +1872,29 @@ describe("playerNpcSheet2024 extracted helpers", () => {
       optionalFeatures: [],
       actor: createActor()
     });
-    const invocationGroup = warlockLvl1Groups.find((g) => g.id === "warlock-invocations-1");
+    const invocationGroup = warlockLvl1Groups.find((g) => g.id === "warlock-invocations");
     expect(invocationGroup).toBeDefined();
     expect(invocationGroup?.options.map((option) => option.label)).toEqual([
-      "Pact of the Blade",
-      "Pact of the Tome",
-      "Pact of the Chain",
       "Armor of Shadows",
-      "Eldritch Mind"
+      "Eldritch Mind",
+      "Pact of the Blade",
+      "Pact of the Chain",
+      "Pact of the Tome"
     ]);
+    const warlockLvl2Groups = deriveClassChoiceGroups(warlockClass, 1, 2, {
+      spells: [],
+      optionalFeatures: [],
+      actor: createActor()
+    });
+    expect(warlockLvl2Groups.find((group) => group.id === "warlock-invocations")?.count).toBe(3);
+    expect(warlockLvl2Groups.find((group) => group.id === "warlock-invocations")?.options.length).toBeGreaterThanOrEqual(7);
+
+    const sorcererLvl10Groups = deriveClassChoiceGroups(sorcererClass, 9, 10, {
+      spells: [],
+      optionalFeatures: [],
+      actor: createActor()
+    });
+    expect(sorcererLvl10Groups.find((group) => group.id === "sorcerer-metamagic")?.count).toBe(4);
 
     const druidClass = createClass({ id: "druid-xphb", name: "Druid", source: "XPHB" });
     const druidCantrip = createSpell({ id: "guidance-xphb", name: "Guidance", source: "XPHB", level: "cantrip", classes: ["Druid"] });
@@ -1621,6 +1912,35 @@ describe("playerNpcSheet2024 extracted helpers", () => {
       optionId: "magician"
     });
     expect(druidGroups.find((group) => group.id === "druid-primal-order:magician:cantrips")?.selectionKind).toBe("spells");
+    for (const primalOrder of ["magician", "warden"]) {
+      expect(() =>
+        deriveGuidedChoiceSpec({
+          actor: createActor(),
+          classes: [druidClass],
+          spells: [druidCantrip],
+          feats: [],
+          optionalFeatures: [],
+          targetClassId: druidClass.id,
+          targetActorClassId: "",
+          targetSubclassId: "",
+          mode: "setup",
+          selectedClassChoiceIds: { "druid-primal-order": [primalOrder] }
+        })
+      ).not.toThrow();
+    }
+    expect(
+      deriveGuidedChoiceSpec({
+        actor: createActor(),
+        classes: [druidClass],
+        spells: [druidCantrip],
+        feats: [],
+        optionalFeatures: [],
+        targetClassId: druidClass.id,
+        targetActorClassId: "",
+        targetSubclassId: "",
+        mode: "setup"
+      }).languageOptions
+    ).toContain("Draconic");
 
     const rangerClass = createClass({ id: "ranger-xphb", name: "Ranger", source: "XPHB" });
     const rangerGroups = deriveClassChoiceGroups(rangerClass, 1, 2, {
@@ -1792,9 +2112,51 @@ describe("playerNpcSheet2024 extracted helpers", () => {
       actor: createActor(),
       activeSubclassId: "fighter-battle-master-xphb"
     });
-    const maneuverGroup = battleMasterLvl3Groups.find((g) => g.id === "battle-master-maneuvers-lvl3");
+    const maneuverGroup = battleMasterLvl3Groups.find((g) => g.id === "battle-master-maneuvers");
     expect(maneuverGroup).toBeDefined();
     expect(maneuverGroup?.count).toBe(3);
+    expect(maneuverGroup?.options.find((option) => option.label === "Riposte")?.grants?.features).toEqual(["Riposte"]);
+
+    const battleMasterLvl7Groups = deriveClassChoiceGroups(fighterClass, 6, 7, {
+      spells: [],
+      optionalFeatures: [],
+      actor: createActor({ features: ["Riposte", "Parry", "Precision Attack"] }),
+      activeSubclassId: "fighter-battle-master-xphb"
+    });
+    const additionalManeuvers = battleMasterLvl7Groups.find((group) => group.id === "battle-master-maneuvers");
+    expect(additionalManeuvers?.count).toBe(5);
+    expect(additionalManeuvers?.options.some((option) => option.label === "Riposte")).toBe(false);
+
+    const runeGroups = deriveClassChoiceGroups(fighterClass, 6, 7, {
+      spells: [],
+      optionalFeatures: [],
+      actor: createActor(),
+      activeSubclassId: "fighter-rune-knight-tce"
+    });
+    const runes = runeGroups.find((group) => group.id === "rune-knight-runes");
+    expect(runes?.count).toBe(3);
+    expect(runes?.options.map((option) => option.label)).toEqual(
+      expect.arrayContaining(["Cloud Rune", "Fire Rune", "Frost Rune", "Stone Rune", "Hill Rune", "Storm Rune"])
+    );
+  });
+
+  it("offers Lore Magical Discoveries from the three allowed lists up to the available slot level", () => {
+    const bard = createClass({ id: "bard-xphb", name: "Bard", source: "XPHB" });
+    const groups = deriveClassChoiceGroups(bard, 5, 6, {
+      actor: createActor(),
+      activeSubclassId: "bard-lore-xphb",
+      optionalFeatures: [],
+      spells: [
+        createSpell({ id: "guidance", name: "Guidance", level: "cantrip", classes: ["Cleric"] }),
+        createSpell({ id: "fireball", name: "Fireball", level: 3, classes: ["Wizard"] }),
+        createSpell({ id: "polymorph", name: "Polymorph", level: 4, classes: ["Wizard"] }),
+        createSpell({ id: "dissonant-whispers", name: "Dissonant Whispers", level: 1, classes: ["Bard"] })
+      ]
+    });
+    const discoveries = groups.find((group) => group.id === "lore-magical-discoveries");
+
+    expect(discoveries).toMatchObject({ count: 2, spellBucket: "alwaysPrepared", configurationTrigger: "levelUp" });
+    expect(discoveries?.options.map((option) => option.label)).toEqual(["Guidance", "Fireball"]);
   });
 
   it("filters spells by class including source book and subclass annotations", () => {
@@ -1852,6 +2214,50 @@ describe("playerNpcSheet2024 extracted helpers", () => {
     expect(spec.cantripOptions.map((s) => s.name)).toEqual(["Druidcraft"]);
     expect(spec.cantripCount).toBe(2);
     expect(spec.preparedSpellCount).toBe(4);
+  });
+
+  it("does not block a class spellbook addition merely because another class owns the same spell name", () => {
+    const wizard = createClass({ id: "wizard-xphb", name: "Wizard", source: "XPHB" });
+    const magicMissile = createSpell({ id: "magic-missile-xphb", name: "Magic Missile", level: 1, classes: ["Wizard"] });
+    const wizardClass: ActorClassEntry = {
+      id: "wizard-class",
+      compendiumId: wizard.id,
+      name: "Wizard",
+      level: 1,
+      hitDieFaces: 6,
+      usedHitDice: 0,
+      subclassId: "",
+      subclassName: "",
+      source: "XPHB",
+      spellcastingAbility: "int"
+    };
+    const actor = createActor({
+      classes: [
+        wizardClass,
+        {
+          ...wizardClass,
+          id: "cleric-class",
+          compendiumId: "cleric-xphb",
+          name: "Cleric",
+          hitDieFaces: 8,
+          spellcastingAbility: "wis"
+        }
+      ],
+      spells: [magicMissile.name]
+    });
+    const spec = deriveGuidedChoiceSpec({
+      actor,
+      classes: [wizard],
+      spells: [magicMissile],
+      feats: [],
+      optionalFeatures: [],
+      targetClassId: wizard.id,
+      targetActorClassId: wizardClass.id,
+      targetSubclassId: "",
+      mode: "levelup"
+    });
+
+    expect(spec.spellbookOptions.map((spell) => spell.name)).toContain("Magic Missile");
   });
 
   it("filters generic subclass placeholders and decomposes into individual subclass features", () => {

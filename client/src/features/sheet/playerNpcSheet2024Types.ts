@@ -38,9 +38,17 @@ export interface GuidedSpellChoiceTarget {
   ownerId: string;
   groupId: string;
 }
+export interface RestPreparedSpellTarget {
+  kind: "restPrepared";
+  actorClassId: string;
+}
+export interface RestSpellChoiceTarget {
+  kind: "restSpellChoice";
+  actorClassId: string;
+  groupId: string;
+}
 export type SpellSelectionTarget =
   | "mainPrepared"
-  | "longRestPrepared"
   | "editKnown"
   | "editPrepared"
   | "editSpellbook"
@@ -52,7 +60,9 @@ export type SpellSelectionTarget =
   | "guideKnown"
   | "guideSpellbook"
   | "guidePrepared"
-  | GuidedSpellChoiceTarget;
+  | GuidedSpellChoiceTarget
+  | RestPreparedSpellTarget
+  | RestSpellChoiceTarget;
 
 export const NEW_GUIDED_CLASS_ID = "__new_class__";
 
@@ -179,6 +189,9 @@ export interface GuidedChoiceSpec {
   spellbookCount: number;
   preparedSpellOptions: SpellEntry[];
   preparedSpellCount: number;
+  preparedSpellPreviousIds: string[];
+  preparedSpellReplacementLimit: number | "all";
+  preparedSpellTrigger: "levelUp" | "longRest";
   languageOptions: string[];
   languageCount: number;
   sizeOptions: Array<"Tiny" | "Small" | "Medium" | "Large">;
@@ -200,5 +213,6 @@ export interface SpellSelectionConfig {
   maxSelections?: number;
   lockEligibilityFilters?: boolean;
   applyLabel: string;
+  validateSelection?: (spellIds: string[]) => string | null;
   onApply: (spellIds: string[]) => void;
 }

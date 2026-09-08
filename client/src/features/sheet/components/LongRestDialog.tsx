@@ -1,40 +1,25 @@
 import type { ProgressionChoiceGroupDef } from "@shared/data/progression";
-import { Check, Plus, Sparkles, X } from "lucide-react";
+import { Check, Sparkles, X } from "lucide-react";
 import { ModalFrame } from "../../../components/ModalFrame";
 import type { PlayerNpcSheetDerivedState } from "../hooks/usePlayerNpcSheetDerived";
-import type { DetailRowEntry } from "../playerNpcSheet2024Types";
-import { DetailCollection, SheetButton, StatChip } from "./sheetPrimitives";
+import { SheetButton, StatChip } from "./sheetPrimitives";
 
 interface LongRestDialogProps {
-  canPrepareSpells: boolean;
-  preparedSpellLimit: number;
-  preparableSpellCount: number;
-  longRestPreparedSpells: string[];
   hitPointDisplay: PlayerNpcSheetDerivedState["hitPointDisplay"];
-  longRestPreparedSpellRows: DetailRowEntry[];
   longRestChoices?: ProgressionChoiceGroupDef[];
   longRestChoiceSelections?: Record<string, string[]>;
   onChangeChoice?: (groupId: string, optionIds: string[]) => void;
-  onChooseSpells: () => void;
   onClose: () => void;
   onConfirm: () => void;
-  renderText: (text: string) => React.ReactNode;
 }
 
 export function LongRestDialog({
-  canPrepareSpells,
-  preparedSpellLimit,
-  preparableSpellCount,
-  longRestPreparedSpells,
   hitPointDisplay,
-  longRestPreparedSpellRows,
   longRestChoices = [],
   longRestChoiceSelections = {},
   onChangeChoice,
-  onChooseSpells,
   onClose,
-  onConfirm,
-  renderText
+  onConfirm
 }: LongRestDialogProps) {
   return (
     <ModalFrame
@@ -108,30 +93,6 @@ export function LongRestDialog({
                 </div>
               );
             })}
-          </div>
-        ) : null}
-
-        {canPrepareSpells ? (
-          <div className="space-y-3 rounded-lg border border-white/10 bg-slate-900/60 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">Prepared Spells</p>
-                <p className="text-xs text-zinc-400">
-                  <span className="font-semibold text-amber-300">{longRestPreparedSpells.length}</span> /{" "}
-                  {preparedSpellLimit || preparableSpellCount} prepared
-                </p>
-              </div>
-              <SheetButton variant="secondary" size="sm" icon={<Plus size={13} />} onClick={onChooseSpells}>
-                Choose Spells
-              </SheetButton>
-            </div>
-            <div className="rounded-md border border-white/8 bg-slate-950/60 p-3">
-              <DetailCollection
-                entries={longRestPreparedSpellRows}
-                emptyMessage="No spells selected for the long rest yet."
-                renderText={renderText}
-              />
-            </div>
           </div>
         ) : null}
       </div>

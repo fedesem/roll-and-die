@@ -2,10 +2,20 @@ import {
   findBackgroundProgression,
   findClassProgression,
   findFeatProgression,
+  findProgressionChoiceDomain,
   findSpeciesProgression,
   type ProgressionChoiceOption
 } from "@shared/data/progression";
-import { evaluateActorSubclassAlwaysPreparedSpells, hasProgressionFieldOverride } from "@shared/rules/progressionEngine";
+import { createCompendiumRef, parseCompendiumRef } from "@shared/rules/compendiumRefs";
+import {
+  activateProgressionChoiceConfiguration,
+  applySpellChoiceConfiguration,
+  applyWeaponMasterySelections,
+  evaluateActorSubclassAlwaysPreparedSpells,
+  evaluateClassChoicesForLevel,
+  evaluateResourceMax,
+  hasProgressionFieldOverride
+} from "@shared/rules/progressionEngine";
 import type {
   AbilityKey,
   ActorClassEntry,
@@ -105,11 +115,12 @@ export function applySpeciesToActor(actor: ActorSheet, species: CompendiumSpecie
   next.features = mergeTextValues(next.features, progression?.features ?? []);
   next.build = {
     ruleset: "dnd-2024",
-    schemaVersion: 2,
+    schemaVersion: 3,
     mode: next.build?.mode ?? "guided",
     classes: next.build?.classes ?? [],
     selections: next.build?.selections ?? [],
     awards: next.build?.awards ?? [],
+    configurations: next.build?.configurations ?? [],
     overrides: next.build?.overrides ?? [],
     speciesId: species.id,
     speciesName: species.name,
@@ -217,7 +228,7 @@ export function applySpeciesChoiceGroupSelections(
 
   next.build = {
     ruleset: "dnd-2024",
-    schemaVersion: 2,
+    schemaVersion: 3,
     mode: next.build?.mode ?? "guided",
     classes: next.build?.classes ?? [],
     speciesId: next.build?.speciesId,
@@ -228,6 +239,7 @@ export function applySpeciesChoiceGroupSelections(
     backgroundSource: next.build?.backgroundSource,
     selections: [...(next.build?.selections ?? []), ...selections],
     awards: next.build?.awards ?? [],
+    configurations: next.build?.configurations ?? [],
     overrides: next.build?.overrides ?? []
   };
 
@@ -255,11 +267,12 @@ export function applyBackgroundToActor(
   next.background = background.name;
   next.build = {
     ruleset: "dnd-2024",
-    schemaVersion: 2,
+    schemaVersion: 3,
     mode: next.build?.mode ?? "guided",
     classes: next.build?.classes ?? [],
     selections: next.build?.selections ?? [],
     awards: next.build?.awards ?? [],
+    configurations: next.build?.configurations ?? [],
     overrides: next.build?.overrides ?? [],
     speciesId: next.build?.speciesId,
     speciesName: next.build?.speciesName,
@@ -425,7 +438,7 @@ export function applyClassToActor(actor: ActorSheet, classEntry: ClassEntry, cla
   }
   next.build = {
     ruleset: "dnd-2024",
-    schemaVersion: 2,
+    schemaVersion: 3,
     mode: next.build?.mode ?? "guided",
     speciesId: next.build?.speciesId,
     speciesName: next.build?.speciesName,
@@ -435,6 +448,7 @@ export function applyClassToActor(actor: ActorSheet, classEntry: ClassEntry, cla
     backgroundSource: next.build?.backgroundSource,
     selections: next.build?.selections ?? [],
     awards: next.build?.awards ?? [],
+    configurations: next.build?.configurations ?? [],
     overrides: next.build?.overrides ?? [],
     classes: syncBuildClasses(next.classes, next.build?.classes ?? [])
   };
@@ -474,7 +488,7 @@ export function assignSubclassToActor(actor: ActorSheet, classes: ClassEntry[], 
   next.features = mergeTextValues(next.features, collectGuidedFeatures(next, classes, { [actorClassId]: subId }));
   next.build = {
     ruleset: "dnd-2024",
-    schemaVersion: 2,
+    schemaVersion: 3,
     mode: next.build?.mode ?? "guided",
     speciesId: next.build?.speciesId,
     speciesName: next.build?.speciesName,
@@ -484,6 +498,7 @@ export function assignSubclassToActor(actor: ActorSheet, classes: ClassEntry[], 
     backgroundSource: next.build?.backgroundSource,
     selections: next.build?.selections ?? [],
     awards: next.build?.awards ?? [],
+    configurations: next.build?.configurations ?? [],
     overrides: next.build?.overrides ?? [],
     classes: (next.build?.classes ?? syncBuildClasses(next.classes, [])).map((entry) =>
       entry.id === actorClassId
@@ -511,7 +526,7 @@ export function applyGuideSelectionsToActor(
     mode: GuidedFlowMode;
   }
 ) {
-  const next = cloneActor(actor);
+  let next = cloneActor(actor);
   const selections: PlayerNpcBuildSelection[] = [];
 
   params.setup.classFeatIds.slice(0, params.spec.classFeatCount).forEach((featId) => {
@@ -577,14 +592,55 @@ export function applyGuideSelectionsToActor(
   });
 
   if (params.spec.preparedSpellCount > 0) {
-    const chosenNames = (params.setup.preparedSpellIds ?? [])
+    const chosenSpells = (params.setup.preparedSpellIds ?? [])
       .slice(0, params.spec.preparedSpellCount)
-      .map((id) => params.compendium.spells.find((s) => s.id === id)?.name)
-      .filter((name): name is string => Boolean(name));
-    const targetClassSpellNames = new Set(params.spec.preparedSpellOptions.map((spell) => normalizeKey(spell.name)));
-    const preparationsFromOtherClasses = next.preparedSpells.filter((name) => !targetClassSpellNames.has(normalizeKey(name)));
-    next.preparedSpells = mergeTextValues(preparationsFromOtherClasses, chosenNames);
-    next.spells = mergeTextValues(next.spells, chosenNames);
+      .map((id) => params.compendium.spells.find((spell) => spell.id === id))
+      .filter((spell): spell is SpellEntry => Boolean(spell));
+    const configurations = [...(next.build?.configurations ?? [])];
+    const existingIndex = configurations.findIndex(
+      (entry) => entry.ownerInstanceId === params.targetActorClassId && entry.groupId === "prepared-spells"
+    );
+    const existing = existingIndex >= 0 ? configurations[existingIndex] : undefined;
+    const configurationId = existing?.id ?? crypto.randomUUID();
+    const activeEffects = chosenSpells.map((spell, index) => ({
+      id: `${configurationId}:spell:${index}`,
+      kind: "spell" as const,
+      ref: createCompendiumRef(spell.name, spell.source),
+      bucket: "prepared" as const
+    }));
+    const configuration = {
+      id: configurationId,
+      ownerRef: createCompendiumRef(params.targetClass.name, params.targetClass.source),
+      ownerInstanceId: params.targetActorClassId ?? undefined,
+      groupId: "prepared-spells",
+      trigger: params.spec.preparedSpellTrigger,
+      replacementLimit: params.spec.preparedSpellReplacementLimit,
+      activeOptionIds: chosenSpells.map((spell) => spell.id),
+      activeEffects,
+      activatedAt: new Date().toISOString()
+    };
+    if (existingIndex >= 0) configurations[existingIndex] = configuration;
+    else configurations.push(configuration);
+
+    const previouslyOwnedNames = new Set(
+      (next.build?.configurations ?? [])
+        .flatMap((entry) => entry.activeEffects ?? [])
+        .flatMap((effect) =>
+          effect?.kind === "spell" && effect.bucket === "prepared" ? [normalizeKey(parseCompendiumRef(effect.ref)?.name ?? effect.ref)] : []
+        )
+    );
+    const unmanagedPreparedSpells = next.preparedSpells.filter((name) => !previouslyOwnedNames.has(normalizeKey(name)));
+    const configuredPreparedSpells = configurations
+      .flatMap((entry) => entry.activeEffects ?? [])
+      .flatMap((effect) =>
+        effect?.kind === "spell" && effect.bucket === "prepared" ? [parseCompendiumRef(effect.ref)?.name ?? effect.ref] : []
+      );
+    next.preparedSpells = mergeTextValues(unmanagedPreparedSpells, configuredPreparedSpells);
+    next.spells = mergeTextValues(
+      next.spells,
+      chosenSpells.map((spell) => spell.name)
+    );
+    if (next.build) next.build = { ...next.build, schemaVersion: 3, configurations };
   }
 
   if (params.setup.languageChoices && params.setup.languageChoices.length > 0) {
@@ -654,10 +710,31 @@ export function applyGuideSelectionsToActor(
   if (params.spec.weaponMasteryCount > 0 && params.setup.weaponMasteryChoices.length > 0) {
     const masteries = params.setup.weaponMasteryChoices.slice(0, params.spec.weaponMasteryCount).filter(Boolean);
     if (masteries.length > 0) {
-      next.features = mergeTextValues(
-        next.features,
-        masteries.map((m) => `Weapon Mastery: ${m}`)
-      );
+      const actorClass = next.classes.find((entry) => entry.id === params.targetActorClassId);
+      const ownerInstanceId = actorClass?.id ?? params.targetActorClassId;
+      const ownerRef = createCompendiumRef(params.targetClass.name, params.targetClass.source);
+      const domainOptions = findProgressionChoiceDomain("weapon-masteries")?.options ?? [];
+      const choices = masteries.flatMap((masteryLabel) => {
+        const option = domainOptions.find((entry) => entry.name === masteryLabel);
+        const parsed = option?.referenceId ? parseCompendiumRef(option.referenceId) : null;
+        if (!option?.weapon || !option.referenceId || !parsed || !ownerInstanceId) return [];
+        return [
+          {
+            weaponRef: option.referenceId,
+            weaponName: parsed.name,
+            mastery: option.weapon.mastery,
+            ownerRef,
+            ownerInstanceId
+          }
+        ];
+      });
+      const currentCount = (next.weaponMasteries ?? []).filter((entry) => entry.ownerInstanceId === ownerInstanceId).length;
+      next = applyWeaponMasterySelections(next, {
+        ownerRef,
+        ownerInstanceId: ownerInstanceId ?? "",
+        expectedCount: currentCount + choices.length,
+        choices
+      });
       selections.push(
         createBuildSelection("custom", params.level, undefined, "Weapon Mastery", params.targetClass.source, masteries.join(", "))
       );
@@ -677,7 +754,7 @@ export function applyGuideSelectionsToActor(
       if (option.grants?.features) {
         next.features = mergeTextValues(next.features, option.grants.features);
       }
-      if (option.grants?.spells) {
+      if (option.grants?.spells && !group.configurationTrigger) {
         applyChoiceSpellGrant(next, group, option.grants.spells);
       }
       if (option.grants?.alwaysPreparedSpells) {
@@ -686,6 +763,7 @@ export function applyGuideSelectionsToActor(
           alwaysPrepared: mergeTextValues(next.spellState.alwaysPrepared, option.grants.alwaysPreparedSpells)
         };
       }
+      applyExplicitSpellGrants(next, option.grants?.spellGrants);
       if (option.grants?.attacks) {
         next.attacks = [...next.attacks, ...option.grants.attacks];
       }
@@ -719,7 +797,8 @@ export function applyGuideSelectionsToActor(
       if (option.grants?.abilities) {
         Object.entries(option.grants.abilities).forEach(([k, v]) => {
           if (k in next.abilities && typeof v === "number") {
-            next.abilities[k as AbilityKey] = Math.min(20, next.abilities[k as AbilityKey] + v);
+            const ability = k as AbilityKey;
+            next.abilities[ability] = Math.min(option.grants?.abilityMaximums?.[ability] ?? 20, next.abilities[ability] + v);
           }
         });
       }
@@ -728,6 +807,9 @@ export function applyGuideSelectionsToActor(
           next.features,
           option.grants.masteries.map((m: string) => `Weapon Mastery: ${m}`)
         );
+      }
+      if (typeof option.grants?.visionRange === "number") {
+        next.visionRange = Math.max(next.visionRange, option.grants.visionRange);
       }
       applyPassiveBonuses(next, option.grants?.passiveBonuses, params.targetClass.source);
 
@@ -742,7 +824,39 @@ export function applyGuideSelectionsToActor(
         )
       );
     });
+    if (group.configurationTrigger && group.selectionKind === "spells" && group.spellBucket) {
+      const ownerInstanceId = params.targetActorClassId ?? "";
+      const selectedSpells = selectedOptionIds.flatMap((spellId) => {
+        const spell = params.compendium.spells.find((entry) => entry.id === spellId);
+        return spell ? [{ id: spell.id, name: spell.name, source: spell.source }] : [];
+      });
+      next = applySpellChoiceConfiguration(next, {
+        ownerRef: createCompendiumRef(params.targetClass.name, params.targetClass.source),
+        ownerInstanceId,
+        groupId: group.id,
+        trigger: group.configurationTrigger,
+        replacementLimit: group.replacementLimit,
+        expectedCount: group.count,
+        bucket: group.spellBucket,
+        spells: selectedSpells
+      });
+    }
   });
+
+  const configuredClass = findClassProgression(params.targetClass.id) ?? findClassProgression(params.targetClass.name);
+  const configuredActorClass = next.classes.find((entry) => entry.id === params.targetActorClassId);
+  if (configuredClass && configuredActorClass) {
+    evaluateClassChoicesForLevel(configuredClass, configuredActorClass.level, configuredActorClass.subclassId)
+      .filter(
+        (group) =>
+          (group.cadence === "onLongRest" || group.cadence === "onShortRest" || group.replacementLimit !== undefined) &&
+          !group.spellSelection
+      )
+      .forEach((group) => {
+        const optionIds = params.setup.classChoiceIds?.[group.id] ?? [];
+        next = activateProgressionChoiceConfiguration(next, group, optionIds);
+      });
+  }
 
   // Apply Scripted Feat Subchoices (e.g. Magic Initiate, Skill Expert, Resilient)
   Object.entries(params.setup.featChoiceMap ?? {}).forEach(([featId, choiceGroupsMap]) => {
@@ -763,6 +877,7 @@ export function applyGuideSelectionsToActor(
         if (option.grants?.alwaysPreparedSpells) {
           next.spellState.alwaysPrepared = mergeTextValues(next.spellState.alwaysPrepared, option.grants.alwaysPreparedSpells);
         }
+        applyExplicitSpellGrants(next, option.grants?.spellGrants);
         (option.grants?.skills ?? []).forEach((name) => {
           const index = next.skills.findIndex((skill) => normalizeKey(skill.name) === normalizeKey(name));
           if (index >= 0) next.skills[index] = { ...next.skills[index], proficient: true };
@@ -782,7 +897,8 @@ export function applyGuideSelectionsToActor(
         if (option.grants?.abilities) {
           Object.entries(option.grants.abilities).forEach(([k, v]) => {
             if (k in next.abilities && typeof v === "number") {
-              next.abilities[k as AbilityKey] = Math.min(20, next.abilities[k as AbilityKey] + v);
+              const ability = k as AbilityKey;
+              next.abilities[ability] = Math.min(option.grants?.abilityMaximums?.[ability] ?? 20, next.abilities[ability] + v);
             }
           });
         }
@@ -840,19 +956,28 @@ export function applyGuideSelectionsToActor(
     : next.classes.find((entry) => entry.compendiumId === params.targetClass.id);
   const progressionDefinition = findClassProgression(params.targetClass.name) ?? findClassProgression(params.targetClass.id);
   const progressionLevel = progressionDefinition?.levels[targetActorClass?.level ?? 1];
-  applyProgressionGrants(next, progressionLevel?.grants, params.targetClass.source);
+  applyProgressionGrants(
+    next,
+    progressionLevel
+      ? { ...progressionLevel.grants, actions: [...(progressionLevel.grants?.actions ?? []), ...(progressionLevel.actions ?? [])] }
+      : undefined,
+    params.targetClass.source
+  );
   const subclassDefinition = progressionDefinition?.subclasses.find(
     (entry) => entry.id === targetActorClass?.subclassId || normalizeKey(entry.name) === normalizeKey(targetActorClass?.subclassName ?? "")
   );
+  const subclassLevel = subclassDefinition?.levels[targetActorClass?.level ?? 1];
   applyProgressionGrants(
     next,
-    subclassDefinition?.levels[targetActorClass?.level ?? 1]?.grants,
+    subclassLevel
+      ? { ...subclassLevel.grants, actions: [...(subclassLevel.grants?.actions ?? []), ...(subclassLevel.actions ?? [])] }
+      : undefined,
     subclassDefinition?.source ?? params.targetClass.source
   );
 
   next.build = {
     ruleset: "dnd-2024",
-    schemaVersion: 2,
+    schemaVersion: 3,
     mode: next.build?.mode ?? "guided",
     speciesId: next.build?.speciesId,
     speciesName: next.build?.speciesName,
@@ -863,6 +988,7 @@ export function applyGuideSelectionsToActor(
     classes: syncBuildClasses(next.classes, next.build?.classes ?? []),
     selections: [...(next.build?.selections ?? []), ...selections],
     awards: next.build?.awards ?? [],
+    configurations: next.build?.configurations ?? [],
     overrides: next.build?.overrides ?? []
   };
 
@@ -879,6 +1005,7 @@ function applyProgressionGrants(actor: ActorSheet, grants: ProgressionChoiceOpti
   actor.savingThrowProficiencies = Array.from(new Set([...actor.savingThrowProficiencies, ...(grants.savingThrows ?? [])]));
   actor.spells = mergeTextValues(actor.spells, grants.alwaysPreparedSpells ?? []);
   actor.spellState.alwaysPrepared = mergeTextValues(actor.spellState.alwaysPrepared, grants.alwaysPreparedSpells ?? []);
+  applyExplicitSpellGrants(actor, grants.spellGrants);
   (grants.skills ?? []).forEach((name) => {
     const index = actor.skills.findIndex((skill) => normalizeKey(skill.name) === normalizeKey(name));
     if (index >= 0) actor.skills[index] = { ...actor.skills[index], proficient: true };
@@ -888,8 +1015,12 @@ function applyProgressionGrants(actor: ActorSheet, grants: ProgressionChoiceOpti
     if (index >= 0) actor.skills[index] = { ...actor.skills[index], proficient: true, expertise: true };
   });
   Object.entries(grants.abilities ?? {}).forEach(([ability, amount]) => {
-    if (typeof amount === "number") actor.abilities[ability as AbilityKey] = Math.min(20, actor.abilities[ability as AbilityKey] + amount);
+    if (typeof amount === "number") {
+      const abilityKey = ability as AbilityKey;
+      actor.abilities[abilityKey] = Math.min(grants.abilityMaximums?.[abilityKey] ?? 20, actor.abilities[abilityKey] + amount);
+    }
   });
+  if (typeof grants.visionRange === "number") actor.visionRange = Math.max(actor.visionRange, grants.visionRange);
   (grants.actions ?? []).forEach((action) => {
     if (actor.attacks.some((entry) => entry.id === action.id)) return;
     actor.attacks.push({
@@ -898,18 +1029,68 @@ function applyProgressionGrants(actor: ActorSheet, grants: ProgressionChoiceOpti
       attackBonus: 0,
       damage: action.roll?.diceFormula ?? "",
       damageType: action.roll?.damageType ?? "",
-      notes: [action.actionCost, action.range, action.duration, source].filter(Boolean).join(" • ")
+      notes: [action.actionCost, action.range, action.duration, source].filter(Boolean).join(" • "),
+      actionCost: action.actionCost,
+      resourceCost: action.resourceCost,
+      sourceRef: `${action.name}|${action.source}`,
+      range: action.range,
+      duration: action.duration,
+      activationChoiceGroupId: action.activationChoiceGroupId,
+      usesTargetHitDie: action.roll?.usesTargetHitDie,
+      addProficiencyBonus: action.roll?.addProficiencyBonus
     });
   });
   applyPassiveBonuses(actor, grants.passiveBonuses, source);
+  (grants.resources ?? []).forEach((resource) => {
+    const max = evaluateResourceMax(resource, actor, totalLevel(actor));
+    const existing = actor.resources.find((entry) => normalizeKey(entry.name) === normalizeKey(resource.name));
+    const value: ResourceEntry = {
+      id: existing?.id ?? `progression-resource:${normalizeKey(source)}:${normalizeKey(resource.name)}`,
+      name: resource.name,
+      current: existing ? Math.min(existing.current, max) : max,
+      max,
+      resetOn: resource.resetOn,
+      restoreAmount: typeof resource.shortRestRestore === "number" ? resource.shortRestRestore : max
+    };
+    actor.resources = [...actor.resources.filter((entry) => normalizeKey(entry.name) !== normalizeKey(resource.name)), value];
+  });
+}
+
+function applyExplicitSpellGrants(
+  actor: ActorSheet,
+  grants:
+    | Array<{
+        ref: string;
+        bucket: "known" | "prepared" | "spellbook" | "alwaysPrepared" | "atWill" | "perShortRest" | "perLongRest" | "available";
+      }>
+    | undefined
+) {
+  (grants ?? []).forEach((grant) => {
+    const name = parseCompendiumRef(grant.ref)?.name ?? grant.ref;
+    if (grant.bucket !== "available") actor.spells = mergeTextValues(actor.spells, [name]);
+    if (grant.bucket === "known") return;
+    if (grant.bucket === "prepared") actor.preparedSpells = mergeTextValues(actor.preparedSpells, [name]);
+    else if (grant.bucket === "available") actor.spellState.available = mergeTextValues(actor.spellState.available ?? [], [name]);
+    else actor.spellState[grant.bucket] = mergeTextValues(actor.spellState[grant.bucket], [name]);
+  });
 }
 
 function applyChoiceSpellGrant(actor: ActorSheet, group: CompendiumChoiceGroup, spellNames: string[]) {
   actor.spells = mergeTextValues(actor.spells, spellNames);
-  if (group.spellBucket === "alwaysPrepared" || group.spellBucket === "alwaysPreparedPerLongRest") {
+  if (
+    group.spellBucket === "alwaysPrepared" ||
+    group.spellBucket === "alwaysPreparedAtWill" ||
+    group.spellBucket === "alwaysPreparedPerLongRest"
+  ) {
     actor.spellState.alwaysPrepared = mergeTextValues(actor.spellState.alwaysPrepared, spellNames);
   }
-  if (group.spellBucket === "alwaysPreparedPerLongRest") {
+  if (group.spellBucket === "atWill" || group.spellBucket === "alwaysPreparedAtWill") {
+    actor.spellState.atWill = mergeTextValues(actor.spellState.atWill, spellNames);
+  }
+  if (group.spellBucket === "perShortRest") {
+    actor.spellState.perShortRest = mergeTextValues(actor.spellState.perShortRest, spellNames);
+  }
+  if (group.spellBucket === "perLongRest" || group.spellBucket === "alwaysPreparedPerLongRest") {
     actor.spellState.perLongRest = mergeTextValues(actor.spellState.perLongRest, spellNames);
   }
 }
@@ -926,6 +1107,7 @@ function applyPassiveBonuses(actor: ActorSheet, bonuses: NonNullable<Progression
       targetKey: bonus.skillName ?? bonus.ability ?? "",
       value: bonus.bonus ?? 0,
       statBonus: bonus.statBonus,
+      proficiencyBonusMultiplier: bonus.proficiencyBonusMultiplier,
       minimum: bonus.minBonus,
       enabled: true
     });

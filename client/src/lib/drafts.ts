@@ -139,11 +139,12 @@ export function createClientActorDraft(kind: ActorKind, currentUserId?: string):
       kind === "character" || kind === "npc"
         ? {
             ruleset: "dnd-2024",
-            schemaVersion: 2,
+            schemaVersion: 3,
             mode: "guided",
             classes: [],
             selections: [],
             awards: [],
+            configurations: [],
             overrides: []
           }
         : undefined

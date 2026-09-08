@@ -1,4 +1,4 @@
-import { findSpeciesProgression } from "@shared/data/progression";
+import { findSpeciesProgression, type ProgressionChoiceGroupDef } from "@shared/data/progression";
 import { compendiumRefMatches, createCompendiumRef, parseCompendiumRef } from "@shared/rules/compendiumRefs";
 import type {
   AbilityKey,
@@ -19,6 +19,7 @@ import type {
   SpellEntry,
   SpellSlotTrack
 } from "@shared/types";
+import type { LevelProgressionConfig, ProgressionChoiceOption, SubclassProgressionDef } from "../../../../../shared/data/progression";
 import {
   FEAT_PROGRESSIONS,
   findBackgroundProgression,
@@ -204,6 +205,11 @@ export function featMeetsProgressionPrerequisites(feat: FeatEntry, actor: ActorS
   );
 }
 
+export function featCanBeSelectedAgain(feat: FeatEntry, actor: ActorSheet): boolean {
+  const definition = findFeatProgression(feat.id) ?? findFeatProgression(feat.name);
+  return Boolean(definition?.repeatable) || !actor.feats.some((owned) => normalizeKey(owned) === normalizeKey(feat.name));
+}
+
 export function featProgressionIdMeetsPrerequisites(featNameOrId: string, actor: ActorSheet, characterLevel = totalLevel(actor)): boolean {
   const definition = findFeatProgression(featNameOrId);
   const prerequisites = definition?.prerequisites;
@@ -216,15 +222,21 @@ export function featProgressionIdMeetsPrerequisites(featNameOrId: string, actor:
     return false;
   }
   if (
+    prerequisites.anyAbility &&
+    !prerequisites.anyAbility.abilities.some((ability) => actor.abilities[ability] >= prerequisites.anyAbility!.minimum)
+  ) {
+    return false;
+  }
+  if (
     prerequisites.armorProficiencies?.some(
-      (entry) => !actor.armorProficiencies.some((owned) => normalizeKey(owned) === normalizeKey(entry))
+      (entry) => !(actor.armorProficiencies ?? []).some((owned) => normalizeKey(owned) === normalizeKey(entry))
     )
   ) {
     return false;
   }
   if (
     prerequisites.weaponProficiencies?.some(
-      (entry) => !actor.weaponProficiencies.some((owned) => normalizeKey(owned) === normalizeKey(entry))
+      (entry) => !(actor.weaponProficiencies ?? []).some((owned) => normalizeKey(owned) === normalizeKey(entry))
     )
   ) {
     return false;
@@ -600,7 +612,7 @@ export function collectGuidedFeatures(actor: ActorSheet, classes: ClassEntry[], 
     const subclassId =
       subclassOverrides?.[actorClass.id] ??
       actorClass.subclassId ??
-      actor.build?.classes.find((entry) => entry.id === actorClass.id)?.subclassId;
+      actor.build?.classes?.find((entry) => entry.id === actorClass.id)?.subclassId;
     const subclass = definition.subclasses.find(
       (entry) => entry.id === subclassId || normalizeKey(entry.name) === normalizeKey(subclassId ?? "")
     );
@@ -789,7 +801,8 @@ export function deriveGrantedSpellState(actor: ActorSheet, compendium: CampaignS
     alwaysPrepared: [] as string[],
     atWill: [] as string[],
     perShortRest: [] as string[],
-    perLongRest: [] as string[]
+    perLongRest: [] as string[],
+    available: [] as string[]
   };
   resolveProgressionEffects(actor.build?.awards ?? [], actor.build?.overrides ?? []).forEach((effect) => {
     if (effect.kind !== "spell") return;
@@ -868,6 +881,24 @@ export function validateGuideSelections(params: {
     return "Choose every required class feat.";
   }
 
+  const selectedFeatIds = [
+    ...params.setup.classFeatIds,
+    params.setup.originFeatId,
+    params.setup.speciesOriginFeatId,
+    params.setup.asiMode === "feat" ? params.setup.asiFeatId : ""
+  ].filter(Boolean);
+  const selectedFeatKeys = new Map<string, number>();
+  for (const featId of selectedFeatIds) {
+    const definition = findFeatProgression(featId);
+    const key = normalizeKey(definition?.name ?? featId);
+    selectedFeatKeys.set(key, (selectedFeatKeys.get(key) ?? 0) + 1);
+    if (!definition?.repeatable && selectedFeatKeys.get(key)! > 1)
+      return `${definition?.name ?? featId} cannot be selected more than once.`;
+    if (!definition?.repeatable && params.actor.feats.some((owned) => normalizeKey(owned) === key)) {
+      return `${definition?.name ?? featId} is already owned and cannot be selected again.`;
+    }
+  }
+
   if (!hasEnoughGuideSelections(params.setup.optionalFeatureIds, params.spec.optionalFeatureCount)) {
     return "Choose every required class feature option.";
   }
@@ -883,9 +914,19 @@ export function validateGuideSelections(params: {
     if (group.parentOption && !(params.setup.classChoiceIds[group.parentOption.groupId] ?? []).includes(group.parentOption.optionId)) {
       continue;
     }
+    if (group.options.length < group.count) {
+      return `${group.label} requires ${group.count} eligible options, but only ${group.options.length} are available.`;
+    }
     const selected = params.setup.classChoiceIds[group.id] ?? [];
     if (new Set(selected).size !== group.count || selected.length !== group.count) {
       return `Choose exactly ${group.count} option${group.count === 1 ? "" : "s"} for ${group.label}.`;
+    }
+    if (typeof group.replacementLimit === "number") {
+      const activeIds = params.actor.build?.configurations?.find((entry) => entry.groupId === group.id)?.activeOptionIds ?? [];
+      const selectedSet = new Set(selected);
+      if (activeIds.filter((optionId) => !selectedSet.has(optionId)).length > group.replacementLimit) {
+        return `${group.label} allows only ${group.replacementLimit} replacement${group.replacementLimit === 1 ? "" : "s"} at this level.`;
+      }
     }
     for (const optionId of selected) {
       const option = group.options.find((entry) => entry.id === optionId);
@@ -900,6 +941,9 @@ export function validateGuideSelections(params: {
     )
       continue;
     for (const group of groups) {
+      if (group.options.length < group.count) {
+        return `${group.label} requires ${group.count} eligible options, but only ${group.options.length} are available.`;
+      }
       const selected = params.setup.featChoiceMap[featId]?.[group.id] ?? [];
       if (new Set(selected).size !== group.count || selected.length !== group.count) {
         return `Choose exactly ${group.count} option${group.count === 1 ? "" : "s"} for ${group.label}.`;
@@ -921,6 +965,14 @@ export function validateGuideSelections(params: {
 
   if (!hasEnoughGuideSelections(params.setup.preparedSpellIds, params.spec.preparedSpellCount)) {
     return "Choose every required prepared spell.";
+  }
+
+  if (params.spec.preparedSpellReplacementLimit !== "all") {
+    const selected = new Set(params.setup.preparedSpellIds);
+    const removedCount = params.spec.preparedSpellPreviousIds.filter((id) => !selected.has(id)).length;
+    if (removedCount > params.spec.preparedSpellReplacementLimit) {
+      return `You can replace at most ${params.spec.preparedSpellReplacementLimit} prepared spell${params.spec.preparedSpellReplacementLimit === 1 ? "" : "s"} at this level.`;
+    }
   }
 
   if (!hasEnoughGuideSelections(params.setup.expertiseSkillChoices, params.spec.expertiseCount)) {
@@ -1085,6 +1137,7 @@ export function buildMainAutosaveState(actor: ActorSheet) {
 export function deriveGuidedChoiceSpec(params: {
   actor: ActorSheet;
   classes: ClassEntry[];
+  items?: CompendiumItemEntry[];
   spells: SpellEntry[];
   feats: FeatEntry[];
   optionalFeatures: CompendiumOptionalFeatureEntry[];
@@ -1105,7 +1158,8 @@ export function deriveGuidedChoiceSpec(params: {
     params.classes.find((entry) => entry.id === params.targetClassId) ??
     null;
 
-  const standardWeaponMasteries = findProgressionChoiceDomain("weapon-masteries")?.options.map((entry) => entry.name) ?? [];
+  const weaponMasteryDomain = findProgressionChoiceDomain("weapon-masteries")?.options ?? [];
+  const allWeaponMasteries = weaponMasteryDomain.map((entry) => entry.name);
   const standardLanguages = findProgressionChoiceDomain("standard-languages")?.options.map((entry) => entry.name) ?? [];
   const speciesDefinition = actorSpeciesProgression(params.actor);
   const standardSizes = speciesDefinition?.sizes ?? [];
@@ -1128,12 +1182,15 @@ export function deriveGuidedChoiceSpec(params: {
       spellbookCount: 0,
       preparedSpellOptions: [],
       preparedSpellCount: 0,
+      preparedSpellPreviousIds: [],
+      preparedSpellReplacementLimit: 0,
+      preparedSpellTrigger: "levelUp",
       languageOptions: standardLanguages,
       languageCount,
       sizeOptions: standardSizes,
       expertiseSkillOptions: [],
       expertiseCount: 0,
-      weaponMasteryOptions: standardWeaponMasteries,
+      weaponMasteryOptions: allWeaponMasteries,
       weaponMasteryCount: 0,
       abilityImprovementCount: 0,
       hitDieFaces: 8,
@@ -1149,11 +1206,24 @@ export function deriveGuidedChoiceSpec(params: {
   const currentLevel = params.mode === "setup" ? 0 : (currentActorClass?.level ?? 0);
   const targetLevel = Math.max(1, currentLevel + 1);
   const currentSubclassId = currentActorClass
-    ? (currentActorClass.subclassId ?? params.actor.build?.classes.find((entry) => entry.id === currentActorClass.id)?.subclassId ?? "")
+    ? (currentActorClass.subclassId ?? params.actor.build?.classes?.find((entry) => entry.id === currentActorClass.id)?.subclassId ?? "")
     : "";
   const activeSubclassId = params.targetSubclassId || currentSubclassId;
   const classDef = findClassProgression(classEntry.name) || findClassProgression(classEntry.id);
+  const existingMasteryRefs = new Set((params.actor.weaponMasteries ?? []).map((entry) => normalizeKey(entry.weaponRef)));
+  const weaponMasteryOptions = weaponMasteryDomain
+    .filter(
+      (option) =>
+        option.referenceId &&
+        !existingMasteryRefs.has(normalizeKey(option.referenceId)) &&
+        weaponMasteryOptionIsEligible(option, params.actor, classDef, params.items)
+    )
+    .map((entry) => entry.name);
+  const subclassDef = classDef?.subclasses.find(
+    (entry) => entry.id === activeSubclassId || normalizeKey(entry.name) === normalizeKey(activeSubclassId)
+  );
   const configAt = (level: number) => classDef?.levels[level];
+  const subclassConfigAt = (level: number) => subclassDef?.levels[level];
   const latestNumber = (level: number, read: (config: NonNullable<ReturnType<typeof configAt>>) => number | undefined) => {
     for (let candidate = level; candidate >= 1; candidate -= 1) {
       const config = configAt(candidate);
@@ -1168,13 +1238,32 @@ export function deriveGuidedChoiceSpec(params: {
   );
   const cantripCount = Math.max(
     0,
-    latestNumber(targetLevel, (config) => config.spellcasting?.cantripsKnown) -
-      latestNumber(currentLevel, (config) => config.spellcasting?.cantripsKnown)
+    Math.max(
+      latestNumber(targetLevel, (config) => config.spellcasting?.cantripsKnown),
+      latestSubclassNumber(subclassDef, targetLevel, (config) => config.spellcasting?.cantripsKnown)
+    ) -
+      Math.max(
+        latestNumber(currentLevel, (config) => config.spellcasting?.cantripsKnown),
+        latestSubclassNumber(subclassDef, currentLevel, (config) => config.spellcasting?.cantripsKnown)
+      )
   );
-  const preparedProgression = classDef?.spellcastingRules?.preparedSpellsProgression ?? [];
-  const targetPreparedCount = preparedProgression[targetLevel - 1] ?? 0;
-  const knownSpellCount = 0;
-  const spellbookCount = configAt(targetLevel)?.spellcasting?.spellbookAdditions ?? 0;
+  const spellcastingRules = subclassDef?.spellcastingRules ?? classDef?.spellcastingRules;
+  const preparedProgression = spellcastingRules?.preparedSpellsProgression ?? [];
+  const targetPreparedCount =
+    preparedProgression[targetLevel - 1] ??
+    (spellcastingRules?.preparedSpellsFormula
+      ? Math.max(
+          spellcastingRules.preparedSpellsFormula.min,
+          abilityModifierTotal(params.actor, spellcastingRules.preparedSpellsFormula.ability) + Math.ceil(targetLevel / 2)
+        )
+      : 0);
+  const knownSpellCount = Math.max(
+    0,
+    latestSubclassNumber(subclassDef, targetLevel, (config) => config.spellcasting?.spellsKnown) -
+      latestSubclassNumber(subclassDef, currentLevel, (config) => config.spellcasting?.spellsKnown)
+  );
+  const spellbookCount =
+    (configAt(targetLevel)?.spellcasting?.spellbookAdditions ?? 0) + (subclassConfigAt(targetLevel)?.spellcasting?.spellbookAdditions ?? 0);
   const fightingStyleCount = 0;
   const expertiseCount = configAt(targetLevel)?.expertiseChoices ?? 0;
   const optionalFeatureCount = 0;
@@ -1184,37 +1273,78 @@ export function deriveGuidedChoiceSpec(params: {
   const classFeatOptions = params.feats.filter(
     (entry) =>
       normalizeKey(entry.category).includes("fs") &&
-      !existingFeatNames.has(normalizeKey(entry.name)) &&
+      (!existingFeatNames.has(normalizeKey(entry.name)) || findFeatProgression(entry.id)?.repeatable) &&
       featMeetsProgressionPrerequisites(entry, params.actor, targetCharacterLevel)
   );
   const optionalFeatureOptions: CompendiumOptionalFeatureEntry[] = [];
-  const maxSpellLevel = deriveMaximumSpellLevelForProgression(classDef, targetLevel);
-  const existingSpellNames = new Set(
-    [
-      ...params.actor.spells,
-      ...params.actor.preparedSpells,
-      ...params.actor.spellState.spellbook,
-      ...params.actor.spellState.alwaysPrepared,
-      ...params.actor.spellState.atWill,
-      ...params.actor.spellState.perShortRest,
-      ...params.actor.spellState.perLongRest
-    ].map((entry) => normalizeKey(entry))
+  const subclassSlots = latestSubclassSlots(subclassDef, targetLevel);
+  const maxSpellLevel = subclassSlots
+    ? Math.max(0, ...subclassSlots.map((count, index) => (count > 0 ? index + 1 : 0)))
+    : deriveMaximumSpellLevelForProgression(classDef, targetLevel);
+  const targetOwnedSpellNames = new Set<string>();
+  if (!currentActorClass) {
+    params.actor.spells.forEach((spellName) => targetOwnedSpellNames.add(normalizeKey(spellName)));
+  }
+  (params.actor.build?.configurations ?? [])
+    .filter((configuration) => configuration.ownerInstanceId === currentActorClass?.id)
+    .flatMap((configuration) => configuration.activeEffects ?? [])
+    .forEach((effect) => {
+      if (effect?.kind === "spell") targetOwnedSpellNames.add(normalizeKey(parseCompendiumRef(effect.ref)?.name ?? effect.ref));
+    });
+  (params.actor.build?.awards ?? [])
+    .filter((award) => {
+      const reference = parseCompendiumRef(award.classRef);
+      return reference?.name === classEntry.name && reference.source === classEntry.source;
+    })
+    .flatMap((award) =>
+      award.choices
+        .filter((choice) => ["setup:cantrips", "setup:known-spells", "setup:spellbook"].includes(choice.groupId))
+        .flatMap((choice) => choice.optionIds)
+    )
+    .forEach((spellId) => {
+      const spell = params.spells.find((entry) => entry.id === spellId);
+      if (spell) targetOwnedSpellNames.add(normalizeKey(spell.name));
+    });
+  const targetClassFilter = subclassDef?.spellListId
+    ? { name: subclassDef.spellListId, source: undefined }
+    : { name: classEntry.name, source: classEntry.source || classDef?.source };
+  const availableSpellRefs = new Set([
+    ...(params.actor.spellState.available ?? []).map(normalizeKey),
+    ...Object.entries(subclassDef?.levels ?? {})
+      .filter(([level]) => Number(level) <= targetLevel)
+      .flatMap(([, config]) => config.grants?.spellGrants ?? [])
+      .filter((grant) => grant.bucket === "available")
+      .flatMap((grant) => {
+        const parsed = parseCompendiumRef(grant.ref);
+        return [normalizeKey(grant.ref), normalizeKey(parsed?.name ?? grant.ref)];
+      })
+  ]);
+  const classSpellOptions = params.spells.filter(
+    (entry) =>
+      spellMatchesSingleClassFilter(entry, targetClassFilter) ||
+      availableSpellRefs.has(normalizeKey(entry.id)) ||
+      availableSpellRefs.has(normalizeKey(entry.name)) ||
+      availableSpellRefs.has(normalizeKey(createCompendiumRef(entry.name, entry.source)))
   );
-  const targetClassFilter = { name: classEntry.name, source: classEntry.source || classDef?.source };
-  const classSpellOptions = params.spells.filter((entry) => spellMatchesSingleClassFilter(entry, targetClassFilter));
   const cantripOptions = classSpellOptions.filter(
-    (entry) => entry.level === "cantrip" && !existingSpellNames.has(normalizeKey(entry.name))
+    (entry) => entry.level === "cantrip" && !targetOwnedSpellNames.has(normalizeKey(entry.name))
   );
   const leveledSpellOptions = classSpellOptions.filter(
-    (entry) => typeof entry.level === "number" && entry.level <= maxSpellLevel && !existingSpellNames.has(normalizeKey(entry.name))
+    (entry) => typeof entry.level === "number" && entry.level <= maxSpellLevel && !targetOwnedSpellNames.has(normalizeKey(entry.name))
   );
 
-  const preparedSpellCount = classDef?.spellcastingRules ? targetPreparedCount : 0;
+  const preparedSpellCount = spellcastingRules ? targetPreparedCount : 0;
+  const preparedSpellConfiguration = params.actor.build?.configurations?.find(
+    (entry) => entry.ownerInstanceId === currentActorClass?.id && entry.groupId === "prepared-spells"
+  );
+  const preparedSpellPreviousIds = preparedSpellConfiguration?.activeOptionIds ?? [];
+  const preparedSpellReplacementLimit = spellcastingRules?.replacementMode === "all" ? "all" : 1;
+  const preparedSpellTrigger = spellcastingRules?.changeCadence === "onLongRest" ? "longRest" : "levelUp";
   const selectedSpellbookSpellIdSet = new Set(params.selectedSpellbookSpellIds ?? []);
   const spellbookNames = new Set(params.actor.spellState.spellbook.map(normalizeKey));
   const preparedSpellOptions = classSpellOptions.filter((entry) => {
     if (typeof entry.level !== "number" || entry.level > maxSpellLevel) return false;
-    if (classDef?.spellcastingRules?.preparationSource !== "spellbook") return true;
+    if (spellcastingRules?.preparationSource !== "spellbook") return true;
     return spellbookNames.has(normalizeKey(entry.name)) || selectedSpellbookSpellIdSet.has(entry.id);
   });
 
@@ -1268,23 +1398,280 @@ export function deriveGuidedChoiceSpec(params: {
     cantripCount,
     knownSpellOptions: leveledSpellOptions,
     knownSpellCount,
-    knownSpellLabel: classDef?.spellcastingRules?.changeCadence === "onLevelUp" ? "Prepared Spells" : "Class Spells",
+    knownSpellLabel: spellcastingRules?.changeCadence === "onLevelUp" ? "Prepared Spells" : "Class Spells",
     spellbookOptions: leveledSpellOptions,
     spellbookCount,
     preparedSpellOptions,
     preparedSpellCount,
+    preparedSpellPreviousIds,
+    preparedSpellReplacementLimit,
+    preparedSpellTrigger,
     languageOptions: standardLanguages,
     languageCount,
     sizeOptions: standardSizes,
     expertiseSkillOptions: params.actor.skills.filter((entry) => entry.proficient && !entry.expertise),
     expertiseCount,
-    weaponMasteryOptions: standardWeaponMasteries,
+    weaponMasteryOptions,
     weaponMasteryCount,
     abilityImprovementCount,
     hitDieFaces,
     conModifier,
     averageHpGain
   };
+}
+
+function weaponMasteryOptionIsEligible(
+  option: ProgressionChoiceOption,
+  actor: ActorSheet,
+  classDef: ReturnType<typeof findClassProgression>,
+  items?: CompendiumItemEntry[]
+) {
+  if (!option.weapon || !option.referenceId) return false;
+  const weaponName = parseCompendiumRef(option.referenceId)?.name ?? option.name.replace(/\s*\([^)]*\)\s*$/, "");
+  if (items && items.length > 0 && !items.some((item) => normalizeKey(item.name) === normalizeKey(weaponName))) return false;
+  const proficiencies = [...(actor.weaponProficiencies ?? []), ...(classDef?.weaponProficiencies ?? [])];
+  if (proficiencies.some((entry) => normalizeKey(entry) === normalizeKey(weaponName))) return true;
+  const categoryLabel = `${option.weapon.category} weapons`;
+  if (proficiencies.some((entry) => normalizeKey(entry) === normalizeKey(categoryLabel))) return true;
+  return proficiencies.some((proficiency) => {
+    if (!normalizeKey(proficiency).startsWith(normalizeKey(categoryLabel))) return false;
+    const restrictions =
+      proficiency
+        .match(/\(([^)]+)\)/)?.[1]
+        ?.split(",")
+        .map((entry) => normalizeKey(entry)) ?? [];
+    return (
+      restrictions.length === 0 ||
+      restrictions.some((restriction) => option.weapon?.properties?.some((property) => normalizeKey(property) === restriction))
+    );
+  });
+}
+
+export interface RestWeaponMasteryGroup {
+  actorClassId: string;
+  className: string;
+  ownerRef: string;
+  count: number;
+  options: Array<{ id: string; label: string; weaponName: string; mastery: string }>;
+  selectedIds: string[];
+  hasPendingChanges: boolean;
+}
+
+export function deriveRestWeaponMasteryGroups(actor: ActorSheet, items: CompendiumItemEntry[]): RestWeaponMasteryGroup[] {
+  const domain = findProgressionChoiceDomain("weapon-masteries")?.options ?? [];
+  return actor.classes.flatMap((actorClass) => {
+    const classDef = findClassProgression(actorClass.compendiumId) ?? findClassProgression(actorClass.name);
+    if (!classDef) return [];
+    let count = 0;
+    for (let level = actorClass.level; level >= 1; level -= 1) {
+      const value = classDef.levels[level]?.weaponMasteriesCount;
+      if (typeof value === "number") {
+        count = value;
+        break;
+      }
+    }
+    if (count === 0) return [];
+    const configuration = actor.build?.configurations?.find(
+      (entry) => entry.ownerInstanceId === actorClass.id && entry.groupId === "weapon-masteries"
+    );
+    const selectedIds =
+      configuration?.pendingOptionIds ??
+      configuration?.activeOptionIds ??
+      (actor.weaponMasteries ?? []).filter((entry) => entry.ownerInstanceId === actorClass.id).map((entry) => entry.weaponRef);
+    return [
+      {
+        actorClassId: actorClass.id,
+        className: actorClass.name,
+        ownerRef: createCompendiumRef(classDef.name, classDef.source),
+        count,
+        options: domain
+          .filter((option) => weaponMasteryOptionIsEligible(option, actor, classDef, items))
+          .flatMap((option) => {
+            if (!option.referenceId || !option.weapon) return [];
+            return [
+              {
+                id: option.referenceId,
+                label: option.name,
+                weaponName: parseCompendiumRef(option.referenceId)?.name ?? option.name,
+                mastery: option.weapon.mastery
+              }
+            ];
+          }),
+        selectedIds,
+        hasPendingChanges: Boolean(configuration?.pendingOptionIds)
+      }
+    ];
+  });
+}
+
+export interface RestPreparedSpellGroup {
+  actorClassId: string;
+  className: string;
+  ownerRef: string;
+  limit: number;
+  options: SpellEntry[];
+  activeIds: string[];
+  selectedIds: string[];
+  hasPendingChanges: boolean;
+  replacementLimit: number | "all";
+}
+
+export interface RestSpellChoiceGroup {
+  actorClassId: string;
+  className: string;
+  ownerRef: string;
+  groupId: string;
+  title: string;
+  count: number;
+  trigger: "longRest" | "shortOrLongRest";
+  bucket: NonNullable<ProgressionChoiceGroupDef["spellBucket"]>;
+  options: SpellEntry[];
+  selectedIds: string[];
+  hasPendingChanges: boolean;
+}
+
+function highestAvailableSpellLevel(classDef: NonNullable<ReturnType<typeof findClassProgression>>, classLevel: number) {
+  for (let level = classLevel; level >= 1; level -= 1) {
+    const slots = classDef.levels[level]?.spellcasting?.slots;
+    if (!slots) continue;
+    for (let index = slots.length - 1; index >= 0; index -= 1) {
+      if ((slots[index] ?? 0) > 0) return index + 1;
+    }
+  }
+  return 0;
+}
+
+function spellMatchesProgressionSelection(
+  spell: SpellEntry,
+  selection: NonNullable<ProgressionChoiceGroupDef["spellSelection"]>,
+  availableSpellLevel: number
+) {
+  const listIds = selection.spellListIds ?? (selection.spellListId ? [selection.spellListId] : []);
+  const levelMatches =
+    selection.level === "available"
+      ? spell.level === "cantrip" || (typeof spell.level === "number" && spell.level <= availableSpellLevel)
+      : spell.level === selection.level;
+  const explicitRefMatches = selection.spellRefs?.some((spellRef) => compendiumRefMatches(spellRef, spell)) ?? false;
+  const listMatches = listIds.some((listId) => normalizeKey(listId) === "any" || spellMatchesSingleClassFilter(spell, listId));
+  return levelMatches && (explicitRefMatches || listMatches);
+}
+
+export function deriveRestSpellChoiceGroups(actor: ActorSheet, spells: SpellEntry[]): RestSpellChoiceGroup[] {
+  return actor.classes.flatMap((actorClass) => {
+    const classDef = findClassProgression(actorClass.compendiumId) ?? findClassProgression(actorClass.name);
+    if (!classDef) return [];
+    const subclass = classDef.subclasses.find(
+      (entry) => entry.id === actorClass.subclassId || normalizeKey(entry.name) === normalizeKey(actorClass.subclassName ?? "")
+    );
+    const groups = Array.from({ length: actorClass.level }, (_, index) => index + 1).flatMap((level) => [
+      ...(classDef.levels[level]?.choices ?? []),
+      ...(subclass?.levels[level]?.choices ?? [])
+    ]);
+    return groups.flatMap((group) => {
+      if (!group.spellSelection || !group.spellBucket || (group.cadence !== "onLongRest" && group.cadence !== "onShortRest")) return [];
+      if (group.parentOption) {
+        const parentConfiguration = actor.build?.configurations?.find(
+          (entry) => entry.ownerInstanceId === actorClass.id && entry.groupId === group.parentOption?.groupId
+        );
+        if (!parentConfiguration?.activeOptionIds.includes(group.parentOption.optionId)) return [];
+      }
+      const spellSelection = group.spellSelection;
+      const spellbook = new Set(actor.spellState.spellbook.map(normalizeKey));
+      const preparedSpells = new Set([...actor.preparedSpells, ...actor.spellState.alwaysPrepared].map(normalizeKey));
+      const availableSpellLevel = highestAvailableSpellLevel(classDef, actorClass.level);
+      const configuration = actor.build?.configurations?.find(
+        (entry) => entry.ownerInstanceId === actorClass.id && entry.groupId === group.id
+      );
+      return [
+        {
+          actorClassId: actorClass.id,
+          className: actorClass.name,
+          ownerRef: createCompendiumRef(classDef.name, classDef.source),
+          groupId: group.id,
+          title: group.title,
+          count: group.choose,
+          trigger: group.cadence === "onShortRest" ? ("shortOrLongRest" as const) : ("longRest" as const),
+          bucket: group.spellBucket,
+          options: spells.filter(
+            (spell) =>
+              spellMatchesProgressionSelection(spell, spellSelection, availableSpellLevel) &&
+              (spellSelection.source !== "spellbook" || spellbook.has(normalizeKey(spell.name))) &&
+              (!spellSelection.excludePrepared || !preparedSpells.has(normalizeKey(spell.name)))
+          ),
+          selectedIds: configuration?.pendingOptionIds ?? configuration?.activeOptionIds ?? [],
+          hasPendingChanges: Boolean(configuration?.pendingOptionIds)
+        }
+      ];
+    });
+  });
+}
+
+export function deriveRestPreparedSpellGroups(actor: ActorSheet, classes: ClassEntry[], spells: SpellEntry[]): RestPreparedSpellGroup[] {
+  return actor.classes.flatMap((actorClass) => {
+    const classDef = findClassProgression(actorClass.compendiumId) ?? findClassProgression(actorClass.name);
+    const classEntry = findCompendiumClass(actorClass, classes);
+    if (!classDef || !classEntry) return [];
+    const subclass = classDef.subclasses.find(
+      (entry) => entry.id === actorClass.subclassId || normalizeKey(entry.name) === normalizeKey(actorClass.subclassName ?? "")
+    );
+    const rules = subclass?.spellcastingRules ?? classDef.spellcastingRules;
+    if (!rules || rules.changeCadence !== "onLongRest") return [];
+    const level = actorClass.level;
+    const limit =
+      rules.preparedSpellsProgression?.[level - 1] ??
+      (rules.preparedSpellsFormula
+        ? Math.max(rules.preparedSpellsFormula.min, abilityModifierTotal(actor, rules.preparedSpellsFormula.ability) + Math.ceil(level / 2))
+        : 0);
+    const subclassSlots = latestSubclassSlots(subclass, level);
+    const maximumSpellLevel = subclassSlots
+      ? Math.max(0, ...subclassSlots.map((count, index) => (count > 0 ? index + 1 : 0)))
+      : deriveMaximumSpellLevelForProgression(classDef, level);
+    const filter = subclass?.spellListId
+      ? { name: subclass.spellListId, source: undefined }
+      : { name: classEntry.name, source: classEntry.source || classDef.source };
+    const spellbook = new Set(actor.spellState.spellbook.map(normalizeKey));
+    const options = spells.filter((spell) => {
+      if (!spellMatchesSingleClassFilter(spell, filter) || typeof spell.level !== "number" || spell.level > maximumSpellLevel) return false;
+      return rules.preparationSource !== "spellbook" || spellbook.has(normalizeKey(spell.name));
+    });
+    const configuration = actor.build?.configurations?.find(
+      (entry) => entry.ownerInstanceId === actorClass.id && entry.groupId === "prepared-spells"
+    );
+    return [
+      {
+        actorClassId: actorClass.id,
+        className: actorClass.name,
+        ownerRef: createCompendiumRef(classDef.name, classDef.source),
+        limit,
+        options,
+        activeIds: configuration?.activeOptionIds ?? [],
+        selectedIds: configuration?.pendingOptionIds ?? configuration?.activeOptionIds ?? [],
+        hasPendingChanges: Boolean(configuration?.pendingOptionIds),
+        replacementLimit: rules.replacementMode === "all" ? "all" : 1
+      }
+    ];
+  });
+}
+
+function latestSubclassNumber(
+  subclass: SubclassProgressionDef | undefined,
+  level: number,
+  read: (config: LevelProgressionConfig) => number | undefined
+) {
+  for (let candidate = level; candidate >= 1; candidate -= 1) {
+    const config = subclass?.levels[candidate];
+    const value = config ? read(config) : undefined;
+    if (typeof value === "number") return value;
+  }
+  return 0;
+}
+
+function latestSubclassSlots(subclass: SubclassProgressionDef | undefined, level: number) {
+  for (let candidate = level; candidate >= 1; candidate -= 1) {
+    const slots = subclass?.levels[candidate]?.spellcasting?.slots;
+    if (slots) return slots;
+  }
+  return undefined;
 }
 
 export function deriveClassChoiceGroups(
@@ -1312,6 +1699,9 @@ export function deriveClassChoiceGroups(
   const classDef = findClassProgression(classEntry.name) || findClassProgression(classEntry.id);
   if (classDef) {
     const selectedOptionIds = new Set(Object.values(params.selectedClassChoiceIds ?? {}).flat());
+    const previouslySelectedOptions = Object.fromEntries(
+      (params.actor.build?.awards ?? []).flatMap((award) => award.choices).map((choice) => [choice.groupId, choice.optionIds])
+    );
     const selectedFeatureNames = [
       ...Object.values(classDef.levels).flatMap((level) =>
         (level.choices ?? []).flatMap((group) =>
@@ -1329,27 +1719,76 @@ export function deriveClassChoiceGroups(
     for (let lvl = currentLevel + 1; lvl <= targetLevel; lvl++) {
       const rawGroups = evaluateClassChoicesForLevel(classDef, lvl, params.activeSubclassId);
       rawGroups
-        .filter((g) => g.cadence === undefined || g.cadence === "onLevelUp" || g.cadence === "permanent")
+        .filter((g) => g.cadence !== "onActivation")
         .forEach((g) => {
           if (!groups.some((existing) => existing.id === g.id)) {
-            const eligibleOptions = g.options.filter((option) =>
-              progressionChoiceOptionIsEligible(option, {
-                actor: params.actor,
-                classDefinition: classDef,
-                classLevel: lvl,
-                characterLevel: params.characterLevel ?? totalLevel(params.actor),
-                subclassId: params.activeSubclassId,
-                selectedFeatureNames,
-                spells: params.spells,
-                selectedSpellIds: params.selectedSpellIds
-              })
-            );
             const subclassDefinition = classDef.subclasses.find(
               (entry) => entry.id === params.activeSubclassId || normalizeKey(entry.name) === normalizeKey(params.activeSubclassId ?? "")
             );
-            const groupSource = subclassDefinition?.levels[lvl]?.choices?.some((choice) => choice.id === g.id)
-              ? subclassDefinition.source
-              : classDef.source;
+            const groupSource =
+              subclassDefinition &&
+              Object.values(subclassDefinition.levels).some((level) => level.choices?.some((choice) => choice.id === g.id))
+                ? subclassDefinition.source
+                : classDef.source;
+            if (g.spellSelection) {
+              const spellSelection = g.spellSelection;
+              const spellbook = new Set(params.actor.spellState.spellbook.map(normalizeKey));
+              const preparedSpells = new Set([...params.actor.preparedSpells, ...params.actor.spellState.alwaysPrepared].map(normalizeKey));
+              const availableSpellLevel = highestAvailableSpellLevel(classDef, lvl);
+              const options = params.spells.filter(
+                (spell) =>
+                  spellMatchesProgressionSelection(spell, spellSelection, availableSpellLevel) &&
+                  (spellSelection.source !== "spellbook" || spellbook.has(normalizeKey(spell.name))) &&
+                  (!spellSelection.excludePrepared || !preparedSpells.has(normalizeKey(spell.name)))
+              );
+              groups.push({
+                id: g.id,
+                label: g.title,
+                hint: `Level ${lvl} spell choice`,
+                count: g.choose,
+                replacementLimit: g.replacementLimit,
+                level: lvl,
+                parentOption: g.parentOption,
+                selectionKind: "spells",
+                spellBucket: g.spellBucket ?? "known",
+                configurationTrigger:
+                  g.cadence === "onLongRest"
+                    ? "longRest"
+                    : g.cadence === "onShortRest"
+                      ? "shortOrLongRest"
+                      : g.replacementLimit !== undefined
+                        ? "levelUp"
+                        : undefined,
+                options: options.map((spell) => ({
+                  id: spell.id,
+                  label: spell.name,
+                  compendiumRef: createCompendiumRef(spell.name, spell.source),
+                  description: spell.fullDescription || spell.description,
+                  grants: { spells: [spell.name] }
+                }))
+              });
+              return;
+            }
+            const activeConfigurationOptionIds = new Set(
+              params.actor.build?.configurations?.find((entry) => entry.groupId === g.id)?.activeOptionIds ?? []
+            );
+            const eligibleOptions = g.options.filter(
+              (option) =>
+                (g.optionGrantMode !== "feature" ||
+                  activeConfigurationOptionIds.has(option.id) ||
+                  !params.actor.features.some((feature) => normalizeKey(feature) === normalizeKey(option.name))) &&
+                progressionChoiceOptionIsEligible(option, {
+                  actor: params.actor,
+                  classDefinition: classDef,
+                  classLevel: lvl,
+                  characterLevel: params.characterLevel ?? totalLevel(params.actor),
+                  subclassId: params.activeSubclassId,
+                  selectedFeatureNames,
+                  spells: params.spells,
+                  selectedSpellIds: params.selectedSpellIds,
+                  selectedOptions: previouslySelectedOptions
+                })
+            );
             const groupReferenceId = g.referenceId ?? createCompendiumRef(g.title, groupSource);
             const referencedGroupEntry = referencedEntries.find((entry) => compendiumRefMatches(groupReferenceId, entry));
             const mappedGroup: CompendiumChoiceGroup = {
@@ -1357,7 +1796,9 @@ export function deriveClassChoiceGroups(
               label: g.title,
               hint: `Level ${lvl} choice`,
               count: g.choose,
+              replacementLimit: g.replacementLimit,
               level: lvl,
+              parentOption: g.parentOption,
               options: eligibleOptions.map((opt) => {
                 const referencedEntry = opt.referenceId
                   ? referencedEntries.find((entry) => compendiumRefMatches(opt.referenceId!, entry))
@@ -1367,9 +1808,11 @@ export function deriveClassChoiceGroups(
                   label: opt.name,
                   compendiumRef: opt.referenceId ?? groupReferenceId,
                   description:
-                    referencedEntry && "description" in referencedEntry
+                    referencedEntry &&
+                    "description" in referencedEntry &&
+                    typeof (referencedEntry as { description?: unknown }).description === "string"
                       ? extractChoiceOptionDescription(
-                          referencedEntry.description,
+                          (referencedEntry as { description: string }).description,
                           opt.name,
                           eligibleOptions.map((option) => option.name)
                         )
@@ -1385,7 +1828,27 @@ export function deriveClassChoiceGroups(
                     savingThrows: opt.grants?.savingThrows || [],
                     spells: opt.grants?.spellsCount || opt.grants?.cantripsCount ? [] : opt.grants?.spellOptions || [],
                     alwaysPreparedSpells: opt.grants?.alwaysPreparedSpells || [],
-                    attacks: [],
+                    spellGrants: opt.grants?.spellGrants ?? [],
+                    attacks: (opt.grants?.actions ?? []).map((action) => ({
+                      id: action.id,
+                      name: action.name,
+                      attackBonus: 0,
+                      damage: action.roll?.diceFormula ?? "",
+                      damageType: action.roll?.damageType ?? "",
+                      notes: [action.range, action.duration, action.source].filter(Boolean).join(" • "),
+                      actionCost: action.actionCost,
+                      resourceCost: action.resourceCost,
+                      sourceRef: createCompendiumRef(action.name, action.source),
+                      range: action.range,
+                      duration: action.duration,
+                      activationChoiceGroupId: action.activationChoiceGroupId,
+                      usesTargetHitDie: action.roll?.usesTargetHitDie,
+                      addProficiencyBonus: action.roll?.addProficiencyBonus
+                    })),
+                    abilities: opt.grants?.abilities ?? {},
+                    abilityMaximums: opt.grants?.abilityMaximums ?? {},
+                    weaponMasteriesCount: opt.grants?.weaponMasteriesCount,
+                    visionRange: opt.grants?.visionRange,
                     passiveBonuses: opt.grants?.passiveBonuses ?? []
                   }
                 };
@@ -1439,7 +1902,7 @@ export function deriveClassChoiceGroups(
                   level: lvl,
                   parentOption: { groupId: g.id, optionId: rawOption.id },
                   selectionKind: "spells",
-                  spellBucket: "known",
+                  spellBucket: rawOption.grants?.alwaysPreparedSpells?.length ? "alwaysPrepared" : "known",
                   options: availableSpells.map((spell) => ({
                     id: spell.id,
                     label: spell.name,
@@ -1459,11 +1922,13 @@ export function deriveClassChoiceGroups(
 }
 
 function extractChoiceOptionDescription(description: string, optionName: string, siblingNames: string[]) {
+  if (!description || typeof description !== "string") return "";
+  if (!optionName || typeof optionName !== "string") return description;
   const normalizedDescription = description.toLowerCase();
   const start = normalizedDescription.indexOf(optionName.toLowerCase());
   if (start < 0) return description;
-  const nextStarts = siblingNames
-    .filter((name) => name !== optionName)
+  const nextStarts = (siblingNames ?? [])
+    .filter((name) => Boolean(name) && typeof name === "string" && name !== optionName)
     .map((name) => normalizedDescription.indexOf(name.toLowerCase(), start + optionName.length))
     .filter((index) => index > start);
   const end = nextStarts.length > 0 ? Math.min(...nextStarts) : description.length;
@@ -1504,6 +1969,7 @@ export function deriveFeatChoiceGroups(feat: FeatEntry, spells: SpellEntry[], ac
           features: option.grants?.features ?? [],
           spells: option.grants?.spellOptions ?? [],
           alwaysPreparedSpells: option.grants?.alwaysPreparedSpells ?? [],
+          spellGrants: option.grants?.spellGrants ?? [],
           skills: option.grants?.skills ?? [],
           expertise: option.grants?.expertise ?? [],
           tools: option.grants?.toolProficiencies ?? [],
@@ -1512,7 +1978,8 @@ export function deriveFeatChoiceGroups(feat: FeatEntry, spells: SpellEntry[], ac
           weaponProficiencies: option.grants?.weaponProficiencies ?? [],
           passiveBonuses: option.grants?.passiveBonuses ?? [],
           savingThrows: option.grants?.savingThrows ?? [],
-          abilities: option.grants?.abilities ?? {}
+          abilities: option.grants?.abilities ?? {},
+          abilityMaximums: option.grants?.abilityMaximums ?? {}
         }
       }))
   }));
@@ -1656,6 +2123,8 @@ export interface ActionEconomyItem {
   subtitle?: string;
   detail?: string;
   rollPayload?: { type: "attack" | "damage" | "check"; notation?: string; bonus?: number; label: string };
+  activationChoiceGroupId?: string;
+  resourceCost?: { resourceId: string; resourceName: string; count: number; available: boolean };
 }
 
 export function deriveActionEconomyGroups(
@@ -1671,30 +2140,60 @@ export function deriveActionEconomyGroups(
   };
 
   actor.attacks.forEach((attack) => {
-    groups.action.push({
+    const actionCost =
+      attack.actionCost === "bonus" || attack.actionCost === "reaction" || attack.actionCost === "free" ? attack.actionCost : "action";
+    const resource = attack.resourceCost
+      ? actor.resources.find((entry) => normalizeKey(entry.name) === normalizeKey(attack.resourceCost!.resourceName))
+      : undefined;
+    groups[actionCost].push({
       id: `attack-${attack.id}`,
       name: attack.name || "Attack",
-      kind: "attack",
-      actionCost: "action",
-      subtitle: `${formatModifier(attack.attackBonus)} to hit • ${attack.damage} ${attack.damageType}`,
-      detail: attack.notes,
-      rollPayload: { type: "attack", bonus: attack.attackBonus, label: `${attack.name} attack` }
+      kind: attack.sourceRef ? "feature" : "attack",
+      actionCost,
+      subtitle: attack.sourceRef
+        ? [attack.actionCost, attack.resourceCost ? `${attack.resourceCost.count} ${attack.resourceCost.resourceName}` : "", attack.range]
+            .filter(Boolean)
+            .join(" • ")
+        : `${formatModifier(attack.attackBonus)} to hit • ${attack.damage} ${attack.damageType}`,
+      detail: [
+        attack.notes,
+        attack.usesTargetHitDie
+          ? `Target expends one Hit Point Die; heal the roll${attack.addProficiencyBonus ? " + your Proficiency Bonus" : ""}.`
+          : ""
+      ]
+        .filter(Boolean)
+        .join(" • "),
+      activationChoiceGroupId: attack.activationChoiceGroupId,
+      resourceCost:
+        attack.resourceCost && resource
+          ? {
+              resourceId: resource.id,
+              resourceName: resource.name,
+              count: attack.resourceCost.count,
+              available: resource.current >= attack.resourceCost.count
+            }
+          : undefined,
+      rollPayload: attack.damage
+        ? {
+            type: attack.sourceRef ? "damage" : "attack",
+            notation: attack.sourceRef ? attack.damage : undefined,
+            bonus: attack.attackBonus,
+            label: attack.name
+          }
+        : undefined
     });
   });
 
-  actor.features
-    .filter((f) => f.startsWith("Weapon Mastery: "))
-    .forEach((feat, index) => {
-      const masteryName = feat.replace("Weapon Mastery: ", "");
-      groups.mastery.push({
-        id: `mastery-${index}`,
-        name: masteryName,
-        kind: "mastery",
-        actionCost: "mastery",
-        subtitle: "Weapon Mastery Property",
-        detail: `Applies mastery effect when attacking with ${masteryName}`
-      });
+  (actor.weaponMasteries ?? []).forEach((weaponMastery, index) => {
+    groups.mastery.push({
+      id: `mastery-${index}`,
+      name: weaponMastery.weaponName,
+      kind: "mastery",
+      actionCost: "mastery",
+      subtitle: `${weaponMastery.mastery} mastery`,
+      detail: `Applies ${weaponMastery.mastery} when attacking with ${weaponMastery.weaponName}.`
     });
+  });
 
   const allActorSpellNames = new Set([
     ...actor.spells,
@@ -1817,16 +2316,20 @@ export function deriveGuidedHitPointMax(actor: ActorSheet) {
   const firstClass = actor.classes[0];
   const baseHp = Math.max(1, firstClass.hitDieFaces + constitutionModifier);
   const leveledHp = (actor.build?.selections ?? []).reduce((sum, selection) => sum + extractLevelUpHpGain(selection.notes), 0);
+  const featHitPointBonus = actor.feats.reduce((sum, featName) => {
+    const feat = findFeatProgression(featName);
+    return sum + (feat?.grants?.hitPointBonusPerLevel ?? 0) * totalLevel(actor);
+  }, 0);
 
   if (leveledHp > 0) {
-    return Math.max(baseHp + leveledHp, baseHp);
+    return Math.max(baseHp + leveledHp + featHitPointBonus, baseHp);
   }
 
   if (totalLevel(actor) > 1 && actor.hitPoints.max > 0) {
     return actor.hitPoints.max;
   }
 
-  return baseHp;
+  return baseHp + featHitPointBonus;
 }
 
 export function effectiveHitPointMax(baseMax: number, reducedMax: number) {
@@ -1998,7 +2501,7 @@ export function collectFeatureRows(
 
   actor.classes.forEach((actorClass) => {
     const classEntry = findCompendiumClass(actorClass, compendium.classes);
-    const subclassId = actorClass.subclassId ?? actor.build?.classes.find((entry) => entry.id === actorClass.id)?.subclassId;
+    const subclassId = actorClass.subclassId ?? actor.build?.classes?.find((entry) => entry.id === actorClass.id)?.subclassId;
     const subclass = classEntry?.subclasses.find((entry) => entry.id === subclassId);
 
     subclass?.features

@@ -1,6 +1,14 @@
-import { findClassProgression } from "@shared/data/progression";
+import type { ProgressionChoiceGroupDef } from "@shared/data/progression";
 
-import { applyRestChoiceSelections, hasProgressionFieldOverride } from "@shared/rules/progressionEngine";
+import {
+  activatePendingPreparedSpellConfigurations,
+  activatePendingSpellChoiceConfigurations,
+  activatePendingWeaponMasteryConfigurations,
+  applyRestChoiceSelections,
+  evaluateActorRestChoices,
+  hasProgressionFieldOverride,
+  progressionConfigurationSelections
+} from "@shared/rules/progressionEngine";
 import type {
   AbilityKey,
   ActorClassEntry,
@@ -42,6 +50,7 @@ import {
   totalLevel
 } from "../sheetUtils";
 import { usePlayerNpcSheetSync } from "./usePlayerNpcSheetSync";
+import { useProgressionActivationChoice } from "./useProgressionActivationChoice";
 
 export interface PlayerNpcSheetControllerState {
   draft: ActorSheet;
@@ -53,9 +62,10 @@ export interface PlayerNpcSheetControllerState {
   longRestOpen: boolean;
   hitDiceSelections: Record<string, number>;
   spellSelectionTarget: SpellSelectionTarget | null;
-  longRestPreparedSpells: string[];
   longRestChoiceSelections: Record<string, string[]>;
   shortRestChoiceSelections: Record<string, string[]>;
+  activationChoiceGroup: ProgressionChoiceGroupDef | null;
+  activationChoiceSelections: string[];
   autosavePaused: boolean;
 }
 
@@ -81,7 +91,6 @@ export interface PlayerNpcSheetActions {
   setActiveTab: (tab: SheetTab) => void;
   setRollMode: (mode: RollMode) => void;
   setSpellSelectionTarget: (target: SpellSelectionTarget | null) => void;
-  setLongRestPreparedSpells: (spells: string[]) => void;
   changeLongRestChoiceSelection: (groupId: string, optionIds: string[]) => void;
   changeShortRestChoiceSelection: (groupId: string, optionIds: string[]) => void;
   setAutosavePaused: (paused: boolean) => void;
@@ -98,6 +107,10 @@ export interface PlayerNpcSheetActions {
   startLongRest: () => void;
   cancelLongRest: () => void;
   confirmLongRest: () => Promise<void>;
+  openActivationChoice: (groupId: string) => boolean;
+  changeActivationChoice: (optionIds: string[]) => void;
+  cancelActivationChoice: () => void;
+  confirmActivationChoice: () => Promise<void>;
 }
 
 export function usePlayerNpcSheetController({
@@ -122,7 +135,6 @@ export function usePlayerNpcSheetController({
   const [longRestOpen, setLongRestOpen] = useState(false);
   const [hitDiceSelections, setHitDiceSelections] = useState<Record<string, number>>({});
   const [spellSelectionTarget, setSpellSelectionTarget] = useState<SpellSelectionTarget | null>(null);
-  const [longRestPreparedSpells, setLongRestPreparedSpells] = useState<string[]>([]);
   const [longRestChoiceSelections, setLongRestChoiceSelections] = useState<Record<string, string[]>>({});
   const [shortRestChoiceSelections, setShortRestChoiceSelections] = useState<Record<string, string[]>>({});
   const [autosavePaused, setAutosavePaused] = useState(false);
@@ -141,7 +153,6 @@ export function usePlayerNpcSheetController({
     setLongRestOpen(false);
     setHitDiceSelections({});
     setSpellSelectionTarget(null);
-    setLongRestPreparedSpells([]);
     setLongRestChoiceSelections({});
     setShortRestChoiceSelections({});
     setAutosavePaused(false);
@@ -243,6 +254,8 @@ export function usePlayerNpcSheetController({
     saveCurrentRef.current = saveCurrent;
   }, [saveCurrent]);
 
+  const activationChoice = useProgressionActivationChoice({ draft, saveCurrent });
+
   const updateDraft = useCallback((recipe: (current: ActorSheet) => ActorSheet) => {
     setDraft((current) => recipe(current));
   }, []);
@@ -256,7 +269,7 @@ export function usePlayerNpcSheetController({
         if (!manualField || (typeof value !== "number" && typeof value !== "string")) return { ...current, [key]: value };
         const build = current.build ?? {
           ruleset: "dnd-2024" as const,
-          schemaVersion: 2 as const,
+          schemaVersion: 3 as const,
           mode: "manual" as const,
           classes: [],
           selections: []
@@ -266,7 +279,7 @@ export function usePlayerNpcSheetController({
           [key]: value,
           build: {
             ...build,
-            schemaVersion: 2,
+            schemaVersion: 3,
             overrides: [
               ...(build.overrides ?? []).filter((entry) => !(entry.operation === "field" && entry.targetField === manualField)),
               {
@@ -289,7 +302,7 @@ export function usePlayerNpcSheetController({
       updateDraft((current) => {
         const build = current.build ?? {
           ruleset: "dnd-2024" as const,
-          schemaVersion: 2 as const,
+          schemaVersion: 3 as const,
           mode: "manual" as const,
           classes: [],
           selections: []
@@ -300,7 +313,7 @@ export function usePlayerNpcSheetController({
           hitPoints: { ...current.hitPoints, max: nextMax, current: Math.min(current.hitPoints.current, nextMax) },
           build: {
             ...build,
-            schemaVersion: 2,
+            schemaVersion: 3,
             overrides: [
               ...(build.overrides ?? []).filter((entry) => !(entry.operation === "field" && entry.targetField === "hitPointMax")),
               {
@@ -560,8 +573,9 @@ export function usePlayerNpcSheetController({
 
   const startShortRest = useCallback(() => {
     setHitDiceSelections(Object.fromEntries(draft.classes.map((entry) => [entry.id, 0])));
+    setShortRestChoiceSelections(progressionConfigurationSelections(draft, evaluateActorRestChoices(draft, "short")));
     setShortRestOpen(true);
-  }, [draft.classes]);
+  }, [draft]);
 
   const cancelShortRest = useCallback(() => {
     setShortRestOpen(false);
@@ -600,7 +614,10 @@ export function usePlayerNpcSheetController({
         : resource
     );
 
-    const finalizedDraft = applyRestChoiceSelections(nextDraft, shortRestChoiceSelections);
+    const finalizedDraft = activatePendingSpellChoiceConfigurations(
+      applyRestChoiceSelections(nextDraft, shortRestChoiceSelections, "short"),
+      "short"
+    );
 
     setDraft(finalizedDraft);
     setShortRestOpen(false);
@@ -610,13 +627,12 @@ export function usePlayerNpcSheetController({
   }, [compendium.classes, draft, hitDiceSelections, saveCurrent, shortRestChoiceSelections]);
 
   const startLongRest = useCallback(() => {
-    setLongRestPreparedSpells([...draft.preparedSpells]);
+    setLongRestChoiceSelections(progressionConfigurationSelections(draft, evaluateActorRestChoices(draft, "long")));
     setLongRestOpen(true);
-  }, [draft.preparedSpells]);
+  }, [draft]);
 
   const cancelLongRest = useCallback(() => {
     setLongRestOpen(false);
-    setLongRestPreparedSpells([]);
     setLongRestChoiceSelections({});
   }, []);
 
@@ -631,11 +647,6 @@ export function usePlayerNpcSheetController({
   const confirmLongRest = useCallback(async () => {
     const nextDraft = cloneActor(draft);
     const derivedHitPointMax = deriveGuidedHitPointMax(nextDraft);
-    const canPrepareSpells = nextDraft.classes.some((actorClass) => {
-      const definition = findClassProgression(actorClass.compendiumId) ?? findClassProgression(actorClass.name);
-      return definition?.spellcastingRules?.changeCadence === "onLongRest";
-    });
-
     if (!hasProgressionFieldOverride(nextDraft, "hitPointMax")) {
       nextDraft.hitPoints.max = derivedHitPointMax || nextDraft.hitPoints.max;
     }
@@ -651,16 +662,18 @@ export function usePlayerNpcSheetController({
       ...entry,
       usedHitDice: Math.max(0, entry.usedHitDice - Math.floor(entry.level / 2))
     }));
-    nextDraft.preparedSpells = canPrepareSpells ? [...longRestPreparedSpells] : nextDraft.preparedSpells;
-
-    const finalizedDraft = applyRestChoiceSelections(nextDraft, longRestChoiceSelections);
+    const finalizedDraft = activatePendingWeaponMasteryConfigurations(
+      activatePendingSpellChoiceConfigurations(
+        activatePendingPreparedSpellConfigurations(applyRestChoiceSelections(nextDraft, longRestChoiceSelections, "long")),
+        "long"
+      )
+    );
 
     setDraft(finalizedDraft);
     setLongRestOpen(false);
-    setLongRestPreparedSpells([]);
     setLongRestChoiceSelections({});
     await saveCurrent(finalizedDraft);
-  }, [compendium.classes, draft, longRestChoiceSelections, longRestPreparedSpells, saveCurrent]);
+  }, [compendium.classes, draft, longRestChoiceSelections, saveCurrent]);
 
   const state = useMemo<PlayerNpcSheetControllerState>(
     () => ({
@@ -673,20 +686,22 @@ export function usePlayerNpcSheetController({
       longRestOpen,
       hitDiceSelections,
       spellSelectionTarget,
-      longRestPreparedSpells,
       longRestChoiceSelections,
       shortRestChoiceSelections,
+      activationChoiceGroup: activationChoice.group,
+      activationChoiceSelections: activationChoice.selectedOptionIds,
       autosavePaused
     }),
     [
       activeTab,
+      activationChoice.group,
+      activationChoice.selectedOptionIds,
       autosavePaused,
       draft,
       hitDiceSelections,
       imageError,
       longRestChoiceSelections,
       longRestOpen,
-      longRestPreparedSpells,
       rollMode,
       saving,
       shortRestChoiceSelections,
@@ -737,7 +752,6 @@ export function usePlayerNpcSheetController({
       setActiveTab,
       setRollMode,
       setSpellSelectionTarget,
-      setLongRestPreparedSpells,
       changeLongRestChoiceSelection,
       changeShortRestChoiceSelection,
       setAutosavePaused,
@@ -753,9 +767,17 @@ export function usePlayerNpcSheetController({
       changeHitDiceSelection,
       startLongRest,
       cancelLongRest,
-      confirmLongRest
+      confirmLongRest,
+      openActivationChoice: activationChoice.open,
+      changeActivationChoice: activationChoice.setSelectedOptionIds,
+      cancelActivationChoice: activationChoice.close,
+      confirmActivationChoice: activationChoice.confirm
     }),
     [
+      activationChoice.close,
+      activationChoice.confirm,
+      activationChoice.open,
+      activationChoice.setSelectedOptionIds,
       cancelLongRest,
       cancelShortRest,
       changeHitDiceSelection,
@@ -771,7 +793,6 @@ export function usePlayerNpcSheetController({
       saveCurrent,
       setActiveTab,
       setAutosavePaused,
-      setLongRestPreparedSpells,
       setRollMode,
       setSpellSelectionTarget,
       startLongRest,

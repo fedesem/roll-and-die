@@ -15,6 +15,9 @@ import {
   deriveHitPointDisplayState,
   deriveInventoryEquipment,
   derivePreparedSpellLimit,
+  deriveRestPreparedSpellGroups,
+  deriveRestSpellChoiceGroups,
+  deriveRestWeaponMasteryGroups,
   deriveSpellSlots,
   findSpellEntriesByNames,
   mergeDerivedArmorItems,
@@ -71,9 +74,11 @@ export interface PlayerNpcSheetDerivedState {
   filteredFeats: CampaignSnapshot["compendium"]["feats"];
   canPrepareSpells: boolean;
   preparableSpellEntries: CampaignSnapshot["compendium"]["spells"];
-  longRestPreparedSpellRows: DetailRowEntry[];
   longRestChoices: ProgressionChoiceGroupDef[];
   shortRestChoices: ProgressionChoiceGroupDef[];
+  restPreparedSpellGroups: ReturnType<typeof deriveRestPreparedSpellGroups>;
+  restSpellChoiceGroups: ReturnType<typeof deriveRestSpellChoiceGroups>;
+  restWeaponMasteryGroups: ReturnType<typeof deriveRestWeaponMasteryGroups>;
 }
 
 interface UsePlayerNpcSheetDerivedParams {
@@ -82,17 +87,9 @@ interface UsePlayerNpcSheetDerivedParams {
   role: MemberRole;
   currentUserId: string;
   sheetContext: "board" | "campaign";
-  longRestPreparedSpells: string[];
 }
 
-export function usePlayerNpcSheetDerived({
-  draft,
-  compendium,
-  role,
-  currentUserId,
-  sheetContext,
-  longRestPreparedSpells
-}: UsePlayerNpcSheetDerivedParams) {
+export function usePlayerNpcSheetDerived({ draft, compendium, role, currentUserId, sheetContext }: UsePlayerNpcSheetDerivedParams) {
   const permissions = useMemo<PlayerNpcSheetPermissions>(() => {
     const canEdit = role === "dm" || draft.ownerId === currentUserId;
     const canRoll = role === "dm" || draft.ownerId === currentUserId;
@@ -135,7 +132,7 @@ export function usePlayerNpcSheetDerived({
     };
     const armorClass = derivedArmorClass(actorWithDerivedNumbers);
     const speed = derivedSpeed(actorWithDerivedNumbers);
-    const initiativeBonus = draft.initiative + bonusTotal(draft, "initiative");
+    const initiativeBonus = draft.initiative + bonusTotal(actorWithDerivedNumbers, "initiative");
     const spellAttack = spellAttackBonus(actorWithDerivedNumbers);
     const spellSave = spellSaveDc(actorWithDerivedNumbers);
     const featureRows = collectFeatureRows(draft, compendium, selectedSpecies, selectedBackground);
@@ -148,14 +145,11 @@ export function usePlayerNpcSheetDerived({
       return definition?.spellcastingRules?.changeCadence === "onLongRest";
     });
     const preparableSpellEntries = findSpellEntriesByNames(spellCollections.preparable, compendium.spells);
-    const longRestPreparedSpellRows = collectSpellRows(
-      longRestPreparedSpells,
-      longRestPreparedSpells,
-      compendium.spells,
-      preparedSpellLimit
-    );
     const longRestChoices = evaluateActorRestChoices(draft, "long");
     const shortRestChoices = evaluateActorRestChoices(draft, "short");
+    const restPreparedSpellGroups = deriveRestPreparedSpellGroups(draft, compendium.classes, compendium.spells);
+    const restSpellChoiceGroups = deriveRestSpellChoiceGroups(draft, compendium.spells);
+    const restWeaponMasteryGroups = deriveRestWeaponMasteryGroups(draft, compendium.items);
 
     return {
       totalActorLevel,
@@ -187,11 +181,13 @@ export function usePlayerNpcSheetDerived({
       filteredFeats,
       canPrepareSpells,
       preparableSpellEntries,
-      longRestPreparedSpellRows,
       longRestChoices,
-      shortRestChoices
+      shortRestChoices,
+      restPreparedSpellGroups,
+      restSpellChoiceGroups,
+      restWeaponMasteryGroups
     };
-  }, [compendium, draft, longRestPreparedSpells]);
+  }, [compendium, draft]);
 
   return { permissions, derived };
 }
