@@ -7,6 +7,7 @@ coverage
 .idea
 data/app.sqlite
 data/app.sqlite*
+data/*.db
 data/uploads/*
 test-results
 playwright-report
