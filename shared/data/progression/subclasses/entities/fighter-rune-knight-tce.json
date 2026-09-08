@@ -7,6 +7,20 @@
   "levels": {
     "3": {
       "features": ["Bonus Proficiencies (Rune Knight)", "Rune Carver", "Giant's Might"],
+      "choices": [
+        {
+          "id": "rune-knight-runes",
+          "title": "Rune Carver",
+          "referenceId": "Rune Carver|TCE",
+          "source": "subclass",
+          "choose": 2,
+          "repeatOnLevelUp": true,
+          "replacementLimit": 1,
+          "optionSetId": "rune-knight-runes",
+          "optionGrantMode": "feature",
+          "options": []
+        }
+      ],
       "actions": [
         {
           "id": "action-giants-might",
@@ -19,13 +33,55 @@
       ]
     },
     "7": {
-      "features": ["Runic Shield"]
+      "features": ["Runic Shield"],
+      "choices": [
+        {
+          "id": "rune-knight-runes",
+          "title": "Rune Carver",
+          "referenceId": "Rune Carver|TCE",
+          "source": "subclass",
+          "choose": 3,
+          "repeatOnLevelUp": true,
+          "replacementLimit": 1,
+          "optionSetId": "rune-knight-runes",
+          "optionGrantMode": "feature",
+          "options": []
+        }
+      ]
     },
     "10": {
-      "features": ["Great Stature"]
+      "features": ["Great Stature"],
+      "choices": [
+        {
+          "id": "rune-knight-runes",
+          "title": "Rune Carver",
+          "referenceId": "Rune Carver|TCE",
+          "source": "subclass",
+          "choose": 4,
+          "repeatOnLevelUp": true,
+          "replacementLimit": 1,
+          "optionSetId": "rune-knight-runes",
+          "optionGrantMode": "feature",
+          "options": []
+        }
+      ]
     },
     "15": {
-      "features": ["Master of Runes"]
+      "features": ["Master of Runes"],
+      "choices": [
+        {
+          "id": "rune-knight-runes",
+          "title": "Rune Carver",
+          "referenceId": "Rune Carver|TCE",
+          "source": "subclass",
+          "choose": 5,
+          "repeatOnLevelUp": true,
+          "replacementLimit": 1,
+          "optionSetId": "rune-knight-runes",
+          "optionGrantMode": "feature",
+          "options": []
+        }
+      ]
     },
     "18": {
       "features": ["Runic Juggernaut"]

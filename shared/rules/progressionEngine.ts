@@ -15,8 +15,10 @@ import type {
   ActorClassEntry,
   ActorManualOverride,
   ActorSheet,
+  ActorWeaponMastery,
   ProgressionAward,
   ProgressionAwardChoice,
+  ProgressionConfiguration,
   ProgressionEffect,
   ResourceEntry,
   SpellEntry,
@@ -33,14 +35,46 @@ export interface ProgressionChoiceEligibilityContext {
   selectedFeatureNames?: string[];
   spells?: SpellEntry[];
   selectedSpellIds?: string[];
+  selectedOptions?: Record<string, string[]>;
 }
 
 export function progressionChoiceOptionIneligibilityReason(
   option: ProgressionChoiceOption,
   context: ProgressionChoiceEligibilityContext
 ): string | null {
+  if (
+    !option.repeatable &&
+    Object.values(context.selectedOptions ?? {})
+      .flat()
+      .includes(option.id)
+  ) {
+    return "This option is already selected and isn't repeatable.";
+  }
   const requirements = option.requires;
   if (!requirements) return null;
+
+  if (requirements.all) {
+    for (const requirement of requirements.all) {
+      const reason = progressionChoiceOptionIneligibilityReason({ ...option, requires: requirement }, context);
+      if (reason) return reason;
+    }
+  }
+  if (requirements.any) {
+    const reasons = requirements.any.map((requirement) =>
+      progressionChoiceOptionIneligibilityReason({ ...option, requires: requirement }, context)
+    );
+    if (reasons.every(Boolean)) return reasons.filter(Boolean).join(" Or ");
+  }
+  if (requirements.not) {
+    const reason = progressionChoiceOptionIneligibilityReason({ ...option, requires: requirements.not }, context);
+    if (!reason) return "Excluded by another prerequisite.";
+  }
+  if (
+    requirements.selectedOption &&
+    !(context.selectedOptions?.[requirements.selectedOption.groupId] ?? []).includes(requirements.selectedOption.optionId)
+  ) {
+    return `Requires ${requirements.selectedOption.optionId}.`;
+  }
 
   if (requirements.level && context.classLevel < requirements.level) {
     return context.classDefinition
@@ -104,6 +138,16 @@ export function progressionChoiceOptionIneligibilityReason(
 
 export function progressionChoiceOptionIsEligible(option: ProgressionChoiceOption, context: ProgressionChoiceEligibilityContext): boolean {
   return progressionChoiceOptionIneligibilityReason(option, context) === null;
+}
+
+function collectActorAwardChoices(actor?: ActorSheet): Record<string, string[]> {
+  const choices: Record<string, string[]> = {};
+  (actor?.build?.awards ?? [])
+    .flatMap((award) => award.choices)
+    .forEach((choice) => {
+      choices[choice.groupId] = Array.from(new Set([...(choices[choice.groupId] ?? []), ...choice.optionIds]));
+    });
+  return choices;
 }
 
 function normalizeProgressionKey(value: string) {
@@ -266,6 +310,7 @@ export function hasProgressionFieldOverride(actor: ActorSheet, field: NonNullabl
 
 export function validateProgressionAwardAgainstCurrentRules(award: ProgressionAward, actorBeforeAward?: ActorSheet): string[] {
   const errors: string[] = [];
+  const previouslySelectedOptions = collectActorAwardChoices(actorBeforeAward);
   const parsedClass = parseCompendiumRef(award.classRef);
   const classDefinition = parsedClass ? findClassProgression(parsedClass.name) : null;
   if (!parsedClass || !classDefinition) return ["The awarded class reference is not available in the progression catalog."];
@@ -302,7 +347,8 @@ export function validateProgressionAwardAgainstCurrentRules(award: ProgressionAw
           classLevel: award.classLevel,
           characterLevel: award.characterLevel,
           subclassId: subclassName,
-          selectedFeatureNames
+          selectedFeatureNames,
+          selectedOptions: previouslySelectedOptions
         });
         if (prerequisiteError) errors.push(`${group.id}: ${prerequisiteError}`);
         const dependentChoices = [
@@ -427,6 +473,13 @@ export function validateProgressionAwardAgainstCurrentRules(award: ProgressionAw
     }
     if (
       actorBeforeAward &&
+      prerequisites?.anyAbility &&
+      !prerequisites.anyAbility.abilities.some((ability) => actorBeforeAward.abilities[ability] >= prerequisites.anyAbility!.minimum)
+    ) {
+      errors.push(`${feat.name}'s alternative ability prerequisite is not met.`);
+    }
+    if (
+      actorBeforeAward &&
       prerequisites?.armorProficiencies?.some(
         (required) => !actorBeforeAward.armorProficiencies.some((owned) => owned.toLowerCase() === required.toLowerCase())
       )
@@ -470,7 +523,8 @@ export function validateProgressionAwardAgainstCurrentRules(award: ProgressionAw
             classLevel: award.classLevel,
             characterLevel: award.characterLevel,
             subclassId: subclassName,
-            selectedFeatureNames
+            selectedFeatureNames,
+            selectedOptions: previouslySelectedOptions
           });
           if (prerequisiteError) errors.push(`${group.id}: ${prerequisiteError}`);
         });
@@ -567,8 +621,12 @@ export function evaluateActorSpellSlots(actor: ActorSheet): Array<{ level: numbe
     const def = findClassProgression(singleClass.name) || findClassProgression(singleClass.id);
     if (def) {
       const levelConfig: LevelProgressionConfig | undefined = def.levels[singleClass.level];
-      if (levelConfig?.spellcasting?.slots) {
-        levelConfig.spellcasting.slots.forEach((count: number, idx: number) => {
+      const subclass = def.subclasses.find(
+        (entry) => entry.id === singleClass.subclassId || entry.name.toLowerCase() === singleClass.subclassName?.toLowerCase()
+      );
+      const slots = levelConfig?.spellcasting?.slots ?? latestSubclassSpellcasting(subclass, singleClass.level)?.slots;
+      if (slots) {
+        slots.forEach((count: number, idx: number) => {
           if (idx < totals.length) {
             totals[idx].total = count;
           }
@@ -587,13 +645,21 @@ export function evaluateActorSpellSlots(actor: ActorSheet): Array<{ level: numbe
     const def = findClassProgression(actorClass.name) || findClassProgression(actorClass.id);
     if (!def) return;
 
-    if (def.multiclassing.casterType === "full") {
+    const subclass = def.subclasses.find(
+      (entry) => entry.id === actorClass.subclassId || entry.name.toLowerCase() === actorClass.subclassName?.toLowerCase()
+    );
+    const casterType =
+      def.multiclassing.casterType === "none" && latestSubclassSpellcasting(subclass, actorClass.level)
+        ? "third"
+        : def.multiclassing.casterType;
+
+    if (casterType === "full") {
       fullCasterLevels += actorClass.level;
-    } else if (def.multiclassing.casterType === "half") {
+    } else if (casterType === "half") {
       halfCasterLevels += actorClass.level;
-    } else if (def.multiclassing.casterType === "third") {
+    } else if (casterType === "third") {
       thirdCasterLevels += actorClass.level;
-    } else if (def.multiclassing.casterType === "pact") {
+    } else if (casterType === "pact") {
       const levelConfig: LevelProgressionConfig | undefined = def.levels[actorClass.level];
       if (levelConfig?.spellcasting?.slots) {
         levelConfig.spellcasting.slots.forEach((count: number, idx: number) => {
@@ -627,10 +693,32 @@ export function evaluateActorSpellSlots(actor: ActorSheet): Array<{ level: numbe
 export function evaluateActorPreparedSpellsLimit(actor: ActorSheet): number {
   return actor.classes.reduce((totalPrepared, actorClass: ActorClassEntry) => {
     const def = findClassProgression(actorClass.name) || findClassProgression(actorClass.id);
-    const progression = def?.spellcastingRules?.preparedSpellsProgression;
-    if (!progression) return totalPrepared;
-    return totalPrepared + (progression[Math.max(1, Math.min(20, actorClass.level)) - 1] ?? 0);
+    if (!def) return totalPrepared;
+    const subclass = def.subclasses.find(
+      (entry) => entry.id === actorClass.subclassId || entry.name.toLowerCase() === actorClass.subclassName?.toLowerCase()
+    );
+    const rules = subclass?.spellcastingRules ?? def.spellcastingRules;
+    const progression = rules?.preparedSpellsProgression;
+    if (progression) return totalPrepared + (progression[Math.max(1, Math.min(20, actorClass.level)) - 1] ?? 0);
+    if (rules?.preparedSpellsFormula) {
+      return (
+        totalPrepared +
+        Math.max(
+          rules.preparedSpellsFormula.min,
+          actorAbilityModifier(actor, rules.preparedSpellsFormula.ability) + Math.ceil(actorClass.level / 2)
+        )
+      );
+    }
+    return totalPrepared;
   }, 0);
+}
+
+function latestSubclassSpellcasting(subclass: ClassProgressionDef["subclasses"][number] | undefined, level: number) {
+  for (let candidate = level; candidate >= 1; candidate -= 1) {
+    const spellcasting = subclass?.levels[candidate]?.spellcasting;
+    if (spellcasting) return spellcasting;
+  }
+  return undefined;
 }
 
 export function evaluateResourceMax(resourceDef: ProgressionResourceDef, actor: ActorSheet, classLevel: number): number {
@@ -642,6 +730,10 @@ export function evaluateResourceMax(resourceDef: ProgressionResourceDef, actor: 
       return classLevel;
     case "levelMultiplier":
       return classLevel * (formula.multiplier ?? 1);
+    case "proficiencyBonus": {
+      const characterLevel = actor.classes.length > 0 ? actor.classes.reduce((sum, entry) => sum + entry.level, 0) : actor.level;
+      return Math.min(6, 2 + Math.floor((Math.max(characterLevel, 1) - 1) / 4));
+    }
     case "statModifier": {
       const mod = formula.stat ? actorAbilityModifier(actor, formula.stat) : 0;
       return Math.max(formula.min ?? 1, mod);
@@ -731,7 +823,12 @@ export function evaluateActorPassiveSkillBonuses(actor: ActorSheet, skillName: s
       return total;
     }
     const statValue = entry.statBonus ? actorAbilityModifier(actor, entry.statBonus) : 0;
-    return total + entry.value + (entry.statBonus ? Math.max(entry.minimum ?? Number.NEGATIVE_INFINITY, statValue) : 0);
+    return (
+      total +
+      entry.value +
+      (entry.statBonus ? Math.max(entry.minimum ?? Number.NEGATIVE_INFINITY, statValue) : 0) +
+      (entry.proficiencyBonusMultiplier ?? 0) * actor.proficiencyBonus
+    );
   }, 0);
 }
 
@@ -740,22 +837,37 @@ export function evaluateClassChoicesForLevel(
   level: number,
   subclassId?: string
 ): ProgressionChoiceGroupDef[] {
-  const levelConfig: LevelProgressionConfig | undefined = classDef.levels[level];
-  const groups: ProgressionChoiceGroupDef[] = [];
+  const groupsById = new Map<string, ProgressionChoiceGroupDef>();
+  const collectGroups = (levels: Record<number, LevelProgressionConfig>) => {
+    for (let candidateLevel = 1; candidateLevel <= level; candidateLevel++) {
+      for (const group of levels[candidateLevel]?.choices ?? []) {
+        if (candidateLevel === level || group.repeatOnLevelUp) groupsById.set(group.id, group);
+      }
+    }
+  };
 
-  if (levelConfig?.choices) {
-    groups.push(...levelConfig.choices);
-  }
+  collectGroups(classDef.levels);
 
   if (subclassId) {
     const subDef = classDef.subclasses.find((s) => s.id === subclassId || s.name.toLowerCase() === subclassId.toLowerCase());
-    const subConfig = subDef?.levels[level];
-    if (subConfig?.choices) {
-      groups.push(...subConfig.choices);
-    }
+    if (subDef) collectGroups(subDef.levels);
   }
 
-  return groups;
+  return Array.from(groupsById.values()).map((group) => ({
+    ...group,
+    options: [
+      ...group.options,
+      ...(group.optionSetIds ?? (group.optionSetId ? [group.optionSetId] : [])).flatMap(
+        (domainId) => findProgressionChoiceDomain(domainId)?.options ?? []
+      )
+    ].map((option) => ({
+      ...option,
+      grants: {
+        ...materializeChoiceOptionGrants(option, level),
+        ...(group.optionGrantMode === "feature" ? { features: [option.name] } : {})
+      }
+    }))
+  }));
 }
 
 export function evaluateActorSubclassAlwaysPreparedSpells(actor: ActorSheet): string[] {
@@ -763,8 +875,14 @@ export function evaluateActorSubclassAlwaysPreparedSpells(actor: ActorSheet): st
 
   actor.classes.forEach((actorClass) => {
     const classDef = findClassProgression(actorClass.name) || findClassProgression(actorClass.id);
+    if (!classDef) return;
+
+    for (let lvl = 1; lvl <= actorClass.level; lvl++) {
+      classDef.levels[lvl]?.alwaysPreparedSpells?.forEach((spell) => spells.add(spell));
+    }
+
     const subclassId = actorClass.subclassId;
-    if (!classDef || !subclassId) return;
+    if (!subclassId) return;
 
     const subDef = classDef.subclasses.find((s) => s.id === subclassId || s.name.toLowerCase() === subclassId.toLowerCase());
     if (!subDef) return;
@@ -794,11 +912,17 @@ export function evaluateRestRecovery(actor: ActorSheet, restType: "short" | "lon
 
     // 3. Restore all resources to max
     const maxResources = evaluateActorDerivedResources(next);
-    next.resources = maxResources.map((r) => ({
-      ...r,
-      current: r.max,
-      restoreAmount: r.restoreAmount
-    }));
+    const derivedNames = new Set(maxResources.map((resource) => resource.name.toLowerCase()));
+    next.resources = [
+      ...maxResources.map((resource) => ({
+        ...resource,
+        current: resource.max,
+        restoreAmount: resource.restoreAmount
+      })),
+      ...next.resources
+        .filter((resource) => !derivedNames.has(resource.name.toLowerCase()))
+        .map((resource) => ({ ...resource, current: resource.max }))
+    ];
 
     return next;
   }
@@ -823,7 +947,8 @@ export function evaluateRestRecovery(actor: ActorSheet, restType: "short" | "lon
 
   // 2. Restore resources based on declarative shortRestRestore
   const currentDerived = evaluateActorDerivedResources(next);
-  next.resources = currentDerived.map((resDef) => {
+  const derivedNames = new Set(currentDerived.map((resource) => resource.name.toLowerCase()));
+  const restoredDerived = currentDerived.map((resDef) => {
     const existing = next.resources.find((r) => r.name.toLowerCase() === resDef.name.toLowerCase());
     const currentVal = existing ? existing.current : resDef.max;
 
@@ -874,6 +999,16 @@ export function evaluateRestRecovery(actor: ActorSheet, restType: "short" | "lon
       current: currentVal
     };
   });
+  next.resources = [
+    ...restoredDerived,
+    ...next.resources
+      .filter((resource) => !derivedNames.has(resource.name.toLowerCase()))
+      .map((resource) =>
+        /short/i.test(resource.resetOn)
+          ? { ...resource, current: Math.min(resource.max, resource.current + Math.max(0, resource.restoreAmount)) }
+          : resource
+      )
+  ];
 
   return next;
 }
@@ -891,6 +1026,8 @@ export function evaluateActorRestChoices(actor: ActorSheet, restType: "short" | 
       (lvlConfig?.choices ?? []).forEach((c) => {
         if (
           !seenIds.has(c.id) &&
+          !c.spellSelection &&
+          choiceParentIsActive(actor, actorClass.id, c) &&
           ((restType === "long" && (c.cadence === "onLongRest" || c.cadence === "onShortRest")) ||
             (restType === "short" && c.cadence === "onShortRest"))
         ) {
@@ -909,6 +1046,8 @@ export function evaluateActorRestChoices(actor: ActorSheet, restType: "short" | 
           (subLvlConfig?.choices ?? []).forEach((c) => {
             if (
               !seenIds.has(c.id) &&
+              !c.spellSelection &&
+              choiceParentIsActive(actor, actorClass.id, c) &&
               ((restType === "long" && (c.cadence === "onLongRest" || c.cadence === "onShortRest")) ||
                 (restType === "short" && c.cadence === "onShortRest"))
             ) {
@@ -924,33 +1063,695 @@ export function evaluateActorRestChoices(actor: ActorSheet, restType: "short" | 
   return groups;
 }
 
-export function applyRestChoiceSelections(actor: ActorSheet, selections: Record<string, string[]>): ActorSheet {
+function choiceParentIsActive(actor: ActorSheet, ownerInstanceId: string, group: ProgressionChoiceGroupDef) {
+  if (!group.parentOption) return true;
+  return Boolean(
+    actor.build?.configurations
+      ?.find((entry) => entry.ownerInstanceId === ownerInstanceId && entry.groupId === group.parentOption?.groupId)
+      ?.activeOptionIds.includes(group.parentOption.optionId)
+  );
+}
+
+export function progressionConfigurationSelections(actor: ActorSheet, groups: ProgressionChoiceGroupDef[]): Record<string, string[]> {
+  return Object.fromEntries(
+    groups.map((group) => {
+      const configuration = actor.build?.configurations?.find((entry) => entry.groupId === group.id);
+      return [group.id, configuration?.pendingOptionIds ?? configuration?.activeOptionIds ?? []];
+    })
+  );
+}
+
+export function stageProgressionChoiceConfiguration(actor: ActorSheet, group: ProgressionChoiceGroupDef, optionIds: string[]): ActorSheet {
+  if (optionIds.length > group.choose || new Set(optionIds).size !== optionIds.length) return actor;
+  const selectedOptions = optionIds
+    .map((optionId) => group.options.find((option) => option.id === optionId))
+    .filter((option): option is ProgressionChoiceOption => Boolean(option));
+  if (selectedOptions.length !== optionIds.length) return actor;
   const next: ActorSheet = JSON.parse(JSON.stringify(actor));
-  const availableGroups = evaluateActorRestChoices(actor, "long");
+  const owner = findActorChoiceOwner(next, group.id);
+  const pendingEffects = selectedOptions.flatMap((option) => compileChoiceOptionEffects(group, option, owner.source, owner.classLevel));
+  const configurations = [...(next.build?.configurations ?? [])];
+  const existingIndex = configurations.findIndex((entry) => entry.groupId === group.id);
+  const existing = existingIndex >= 0 ? configurations[existingIndex] : undefined;
+  const configuration: ProgressionConfiguration = {
+    id: existing?.id ?? `configuration:${owner.instanceId ?? owner.ref}:${group.id}`,
+    ownerRef: owner.ref,
+    ownerInstanceId: owner.instanceId,
+    groupId: group.id,
+    trigger: group.cadence === "onShortRest" ? "shortOrLongRest" : "longRest",
+    replacementLimit: group.replacementLimit ?? "all",
+    activeOptionIds: existing?.activeOptionIds ?? [],
+    activeEffects: existing?.activeEffects ?? [],
+    pendingOptionIds: optionIds,
+    pendingEffects
+  };
+  if (existingIndex >= 0) configurations[existingIndex] = configuration;
+  else configurations.push(configuration);
+  if (next.build) next.build = { ...next.build, schemaVersion: 3, configurations };
+  return next;
+}
+
+export function stagePreparedSpellConfiguration(
+  actor: ActorSheet,
+  input: {
+    ownerRef: string;
+    ownerInstanceId: string;
+    expectedCount: number;
+    spells: Array<{ id: string; name: string; source: string }>;
+    replacementLimit: number | "all";
+  }
+): ActorSheet {
+  if (input.spells.length !== input.expectedCount) return actor;
+  const next: ActorSheet = JSON.parse(JSON.stringify(actor));
+  const configurations = [...(next.build?.configurations ?? [])];
+  const existingIndex = configurations.findIndex(
+    (entry) => entry.ownerInstanceId === input.ownerInstanceId && entry.groupId === "prepared-spells"
+  );
+  const existing = existingIndex >= 0 ? configurations[existingIndex] : undefined;
+  if (existing && input.replacementLimit !== "all" && existing.activeOptionIds.length > 0) {
+    const selectedIds = new Set(input.spells.map((spell) => spell.id));
+    const replacedCount = existing.activeOptionIds.filter((spellId) => !selectedIds.has(spellId)).length;
+    if (replacedCount > input.replacementLimit) return actor;
+  }
+  const id = existing?.id ?? `configuration:${input.ownerInstanceId}:prepared-spells`;
+  const configuration: ProgressionConfiguration = {
+    id,
+    ownerRef: input.ownerRef,
+    ownerInstanceId: input.ownerInstanceId,
+    groupId: "prepared-spells",
+    trigger: "longRest",
+    replacementLimit: input.replacementLimit,
+    activeOptionIds: existing?.activeOptionIds ?? [],
+    activeEffects: existing?.activeEffects ?? [],
+    pendingOptionIds: input.spells.map((spell) => spell.id),
+    pendingEffects: input.spells.map((spell, index) => ({
+      id: `${id}:pending-spell:${index}`,
+      kind: "spell",
+      ref: createCompendiumRef(spell.name, spell.source),
+      bucket: "prepared"
+    }))
+  };
+  if (existingIndex >= 0) configurations[existingIndex] = configuration;
+  else configurations.push(configuration);
+  if (next.build) next.build = { ...next.build, schemaVersion: 3, configurations };
+  return next;
+}
+
+export function activatePendingPreparedSpellConfigurations(actor: ActorSheet): ActorSheet {
+  const next: ActorSheet = JSON.parse(JSON.stringify(actor));
+  const configurations = [...(next.build?.configurations ?? [])];
+  configurations.forEach((configuration, index) => {
+    if (configuration.groupId !== "prepared-spells" || !configuration.pendingOptionIds || !configuration.pendingEffects) return;
+    removeOwnedEffects(next, configuration.activeEffects, configurations, configuration.id);
+    configuration.pendingEffects.forEach((effect) => applyProgressionEffect(next, effect));
+    configurations[index] = {
+      ...configuration,
+      activeOptionIds: configuration.pendingOptionIds,
+      activeEffects: configuration.pendingEffects.map((effect, effectIndex) => ({
+        ...effect,
+        id: `${configuration.id}:spell:${effectIndex}`
+      })),
+      pendingOptionIds: undefined,
+      pendingEffects: undefined,
+      activatedAt: new Date().toISOString()
+    };
+  });
+  if (next.build) next.build = { ...next.build, schemaVersion: 3, configurations };
+  return next;
+}
+
+export type ConfigurableSpellBucket =
+  | "known"
+  | "prepared"
+  | "spellbook"
+  | "alwaysPrepared"
+  | "atWill"
+  | "perShortRest"
+  | "perLongRest"
+  | "available"
+  | "alwaysPreparedAtWill"
+  | "alwaysPreparedPerLongRest";
+
+function configurableSpellEffects(
+  configurationId: string,
+  spells: Array<{ name: string; source: string }>,
+  bucket: ConfigurableSpellBucket
+): ProgressionEffect[] {
+  const buckets =
+    bucket === "alwaysPreparedAtWill"
+      ? (["alwaysPrepared", "atWill"] as const)
+      : bucket === "alwaysPreparedPerLongRest"
+        ? (["alwaysPrepared", "perLongRest"] as const)
+        : [bucket];
+  return spells.flatMap((spell, spellIndex) =>
+    buckets.map((effectBucket, bucketIndex) => ({
+      id: `${configurationId}:spell:${spellIndex}:${bucketIndex}`,
+      kind: "spell" as const,
+      ref: createCompendiumRef(spell.name, spell.source),
+      bucket: effectBucket
+    }))
+  );
+}
+
+export function applySpellChoiceConfiguration(
+  actor: ActorSheet,
+  input: {
+    ownerRef: string;
+    ownerInstanceId: string;
+    groupId: string;
+    trigger: "levelUp" | "longRest" | "shortOrLongRest";
+    replacementLimit?: number | "all";
+    expectedCount: number;
+    bucket: ConfigurableSpellBucket;
+    spells: Array<{ id: string; name: string; source: string }>;
+  }
+): ActorSheet {
+  if (input.spells.length !== input.expectedCount) return actor;
+  const next: ActorSheet = JSON.parse(JSON.stringify(actor));
+  const configurations = [...(next.build?.configurations ?? [])];
+  const existingIndex = configurations.findIndex(
+    (entry) => entry.ownerInstanceId === input.ownerInstanceId && entry.groupId === input.groupId
+  );
+  const existing = existingIndex >= 0 ? configurations[existingIndex] : undefined;
+  const replacementLimit = input.replacementLimit ?? "all";
+  if (existing && replacementLimit !== "all") {
+    const selected = new Set(input.spells.map((spell) => spell.id));
+    if (existing.activeOptionIds.filter((optionId) => !selected.has(optionId)).length > replacementLimit) return actor;
+  }
+  const id = existing?.id ?? `configuration:${input.ownerInstanceId}:${input.groupId}`;
+  if (existing) removeOwnedEffects(next, existing.activeEffects, configurations, existing.id);
+  const activeEffects = configurableSpellEffects(id, input.spells, input.bucket);
+  activeEffects.forEach((effect) => applyProgressionEffect(next, effect));
+  const configuration: ProgressionConfiguration = {
+    id,
+    ownerRef: input.ownerRef,
+    ownerInstanceId: input.ownerInstanceId,
+    groupId: input.groupId,
+    trigger: input.trigger,
+    replacementLimit,
+    requiredCount: input.expectedCount,
+    activeOptionIds: input.spells.map((spell) => spell.id),
+    activeEffects
+  };
+  if (existingIndex >= 0) configurations[existingIndex] = configuration;
+  else configurations.push(configuration);
+  if (next.build) next.build = { ...next.build, schemaVersion: 3, configurations };
+  return next;
+}
+
+export function stageSpellChoiceConfiguration(
+  actor: ActorSheet,
+  input: {
+    ownerRef: string;
+    ownerInstanceId: string;
+    groupId: string;
+    trigger: "longRest" | "shortOrLongRest";
+    expectedCount: number;
+    bucket: ConfigurableSpellBucket;
+    spells: Array<{ id: string; name: string; source: string }>;
+  }
+): ActorSheet {
+  if (input.spells.length !== input.expectedCount) return actor;
+  const next: ActorSheet = JSON.parse(JSON.stringify(actor));
+  const configurations = [...(next.build?.configurations ?? [])];
+  const existingIndex = configurations.findIndex(
+    (entry) => entry.ownerInstanceId === input.ownerInstanceId && entry.groupId === input.groupId
+  );
+  const existing = existingIndex >= 0 ? configurations[existingIndex] : undefined;
+  const id = existing?.id ?? `configuration:${input.ownerInstanceId}:${input.groupId}`;
+  const configuration: ProgressionConfiguration = {
+    id,
+    ownerRef: input.ownerRef,
+    ownerInstanceId: input.ownerInstanceId,
+    groupId: input.groupId,
+    trigger: input.trigger,
+    replacementLimit: "all",
+    requiredCount: input.expectedCount,
+    activeOptionIds: existing?.activeOptionIds ?? [],
+    activeEffects: existing?.activeEffects ?? [],
+    pendingOptionIds: input.spells.map((spell) => spell.id),
+    pendingEffects: configurableSpellEffects(id, input.spells, input.bucket)
+  };
+  if (existingIndex >= 0) configurations[existingIndex] = configuration;
+  else configurations.push(configuration);
+  if (next.build) next.build = { ...next.build, schemaVersion: 3, configurations };
+  return next;
+}
+
+export function activatePendingSpellChoiceConfigurations(actor: ActorSheet, rest: "short" | "long"): ActorSheet {
+  const next: ActorSheet = JSON.parse(JSON.stringify(actor));
+  const configurations = [...(next.build?.configurations ?? [])];
+  configurations.forEach((configuration, index) => {
+    const eligibleTrigger = configuration.trigger === "shortOrLongRest" || (rest === "long" && configuration.trigger === "longRest");
+    if (
+      configuration.groupId === "prepared-spells" ||
+      configuration.groupId === "weapon-masteries" ||
+      !eligibleTrigger ||
+      !configuration.pendingOptionIds ||
+      !configuration.pendingEffects ||
+      (configuration.requiredCount !== undefined && configuration.pendingOptionIds.length !== configuration.requiredCount)
+    )
+      return;
+    removeOwnedEffects(next, configuration.activeEffects, configurations, configuration.id);
+    configuration.pendingEffects.forEach((effect) => applyProgressionEffect(next, effect));
+    configurations[index] = {
+      ...configuration,
+      activeOptionIds: configuration.pendingOptionIds,
+      activeEffects: configuration.pendingEffects,
+      pendingOptionIds: undefined,
+      pendingEffects: undefined,
+      activatedAt: new Date().toISOString()
+    };
+  });
+  if (next.build) next.build = { ...next.build, schemaVersion: 3, configurations };
+  return next;
+}
+
+function weaponMasteryEffects(configurationId: string, choices: ActorWeaponMastery[]): ProgressionEffect[] {
+  return choices.map((value, index) => ({
+    id: `${configurationId}:weapon-mastery:${index}`,
+    kind: "weaponMastery",
+    value
+  }));
+}
+
+export function applyWeaponMasterySelections(
+  actor: ActorSheet,
+  input: {
+    ownerRef: string;
+    ownerInstanceId: string;
+    expectedCount: number;
+    choices: ActorWeaponMastery[];
+  }
+): ActorSheet {
+  const next: ActorSheet = JSON.parse(JSON.stringify(actor));
+  const configurations = [...(next.build?.configurations ?? [])];
+  const existingIndex = configurations.findIndex(
+    (entry) => entry.ownerInstanceId === input.ownerInstanceId && entry.groupId === "weapon-masteries"
+  );
+  const existing = existingIndex >= 0 ? configurations[existingIndex] : undefined;
+  const currentChoices = (next.weaponMasteries ?? []).filter((entry) => entry.ownerInstanceId === input.ownerInstanceId);
+  const mergedChoices = [...currentChoices, ...input.choices].filter(
+    (entry, index, entries) => entries.findIndex((candidate) => candidate.weaponRef === entry.weaponRef) === index
+  );
+  if (mergedChoices.length !== input.expectedCount) return actor;
+  const id = existing?.id ?? `configuration:${input.ownerInstanceId}:weapon-masteries`;
+  if (existing) removeOwnedEffects(next, existing.activeEffects, configurations, existing.id);
+  const activeEffects = weaponMasteryEffects(id, mergedChoices);
+  activeEffects.forEach((effect) => applyProgressionEffect(next, effect));
+  const configuration: ProgressionConfiguration = {
+    id,
+    ownerRef: input.ownerRef,
+    ownerInstanceId: input.ownerInstanceId,
+    groupId: "weapon-masteries",
+    trigger: "longRest",
+    replacementLimit: "all",
+    activeOptionIds: mergedChoices.map((entry) => entry.weaponRef),
+    activeEffects
+  };
+  if (existingIndex >= 0) configurations[existingIndex] = configuration;
+  else configurations.push(configuration);
+  if (next.build) next.build = { ...next.build, schemaVersion: 3, configurations };
+  return next;
+}
+
+export function stageWeaponMasteryConfiguration(
+  actor: ActorSheet,
+  input: {
+    ownerRef: string;
+    ownerInstanceId: string;
+    expectedCount: number;
+    choices: ActorWeaponMastery[];
+  }
+): ActorSheet {
+  if (input.choices.length > input.expectedCount) return actor;
+  const next: ActorSheet = JSON.parse(JSON.stringify(actor));
+  const configurations = [...(next.build?.configurations ?? [])];
+  const existingIndex = configurations.findIndex(
+    (entry) => entry.ownerInstanceId === input.ownerInstanceId && entry.groupId === "weapon-masteries"
+  );
+  const existing = existingIndex >= 0 ? configurations[existingIndex] : undefined;
+  const id = existing?.id ?? `configuration:${input.ownerInstanceId}:weapon-masteries`;
+  const configuration: ProgressionConfiguration = {
+    id,
+    ownerRef: input.ownerRef,
+    ownerInstanceId: input.ownerInstanceId,
+    groupId: "weapon-masteries",
+    trigger: "longRest",
+    replacementLimit: "all",
+    requiredCount: input.expectedCount,
+    activeOptionIds: existing?.activeOptionIds ?? [],
+    activeEffects: existing?.activeEffects ?? [],
+    pendingOptionIds: input.choices.map((entry) => entry.weaponRef),
+    pendingEffects: weaponMasteryEffects(id, input.choices)
+  };
+  if (existingIndex >= 0) configurations[existingIndex] = configuration;
+  else configurations.push(configuration);
+  if (next.build) next.build = { ...next.build, schemaVersion: 3, configurations };
+  return next;
+}
+
+export function activatePendingWeaponMasteryConfigurations(actor: ActorSheet): ActorSheet {
+  const next: ActorSheet = JSON.parse(JSON.stringify(actor));
+  const configurations = [...(next.build?.configurations ?? [])];
+  configurations.forEach((configuration, index) => {
+    if (
+      configuration.groupId !== "weapon-masteries" ||
+      !configuration.pendingOptionIds ||
+      !configuration.pendingEffects ||
+      (configuration.requiredCount !== undefined && configuration.pendingOptionIds.length !== configuration.requiredCount)
+    )
+      return;
+    removeOwnedEffects(next, configuration.activeEffects, configurations, configuration.id);
+    configuration.pendingEffects.forEach((effect) => applyProgressionEffect(next, effect));
+    configurations[index] = {
+      ...configuration,
+      activeOptionIds: configuration.pendingOptionIds,
+      activeEffects: configuration.pendingEffects,
+      pendingOptionIds: undefined,
+      pendingEffects: undefined,
+      activatedAt: new Date().toISOString()
+    };
+  });
+  if (next.build) next.build = { ...next.build, schemaVersion: 3, configurations };
+  return next;
+}
+
+export function evaluateActorActivationChoices(actor: ActorSheet, groupId?: string): ProgressionChoiceGroupDef[] {
+  const groups: ProgressionChoiceGroupDef[] = [];
+  const seen = new Set<string>();
+  actor.classes.forEach((actorClass) => {
+    const classDef = findClassProgression(actorClass.compendiumId) ?? findClassProgression(actorClass.name);
+    if (!classDef) return;
+    const subclass = classDef.subclasses.find(
+      (entry) =>
+        entry.id === actorClass.subclassId || normalizeProgressionKey(entry.name) === normalizeProgressionKey(actorClass.subclassName ?? "")
+    );
+    for (let level = 1; level <= actorClass.level; level += 1) {
+      const candidates = [...(classDef.levels[level]?.choices ?? []), ...(subclass?.levels[level]?.choices ?? [])];
+      candidates.forEach((group) => {
+        if (group.cadence !== "onActivation" || seen.has(group.id) || (groupId && group.id !== groupId)) return;
+        seen.add(group.id);
+        groups.push({
+          ...group,
+          options: [
+            ...group.options,
+            ...(group.optionSetIds ?? (group.optionSetId ? [group.optionSetId] : [])).flatMap(
+              (domainId) => findProgressionChoiceDomain(domainId)?.options ?? []
+            )
+          ]
+        });
+      });
+    }
+  });
+  return groups;
+}
+
+export function activateProgressionChoiceConfiguration(
+  actor: ActorSheet,
+  group: ProgressionChoiceGroupDef,
+  optionIds: string[]
+): ActorSheet {
+  if (optionIds.length !== group.choose || new Set(optionIds).size !== optionIds.length) return actor;
+  const next: ActorSheet = JSON.parse(JSON.stringify(actor));
+  const owner = findActorChoiceOwner(next, group.id);
+  const selectedOptions = optionIds
+    .map((optionId) => group.options.find((option) => option.id === optionId))
+    .filter((option): option is ProgressionChoiceOption => Boolean(option));
+  if (selectedOptions.length !== group.choose) return actor;
+  const effects = selectedOptions.flatMap((option) => compileChoiceOptionEffects(group, option, owner.source, owner.classLevel));
+  const configurations = [...(next.build?.configurations ?? [])];
+  const existingIndex = configurations.findIndex((entry) => entry.ownerInstanceId === owner.instanceId && entry.groupId === group.id);
+  const existing = existingIndex >= 0 ? configurations[existingIndex] : undefined;
+  if (existing && group.replacementLimit !== undefined && group.replacementLimit !== "all") {
+    const selected = new Set(optionIds);
+    const replaced = existing.activeOptionIds.filter((optionId) => !selected.has(optionId)).length;
+    if (replaced > group.replacementLimit) return actor;
+  }
+  removeOwnedEffects(next, existing?.activeEffects ?? [], configurations, existing?.id);
+  effects.forEach((effect) => applyProgressionEffect(next, effect));
+  const configuration = {
+    id: existing?.id ?? `configuration:${owner.instanceId ?? owner.ref}:${group.id}`,
+    ownerRef: owner.ref,
+    ownerInstanceId: owner.instanceId,
+    groupId: group.id,
+    trigger:
+      group.cadence === "onShortRest"
+        ? "shortOrLongRest"
+        : group.cadence === "onActivation"
+          ? "activation"
+          : group.cadence === "onLongRest"
+            ? "longRest"
+            : "levelUp",
+    replacementLimit: group.replacementLimit ?? "all",
+    activeOptionIds: optionIds,
+    activeEffects: effects,
+    activatedAt: new Date().toISOString()
+  } satisfies ProgressionConfiguration;
+  if (existingIndex >= 0) configurations[existingIndex] = configuration;
+  else configurations.push(configuration);
+  removeInactiveDependentConfigurations(next, configurations, owner.instanceId, group.id, new Set(optionIds));
+  if (next.build) next.build = { ...next.build, schemaVersion: 3, configurations };
+  return next;
+}
+
+export function applyRestChoiceSelections(
+  actor: ActorSheet,
+  selections: Record<string, string[]>,
+  restType: "short" | "long" = "long"
+): ActorSheet {
+  const next: ActorSheet = JSON.parse(JSON.stringify(actor));
+  const availableGroups = evaluateActorRestChoices(actor, restType);
+  const configurations = [...(next.build?.configurations ?? [])];
 
   availableGroups.forEach((group) => {
-    const selectedOptionIds = selections[group.id] ?? [];
-    selectedOptionIds.forEach((optId) => {
-      const option = group.options.find((o) => o.id === optId);
-      if (!option || !option.grants) return;
+    const owner = findActorChoiceOwner(next, group.id);
+    const existingIndex = configurations.findIndex((entry) => entry.ownerInstanceId === owner.instanceId && entry.groupId === group.id);
+    const existing = existingIndex >= 0 ? configurations[existingIndex] : undefined;
+    const selectedOptionIds = selections[group.id] ?? existing?.pendingOptionIds ?? existing?.activeOptionIds ?? [];
+    if (selectedOptionIds.length !== group.choose || new Set(selectedOptionIds).size !== selectedOptionIds.length) return;
+    const selectedOptions = selectedOptionIds
+      .map((optionId) => group.options.find((option) => option.id === optionId))
+      .filter((option): option is ProgressionChoiceOption => Boolean(option));
+    if (selectedOptions.length !== group.choose) return;
 
-      // 1. Grant features
-      if (option.grants.features) {
-        next.features = Array.from(new Set([...(next.features ?? []), ...option.grants.features]));
-      }
-
-      // 2. Grant tool proficiencies
-      if (option.grants.toolProficiencies) {
-        next.toolProficiencies = Array.from(new Set([...(next.toolProficiencies ?? []), ...option.grants.toolProficiencies]));
-      }
-
-      // 3. Grant always prepared spells
-      if (option.grants.alwaysPreparedSpells) {
-        next.spells = Array.from(new Set([...(next.spells ?? []), ...option.grants.alwaysPreparedSpells]));
-        next.preparedSpells = Array.from(new Set([...(next.preparedSpells ?? []), ...option.grants.alwaysPreparedSpells]));
-      }
-    });
+    const effects = selectedOptions.flatMap((option) => compileChoiceOptionEffects(group, option, owner.source, owner.classLevel));
+    removeOwnedEffects(next, existing?.activeEffects ?? [], configurations, existing?.id);
+    effects.forEach((effect) => applyProgressionEffect(next, effect));
+    const configuration = {
+      id: existing?.id ?? `configuration:${owner.instanceId ?? owner.ref}:${group.id}`,
+      ownerRef: owner.ref,
+      ownerInstanceId: owner.instanceId,
+      groupId: group.id,
+      trigger: group.cadence === "onShortRest" ? ("shortOrLongRest" as const) : ("longRest" as const),
+      replacementLimit: group.replacementLimit ?? "all",
+      activeOptionIds: selectedOptionIds,
+      activeEffects: effects,
+      activatedAt: new Date().toISOString()
+    };
+    if (existingIndex >= 0) configurations[existingIndex] = configuration;
+    else configurations.push(configuration);
   });
 
+  if (next.build) next.build = { ...next.build, schemaVersion: 3, configurations };
+
   return next;
+}
+
+function findActorChoiceOwner(actor: ActorSheet, groupId: string) {
+  for (const actorClass of actor.classes) {
+    const classDef = findClassProgression(actorClass.compendiumId) ?? findClassProgression(actorClass.name);
+    if (!classDef) continue;
+    for (let level = 1; level <= actorClass.level; level += 1) {
+      if (classDef.levels[level]?.choices?.some((group) => group.id === groupId)) {
+        return {
+          ref: createCompendiumRef(classDef.name, classDef.source),
+          source: classDef.source,
+          instanceId: actorClass.id,
+          classLevel: actorClass.level
+        };
+      }
+      const subclass = classDef.subclasses.find(
+        (entry) => entry.id === actorClass.subclassId || entry.name.toLowerCase() === actorClass.subclassName?.toLowerCase()
+      );
+      if (subclass?.levels[level]?.choices?.some((group) => group.id === groupId)) {
+        return {
+          ref: createCompendiumRef(subclass.name, subclass.source),
+          source: subclass.source,
+          instanceId: actorClass.id,
+          classLevel: actorClass.level
+        };
+      }
+    }
+  }
+  return { ref: "Progression|XPHB", source: "XPHB", instanceId: undefined, classLevel: actor.level };
+}
+
+function removeInactiveDependentConfigurations(
+  actor: ActorSheet,
+  configurations: NonNullable<NonNullable<ActorSheet["build"]>["configurations"]>,
+  ownerInstanceId: string | undefined,
+  parentGroupId: string,
+  selectedOptionIds: Set<string>
+) {
+  if (!ownerInstanceId) return;
+  const actorClass = actor.classes.find((entry) => entry.id === ownerInstanceId);
+  if (!actorClass) return;
+  const classDef = findClassProgression(actorClass.compendiumId) ?? findClassProgression(actorClass.name);
+  if (!classDef) return;
+  const subclass = classDef.subclasses.find(
+    (entry) => entry.id === actorClass.subclassId || entry.name.toLowerCase() === actorClass.subclassName?.toLowerCase()
+  );
+  const inactiveGroupIds = new Set<string>();
+  for (let level = 1; level <= actorClass.level; level += 1) {
+    const groups = [...(classDef.levels[level]?.choices ?? []), ...(subclass?.levels[level]?.choices ?? [])];
+    groups.forEach((candidate) => {
+      if (candidate.parentOption?.groupId === parentGroupId && !selectedOptionIds.has(candidate.parentOption.optionId)) {
+        inactiveGroupIds.add(candidate.id);
+      }
+    });
+  }
+  for (let index = configurations.length - 1; index >= 0; index -= 1) {
+    const configuration = configurations[index];
+    if (configuration.ownerInstanceId !== ownerInstanceId || !inactiveGroupIds.has(configuration.groupId)) continue;
+    removeOwnedEffects(actor, configuration.activeEffects, configurations, configuration.id);
+    configurations.splice(index, 1);
+  }
+}
+
+function compileChoiceOptionEffects(
+  group: ProgressionChoiceGroupDef,
+  option: ProgressionChoiceOption,
+  source: string,
+  classLevel: number
+): ProgressionEffect[] {
+  const grants = {
+    ...materializeChoiceOptionGrants(option, classLevel),
+    ...(group.optionGrantMode === "feature" ? { features: [option.name] } : {})
+  };
+  let index = 0;
+  const id = () => `configuration:${group.id}:${option.id}:${index++}`;
+  const ref = (name: string) => (parseCompendiumRef(name) ? name : createCompendiumRef(name, source));
+  const effects: ProgressionEffect[] = [];
+  (grants.features ?? []).forEach((name) => effects.push({ id: id(), kind: "feature", ref: ref(name) }));
+  (grants.toolProficiencies ?? []).forEach((value) => effects.push({ id: id(), kind: "proficiency", proficiency: "tool", value }));
+  (grants.languages ?? []).forEach((value) => effects.push({ id: id(), kind: "proficiency", proficiency: "language", value }));
+  (grants.alwaysPreparedSpells ?? []).forEach((name) =>
+    effects.push({ id: id(), kind: "spell", ref: ref(name), bucket: "alwaysPrepared" })
+  );
+  (grants.spellGrants ?? []).forEach((grant) => effects.push({ id: id(), kind: "spell", ref: grant.ref, bucket: grant.bucket }));
+  (grants.actions ?? []).forEach((action) =>
+    effects.push({
+      id: id(),
+      kind: "action",
+      value: {
+        id: action.id,
+        name: action.name,
+        attackBonus: 0,
+        damage: action.roll?.diceFormula ?? "",
+        damageType: action.roll?.damageType ?? "",
+        notes: [action.range, action.duration, action.source].filter(Boolean).join(" • "),
+        actionCost: action.actionCost,
+        resourceCost: action.resourceCost,
+        sourceRef: ref(action.name),
+        range: action.range,
+        duration: action.duration,
+        activationChoiceGroupId: action.activationChoiceGroupId,
+        usesTargetHitDie: action.roll?.usesTargetHitDie,
+        addProficiencyBonus: action.roll?.addProficiencyBonus
+      }
+    })
+  );
+  return effects;
+}
+
+function materializeChoiceOptionGrants(option: ProgressionChoiceOption, classLevel: number) {
+  const levelGrants = Object.entries(option.grantsByLevel ?? {})
+    .filter(([level]) => Number(level) <= classLevel)
+    .sort(([left], [right]) => Number(left) - Number(right));
+  const grants: NonNullable<ProgressionChoiceOption["grants"]> = { ...(option.grants ?? {}) };
+  levelGrants.forEach(([, additionalGrants]) => Object.assign(grants, additionalGrants));
+  return grants;
+}
+
+function effectIdentity(effect: ProgressionEffect) {
+  if (effect.kind === "spell") return `${effect.kind}:${effect.bucket}:${effect.ref}`;
+  if ("ref" in effect) return `${effect.kind}:${effect.ref}`;
+  if (effect.kind === "proficiency") return `${effect.kind}:${effect.proficiency}:${effect.value}`;
+  if (effect.kind === "action") return `${effect.kind}:${effect.value.id}`;
+  if (effect.kind === "weaponMastery") return `${effect.kind}:${effect.value.ownerInstanceId}:${effect.value.weaponRef}`;
+  return `${effect.kind}:${effect.id}`;
+}
+
+function removeOwnedEffects(
+  actor: ActorSheet,
+  effects: ProgressionEffect[],
+  configurations: NonNullable<ActorSheet["build"]>["configurations"],
+  excludedConfigurationId?: string
+) {
+  const stillOwned = new Set(
+    (configurations ?? [])
+      .filter((configuration) => configuration.id !== excludedConfigurationId)
+      .flatMap((configuration) => configuration.activeEffects)
+      .map(effectIdentity)
+  );
+  const stillOwnedSpellRefs = new Set(
+    (configurations ?? [])
+      .filter((configuration) => configuration.id !== excludedConfigurationId)
+      .flatMap((configuration) => configuration.activeEffects)
+      .filter((effect): effect is Extract<ProgressionEffect, { kind: "spell" }> => effect.kind === "spell")
+      .map((effect) => effect.ref)
+  );
+  effects.forEach((effect) => {
+    if (stillOwned.has(effectIdentity(effect))) return;
+    const name = "ref" in effect ? (parseCompendiumRef(effect.ref)?.name ?? effect.ref) : "";
+    if (effect.kind === "feature") actor.features = actor.features.filter((entry) => entry !== name);
+    if (effect.kind === "spell") {
+      if (!stillOwnedSpellRefs.has(effect.ref)) actor.spells = actor.spells.filter((entry) => entry !== name);
+      if (effect.bucket === "prepared") actor.preparedSpells = actor.preparedSpells.filter((entry) => entry !== name);
+      else if (effect.bucket === "available") {
+        actor.spellState.available = (actor.spellState.available ?? []).filter((entry) => entry !== name);
+      } else if (effect.bucket !== "known") {
+        actor.spellState[effect.bucket] = actor.spellState[effect.bucket].filter((entry) => entry !== name);
+      }
+    }
+    if (effect.kind === "proficiency" && effect.proficiency === "tool") {
+      actor.toolProficiencies = actor.toolProficiencies.filter((entry) => entry !== effect.value);
+    }
+    if (effect.kind === "proficiency" && effect.proficiency === "language") {
+      actor.languageProficiencies = actor.languageProficiencies.filter((entry) => entry !== effect.value);
+    }
+    if (effect.kind === "action") actor.attacks = actor.attacks.filter((entry) => entry.id !== effect.value.id);
+    if (effect.kind === "weaponMastery") {
+      actor.weaponMasteries = (actor.weaponMasteries ?? []).filter(
+        (entry) => entry.ownerInstanceId !== effect.value.ownerInstanceId || entry.weaponRef !== effect.value.weaponRef
+      );
+    }
+  });
+}
+
+function applyProgressionEffect(actor: ActorSheet, effect: ProgressionEffect) {
+  const name = "ref" in effect ? (parseCompendiumRef(effect.ref)?.name ?? effect.ref) : "";
+  if (effect.kind === "feature") actor.features = Array.from(new Set([...actor.features, name]));
+  if (effect.kind === "spell") {
+    actor.spells = Array.from(new Set([...actor.spells, name]));
+    if (effect.bucket === "prepared") actor.preparedSpells = Array.from(new Set([...actor.preparedSpells, name]));
+    else if (effect.bucket === "available") actor.spellState.available = Array.from(new Set([...(actor.spellState.available ?? []), name]));
+    else if (effect.bucket !== "known") actor.spellState[effect.bucket] = Array.from(new Set([...actor.spellState[effect.bucket], name]));
+  }
+  if (effect.kind === "proficiency" && effect.proficiency === "tool") {
+    actor.toolProficiencies = Array.from(new Set([...actor.toolProficiencies, effect.value]));
+  }
+  if (effect.kind === "proficiency" && effect.proficiency === "language") {
+    actor.languageProficiencies = Array.from(new Set([...actor.languageProficiencies, effect.value]));
+  }
+  if (effect.kind === "action" && !actor.attacks.some((entry) => entry.id === effect.value.id)) actor.attacks.push(effect.value);
+  if (effect.kind === "weaponMastery") {
+    actor.weaponMasteries = [
+      ...(actor.weaponMasteries ?? []).filter(
+        (entry) => entry.ownerInstanceId !== effect.value.ownerInstanceId || entry.weaponRef !== effect.value.weaponRef
+      ),
+      effect.value
+    ];
+  }
 }

@@ -4,6 +4,16 @@
   "source": "XPHB",
   "category": "origin",
   "features": ["Luck Points"],
+  "grants": {
+    "resources": [
+      {
+        "name": "Luck Points",
+        "maxFormula": { "type": "proficiencyBonus" },
+        "resetOn": "longRest",
+        "longRestRestore": "all"
+      }
+    ]
+  },
   "actions": [
     {
       "id": "lucky-advantage",

@@ -7,19 +7,19 @@
   "levels": {
     "3": {
       "features": ["Genie's Vessel", "Elemental Gift", "Expanded Spell List (Genie)"],
-      "alwaysPreparedSpells": ["Detect Evil and Good", "Phantasmal Force"]
+      "grants": { "spellGrants": [{ "ref": "Detect Evil and Good|XPHB", "bucket": "available" }, { "ref": "Phantasmal Force|XPHB", "bucket": "available" }] }
     },
     "5": {
-      "alwaysPreparedSpells": ["Create Food and Water", "Tongues"]
+      "grants": { "spellGrants": [{ "ref": "Create Food and Water|XPHB", "bucket": "available" }, { "ref": "Tongues|XPHB", "bucket": "available" }] }
     },
     "6": {
       "features": ["Elemental Gift (Improved)"]
     },
     "7": {
-      "alwaysPreparedSpells": ["Phantasmal Killer"]
+      "grants": { "spellGrants": [{ "ref": "Phantasmal Killer|XPHB", "bucket": "available" }] }
     },
     "9": {
-      "alwaysPreparedSpells": ["Creation", "Wish"]
+      "grants": { "spellGrants": [{ "ref": "Creation|XPHB", "bucket": "available" }] }
     },
     "10": {
       "features": ["Sanctuary Vessel"]

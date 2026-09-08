@@ -1,0 +1,19 @@
+{
+  "id": "linguist-phb",
+  "name": "Linguist",
+  "source": "PHB",
+  "category": "general",
+  "prerequisites": { "minLevel": 4, "abilities": { "int": 13 } },
+  "abilityIncrease": { "choose": 1, "options": ["int"], "amount": 1 },
+  "features": ["Create Ciphers"],
+  "choices": [
+    {
+      "id": "linguist-languages",
+      "title": "Three Languages",
+      "source": "feat",
+      "choose": 3,
+      "optionSetId": "standard-languages",
+      "options": []
+    }
+  ]
+}

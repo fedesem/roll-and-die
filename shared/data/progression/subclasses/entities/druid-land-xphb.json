@@ -18,65 +18,41 @@
             {
               "id": "arid",
               "name": "Arid",
-              "grants": {
-                "alwaysPreparedSpells": [
-                  "Blur",
-                  "Burning Hands",
-                  "Daylight",
-                  "Fireball",
-                  "Blight",
-                  "Wall of Fire",
-                  "Cloudkill",
-                  "Insect Plague"
-                ]
+              "grantsByLevel": {
+                "3": { "alwaysPreparedSpells": ["Blur", "Burning Hands", "Fire Bolt"] },
+                "5": { "alwaysPreparedSpells": ["Blur", "Burning Hands", "Fire Bolt", "Fireball"] },
+                "7": { "alwaysPreparedSpells": ["Blur", "Burning Hands", "Fire Bolt", "Fireball", "Blight"] },
+                "9": { "alwaysPreparedSpells": ["Blur", "Burning Hands", "Fire Bolt", "Fireball", "Blight", "Wall of Stone"] }
               }
             },
             {
               "id": "polar",
               "name": "Polar",
-              "grants": {
-                "alwaysPreparedSpells": [
-                  "Hold Person",
-                  "Ray of Enfeeblement",
-                  "Sleet Storm",
-                  "Slow",
-                  "Ice Storm",
-                  "Otiluke's Resilient Sphere",
-                  "Cone of Cold",
-                  "Hold Monster"
-                ]
+              "grantsByLevel": {
+                "3": { "alwaysPreparedSpells": ["Fog Cloud", "Hold Person", "Ray of Frost"] },
+                "5": { "alwaysPreparedSpells": ["Fog Cloud", "Hold Person", "Ray of Frost", "Sleet Storm"] },
+                "7": { "alwaysPreparedSpells": ["Fog Cloud", "Hold Person", "Ray of Frost", "Sleet Storm", "Ice Storm"] },
+                "9": { "alwaysPreparedSpells": ["Fog Cloud", "Hold Person", "Ray of Frost", "Sleet Storm", "Ice Storm", "Cone of Cold"] }
               }
             },
             {
               "id": "temperate",
               "name": "Temperate",
-              "grants": {
-                "alwaysPreparedSpells": [
-                  "Misty Step",
-                  "Shocking Grasp",
-                  "Lightning Bolt",
-                  "Wind Wall",
-                  "Freedom of Movement",
-                  "Greater Invisibility",
-                  "Tree Stride",
-                  "Wrath of Nature"
-                ]
+              "grantsByLevel": {
+                "3": { "alwaysPreparedSpells": ["Misty Step", "Shocking Grasp", "Sleep"] },
+                "5": { "alwaysPreparedSpells": ["Misty Step", "Shocking Grasp", "Sleep", "Lightning Bolt"] },
+                "7": { "alwaysPreparedSpells": ["Misty Step", "Shocking Grasp", "Sleep", "Lightning Bolt", "Freedom of Movement"] },
+                "9": { "alwaysPreparedSpells": ["Misty Step", "Shocking Grasp", "Sleep", "Lightning Bolt", "Freedom of Movement", "Tree Stride"] }
               }
             },
             {
               "id": "tropical",
               "name": "Tropical",
-              "grants": {
-                "alwaysPreparedSpells": [
-                  "Melf's Acid Arrow",
-                  "Ray of Sickness",
-                  "Plant Growth",
-                  "Water Breathing",
-                  "Confusion",
-                  "Polymorph",
-                  "Insect Plague",
-                  "Wall of Thorns"
-                ]
+              "grantsByLevel": {
+                "3": { "alwaysPreparedSpells": ["Acid Splash", "Ray of Sickness", "Web"] },
+                "5": { "alwaysPreparedSpells": ["Acid Splash", "Ray of Sickness", "Web", "Stinking Cloud"] },
+                "7": { "alwaysPreparedSpells": ["Acid Splash", "Ray of Sickness", "Web", "Stinking Cloud", "Polymorph"] },
+                "9": { "alwaysPreparedSpells": ["Acid Splash", "Ray of Sickness", "Web", "Stinking Cloud", "Polymorph", "Insect Plague"] }
               }
             }
           ]

@@ -7,7 +7,7 @@
   "savingThrows": ["str", "dex"],
   "armorProficiencies": [],
   "weaponProficiencies": ["Simple Weapons", "Martial Weapons (Light)"],
-  "toolProficiencies": ["One Artisan's Tools or Musical Instrument"],
+  "toolProficiencies": [],
   "startingSkillChoices": { "choose": 2, "options": ["Acrobatics", "Athletics", "History", "Insight", "Religion", "Stealth"] },
   "equipmentChoices": [
     {
@@ -38,6 +38,19 @@
   "levels": {
     "1": {
       "features": ["Martial Arts", "Unarmored Defense"],
+      "choices": [
+        {
+          "id": "monk-tool-proficiency",
+          "title": "Artisan's Tool or Musical Instrument",
+          "source": "class",
+          "choose": 1,
+          "optionSetIds": ["artisan-tools", "musical-instruments"],
+          "options": []
+        }
+      ]
+    },
+    "2": {
+      "features": ["Monk's Focus", "Flurry of Blows", "Patient Defense", "Step of the Wind", "Unarmored Movement", "Uncanny Metabolism"],
       "resources": [
         {
           "name": "Focus Points",
@@ -46,11 +59,8 @@
         }
       ]
     },
-    "2": {
-      "features": ["Monk's Focus", "Flurry of Blows", "Patient Defense", "Step of the Wind", "Unarmored Movement"]
-    },
     "3": {
-      "features": ["Deflect Attacks", "Monastic Tradition"],
+      "features": ["Deflect Attacks", "Monk Subclass"],
       "subclassChoice": true
     },
     "4": {
@@ -103,7 +113,8 @@
       "asiChoice": true
     },
     "20": {
-      "features": ["Body and Mind"]
+      "features": ["Body and Mind"],
+      "grants": { "abilities": { "dex": 4, "wis": 4 }, "abilityMaximums": { "dex": 25, "wis": 25 } }
     }
   },
   "subclasses": [

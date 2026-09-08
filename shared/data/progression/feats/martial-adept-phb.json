@@ -1,0 +1,19 @@
+{
+  "id": "martial-adept-phb",
+  "name": "Martial Adept",
+  "source": "PHB",
+  "category": "general",
+  "prerequisites": { "minLevel": 4 },
+  "features": ["Superiority Die (d6, Short or Long Rest)"],
+  "choices": [
+    {
+      "id": "martial-adept-maneuvers",
+      "title": "Battle Master Maneuvers",
+      "source": "feat",
+      "choose": 2,
+      "optionSetId": "battle-master-maneuvers",
+      "optionGrantMode": "feature",
+      "options": []
+    }
+  ]
+}

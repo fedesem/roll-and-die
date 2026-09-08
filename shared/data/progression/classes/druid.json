@@ -51,6 +51,7 @@
   "levels": {
     "1": {
       "features": ["Druidic", "Primal Order", "Spellcasting"],
+      "alwaysPreparedSpells": ["Speak with Animals"],
       "choices": [
         {
           "id": "druid-primal-order",
@@ -113,7 +114,7 @@
       ]
     },
     "3": {
-      "features": ["Druid Circle"],
+      "features": ["Druid Subclass"],
       "subclassChoice": true,
       "spellcasting": {
         "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0]

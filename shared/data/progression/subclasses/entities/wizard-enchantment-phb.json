@@ -1,0 +1,13 @@
+{
+  "id": "wizard-enchantment-phb",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "School of Enchantment",
+  "source": "PHB",
+  "levels": {
+    "3": { "features": ["Enchantment Savant", "Hypnotic Gaze"] },
+    "6": { "features": ["Instinctive Charm"] },
+    "10": { "features": ["Split Enchantment"] },
+    "14": { "features": ["Alter Memories"] }
+  }
+}

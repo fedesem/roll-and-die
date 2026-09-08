@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isCompendiumRef } from "../../rules/compendiumRefs.js";
+import type { ProgressionChoiceOption } from "./types.js";
 
 const abilitySchema = z.enum(["str", "dex", "con", "int", "wis", "cha"]);
 const stringArray = z.array(z.string().min(1));
@@ -16,6 +17,7 @@ const grantsSchema = z
     savingThrows: z.array(abilitySchema).optional(),
     languages: stringArray.optional(),
     abilities: z.partialRecord(abilitySchema, z.number().int()).optional(),
+    abilityMaximums: z.partialRecord(abilitySchema, z.number().int().min(20)).optional(),
     weaponMasteriesCount: z.number().int().nonnegative().optional(),
     visionRange: z.number().nonnegative().optional(),
     cantripsCount: z.number().int().nonnegative().optional(),
@@ -24,12 +26,27 @@ const grantsSchema = z
     spellOptions: stringArray.optional(),
     spellList: z.string().min(1).optional(),
     alwaysPreparedSpells: stringArray.optional(),
+    spellGrants: z
+      .array(
+        z.object({
+          ref: z.string().refine(isCompendiumRef, "spell grant ref must use Name|SOURCE syntax"),
+          bucket: z.enum(["known", "prepared", "spellbook", "alwaysPrepared", "atWill", "perShortRest", "perLongRest", "available"])
+        })
+      )
+      .optional(),
     actions: z.array(z.object({ id: z.string().min(1), name: z.string().min(1), source: z.string().min(1) }).passthrough()).optional(),
-    passiveBonuses: z.array(z.object({ target: z.string().min(1) }).passthrough()).optional()
+    passiveBonuses: z.array(z.object({ target: z.string().min(1) }).passthrough()).optional(),
+    resources: z
+      .array(
+        z.object({ name: z.string().min(1), maxFormula: z.object({ type: z.string().min(1) }).passthrough(), resetOn: z.string().min(1) }).passthrough()
+      )
+      .optional(),
+    hitPointBonusPerLevel: z.number().int().nonnegative().optional()
   })
   .strict();
 
-const optionRequirementsSchema = z
+const optionRequirementsSchema: z.ZodTypeAny = z.lazy(() =>
+  z
   .object({
     level: z.number().int().positive().optional(),
     characterLevel: z.number().int().positive().optional(),
@@ -44,9 +61,14 @@ const optionRequirementsSchema = z
         dealsDamage: z.boolean().optional()
       })
       .strict()
-      .optional()
+      .optional(),
+    all: z.array(optionRequirementsSchema).optional(),
+    any: z.array(optionRequirementsSchema).optional(),
+    not: optionRequirementsSchema.optional(),
+    selectedOption: z.object({ groupId: z.string().min(1), optionId: z.string().min(1) }).strict().optional()
   })
-  .strict();
+  .strict()
+);
 
 const optionSchema = z
   .object({
@@ -54,7 +76,17 @@ const optionSchema = z
     name: z.string().min(1),
     referenceId: z.string().refine(isCompendiumRef, "referenceId must use Name|SOURCE syntax").optional(),
     requires: optionRequirementsSchema.optional(),
-    grants: grantsSchema.optional()
+    repeatable: z.boolean().optional(),
+    weapon: z
+      .object({
+        mastery: z.string().min(1),
+        category: z.enum(["simple", "martial"]),
+        properties: stringArray.optional()
+      })
+      .strict()
+      .optional(),
+    grants: grantsSchema.optional(),
+    grantsByLevel: z.record(z.string(), grantsSchema).optional()
   })
   .strict();
 
@@ -65,16 +97,49 @@ const choiceSchema = z
     referenceId: z.string().refine(isCompendiumRef, "referenceId must use Name|SOURCE syntax").optional(),
     source: z.enum(["class", "subclass", "species", "background", "feat"]),
     choose: z.number().int().positive(),
-    cadence: z.enum(["onLevelUp", "onLongRest", "onShortRest", "permanent"]).optional(),
+    cadence: z.enum(["onLevelUp", "onLongRest", "onShortRest", "onActivation", "permanent"]).optional(),
+    repeatOnLevelUp: z.boolean().optional(),
+    replacementLimit: z.union([z.number().int().positive(), z.literal("all")]).optional(),
+    parentOption: z.object({ groupId: z.string().min(1), optionId: z.string().min(1) }).strict().optional(),
+    spellBucket: z
+      .enum([
+        "known",
+        "prepared",
+        "spellbook",
+        "alwaysPrepared",
+        "atWill",
+        "perShortRest",
+        "perLongRest",
+        "available",
+        "alwaysPreparedAtWill",
+        "alwaysPreparedPerLongRest"
+      ])
+      .optional(),
+    spellSelection: z
+      .object({
+        spellListId: z.string().min(1).optional(),
+        spellListIds: z.array(z.string().min(1)).min(1).optional(),
+        spellRefs: z.array(z.string().refine(isCompendiumRef, "spell refs must use Name|SOURCE syntax")).min(1).optional(),
+        excludePrepared: z.boolean().optional(),
+        level: z.union([z.literal("cantrip"), z.literal("available"), z.number().int().min(1).max(9)]),
+        source: z.enum(["classList", "spellbook"])
+      })
+      .strict()
+      .refine(
+        (selection) => Boolean(selection.spellListId || selection.spellListIds?.length || selection.spellRefs?.length),
+        "spell selection requires a spell list or explicit spell refs"
+      )
+      .optional(),
     optionSetId: z.string().min(1).optional(),
     optionSetIds: z.array(z.string().min(1)).min(1).optional(),
+    optionGrantMode: z.literal("feature").optional(),
     options: z.array(optionSchema)
   })
   .strict()
   .superRefine((group, context) => {
-    if (!group.optionSetId && !group.optionSetIds && group.options.length === 0)
+    if (!group.optionSetId && !group.optionSetIds && !group.spellSelection && group.options.length === 0)
       context.addIssue({ code: "custom", message: "choices require options or an option set" });
-    if (!group.optionSetId && !group.optionSetIds && group.choose > group.options.length)
+    if (!group.optionSetId && !group.optionSetIds && !group.spellSelection && group.choose > group.options.length)
       context.addIssue({ code: "custom", message: "choose exceeds available options" });
     if (new Set(group.options.map((option) => option.id)).size !== group.options.length) {
       context.addIssue({ code: "custom", message: "choice option IDs must be unique" });
@@ -165,12 +230,17 @@ export const classProgressionDataSchema = z
     spellListId: z.string().min(1).optional(),
     spellcastingRules: z
       .object({
-        preparedSpellsProgression: z.array(z.number().int().nonnegative()).length(20),
+        preparedSpellsProgression: z.array(z.number().int().nonnegative()).length(20).optional(),
+        preparedSpellsFormula: z
+          .object({ type: z.literal("abilityPlusHalfLevel"), ability: abilitySchema, min: z.number().int().positive() })
+          .strict()
+          .optional(),
         preparationSource: z.enum(["classList", "spellbook"]),
         changeCadence: z.enum(["onLongRest", "onLevelUp"]),
         replacementMode: z.enum(["all", "one"])
       })
       .strict()
+      .refine((rules) => Boolean(rules.preparedSpellsProgression || rules.preparedSpellsFormula), "spellcasting rules require progression or formula")
       .optional(),
     multiclassing: z
       .object({
@@ -192,6 +262,20 @@ export const subclassProgressionDataSchema = z
     className: z.string().min(1),
     name: z.string().min(1),
     source: z.string().min(1),
+    spellListId: z.string().min(1).optional(),
+    spellcastingRules: z
+      .object({
+        preparedSpellsProgression: z.array(z.number().int().nonnegative()).length(20).optional(),
+        preparedSpellsFormula: z
+          .object({ type: z.literal("abilityPlusHalfLevel"), ability: abilitySchema, min: z.number().int().positive() })
+          .strict()
+          .optional(),
+        preparationSource: z.enum(["classList", "spellbook"]),
+        changeCadence: z.enum(["onLongRest", "onLevelUp"]),
+        replacementMode: z.enum(["all", "one"])
+      })
+      .strict()
+      .optional(),
     levels: levelsSchema
   })
   .strict();
@@ -235,10 +319,12 @@ export const featProgressionDataSchema = z
     ...namedEntityFields,
     compendiumRef: z.string().refine(isCompendiumRef, "compendiumRef must use Name|SOURCE syntax").optional(),
     category: z.enum(["origin", "general", "fightingStyle", "epicBoon"]),
+    repeatable: z.boolean().optional(),
     prerequisites: z
       .object({
         minLevel: z.number().int().positive().optional(),
         abilities: z.partialRecord(abilitySchema, z.number().int()).optional(),
+        anyAbility: z.object({ abilities: z.array(abilitySchema).min(2), minimum: z.number().int() }).strict().optional(),
         armorProficiencies: stringArray.optional(),
         weaponProficiencies: stringArray.optional(),
         spellcasting: z.boolean().optional()
@@ -260,6 +346,7 @@ const namedEntitySchema = z.object(namedEntityFields).passthrough();
 
 export interface ProgressionCatalogInput {
   classes: unknown[];
+  compatibilityClasses?: unknown[];
   subclasses: unknown[];
   species: unknown[];
   backgrounds: unknown[];
@@ -286,6 +373,7 @@ export function validateProgressionCatalog(input: ProgressionCatalogInput): stri
     });
   };
   validate("classes", input.classes, classProgressionDataSchema);
+  validate("compatibilityClasses", input.compatibilityClasses ?? [], classProgressionDataSchema);
   validate("subclasses", input.subclasses, subclassProgressionDataSchema);
   validate("species", input.species, speciesProgressionDataSchema);
   validate("backgrounds", input.backgrounds, backgroundProgressionDataSchema);
@@ -299,6 +387,79 @@ export function validateProgressionCatalog(input: ProgressionCatalogInput): stri
       .filter((result) => result.success)
       .map((result) => result.data.id)
   );
+  const domainOptions = new Map(
+    (input.choiceDomains ?? []).flatMap((entry) => {
+      const result = z.object({ id: z.string(), options: z.array(optionSchema) }).passthrough().safeParse(entry);
+      return result.success ? [[result.data.id, result.data.options] as const] : [];
+    })
+  );
+  type ParsedChoice = z.infer<typeof choiceSchema>;
+  const expandedChoiceOptions = (group: ParsedChoice) => [
+    ...group.options,
+    ...(group.optionSetIds ?? (group.optionSetId ? [group.optionSetId] : [])).flatMap(
+      (domainId) => domainOptions.get(domainId) ?? []
+    )
+  ];
+  const requirementCanBeMetAtLevel = (
+    requirements: ProgressionChoiceOption["requires"],
+    level: number
+  ): boolean => {
+    if (!requirements) return true;
+    if ((requirements.level ?? 0) > level || (requirements.characterLevel ?? 0) > level) return false;
+    if (requirements.all?.some((entry) => !requirementCanBeMetAtLevel(entry, level))) return false;
+    if (requirements.any?.length && !requirements.any.some((entry) => requirementCanBeMetAtLevel(entry, level))) return false;
+    return true;
+  };
+  const validateChoiceSemantics = (owner: string, levelGroups: Array<{ level: number; groups: ParsedChoice[] }>) => {
+    const occurrences = new Map<string, Array<{ level: number; group: ParsedChoice }>>();
+    levelGroups.forEach(({ level, groups }) => {
+      groups.forEach((group, groupIndex) => {
+        const entries = occurrences.get(group.id) ?? [];
+        entries.push({ level, group });
+        occurrences.set(group.id, entries);
+        const options = expandedChoiceOptions(group);
+        if (!group.spellSelection) {
+          const eligibleCount = options.filter((option) =>
+            requirementCanBeMetAtLevel(option.requires as ProgressionChoiceOption["requires"], level)
+          ).length;
+          if (eligibleCount < group.choose) {
+            errors.push(
+              `${owner}.levels.${level}.choices[${groupIndex}]: choose ${group.choose} exceeds ${eligibleCount} options eligible at this level`
+            );
+          }
+        }
+        if (group.spellSelection && !group.spellBucket) {
+          errors.push(`${owner}.levels.${level}.choices[${groupIndex}]: spell selections require an explicit spellBucket`);
+        }
+        if (group.spellSelection?.spellRefs && new Set(group.spellSelection.spellRefs).size !== group.spellSelection.spellRefs.length) {
+          errors.push(`${owner}.levels.${level}.choices[${groupIndex}]: spellRefs must be unique`);
+        }
+      });
+    });
+    occurrences.forEach((entries, groupId) => {
+      const sorted = [...entries].sort((left, right) => left.level - right.level);
+      sorted.forEach(({ level, group }, index) => {
+        if (index > 0 && !group.repeatOnLevelUp) {
+          errors.push(`${owner}.levels.${level}: recurring choice ${groupId} must declare repeatOnLevelUp`);
+        }
+        if (index > 0 && group.choose < sorted[index - 1].group.choose) {
+          errors.push(`${owner}.levels.${level}: recurring choice ${groupId} cannot reduce its selection count`);
+        }
+        if (!group.parentOption) return;
+        const parents = occurrences.get(group.parentOption.groupId) ?? [];
+        const parent = [...parents].sort((left, right) => left.level - right.level)[0];
+        if (!parent || parent.level > level) {
+          errors.push(`${owner}.levels.${level}: choice ${groupId} references unavailable parent ${group.parentOption.groupId}`);
+          return;
+        }
+        if (!expandedChoiceOptions(parent.group).some((option) => option.id === group.parentOption?.optionId)) {
+          errors.push(
+            `${owner}.levels.${level}: choice ${groupId} references unknown option ${group.parentOption.optionId} on ${group.parentOption.groupId}`
+          );
+        }
+      });
+    });
+  };
   const validateChoiceDomains = (owner: string, groups: unknown) => {
     if (!Array.isArray(groups)) return;
     groups.forEach((rawGroup, index) => {
@@ -332,17 +493,36 @@ export function validateProgressionCatalog(input: ProgressionCatalogInput): stri
     Object.entries(parsed.data.levels).forEach(([level, config]) =>
       validateChoiceDomains(`classes[${classIndex}].levels.${level}`, config.choices)
     );
+    validateChoiceSemantics(
+      `classes[${classIndex}]`,
+      Object.entries(parsed.data.levels).map(([level, config]) => ({ level: Number(level), groups: config.choices ?? [] }))
+    );
+  });
+  (input.compatibilityClasses ?? []).forEach((rawClass, classIndex) => {
+    const parsed = classProgressionDataSchema.safeParse(rawClass);
+    if (!parsed.success) return;
+    Object.entries(parsed.data.levels).forEach(([level, config]) =>
+      validateChoiceDomains(`compatibilityClasses[${classIndex}].levels.${level}`, config.choices)
+    );
+    validateChoiceSemantics(
+      `compatibilityClasses[${classIndex}]`,
+      Object.entries(parsed.data.levels).map(([level, config]) => ({ level: Number(level), groups: config.choices ?? [] }))
+    );
   });
   input.subclasses.forEach((rawSubclass, subclassIndex) => {
     const parsed = subclassProgressionDataSchema.safeParse(rawSubclass);
     if (!parsed.success) return;
-    const hasClass = input.classes.some((rawClass) => {
+    const hasClass = [...input.classes, ...(input.compatibilityClasses ?? [])].some((rawClass) => {
       const actorClass = classProgressionDataSchema.safeParse(rawClass);
       return actorClass.success && (actorClass.data.id === parsed.data.classId || actorClass.data.name === parsed.data.className);
     });
     if (!hasClass) errors.push(`subclasses[${subclassIndex}]: unknown class ${parsed.data.classId}`);
     Object.entries(parsed.data.levels).forEach(([level, config]) =>
       validateChoiceDomains(`subclasses[${subclassIndex}].levels.${level}`, config.choices)
+    );
+    validateChoiceSemantics(
+      `subclasses[${subclassIndex}]`,
+      Object.entries(parsed.data.levels).map(([level, config]) => ({ level: Number(level), groups: config.choices ?? [] }))
     );
   });
   input.species.forEach((rawSpecies, speciesIndex) => {

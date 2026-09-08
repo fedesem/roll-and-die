@@ -46,11 +46,11 @@
   },
   "levels": {
     "1": {
-      "features": ["Spellcasting", "Holy Order"],
+      "features": ["Spellcasting", "Divine Order"],
       "choices": [
         {
-          "id": "cleric-holy-order",
-          "title": "Holy Order",
+          "id": "cleric-divine-order",
+          "title": "Divine Order",
           "source": "class",
           "choose": 1,
           "options": [
@@ -63,19 +63,17 @@
               }
             },
             {
-              "id": "scholar",
-              "name": "Scholar",
-              "grants": {
-                "skills": ["Arcana", "History", "Insight", "Medicine", "Nature", "Persuasion", "Religion"],
-                "expertise": ["Arcana", "History", "Insight", "Medicine", "Nature", "Persuasion", "Religion"]
-              }
-            },
-            {
               "id": "thaumaturge",
               "name": "Thaumaturge",
               "grants": {
                 "cantripsCount": 1,
                 "passiveBonuses": [
+                  {
+                    "target": "skill",
+                    "skillName": "Arcana",
+                    "statBonus": "wis",
+                    "minBonus": 1
+                  },
                   {
                     "target": "skill",
                     "skillName": "Religion",
@@ -126,7 +124,7 @@
       }
     },
     "5": {
-      "features": ["Sear Undead", "Smite Undead"],
+      "features": ["Sear Undead"],
       "spellcasting": {
         "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0]
       }

@@ -61,6 +61,16 @@
       "features": ["Expertise", "Sneak Attack", "Thieves' Cant", "Weapon Mastery"],
       "expertiseChoices": 2,
       "weaponMasteriesCount": 2,
+      "choices": [
+        {
+          "id": "rogue-thieves-cant-language",
+          "title": "Thieves' Cant Language",
+          "source": "class",
+          "choose": 1,
+          "optionSetId": "standard-languages",
+          "options": []
+        }
+      ],
       "resources": [
         {
           "name": "Sneak Attack",
@@ -74,7 +84,7 @@
       "features": ["Cunning Action"]
     },
     "3": {
-      "features": ["Roguish Archetype", "Steady Aim"],
+      "features": ["Rogue Subclass", "Steady Aim"],
       "subclassChoice": true,
       "resources": [
         {
@@ -101,7 +111,8 @@
       ]
     },
     "6": {
-      "features": ["Expertise"]
+      "features": ["Expertise"],
+      "expertiseChoices": 2
     },
     "7": {
       "features": ["Evasion", "Reliable Talent"],
@@ -158,7 +169,7 @@
       ]
     },
     "14": {
-      "features": ["Blindsense", "Devious Strikes"]
+      "features": ["Devious Strikes"]
     },
     "15": {
       "features": ["Slippery Mind"],

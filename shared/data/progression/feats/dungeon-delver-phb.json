@@ -1,0 +1,8 @@
+{
+  "id": "dungeon-delver-phb",
+  "name": "Dungeon Delver",
+  "source": "PHB",
+  "category": "general",
+  "prerequisites": { "minLevel": 4 },
+  "features": ["Alert to Hidden Doors", "Trap Sense", "Resist Trap Damage", "Quick Search"]
+}

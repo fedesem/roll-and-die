@@ -1,0 +1,13 @@
+{
+  "id": "wizard-necromancy-phb",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "School of Necromancy",
+  "source": "PHB",
+  "levels": {
+    "3": { "features": ["Necromancy Savant", "Grim Harvest"] },
+    "6": { "features": ["Undead Thralls"] },
+    "10": { "features": ["Inured to Undeath"] },
+    "14": { "features": ["Command Undead"] }
+  }
+}

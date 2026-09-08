@@ -40,6 +40,18 @@
     "1": {
       "features": ["Rage", "Unarmored Defense", "Weapon Mastery"],
       "weaponMasteriesCount": 2,
+      "actions": [
+        {
+          "id": "action-rage",
+          "name": "Rage",
+          "source": "XPHB",
+          "category": "feature",
+          "actionCost": "bonus",
+          "resourceCost": { "resourceName": "Rage", "count": 1 },
+          "range": "Self",
+          "activationChoiceGroupId": "wild-heart-rage-3"
+        }
+      ],
       "resources": [
         {
           "name": "Rage",
@@ -52,7 +64,7 @@
       "features": ["Danger Sense", "Reckless Attack"]
     },
     "3": {
-      "features": ["Primal Path", "Primal Knowledge"],
+      "features": ["Barbarian Subclass", "Primal Knowledge"],
       "subclassChoice": true,
       "resources": [
         {
@@ -118,7 +130,7 @@
       "asiChoice": true
     },
     "17": {
-      "features": ["Brutal Strike (Extra Options)", "Indomitable Might"],
+      "features": ["Brutal Strike (Extra Options)"],
       "resources": [
         {
           "name": "Rage",
@@ -127,17 +139,18 @@
         }
       ]
     },
-    "18": {},
+    "18": { "features": ["Indomitable Might"] },
     "19": {
       "features": ["Epic Boon"],
       "asiChoice": true
     },
     "20": {
       "features": ["Primal Champion"],
+      "grants": { "abilities": { "str": 4, "con": 4 }, "abilityMaximums": { "str": 25, "con": 25 } },
       "resources": [
         {
           "name": "Rage",
-          "maxFormula": { "type": "fixed", "value": 99 },
+          "maxFormula": { "type": "fixed", "value": 6 },
           "resetOn": "longRest"
         }
       ]

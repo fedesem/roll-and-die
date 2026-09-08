@@ -54,85 +54,58 @@
       "features": ["Eldritch Invocations", "Pact Magic"],
       "choices": [
         {
-          "id": "warlock-invocations-1",
+          "id": "warlock-invocations",
           "title": "Eldritch Invocation",
           "source": "class",
           "choose": 1,
-          "options": [
-            {
-              "id": "pact-of-the-blade",
-              "name": "Pact of the Blade",
-              "grants": { "features": ["Pact of the Blade (Bond Weapon, Charisma to Attacks)"] }
-            },
-            {
-              "id": "pact-of-the-tome",
-              "name": "Pact of the Tome",
-              "grants": { "features": ["Pact of the Tome (Book of Shadows, Extra Cantrips/Rituals)"] }
-            },
-            {
-              "id": "pact-of-the-chain",
-              "name": "Pact of the Chain",
-              "grants": { "features": ["Pact of the Chain (Find Familiar with enhanced forms)"] }
-            },
-            {
-              "id": "agonizing-blast",
-              "name": "Agonizing Blast",
-              "requires": {
-                "level": 2,
-                "knownSpell": { "spellListId": "warlock", "level": "cantrip", "dealsDamage": true }
-              },
-              "grants": { "features": ["Agonizing Blast (+Charisma modifier to Cantrip damage)"] }
-            },
-            {
-              "id": "armor-of-shadows",
-              "name": "Armor of Shadows",
-              "grants": { "features": ["Armor of Shadows (Cast Mage Armor at will)"], "alwaysPreparedSpells": ["Mage Armor"] }
-            },
-            {
-              "id": "eldritch-mind",
-              "name": "Eldritch Mind",
-              "grants": { "features": ["Eldritch Mind (Advantage on Concentration saves)"] }
-            },
-            {
-              "id": "fiendish-vigor",
-              "name": "Fiendish Vigor",
-              "requires": { "level": 2 },
-              "grants": { "features": ["Fiendish Vigor (Cast False Life at will without slot)"], "alwaysPreparedSpells": ["False Life"] }
-            },
-            {
-              "id": "lessons-of-the-first-ones",
-              "name": "Lessons of the First Ones",
-              "requires": { "level": 2 },
-              "grants": { "features": ["Lessons of the First Ones (Gain an Origin Feat)"] }
-            },
-            {
-              "id": "mask-of-many-faces",
-              "name": "Mask of Many Faces",
-              "requires": { "level": 2 },
-              "grants": { "features": ["Mask of Many Faces (Cast Disguise Self at will)"], "alwaysPreparedSpells": ["Disguise Self"] }
-            },
-            {
-              "id": "misty-visions",
-              "name": "Misty Visions",
-              "requires": { "level": 2 },
-              "grants": { "features": ["Misty Visions (Cast Silent Image at will)"], "alwaysPreparedSpells": ["Silent Image"] }
-            },
-            {
-              "id": "otherworldly-leap",
-              "name": "Otherworldly Leap",
-              "requires": { "level": 2 },
-              "grants": { "features": ["Otherworldly Leap (Cast Jump at will)"], "alwaysPreparedSpells": ["Jump"] }
-            },
-            {
-              "id": "repelling-blast",
-              "name": "Repelling Blast",
-              "requires": {
-                "level": 2,
-                "knownSpell": { "spellListId": "warlock", "level": "cantrip", "dealsDamage": true }
-              },
-              "grants": { "features": ["Repelling Blast (Push target up to 10 ft on cantrip hit)"] }
-            }
-          ]
+          "repeatOnLevelUp": true,
+          "replacementLimit": 1,
+          "optionSetId": "eldritch-invocations",
+          "options": []
+        },
+        {
+          "id": "pact-tome-cantrips",
+          "title": "Pact of the Tome Cantrips",
+          "source": "class",
+          "choose": 3,
+          "cadence": "onShortRest",
+          "parentOption": { "groupId": "warlock-invocations", "optionId": "pact-of-the-tome" },
+          "spellBucket": "alwaysPreparedAtWill",
+          "spellSelection": {
+            "spellListId": "any",
+            "excludePrepared": true,
+            "level": "cantrip",
+            "source": "classList"
+          },
+          "options": []
+        },
+        {
+          "id": "pact-tome-rituals",
+          "title": "Pact of the Tome Rituals",
+          "source": "class",
+          "choose": 2,
+          "cadence": "onShortRest",
+          "parentOption": { "groupId": "warlock-invocations", "optionId": "pact-of-the-tome" },
+          "spellBucket": "alwaysPrepared",
+          "spellSelection": {
+            "spellRefs": [
+              "Alarm|XPHB",
+              "Comprehend Languages|XPHB",
+              "Detect Magic|XPHB",
+              "Detect Poison and Disease|XPHB",
+              "Find Familiar|XPHB",
+              "Identify|XPHB",
+              "Illusory Script|XPHB",
+              "Purify Food and Drink|XPHB",
+              "Speak with Animals|XPHB",
+              "Tenser's Floating Disk|XPHB",
+              "Unseen Servant|XPHB"
+            ],
+            "excludePrepared": true,
+            "level": 1,
+            "source": "classList"
+          },
+          "options": []
         }
       ],
       "spellcasting": {
@@ -143,12 +116,15 @@
     },
     "2": {
       "features": ["Magical Cunning"],
+      "choices": [
+        { "id": "warlock-invocations", "title": "Eldritch Invocations", "source": "class", "choose": 3, "repeatOnLevelUp": true, "replacementLimit": 1, "optionSetId": "eldritch-invocations", "options": [] }
+      ],
       "spellcasting": {
         "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0]
       }
     },
     "3": {
-      "features": ["Otherworldly Patron"],
+      "features": ["Warlock Subclass"],
       "subclassChoice": true,
       "spellcasting": {
         "slots": [0, 2, 0, 0, 0, 0, 0, 0, 0]
@@ -163,6 +139,9 @@
       }
     },
     "5": {
+      "choices": [
+        { "id": "warlock-invocations", "title": "Eldritch Invocations", "source": "class", "choose": 5, "repeatOnLevelUp": true, "replacementLimit": 1, "optionSetId": "eldritch-invocations", "options": [] }
+      ],
       "spellcasting": {
         "slots": [0, 0, 2, 0, 0, 0, 0, 0, 0]
       }
@@ -173,6 +152,9 @@
       }
     },
     "7": {
+      "choices": [
+        { "id": "warlock-invocations", "title": "Eldritch Invocations", "source": "class", "choose": 6, "repeatOnLevelUp": true, "replacementLimit": 1, "optionSetId": "eldritch-invocations", "options": [] }
+      ],
       "spellcasting": {
         "slots": [0, 0, 0, 2, 0, 0, 0, 0, 0]
       }
@@ -186,6 +168,9 @@
     },
     "9": {
       "features": ["Contact Patron"],
+      "choices": [
+        { "id": "warlock-invocations", "title": "Eldritch Invocations", "source": "class", "choose": 7, "repeatOnLevelUp": true, "replacementLimit": 1, "optionSetId": "eldritch-invocations", "options": [] }
+      ],
       "spellcasting": {
         "slots": [0, 0, 0, 0, 2, 0, 0, 0, 0]
       }
@@ -198,6 +183,17 @@
     },
     "11": {
       "features": ["Mystic Arcanum (Level 6)"],
+      "choices": [
+        {
+          "id": "mystic-arcanum-6",
+          "title": "Mystic Arcanum (Level 6)",
+          "source": "class",
+          "choose": 1,
+          "spellBucket": "perLongRest",
+          "spellSelection": { "spellListId": "warlock", "level": 6, "source": "classList" },
+          "options": []
+        }
+      ],
       "spellcasting": {
         "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0]
       }
@@ -205,12 +201,26 @@
     "12": {
       "features": ["Ability Score Improvement"],
       "asiChoice": true,
+      "choices": [
+        { "id": "warlock-invocations", "title": "Eldritch Invocations", "source": "class", "choose": 8, "repeatOnLevelUp": true, "replacementLimit": 1, "optionSetId": "eldritch-invocations", "options": [] }
+      ],
       "spellcasting": {
         "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0]
       }
     },
     "13": {
       "features": ["Mystic Arcanum (Level 7)"],
+      "choices": [
+        {
+          "id": "mystic-arcanum-7",
+          "title": "Mystic Arcanum (Level 7)",
+          "source": "class",
+          "choose": 1,
+          "spellBucket": "perLongRest",
+          "spellSelection": { "spellListId": "warlock", "level": 7, "source": "classList" },
+          "options": []
+        }
+      ],
       "spellcasting": {
         "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0]
       }
@@ -222,6 +232,18 @@
     },
     "15": {
       "features": ["Mystic Arcanum (Level 8)"],
+      "choices": [
+        { "id": "warlock-invocations", "title": "Eldritch Invocations", "source": "class", "choose": 9, "repeatOnLevelUp": true, "replacementLimit": 1, "optionSetId": "eldritch-invocations", "options": [] },
+        {
+          "id": "mystic-arcanum-8",
+          "title": "Mystic Arcanum (Level 8)",
+          "source": "class",
+          "choose": 1,
+          "spellBucket": "perLongRest",
+          "spellSelection": { "spellListId": "warlock", "level": 8, "source": "classList" },
+          "options": []
+        }
+      ],
       "spellcasting": {
         "slots": [0, 0, 0, 0, 3, 0, 0, 0, 0]
       }
@@ -235,11 +257,25 @@
     },
     "17": {
       "features": ["Mystic Arcanum (Level 9)"],
+      "choices": [
+        {
+          "id": "mystic-arcanum-9",
+          "title": "Mystic Arcanum (Level 9)",
+          "source": "class",
+          "choose": 1,
+          "spellBucket": "perLongRest",
+          "spellSelection": { "spellListId": "warlock", "level": 9, "source": "classList" },
+          "options": []
+        }
+      ],
       "spellcasting": {
         "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0]
       }
     },
     "18": {
+      "choices": [
+        { "id": "warlock-invocations", "title": "Eldritch Invocations", "source": "class", "choose": 10, "repeatOnLevelUp": true, "replacementLimit": 1, "optionSetId": "eldritch-invocations", "options": [] }
+      ],
       "spellcasting": {
         "slots": [0, 0, 0, 0, 4, 0, 0, 0, 0]
       }

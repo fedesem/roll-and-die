@@ -7,7 +7,7 @@
   "savingThrows": ["dex", "cha"],
   "armorProficiencies": ["Light Armor"],
   "weaponProficiencies": ["Simple Weapons"],
-  "toolProficiencies": ["Three Musical Instruments"],
+  "toolProficiencies": [],
   "startingSkillChoices": {
     "choose": 3,
     "options": [
@@ -69,6 +69,16 @@
   "levels": {
     "1": {
       "features": ["Bardic Inspiration", "Spellcasting"],
+      "choices": [
+        {
+          "id": "bard-musical-instruments",
+          "title": "Musical Instrument Proficiencies",
+          "source": "class",
+          "choose": 3,
+          "optionSetId": "musical-instruments",
+          "options": []
+        }
+      ],
       "spellcasting": {
         "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
         "cantripsKnown": 2,
@@ -86,12 +96,13 @@
     },
     "2": {
       "features": ["Expertise", "Jack of All Trades"],
+      "expertiseChoices": 2,
       "spellcasting": {
         "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0]
       }
     },
     "3": {
-      "features": ["Bard College"],
+      "features": ["Bard Subclass"],
       "subclassChoice": true,
       "spellcasting": {
         "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0]
@@ -120,12 +131,12 @@
       ]
     },
     "6": {
-      "features": ["Countercharm"],
       "spellcasting": {
         "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0]
       }
     },
     "7": {
+      "features": ["Countercharm"],
       "spellcasting": {
         "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0]
       }
@@ -138,7 +149,8 @@
       }
     },
     "9": {
-      "features": ["Song of Rest"],
+      "features": ["Expertise"],
+      "expertiseChoices": 2,
       "spellcasting": {
         "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0]
       }
@@ -220,6 +232,7 @@
     },
     "20": {
       "features": ["Words of Creation"],
+      "alwaysPreparedSpells": ["Power Word Heal", "Power Word Kill"],
       "spellcasting": {
         "slots": [4, 3, 3, 3, 3, 2, 2, 1, 1]
       }

@@ -14,6 +14,9 @@ import entity12 from "./war-caster.json" with { type: "json" };
 import entity13 from "./great-weapon-master.json" with { type: "json" };
 import entity14 from "./sharpshooter.json" with { type: "json" };
 import entity15 from "./sentinel.json" with { type: "json" };
+import dungeonDelverPhb from "./dungeon-delver-phb.json" with { type: "json" };
+import linguistPhb from "./linguist-phb.json" with { type: "json" };
+import martialAdeptPhb from "./martial-adept-phb.json" with { type: "json" };
 
 export default [
   entity0,
@@ -31,5 +34,8 @@ export default [
   entity12,
   entity13,
   entity14,
-  entity15
+  entity15,
+  dungeonDelverPhb,
+  linguistPhb,
+  martialAdeptPhb
 ];

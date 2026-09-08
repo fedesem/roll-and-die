@@ -14,6 +14,12 @@
   },
   "equipmentChoices": [],
   "spellListId": "artificer",
+  "spellcastingRules": {
+    "preparedSpellsFormula": { "type": "abilityPlusHalfLevel", "ability": "int", "min": 1 },
+    "changeCadence": "onLongRest",
+    "replacementMode": "all",
+    "preparationSource": "classList"
+  },
   "multiclassing": {
     "prerequisites": { "int": 13 },
     "proficienciesGranted": {

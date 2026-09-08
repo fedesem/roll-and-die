@@ -1,0 +1,13 @@
+{
+  "id": "wizard-conjuration-phb",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "School of Conjuration",
+  "source": "PHB",
+  "levels": {
+    "3": { "features": ["Conjuration Savant", "Minor Conjuration"] },
+    "6": { "features": ["Benign Transposition"] },
+    "10": { "features": ["Focused Conjuration"] },
+    "14": { "features": ["Durable Summons"] }
+  }
+}

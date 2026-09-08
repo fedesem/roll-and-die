@@ -7,7 +7,7 @@
   "levels": {
     "3": {
       "features": ["Form of Dread", "Grave Touched", "Expanded Spell List (Undead)"],
-      "alwaysPreparedSpells": ["Bane", "False Life", "Blindness/Deafness", "Phantasmal Force"],
+      "grants": { "spellGrants": [{ "ref": "Bane|XPHB", "bucket": "available" }, { "ref": "False Life|XPHB", "bucket": "available" }, { "ref": "Blindness/Deafness|XPHB", "bucket": "available" }, { "ref": "Phantasmal Force|XPHB", "bucket": "available" }] },
       "actions": [
         {
           "id": "action-form-of-dread",
@@ -20,16 +20,16 @@
       ]
     },
     "5": {
-      "alwaysPreparedSpells": ["Phantom Steed", "Speak with Dead"]
+      "grants": { "spellGrants": [{ "ref": "Phantom Steed|XPHB", "bucket": "available" }, { "ref": "Speak with Dead|XPHB", "bucket": "available" }] }
     },
     "6": {
       "features": ["Grave Touched (Enhanced)"]
     },
     "7": {
-      "alwaysPreparedSpells": ["Death Ward", "Shadow of Moil"]
+      "grants": { "spellGrants": [{ "ref": "Death Ward|XPHB", "bucket": "available" }, { "ref": "Shadow of Moil|XGE", "bucket": "available" }] }
     },
     "9": {
-      "alwaysPreparedSpells": ["Antilife Shell", "Cloudkill"]
+      "grants": { "spellGrants": [{ "ref": "Antilife Shell|XPHB", "bucket": "available" }, { "ref": "Cloudkill|XPHB", "bucket": "available" }] }
     },
     "10": {
       "features": ["Mortal Husk"]

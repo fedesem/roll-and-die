@@ -654,5 +654,33 @@
   {
     "kind": "subclass",
     "ref": "Wild Magic Sorcery|XPHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "School of Conjuration|PHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "School of Enchantment|PHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "School of Necromancy|PHB"
+  },
+  {
+    "kind": "subclass",
+    "ref": "School of Transmutation|PHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Dungeon Delver|PHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Linguist|PHB"
+  },
+  {
+    "kind": "feat",
+    "ref": "Martial Adept|PHB"
   }
 ]

@@ -58,18 +58,10 @@
           "title": "Metamagic",
           "source": "class",
           "choose": 2,
-          "options": [
-            { "id": "careful-spell", "name": "Careful Spell", "grants": { "features": ["Metamagic: Careful Spell"] } },
-            { "id": "distant-spell", "name": "Distant Spell", "grants": { "features": ["Metamagic: Distant Spell"] } },
-            { "id": "empowered-spell", "name": "Empowered Spell", "grants": { "features": ["Metamagic: Empowered Spell"] } },
-            { "id": "extended-spell", "name": "Extended Spell", "grants": { "features": ["Metamagic: Extended Spell"] } },
-            { "id": "heightened-spell", "name": "Heightened Spell", "grants": { "features": ["Metamagic: Heightened Spell"] } },
-            { "id": "quickened-spell", "name": "Quickened Spell", "grants": { "features": ["Metamagic: Quickened Spell"] } },
-            { "id": "seeking-spell", "name": "Seeking Spell", "grants": { "features": ["Metamagic: Seeking Spell"] } },
-            { "id": "subtle-spell", "name": "Subtle Spell", "grants": { "features": ["Metamagic: Subtle Spell"] } },
-            { "id": "transmuted-spell", "name": "Transmuted Spell", "grants": { "features": ["Metamagic: Transmuted Spell"] } },
-            { "id": "twinned-spell", "name": "Twinned Spell", "grants": { "features": ["Metamagic: Twinned Spell"] } }
-          ]
+          "repeatOnLevelUp": true,
+          "replacementLimit": 1,
+          "optionSetId": "metamagic-options",
+          "options": []
         }
       ],
       "spellcasting": {
@@ -84,7 +76,7 @@
       ]
     },
     "3": {
-      "features": ["Sorcerous Origin"],
+      "features": ["Sorcerer Subclass"],
       "subclassChoice": true,
       "spellcasting": {
         "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0]
@@ -128,6 +120,9 @@
       }
     },
     "10": {
+      "choices": [
+        { "id": "sorcerer-metamagic", "title": "Metamagic", "source": "class", "choose": 4, "repeatOnLevelUp": true, "replacementLimit": 1, "optionSetId": "metamagic-options", "options": [] }
+      ],
       "spellcasting": {
         "slots": [4, 3, 3, 3, 2, 0, 0, 0, 0],
         "cantripsKnown": 6
@@ -168,6 +163,9 @@
       }
     },
     "17": {
+      "choices": [
+        { "id": "sorcerer-metamagic", "title": "Metamagic", "source": "class", "choose": 6, "repeatOnLevelUp": true, "replacementLimit": 1, "optionSetId": "metamagic-options", "options": [] }
+      ],
       "spellcasting": {
         "slots": [4, 3, 3, 3, 2, 1, 1, 1, 1]
       }

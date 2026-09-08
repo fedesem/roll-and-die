@@ -4,10 +4,7 @@
   "source": "XPHB",
   "category": "general",
   "prerequisites": {
-    "abilities": {
-      "str": 13,
-      "dex": 13
-    },
+    "anyAbility": { "abilities": ["str", "dex"], "minimum": 13 },
     "minLevel": 4
   },
   "abilityIncrease": {

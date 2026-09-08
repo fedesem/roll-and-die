@@ -37,10 +37,11 @@ export * from "./validation.js";
 
 const rawClasses = [barbarian, bard, cleric, druid, fighter, monk, paladin, ranger, rogue, sorcerer, warlock, wizard];
 const rawSubclassEntries = Object.entries(SUBCLASS_DATA_BY_CLASS) as Array<[string, unknown[]]>;
-const rawSubclasses = rawSubclassEntries.filter(([classId]) => classId !== "artificer").flatMap(([, subclasses]) => subclasses);
+const rawSubclasses = rawSubclassEntries.flatMap(([, subclasses]) => subclasses);
 
 export const PROGRESSION_CATALOG_DIAGNOSTICS = validateProgressionCatalog({
   classes: rawClasses,
+  compatibilityClasses: [artificer],
   subclasses: rawSubclasses,
   species: speciesData,
   backgrounds: backgroundsData,

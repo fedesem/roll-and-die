@@ -1,0 +1,13 @@
+{
+  "id": "wizard-transmutation-phb",
+  "classId": "wizard-xphb",
+  "className": "Wizard",
+  "name": "School of Transmutation",
+  "source": "PHB",
+  "levels": {
+    "3": { "features": ["Transmutation Savant", "Minor Alchemy"] },
+    "6": { "features": ["Transmuter's Stone"] },
+    "10": { "features": ["Shapechanger"] },
+    "14": { "features": ["Master Transmuter"] }
+  }
+}

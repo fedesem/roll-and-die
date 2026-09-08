@@ -10,7 +10,7 @@
   "toolProficiencies": [],
   "startingSkillChoices": {
     "choose": 2,
-    "options": ["Acrobatics", "Animal Handling", "Athletics", "History", "Insight", "Intimidation", "Perception", "Survival"]
+    "options": ["Acrobatics", "Animal Handling", "Athletics", "History", "Insight", "Intimidation", "Perception", "Persuasion", "Survival"]
   },
   "equipmentChoices": [
     {
@@ -115,7 +115,7 @@
       ]
     },
     "3": {
-      "features": ["Martial Archetype"],
+      "features": ["Fighter Subclass"],
       "subclassChoice": true
     },
     "4": {

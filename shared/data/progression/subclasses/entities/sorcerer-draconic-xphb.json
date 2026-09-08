@@ -6,7 +6,23 @@
   "source": "XPHB",
   "levels": {
     "3": {
-      "features": ["Draconic Resilience", "Dragon Speech"],
+      "features": ["Draconic Resilience", "Draconic Spells", "Dragon Speech"],
+      "alwaysPreparedSpells": ["Alter Self", "Chromatic Orb", "Command", "Dragon's Breath"],
+      "choices": [
+        {
+          "id": "draconic-sorcery-ancestry",
+          "title": "Draconic Ancestry Damage Type",
+          "source": "subclass",
+          "choose": 1,
+          "options": [
+            { "id": "acid", "name": "Acid", "grants": { "features": ["Draconic Ancestry: Acid"] } },
+            { "id": "cold", "name": "Cold", "grants": { "features": ["Draconic Ancestry: Cold"] } },
+            { "id": "fire", "name": "Fire", "grants": { "features": ["Draconic Ancestry: Fire"] } },
+            { "id": "lightning", "name": "Lightning", "grants": { "features": ["Draconic Ancestry: Lightning"] } },
+            { "id": "poison", "name": "Poison", "grants": { "features": ["Draconic Ancestry: Poison"] } }
+          ]
+        }
+      ],
       "grants": {
         "passiveBonuses": [
           {
@@ -16,8 +32,17 @@
         ]
       }
     },
+    "5": {
+      "alwaysPreparedSpells": ["Fear", "Fly"]
+    },
     "6": {
       "features": ["Elemental Affinity"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Arcane Eye", "Charm Monster"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Legend Lore", "Summon Dragon"]
     },
     "14": {
       "features": ["Dragon Wings"]

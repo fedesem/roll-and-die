@@ -7,8 +7,8 @@
   "levels": {
     "3": {
       "features": ["Hexblade's Curse", "Hex Warrior", "Expanded Spell List (Hexblade)"],
-      "alwaysPreparedSpells": ["Shield", "Wrathful Smite", "Blur", "Branding Smite"],
       "grants": {
+        "spellGrants": [{ "ref": "Shield|XPHB", "bucket": "available" }, { "ref": "Wrathful Smite|XPHB", "bucket": "available" }, { "ref": "Blur|XPHB", "bucket": "available" }, { "ref": "Branding Smite|XPHB", "bucket": "available" }],
         "armorProficiencies": ["Medium Armor", "Shields"],
         "weaponProficiencies": ["Martial Weapons"]
       },
@@ -24,16 +24,16 @@
       ]
     },
     "5": {
-      "alwaysPreparedSpells": ["Blink", "Elemental Weapon"]
+      "grants": { "spellGrants": [{ "ref": "Blink|XPHB", "bucket": "available" }, { "ref": "Elemental Weapon|XPHB", "bucket": "available" }] }
     },
     "6": {
       "features": ["Accursed Specter"]
     },
     "7": {
-      "alwaysPreparedSpells": ["Phantasmal Killer", "Staggering Smite"]
+      "grants": { "spellGrants": [{ "ref": "Phantasmal Killer|XPHB", "bucket": "available" }, { "ref": "Staggering Smite|XPHB", "bucket": "available" }] }
     },
     "9": {
-      "alwaysPreparedSpells": ["Banishing Smite", "Cone of Cold"]
+      "grants": { "spellGrants": [{ "ref": "Banishing Smite|XPHB", "bucket": "available" }, { "ref": "Cone of Cold|XPHB", "bucket": "available" }] }
     },
     "10": {
       "features": ["Armor of Hexes"]

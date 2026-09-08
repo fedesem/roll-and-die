@@ -48,6 +48,15 @@ export interface AttackEntry {
   damage: string;
   damageType: string;
   notes: string;
+  /** Present for rules-defined actions; omitted for ordinary/custom attacks. */
+  actionCost?: "action" | "bonus" | "reaction" | "free" | "passive" | "special";
+  resourceCost?: { resourceName: string; count: number };
+  sourceRef?: string;
+  range?: string;
+  duration?: string;
+  activationChoiceGroupId?: string;
+  usesTargetHitDie?: boolean;
+  addProficiencyBonus?: boolean;
 }
 
 export interface ArmorEntry {
@@ -84,6 +93,14 @@ export interface InventoryEntry {
   notes: string;
 }
 
+export interface ActorWeaponMastery {
+  weaponRef: string;
+  weaponName: string;
+  mastery: string;
+  ownerRef: string;
+  ownerInstanceId: string;
+}
+
 export interface CurrencyPouch {
   pp: number;
   gp: number;
@@ -112,6 +129,7 @@ export interface ActorSpellState {
   atWill: string[];
   perShortRest: string[];
   perLongRest: string[];
+  available?: string[];
 }
 
 export interface ActorDeathSaveState {
@@ -131,6 +149,7 @@ export interface ActorBonusEntry {
   targetKey: string;
   value: number;
   statBonus?: AbilityKey;
+  proficiencyBonusMultiplier?: number;
   minimum?: number;
   enabled: boolean;
 }
@@ -170,7 +189,7 @@ export type ProgressionEffect =
       id: string;
       kind: "spell";
       ref: string;
-      bucket: "known" | "prepared" | "spellbook" | "alwaysPrepared" | "atWill" | "perShortRest" | "perLongRest";
+      bucket: "known" | "prepared" | "spellbook" | "alwaysPrepared" | "atWill" | "perShortRest" | "perLongRest" | "available";
     }
   | {
       id: string;
@@ -181,12 +200,35 @@ export type ProgressionEffect =
   | { id: string; kind: "ability"; ability: AbilityKey; amount: number }
   | { id: string; kind: "resource"; value: ResourceEntry }
   | { id: string; kind: "action"; value: AttackEntry }
+  | { id: string; kind: "weaponMastery"; value: ActorWeaponMastery }
   | { id: string; kind: "bonus"; value: ActorBonusEntry }
   | { id: string; kind: "inventory"; ref: string; quantity: number };
 
 export interface ProgressionAwardChoice {
   groupId: string;
   optionIds: string[];
+}
+
+export type ProgressionConfigurationTrigger = "levelUp" | "shortRest" | "longRest" | "shortOrLongRest" | "activation";
+
+/**
+ * A mutable, source-owned rules choice. Unlike an award, a configuration may
+ * replace its own effects without disturbing an identically named grant from
+ * another class, subclass, feat, or configuration.
+ */
+export interface ProgressionConfiguration {
+  id: string;
+  ownerRef: string;
+  ownerInstanceId?: string;
+  groupId: string;
+  trigger: ProgressionConfigurationTrigger;
+  replacementLimit: number | "all";
+  requiredCount?: number;
+  activeOptionIds: string[];
+  activeEffects: ProgressionEffect[];
+  pendingOptionIds?: string[];
+  pendingEffects?: ProgressionEffect[];
+  activatedAt?: string;
 }
 
 /**
@@ -219,7 +261,7 @@ export interface ActorManualOverride {
 
 export interface PlayerNpcBuild {
   ruleset: "dnd-2024";
-  schemaVersion?: 2;
+  schemaVersion?: 3;
   mode: PlayerNpcBuildMode;
   speciesId?: string;
   speciesName?: string;
@@ -230,6 +272,7 @@ export interface PlayerNpcBuild {
   classes: PlayerNpcBuildClassEntry[];
   selections: PlayerNpcBuildSelection[];
   awards?: ProgressionAward[];
+  configurations?: ProgressionConfiguration[];
   overrides?: ActorManualOverride[];
 }
 
@@ -268,6 +311,7 @@ export interface ActorSheet {
   savingThrowProficiencies: AbilityKey[];
   armorProficiencies: string[];
   weaponProficiencies: string[];
+  weaponMasteries?: ActorWeaponMastery[];
   toolProficiencies: string[];
   languageProficiencies: string[];
   spellSlots: SpellSlotTrack[];
@@ -435,6 +479,10 @@ export interface CompendiumChoiceOption {
     features?: string[];
     spells?: string[];
     alwaysPreparedSpells?: string[];
+    spellGrants?: Array<{
+      ref: string;
+      bucket: "known" | "prepared" | "spellbook" | "alwaysPrepared" | "atWill" | "perShortRest" | "perLongRest" | "available";
+    }>;
     attacks?: AttackEntry[];
     skills?: string[];
     expertise?: string[];
@@ -442,7 +490,10 @@ export interface CompendiumChoiceOption {
     languages?: string[];
     savingThrows?: AbilityKey[];
     abilities?: Partial<Record<AbilityKey, number>>;
+    abilityMaximums?: Partial<Record<AbilityKey, number>>;
     masteries?: string[];
+    weaponMasteriesCount?: number;
+    visionRange?: number;
     resources?: ResourceEntry[];
     armorProficiencies?: string[];
     weaponProficiencies?: string[];
@@ -453,6 +504,7 @@ export interface CompendiumChoiceOption {
       statBonus?: AbilityKey;
       bonus?: number;
       minBonus?: number;
+      proficiencyBonusMultiplier?: number;
     }>;
   };
 }
@@ -465,7 +517,19 @@ export interface CompendiumChoiceGroup {
   level?: number;
   parentOption?: { groupId: string; optionId: string };
   selectionKind?: "options" | "spells";
-  spellBucket?: "known" | "alwaysPrepared" | "alwaysPreparedPerLongRest";
+  spellBucket?:
+    | "known"
+    | "prepared"
+    | "spellbook"
+    | "alwaysPrepared"
+    | "atWill"
+    | "perShortRest"
+    | "perLongRest"
+    | "available"
+    | "alwaysPreparedAtWill"
+    | "alwaysPreparedPerLongRest";
+  configurationTrigger?: "levelUp" | "longRest" | "shortOrLongRest";
+  replacementLimit?: number | "all";
   options: CompendiumChoiceOption[];
 }
 

@@ -4,6 +4,13 @@
   "className": "Fighter",
   "name": "Eldritch Knight",
   "source": "XPHB",
+  "spellListId": "wizard",
+  "spellcastingRules": {
+    "preparedSpellsProgression": [0, 0, 3, 4, 4, 4, 5, 6, 6, 7, 8, 8, 9, 10, 10, 11, 11, 11, 12, 13],
+    "changeCadence": "onLevelUp",
+    "replacementMode": "one",
+    "preparationSource": "classList"
+  },
   "levels": {
     "3": {
       "features": ["Spellcasting (Eldritch Knight)", "Weapon Bond"],
@@ -41,11 +48,21 @@
         "spellsKnown": 9
       }
     },
+    "16": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 0, 0, 0, 0, 0, 0]
+      }
+    },
     "15": {
       "features": ["Arcane Charge"]
     },
     "18": {
       "features": ["Improved War Magic"]
+    },
+    "19": {
+      "spellcasting": {
+        "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0]
+      }
     }
   }
 }

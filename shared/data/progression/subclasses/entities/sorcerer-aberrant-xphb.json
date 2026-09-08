@@ -6,7 +6,7 @@
   "source": "XPHB",
   "levels": {
     "3": {
-      "features": ["Aberrant Spells", "Psionic Sorcery", "Telepathic Speech"],
+      "features": ["Aberrant Spells", "Telepathic Speech"],
       "alwaysPreparedSpells": ["Arms of Hadar", "Dissonant Whispers", "Mind Spike", "Calm Emotions", "Detect Thoughts"],
       "actions": [
         {
@@ -23,13 +23,13 @@
       "alwaysPreparedSpells": ["Hunger of Hadar", "Sending"]
     },
     "6": {
-      "features": ["Psychic Defenses", "Psionic Strike"]
+      "features": ["Psionic Sorcery", "Psychic Defenses"]
     },
     "7": {
       "alwaysPreparedSpells": ["Evard's Black Tentacles", "Summon Aberration"]
     },
     "9": {
-      "alwaysPreparedSpells": ["Rary's Telepathic Bond", "Synaptic Static"]
+      "alwaysPreparedSpells": ["Rary's Telepathic Bond", "Telekinesis"]
     },
     "14": {
       "features": ["Revelation in Flesh"]

@@ -109,6 +109,10 @@ import entity107 from "./entities/wizard-graviturgy-egtw.json" with { type: "jso
 import entity108 from "./entities/wizard-illusionist-xphb.json" with { type: "json" };
 import entity109 from "./entities/wizard-scribes-tce.json" with { type: "json" };
 import entity110 from "./entities/wizard-war-magic-xge.json" with { type: "json" };
+import wizardConjurationPhb from "./entities/wizard-conjuration-phb.json" with { type: "json" };
+import wizardEnchantmentPhb from "./entities/wizard-enchantment-phb.json" with { type: "json" };
+import wizardNecromancyPhb from "./entities/wizard-necromancy-phb.json" with { type: "json" };
+import wizardTransmutationPhb from "./entities/wizard-transmutation-phb.json" with { type: "json" };
 
 export const SUBCLASS_DATA_BY_CLASS = {
   artificer: [entity0, entity1, entity2, entity3],
@@ -138,5 +142,19 @@ export const SUBCLASS_DATA_BY_CLASS = {
   rogue: [entity78, entity79, entity80, entity81, entity82, entity83, entity84, entity85, entity86],
   sorcerer: [entity87, entity88, entity89, entity90, entity91, entity92, entity93],
   warlock: [entity94, entity95, entity96, entity97, entity98, entity99, entity100, entity101],
-  wizard: [entity102, entity103, entity104, entity105, entity106, entity107, entity108, entity109, entity110]
+  wizard: [
+    entity102,
+    entity103,
+    entity104,
+    entity105,
+    entity106,
+    entity107,
+    entity108,
+    entity109,
+    entity110,
+    wizardConjurationPhb,
+    wizardEnchantmentPhb,
+    wizardNecromancyPhb,
+    wizardTransmutationPhb
+  ]
 };

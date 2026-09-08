@@ -18,7 +18,7 @@
     "passiveBonuses": [
       {
         "target": "initiative",
-        "bonus": 2
+        "proficiencyBonusMultiplier": 1
       }
     ]
   }

@@ -7,7 +7,7 @@
   "levels": {
     "3": {
       "features": ["Tentacle of the Deeps", "Gift of the Sea", "Expanded Spell List (Fathomless)"],
-      "alwaysPreparedSpells": ["Create or Destroy Water", "Thunderwave", "Gust of Wind", "Silence"],
+      "grants": { "spellGrants": [{ "ref": "Create or Destroy Water|XPHB", "bucket": "available" }, { "ref": "Thunderwave|XPHB", "bucket": "available" }, { "ref": "Gust of Wind|XPHB", "bucket": "available" }, { "ref": "Silence|XPHB", "bucket": "available" }] },
       "actions": [
         {
           "id": "action-tentacle-of-the-deeps",
@@ -25,16 +25,16 @@
       ]
     },
     "5": {
-      "alwaysPreparedSpells": ["Lightning Bolt", "Sleet Storm"]
+      "grants": { "spellGrants": [{ "ref": "Lightning Bolt|XPHB", "bucket": "available" }, { "ref": "Sleet Storm|XPHB", "bucket": "available" }] }
     },
     "6": {
       "features": ["Oceanic Soul", "Guardian Coil"]
     },
     "7": {
-      "alwaysPreparedSpells": ["Control Water", "Evard's Black Tentacles"]
+      "grants": { "spellGrants": [{ "ref": "Control Water|XPHB", "bucket": "available" }, { "ref": "Evard's Black Tentacles|XPHB", "bucket": "available" }] }
     },
     "9": {
-      "alwaysPreparedSpells": ["Bigby's Hand", "Cone of Cold"]
+      "grants": { "spellGrants": [{ "ref": "Bigby's Hand|XPHB", "bucket": "available" }, { "ref": "Cone of Cold|XPHB", "bucket": "available" }] }
     },
     "10": {
       "features": ["Grasping Tentacles"]

@@ -55,6 +55,7 @@
   "levels": {
     "1": {
       "features": ["Favored Enemy", "Spellcasting", "Weapon Mastery"],
+      "alwaysPreparedSpells": ["Hunter's Mark"],
       "weaponMasteriesCount": 2,
       "spellcasting": {
         "slots": [2, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -63,7 +64,16 @@
     },
     "2": {
       "features": ["Deft Explorer", "Fighting Style"],
+      "expertiseChoices": 1,
       "choices": [
+        {
+          "id": "ranger-deft-explorer-languages",
+          "title": "Deft Explorer Languages",
+          "source": "class",
+          "choose": 2,
+          "optionSetId": "standard-languages",
+          "options": []
+        },
         {
           "id": "ranger-fighting-style",
           "title": "Fighting Style Feat",
@@ -121,7 +131,7 @@
       }
     },
     "6": {
-      "features": ["Roving", "Favored Enemy Enhancement"],
+      "features": ["Roving"],
       "spellcasting": {
         "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0]
       }
@@ -140,6 +150,7 @@
     },
     "9": {
       "features": ["Expertise"],
+      "expertiseChoices": 2,
       "spellcasting": {
         "slots": [4, 3, 2, 0, 0, 0, 0, 0, 0]
       }
@@ -163,12 +174,13 @@
       }
     },
     "13": {
-      "features": ["Nature's Veil"],
+      "features": ["Relentless Hunter"],
       "spellcasting": {
         "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0]
       }
     },
     "14": {
+      "features": ["Nature's Veil"],
       "spellcasting": {
         "slots": [4, 3, 3, 1, 0, 0, 0, 0, 0]
       }
@@ -186,6 +198,7 @@
       }
     },
     "17": {
+      "features": ["Precise Hunter"],
       "spellcasting": {
         "slots": [4, 3, 3, 3, 1, 0, 0, 0, 0]
       }

@@ -7,7 +7,7 @@
   "levels": {
     "3": {
       "features": ["Circle Spells (Moon)", "Combat Wild Shape"],
-      "alwaysPreparedSpells": ["Moonbeam", "Starry Wisp"],
+      "alwaysPreparedSpells": ["Cure Wounds", "Moonbeam", "Starry Wisp"],
       "actions": [
         {
           "id": "action-combat-wild-shape",
@@ -24,8 +24,17 @@
       ]
     },
     "6": {
-      "features": ["Improved Circle Spells", "Moonlight Step"],
-      "alwaysPreparedSpells": ["Cure Wounds", "Moonlight Step"],
+      "features": ["Improved Circle Forms"],
+      "alwaysPreparedSpells": ["Conjure Animals"]
+    },
+    "7": {
+      "alwaysPreparedSpells": ["Fount of Moonlight"]
+    },
+    "9": {
+      "alwaysPreparedSpells": ["Mass Cure Wounds"]
+    },
+    "10": {
+      "features": ["Moonlight Step"],
       "actions": [
         {
           "id": "action-moonlight-step",
@@ -37,11 +46,8 @@
         }
       ]
     },
-    "10": {
-      "features": ["Lunar Form"]
-    },
     "14": {
-      "features": ["Shared Moonlight"]
+      "features": ["Lunar Form"]
     }
   }
 }

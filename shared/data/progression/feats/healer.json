@@ -14,7 +14,8 @@
       "range": "Touch",
       "roll": {
         "kind": "heal",
-        "diceFormula": "1d4 + 4 + level"
+        "usesTargetHitDie": true,
+        "addProficiencyBonus": true
       }
     }
   ]

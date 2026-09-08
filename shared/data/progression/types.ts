@@ -25,10 +25,13 @@ export interface StructuredActionDefinition {
     savingThrowAbility?: AbilityKey;
     dcAbility?: AbilityKey;
     upcastDiceIncrement?: string;
+    usesTargetHitDie?: boolean;
+    addProficiencyBonus?: boolean;
   };
   range?: string;
   duration?: string;
   concentration?: boolean;
+  activationChoiceGroupId?: string;
 }
 
 export interface ProgressionChoiceOption {
@@ -47,6 +50,16 @@ export interface ProgressionChoiceOption {
       level?: number | "cantrip";
       dealsDamage?: boolean;
     };
+    all?: ProgressionChoiceOption["requires"][];
+    any?: ProgressionChoiceOption["requires"][];
+    not?: ProgressionChoiceOption["requires"];
+    selectedOption?: { groupId: string; optionId: string };
+  };
+  repeatable?: boolean;
+  weapon?: {
+    mastery: string;
+    category: "simple" | "martial";
+    properties?: string[];
   };
   grants?: {
     features?: string[];
@@ -58,6 +71,7 @@ export interface ProgressionChoiceOption {
     savingThrows?: AbilityKey[];
     languages?: string[];
     abilities?: Partial<Record<AbilityKey, number>>;
+    abilityMaximums?: Partial<Record<AbilityKey, number>>;
     weaponMasteriesCount?: number;
     visionRange?: number;
     cantripsCount?: number;
@@ -66,6 +80,10 @@ export interface ProgressionChoiceOption {
     spellOptions?: string[];
     spellList?: string;
     alwaysPreparedSpells?: string[];
+    spellGrants?: Array<{
+      ref: string;
+      bucket: "known" | "prepared" | "spellbook" | "alwaysPrepared" | "atWill" | "perShortRest" | "perLongRest" | "available";
+    }>;
     actions?: StructuredActionDefinition[];
     passiveBonuses?: Array<{
       target: "skill" | "savingThrow" | "armorClass" | "speed" | "initiative";
@@ -74,11 +92,15 @@ export interface ProgressionChoiceOption {
       statBonus?: AbilityKey;
       bonus?: number;
       minBonus?: number;
+      proficiencyBonusMultiplier?: number;
     }>;
+    resources?: ProgressionResourceDef[];
+    hitPointBonusPerLevel?: number;
   };
+  grantsByLevel?: Record<number, ProgressionChoiceOption["grants"]>;
 }
 
-export type ChoiceCadence = "onLevelUp" | "onLongRest" | "onShortRest" | "permanent";
+export type ChoiceCadence = "onLevelUp" | "onLongRest" | "onShortRest" | "onActivation" | "permanent";
 
 export interface ProgressionChoiceGroupDef {
   id: string;
@@ -87,8 +109,32 @@ export interface ProgressionChoiceGroupDef {
   source: "class" | "subclass" | "species" | "background" | "feat";
   choose: number;
   cadence?: ChoiceCadence;
+  /** Re-present the latest definition of this configuration at each later class level. */
+  repeatOnLevelUp?: boolean;
+  replacementLimit?: number | "all";
+  parentOption?: { groupId: string; optionId: string };
+  spellBucket?:
+    | "known"
+    | "prepared"
+    | "spellbook"
+    | "alwaysPrepared"
+    | "atWill"
+    | "perShortRest"
+    | "perLongRest"
+    | "available"
+    | "alwaysPreparedAtWill"
+    | "alwaysPreparedPerLongRest";
+  spellSelection?: {
+    spellListId?: string;
+    spellListIds?: string[];
+    spellRefs?: string[];
+    excludePrepared?: boolean;
+    level: number | "cantrip" | "available";
+    source: "classList" | "spellbook";
+  };
   optionSetId?: string;
   optionSetIds?: string[];
+  optionGrantMode?: "feature";
   options: ProgressionChoiceOption[];
 }
 
@@ -100,7 +146,7 @@ export interface ProgressionChoiceDomainDef {
 export interface ProgressionResourceDef {
   name: string;
   maxFormula: {
-    type: "fixed" | "level" | "statModifier" | "levelMultiplier";
+    type: "fixed" | "level" | "statModifier" | "levelMultiplier" | "proficiencyBonus";
     value?: number;
     stat?: AbilityKey;
     min?: number;
@@ -130,6 +176,7 @@ export interface ProgressionEquipmentChoiceGroup {
 export interface ProgressionSpellcastingDef {
   slots?: number[];
   cantripsKnown?: number;
+  spellsKnown?: number;
   spellbookAdditions?: number;
   ritualCasting?: boolean;
   spellcastingAbility?: AbilityKey;
@@ -137,7 +184,8 @@ export interface ProgressionSpellcastingDef {
 
 export interface ClassSpellcastingRules {
   /** Fixed 2024 Prepared Spells column, indexed by class level minus one. */
-  preparedSpellsProgression: number[];
+  preparedSpellsProgression?: number[];
+  preparedSpellsFormula?: { type: "abilityPlusHalfLevel"; ability: AbilityKey; min: number };
   preparationSource: "classList" | "spellbook";
   changeCadence: Extract<SpellChangeCadence, "onLongRest" | "onLevelUp">;
   replacementMode: "all" | "one";
@@ -161,6 +209,8 @@ export interface SubclassProgressionDef {
   id: string;
   name: string;
   source: string;
+  spellListId?: string;
+  spellcastingRules?: ClassSpellcastingRules;
   levels: Record<number, LevelProgressionConfig>;
 }
 
@@ -232,9 +282,11 @@ export interface FeatProgressionDef {
   /** Full-text display entry. Multiple mechanical variants may share it. */
   compendiumRef?: string;
   category: "origin" | "general" | "fightingStyle" | "epicBoon";
+  repeatable?: boolean;
   prerequisites?: {
     minLevel?: number;
     abilities?: Partial<Record<AbilityKey, number>>;
+    anyAbility?: { abilities: AbilityKey[]; minimum: number };
     armorProficiencies?: string[];
     weaponProficiencies?: string[];
     spellcasting?: boolean;

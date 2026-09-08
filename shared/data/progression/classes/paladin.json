@@ -64,6 +64,7 @@
     },
     "2": {
       "features": ["Fighting Style", "Paladin's Smite"],
+      "alwaysPreparedSpells": ["Divine Smite"],
       "choices": [
         {
           "id": "paladin-fighting-style",
@@ -98,7 +99,7 @@
       }
     },
     "3": {
-      "features": ["Channel Divinity", "Sacred Oath"],
+      "features": ["Channel Divinity", "Paladin Subclass"],
       "subclassChoice": true,
       "spellcasting": {
         "slots": [3, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -122,6 +123,7 @@
     },
     "5": {
       "features": ["Extra Attack", "Faithful Steed"],
+      "alwaysPreparedSpells": ["Find Steed"],
       "spellcasting": {
         "slots": [4, 2, 0, 0, 0, 0, 0, 0, 0]
       }

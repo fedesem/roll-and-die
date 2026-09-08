@@ -3,5 +3,6 @@
   "name": "Tough",
   "source": "XPHB",
   "category": "origin",
-  "features": ["Tough Hit Point Bonus (+2 HP per level)"]
+  "features": ["Tough Hit Point Bonus (+2 HP per level)"],
+  "grants": { "hitPointBonusPerLevel": 2 }
 }

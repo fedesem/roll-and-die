@@ -3,6 +3,7 @@
   "name": "Skilled",
   "source": "XPHB",
   "category": "origin",
+  "repeatable": true,
   "features": ["Three Proficiencies of Choice"],
   "choices": [
     {

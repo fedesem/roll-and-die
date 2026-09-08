@@ -22,10 +22,13 @@
       ],
       "choices": [
         {
-          "id": "battle-master-maneuvers-lvl3",
-          "title": "Maneuvers Selection (Choose 3)",
+          "id": "battle-master-maneuvers",
+          "title": "Maneuvers",
           "source": "subclass",
           "choose": 3,
+          "repeatOnLevelUp": true,
+          "replacementLimit": 1,
+          "optionGrantMode": "feature",
           "options": [
             {
               "id": "commanders-strike",
@@ -113,6 +116,19 @@
     },
     "7": {
       "features": ["Know Your Enemy"],
+      "choices": [
+        {
+          "id": "battle-master-maneuvers",
+          "title": "Maneuvers",
+          "source": "subclass",
+          "choose": 5,
+          "repeatOnLevelUp": true,
+          "replacementLimit": 1,
+          "optionSetId": "battle-master-maneuvers",
+          "optionGrantMode": "feature",
+          "options": []
+        }
+      ],
       "resources": [
         {
           "name": "Superiority Dice",
@@ -129,6 +145,19 @@
     },
     "10": {
       "features": ["Improved Combat Superiority (d10)"],
+      "choices": [
+        {
+          "id": "battle-master-maneuvers",
+          "title": "Maneuvers",
+          "source": "subclass",
+          "choose": 7,
+          "repeatOnLevelUp": true,
+          "replacementLimit": 1,
+          "optionSetId": "battle-master-maneuvers",
+          "optionGrantMode": "feature",
+          "options": []
+        }
+      ],
       "resources": [
         {
           "name": "Superiority Dice",
@@ -145,6 +174,19 @@
     },
     "15": {
       "features": ["Relentless"],
+      "choices": [
+        {
+          "id": "battle-master-maneuvers",
+          "title": "Maneuvers",
+          "source": "subclass",
+          "choose": 9,
+          "repeatOnLevelUp": true,
+          "replacementLimit": 1,
+          "optionSetId": "battle-master-maneuvers",
+          "optionGrantMode": "feature",
+          "options": []
+        }
+      ],
       "resources": [
         {
           "name": "Superiority Dice",

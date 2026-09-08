@@ -13,7 +13,7 @@
           "title": "Rage of the Wilds",
           "source": "subclass",
           "choose": 1,
-          "cadence": "onLongRest",
+          "cadence": "onActivation",
           "options": [
             {
               "id": "bear",
@@ -86,7 +86,7 @@
           "title": "Power of the Wilds",
           "source": "subclass",
           "choose": 1,
-          "cadence": "onLongRest",
+          "cadence": "onActivation",
           "options": [
             {
               "id": "falcon",

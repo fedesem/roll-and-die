@@ -9,7 +9,24 @@
       "features": ["Bonus Proficiencies (Lore)", "Cutting Words"]
     },
     "6": {
-      "features": ["Magical Discoveries"]
+      "features": ["Magical Discoveries"],
+      "choices": [
+        {
+          "id": "lore-magical-discoveries",
+          "title": "Magical Discoveries",
+          "source": "subclass",
+          "choose": 2,
+          "repeatOnLevelUp": true,
+          "replacementLimit": 1,
+          "spellBucket": "alwaysPrepared",
+          "spellSelection": {
+            "spellListIds": ["cleric", "druid", "wizard"],
+            "level": "available",
+            "source": "classList"
+          },
+          "options": []
+        }
+      ]
     },
     "14": {
       "features": ["Peerless Skill"]

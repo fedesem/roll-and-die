@@ -6,7 +6,7 @@
   "primaryAbilities": ["int"],
   "savingThrows": ["int", "wis"],
   "armorProficiencies": [],
-  "weaponProficiencies": ["Simple Weapons (Daggers, Darts, Slings, Quarterstaffs, Light Crossbows)"],
+  "weaponProficiencies": ["Simple Weapons"],
   "toolProficiencies": [],
   "startingSkillChoices": { "choose": 2, "options": ["Arcana", "History", "Insight", "Investigation", "Medicine", "Nature", "Religion"] },
   "equipmentChoices": [
@@ -164,6 +164,30 @@
     },
     "18": {
       "features": ["Spell Mastery"],
+      "choices": [
+        {
+          "id": "wizard-spell-mastery-1",
+          "title": "Spell Mastery (Level 1 Spell)",
+          "source": "class",
+          "choose": 1,
+          "cadence": "onLongRest",
+          "replacementLimit": "all",
+          "spellBucket": "alwaysPreparedAtWill",
+          "spellSelection": { "spellListId": "wizard", "level": 1, "source": "spellbook" },
+          "options": []
+        },
+        {
+          "id": "wizard-spell-mastery-2",
+          "title": "Spell Mastery (Level 2 Spell)",
+          "source": "class",
+          "choose": 1,
+          "cadence": "onLongRest",
+          "replacementLimit": "all",
+          "spellBucket": "alwaysPreparedAtWill",
+          "spellSelection": { "spellListId": "wizard", "level": 2, "source": "spellbook" },
+          "options": []
+        }
+      ],
       "spellcasting": {
         "slots": [4, 3, 3, 3, 3, 1, 1, 1, 1],
         "spellbookAdditions": 2
@@ -179,6 +203,19 @@
     },
     "20": {
       "features": ["Signature Spells"],
+      "choices": [
+        {
+          "id": "wizard-signature-spells",
+          "title": "Signature Spells",
+          "source": "class",
+          "choose": 2,
+          "cadence": "onLongRest",
+          "replacementLimit": "all",
+          "spellBucket": "alwaysPreparedPerLongRest",
+          "spellSelection": { "spellListId": "wizard", "level": 3, "source": "spellbook" },
+          "options": []
+        }
+      ],
       "spellcasting": {
         "slots": [4, 3, 3, 3, 3, 2, 2, 1, 1],
         "spellbookAdditions": 2
