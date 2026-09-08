@@ -226,10 +226,12 @@ export function getFilteredSpellEntries(spellEntries: Array<SpellEntry | Omit<Sp
   return [...spellEntries]
     .filter((spell) => {
       if (classFilters.length > 0) {
+        const spellClasses = spell.classes ?? [];
+        const spellClassReferences = spell.classReferences ?? [];
         const spellClassNames = new Set(
           [
-            ...spell.classes,
-            ...spell.classReferences.flatMap((reference) => [
+            ...spellClasses,
+            ...spellClassReferences.flatMap((reference) => [
               reference.name,
               reference.className,
               `${reference.name} (${reference.className})`

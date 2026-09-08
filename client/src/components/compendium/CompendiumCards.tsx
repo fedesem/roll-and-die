@@ -550,11 +550,11 @@ export function ReferencePreviewCard({
     <PreviewFrame eyebrow={eyebrow} title={entry.name} source={entry.source} sourceTitle={sourceTitle} subtitle={entry.category}>
       <div className="admin-preview-stack">
         <p className="admin-preview-body">
-          <RulesText text={entry.entries || entry.description} {...lookupProps} />
+          <RulesText text={entry.entries || entry.description || ""} {...lookupProps} />
         </p>
-        {entry.tags.length > 0 ? (
+        {(entry.tags || []).length > 0 ? (
           <p className="admin-preview-footnote">
-            <strong>{title} tags:</strong> {entry.tags.join(", ")}
+            <strong>{title} tags:</strong> {(entry.tags || []).join(", ")}
           </p>
         ) : null}
       </div>

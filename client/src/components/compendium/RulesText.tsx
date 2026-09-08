@@ -22,7 +22,7 @@ import {
 import type { RulesLookupData } from "./types";
 
 export function RulesText({
-  text,
+  text = "",
   spellEntries = [],
   featEntries = [],
   classEntries = [],
@@ -36,10 +36,10 @@ export function RulesText({
   raceEntries = [],
   backgroundEntries = [],
   monsterEntries = []
-}: { text: string } & RulesLookupData) {
+}: { text?: string } & RulesLookupData) {
   return (
     <RulesTextInner
-      text={text}
+      text={text || ""}
       spellEntries={spellEntries}
       featEntries={featEntries}
       classEntries={classEntries}
@@ -59,7 +59,7 @@ export function RulesText({
 }
 
 function RulesTextInner({
-  text,
+  text = "",
   spellEntries = [],
   featEntries = [],
   classEntries = [],
@@ -74,22 +74,24 @@ function RulesTextInner({
   backgroundEntries = [],
   monsterEntries = [],
   disableHover
-}: { text: string; disableHover: boolean } & RulesLookupData) {
-  const normalized = text.replace(/\n+/g, "\n");
+}: { text?: string; disableHover: boolean } & RulesLookupData) {
+  const normalized = (text || "").replace(/\n+/g, "\n");
   const parts = normalized.split(/(\{@[^}]+})/g).filter(Boolean);
-  const spellLookup = new Map(spellEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-  const featLookup = new Map(featEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-  const classLookup = new Map(classEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-  const variantRuleLookup = new Map(variantRuleEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-  const conditionLookup = new Map(conditionEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-  const actionLookup = new Map(actionEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-  const itemLookup = new Map(itemEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-  const optionalFeatureLookup = new Map(optionalFeatureEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-  const languageLookup = new Map(languageEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-  const skillLookup = new Map(skillEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-  const raceLookup = new Map(raceEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-  const backgroundLookup = new Map(backgroundEntries.map((entry) => [entry.name.toLowerCase(), entry]));
-  const monsterLookup = new Map(monsterEntries.map((entry) => [entry.name.toLowerCase(), entry]));
+  const spellLookup = new Map(spellEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry]));
+  const featLookup = new Map(featEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry]));
+  const classLookup = new Map(classEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry]));
+  const variantRuleLookup = new Map(variantRuleEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry]));
+  const conditionLookup = new Map(conditionEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry]));
+  const actionLookup = new Map(actionEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry]));
+  const itemLookup = new Map(itemEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry]));
+  const optionalFeatureLookup = new Map(
+    optionalFeatureEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry])
+  );
+  const languageLookup = new Map(languageEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry]));
+  const skillLookup = new Map(skillEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry]));
+  const raceLookup = new Map(raceEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry]));
+  const backgroundLookup = new Map(backgroundEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry]));
+  const monsterLookup = new Map(monsterEntries.filter((entry) => entry?.name).map((entry) => [entry.name.toLowerCase(), entry]));
 
   const subclassLookup = new Map<string, { subclass: ClassSubclassEntry; parentClass: ClassEntry | Omit<ClassEntry, "id"> }>();
   const classFeatureLookup = new Map<
@@ -106,14 +108,17 @@ function RulesTextInner({
   >();
 
   classEntries.forEach((classEntry) => {
-    classEntry.features.forEach((feature) => {
+    if (!classEntry?.name) return;
+    (classEntry.features || []).forEach((feature) => {
+      if (!feature?.name) return;
       classFeatureLookup.set(`${classEntry.name.toLowerCase()}:${feature.name.toLowerCase()}`, { feature, parentClass: classEntry });
       if (!classFeatureLookup.has(feature.name.toLowerCase())) {
         classFeatureLookup.set(feature.name.toLowerCase(), { feature, parentClass: classEntry });
       }
     });
 
-    classEntry.subclasses.forEach((subclass) => {
+    (classEntry.subclasses || []).forEach((subclass) => {
+      if (!subclass?.name) return;
       subclassLookup.set(subclass.name.toLowerCase(), { subclass, parentClass: classEntry });
       subclassLookup.set(`${classEntry.name.toLowerCase()}:${subclass.name.toLowerCase()}`, { subclass, parentClass: classEntry });
       if (subclass.shortName) {
@@ -121,7 +126,8 @@ function RulesTextInner({
         subclassLookup.set(`${classEntry.name.toLowerCase()}:${subclass.shortName.toLowerCase()}`, { subclass, parentClass: classEntry });
       }
 
-      subclass.features.forEach((feature) => {
+      (subclass.features || []).forEach((feature) => {
+        if (!feature?.name) return;
         subclassFeatureLookup.set(`${subclass.name.toLowerCase()}:${feature.name.toLowerCase()}`, {
           feature,
           subclass,
@@ -773,8 +779,8 @@ function RulesTextInner({
   );
 }
 
-function TextWithLineBreaks({ text }: { text: string }) {
-  const lines = text.split("\n");
+function TextWithLineBreaks({ text }: { text?: string }) {
+  const lines = (text || "").split("\n");
 
   return (
     <>
